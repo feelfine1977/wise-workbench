@@ -407,16 +407,21 @@ curl -s "$API/projects/$P/runs/$R/backlog?slicing=case%20Company%2Bcase%20Spend%
   | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["params"]["window_end"], d["params"]["case_noun"]); [print(r["rank"], r["stability"], r["p_top"], r["kind"], "|", r["points_below"], "|", r["comparison"], "|", [c["text"] for c in r["caveats"]]) for r in d["rows"]]'
 ```
 
-Observed (0.40 s):
+Observed (0.40 s; comparison sentences in the cycle 2 release form — one form per kind of number, the expectation first, the difference in brackets, never a zero difference):
 
 ```
 2019-01-17T15:44:00 purchase order items
-1 stable 1.0 widespread | 0.9 points below the overall score of 84.4 (1 %) | Paid within terms: 83 days here against 55 elsewhere (+25 days). | ['14 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged', '17 % of purchase order items started within the lag horizon of the window end (2019-01-17): the lag could not yet be met']
-2 stable 1.0 systematic | 5.6 points below the overall score of 84.4 (7 %) | 14 Received in few deliveries per purchase order item here against 1 elsewhere. | ['13 % … still open …', '73 % of purchase order items carry copied postings (…)', '73 % … carry duplicate events (…)', '8 % … started within the lag horizon …']
-3 stable 1.0 widespread | 1.0 points below the overall score of 84.4 (1 %) | 98 % of purchase order items Mostly automatic here against 92 % elsewhere. | […]
-4 stable 1.0 systematic | 1.8 points below … | Mostly automatic: 0.8 here against 0.8 elsewhere (+0). | […]
-5 stable 1.0 systematic | 9.0 points below the overall score of 84.4 (11 %) | 3 Approved once per purchase order item here against 0 elsewhere. | ['44 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged', '31 % … started within the lag horizon …']
+1 stable 1.0 widespread | 0.9 points below the overall score of 84.4 (1 %) | Paid within terms: 83 days here against 55 elsewhere (+25 days). | ['14 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged', '17 % … started within the lag horizon of the window end (2019-01-17) …']
+2 stable 1.0 systematic | 5.6 points below the overall score of 84.4 (7 %) | Received in few deliveries: 14 Record Goods Receipt or Record Service Entry Sheet events per purchase order item here against 1 elsewhere (+13). | ['13 % … still open …', '73 % of purchase order items carry copied postings (…)', …]
+3 stable 1.0 widespread | 1.0 points below the overall score of 84.4 (1 %) | Mostly automatic: missed in 98 % of purchase order items here against 92 % elsewhere (+6.2 points). | […]
+4 stable 1.0 systematic | 1.8 points below … | Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points). | […]
+5 stable 1.0 systematic | 9.0 points below the overall score of 84.4 (11 %) | Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3). | ['44 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged', …]
 ```
+
+The `reading` string of every row carries the confidence word of its
+`stability` (`confidence in rank: high`) and the kind the analytics decided;
+`comparison_kind` names the form (`lag`, `count`, `share`, `metric`, `rate`,
+or `none` for *No material difference on the top expectation (…)*).
 
 Every row also carries `kind_reading`, `kind_source` (`analytics` for the
 package's rule, `library` for the hotspot alias when no analytics exist),

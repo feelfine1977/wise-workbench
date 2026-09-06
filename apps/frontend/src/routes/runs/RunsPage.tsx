@@ -7,7 +7,6 @@ import { flowTypeOf, flowTypesQuery, scopeOf, useCreateScopedRun, type RunCreate
 import { useWorkbench } from "@/app/context";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
-import { NextStep } from "@/components/guide/NextStep";
 import { EmptyState, ErrorBlock, QueryState } from "@/components/states";
 import { SliceDesigner } from "./SliceDesigner";
 import { Badge } from "@/components/ui/badge";
@@ -150,7 +149,7 @@ function NewRunDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
             </ul>
           </fieldset>
           <Field label="groupings" htmlFor="run-slicings" className="sm:col-span-2" hint="Combine up to three attributes per grouping; numeric attributes are banded. The id is the attributes joined by +.">
-            <SliceDesigner attributes={attributes} value={(form.slicings ?? []) as SlicingSpecC2[]} onChange={(slicings) => setForm({ ...form, slicings })} />
+            <SliceDesigner attributes={attributes} value={(form.slicings ?? []) as SlicingSpecC2[]} onChange={(slicings) => setForm({ ...form, slicings })} preview={parent?.status === "done" && parent.caseTableId === form.caseTableId ? { projectId: ctx.projectId, runId: parent.id, minCases: form.minCases ?? 1 } : undefined} />
           </Field>
           <Field label="note" htmlFor="run-note" className="sm:col-span-2" hint="Period label and the reason for γ; shown in the ribbon as the period.">
             <Input id="run-note" value={form.note ?? ""} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="2018-H2, γ = 20 as in the baseline" />
@@ -180,7 +179,6 @@ export default function RunsPage() {
   const ctx = useWorkbench();
   const runs = useQuery(runsQuery(ctx.projectId));
   const [open, setOpen] = useState(false);
-  const doneRun = ctx.runs.find((r) => r.status === "done");
 
   return (
     <div className="flex flex-col gap-5">
@@ -200,11 +198,6 @@ export default function RunsPage() {
           New run
         </Button>
       </header>
-      {doneRun ? (
-        <NextStep label="Open the ranked list" because="the latest run is scored; the signals list is where the analysis starts" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: doneRun.id }} search={{ slicing: doneRun.slicings?.[0]?.id ?? undefined, view: doneRun.views?.[0] }} />
-      ) : (
-        <NextStep label="Start a run" because="scoring the case table against the norm produces the ranked list" onClick={() => setOpen(true)} />
-      )}
       {open && <NewRunDialog open={open} onOpenChange={setOpen} />}
       <QueryState query={runs}>
         {(list) =>

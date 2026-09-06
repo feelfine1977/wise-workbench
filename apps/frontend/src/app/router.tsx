@@ -3,7 +3,7 @@ import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRout
 import { projectsQuery } from "@/lib/queries";
 import { AppShell } from "./shell/AppShell";
 import { NotFound } from "./NotFound";
-import { validateBacklogSearch, validateDatasetSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { parseSearch, stringifySearch, validateBacklogSearch, validateDatasetSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
 import { LoadingBlock } from "@/components/states";
 
 export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -116,6 +116,8 @@ export function createAppRouter(queryClient: QueryClient, history?: Parameters<t
     defaultPendingMinMs: 200,
     defaultPendingComponent: () => <LoadingBlock rows={6} className="p-4" />,
     scrollRestoration: true,
+    parseSearch,
+    stringifySearch,
     history,
   });
 }

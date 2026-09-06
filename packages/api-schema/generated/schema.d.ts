@@ -1032,11 +1032,14 @@ export interface components {
             p_top?: number | null;
             /**
              * Comparison
-             * @description one real-unit sentence from the top driver's contrast (top groups only)
+             * @description one real-unit sentence from the top driver's contrast (top groups only): '<expectation>: <here> here against <elsewhere> elsewhere (<difference>)', or 'No material difference on the top expectation (<expectation>)' when the numbers round to the same value
              */
             comparison?: string | null;
-            /** Comparison Kind */
-            comparison_kind?: ("lag" | "count" | "share" | "metric" | "rate") | null;
+            /**
+             * Comparison Kind
+             * @description the form of the sentence: a duration, a count per case, a share, another case attribute, the share of cases missing the expectation, or none when there is no material difference
+             */
+            comparison_kind?: ("lag" | "count" | "share" | "metric" | "rate" | "none") | null;
             /** Caveats */
             caveats?: components["schemas"]["Caveat"][];
             /** N Caveats */

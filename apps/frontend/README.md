@@ -41,11 +41,14 @@ against the live application on the verified workspace on 2026-09-06.
    missed vs met on the reason screen, gain on the possible-gain list; warning
    tones only for caveats. Colour never carries meaning alone (glyph + word).
 10. **Consistent components**: `Card`, `NextStep`, `HowToRead`, `BackControl`,
-    `CaveatChips`, `FreezeButton` are the only building blocks for these
-    elements; every screen has a next best action and a how-to-read paragraph
-    with a `?` beside the title to reopen it.
+    `CaveatChips`, `FilterChipsRow`, `FreezeButton` are the only building blocks for these
+    elements. The next step exists on the dashboard and after a saved decision only; every
+    screen has one primary button; the how-to-read paragraph is collapsed and opens from
+    the `?` beside the title.
 11. **A back control on every sub-screen** returning to the exact place the
-    reader came from; the browser's back button always works.
+    reader came from, cutting the navigation stack back to it (`popTo`), with the state
+    it restores in its label when the origin is the ranked list; `Alt+←` presses it,
+    `Alt+1` … `Alt+6` press the steps; the browser's back button always works.
 12. **Axe clean** (no serious or critical violation) on the dashboard, the data
     caveats, the mapping, the signals list, the table, "Why?", the flow-type
     comparison, the notebook and the norm screen (`src/routes/a11y.test.tsx`).
@@ -111,15 +114,17 @@ src/
     search.ts              typed search-param validators (backlog with filter and drill-in, slice with filter and activity, norm, dataset tabs, run tabs, notebook)
     context.ts             useWorkbench(): project · dataset · mapping · norm · run · view · slice key · period
     providers.tsx          QueryClient, tooltips, RouterProvider
-    shell/                 AppShell (records every location for the back controls), Stepper (the analysis path Data → Norm → Run → Signals → Why → What to do),
-                           ContextRibbon (words switch, flow-type switcher, notebook), JourneyRail (+ journey.ts states), JobTray, CommandPalette, HelpDrawer
+    shell/                 AppShell (the three bands: ribbon, stepper, page; records every location for the back controls; Alt+← and Alt+1…6),
+                           Stepper (the analysis path Data → Norm → Run → Signals → Why → What to do with states from the data, "you are here", a second line for
+                           sub-screens and the twelve stages behind "All stages"; journey.ts computes their states), ContextRibbon (switchers per step, the rest in ⋯,
+                           caveats chip, notebook count, camera), JobTray, CommandPalette, HelpDrawer
   routes/
     ProjectsPage, DashboardPage (one sentence, next step, Your process, caveats in one line, findings)
     data/                  DataPage (dropzone, presets, Your process), DatasetPage (tabs: data caveats with ReadinessDecisions, Your process, column mapping)
     flow/YourProcess.tsx   the log split by flow type: cards with counts and a small map each, "analyse this flow", compare everything together / analyse per flow type (forks one run per type)
     norms/                 NormsPage, NormPage (catalogue, calibration lens, JSON, version notes; back control, freeze)
     runs/                  RunsPage (+ run form with SliceDesigner and the flow-type scope), RunPage (monitor, manifest, flow, CompareFlowTypes side by side)
-    backlog/               BacklogPage ("Where is it worst?": one sentence, Refine drawer with chips, next step, signals list first, table and scatter as tabs),
+    backlog/               BacklogPage ("Where is it worst?": one sentence, the page-wide caveats once, Refine drawer with chips, signals list first, table and scatter as tabs),
                            SignalsList, SignalCard (three numbers, the reason line, caveat chips, priority bar, "more", drill into this group),
                            Refine (drawer + chips + cases in/out), Filters (questions), BacklogTable, BacklogCharts, ComparisonStrip
     slice/                 SlicePage ("Why?": one sentence, Flow tab first with the map's actions, expectations in plain words with the real-unit comparison,

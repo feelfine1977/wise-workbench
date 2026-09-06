@@ -37,7 +37,7 @@ describe("accessibility of the main screens (axe)", () => {
     await expectNoSeriousA11yViolations(document.body);
   });
   it("reason screen (Why?) on Packaging", async () => {
-    renderApp(`${RUN}/slices/${encodeURIComponent('["companyID_0000", "Packaging"]')}?slicing=${CSA}&view=Automation&tab=drivers`);
+    renderApp(`${RUN}/slices/${encodeURIComponent('["companyID_0000", "Packaging"]')}?slicing=${CSA}&view=Automation&tab=why`);
     await screen.findByRole("heading", { name: "Decision" }, T);
     await screen.findByTestId("top-drivers", {}, T);
     await expectNoSeriousA11yViolations(document.body);
@@ -49,7 +49,7 @@ describe("accessibility of the main screens (axe)", () => {
   });
   it("notebook", async () => {
     renderApp("/p/p2p2018/notebook");
-    await screen.findByRole("heading", { level: 1, name: "Analysis notebook" }, T);
+    await screen.findByRole("heading", { level: 1, name: /^Notebook/ }, T);
     await expectNoSeriousA11yViolations(document.body);
   });
   it("norm version", async () => {

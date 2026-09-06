@@ -63,7 +63,7 @@
 "case_noun": "purchase order items",
 "points_below": "2.1 points below the overall score of 81.9 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Packaging: 109,199 cases, 2.1 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: not computed for this run; priority 2,289.3 (raw 2,289.7; small groups discounted with γ = 20), rank 1 of 30 in the Finance perspective.",
+"reading": "companyID_0000 × Packaging: 109,199 cases, 2.1 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: high; priority 2,289.3 (raw 2,289.7; small groups discounted with γ = 20), rank 1 of 30 in the Finance perspective.",
 "reading_plain": "companyID_0000 × Packaging: 109,199 purchase order items, 2.1 points below the overall score of 81.9 (3 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 83 days here against 55 elsewhere (+25 days).",
 "stable_gap_lo": 0.020593,
 "stable_gap_hi": 0.021334
@@ -104,7 +104,7 @@
 "stable_PI_lo": 499.420995,
 "stable_PI_hi": 529.951097,
 "p_top": 1.0,
-"comparison": "67 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 67 % of purchase order items here against 22 % elsewhere (+45 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -143,8 +143,8 @@
 "case_noun": "purchase order items",
 "points_below": "9.8 points below the overall score of 81.9 (12 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Logistics: 5,242 cases, 9.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 67 % of these cases); confidence in rank: not computed for this run; priority 514.1 (raw 516.1; small groups discounted with γ = 20), rank 2 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 9.8 points below the overall score of 81.9 (12 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 67 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0000 × Logistics: 5,242 cases, 9.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 67 % of these cases); confidence in rank: high; priority 514.1 (raw 516.1; small groups discounted with γ = 20), rank 2 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 9.8 points below the overall score of 81.9 (12 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 67 % of purchase order items here against 22 % elsewhere (+45 points).",
 "stable_gap_lo": 0.095793,
 "stable_gap_hi": 0.100007
 },
@@ -184,7 +184,7 @@
 "stable_PI_lo": 124.767285,
 "stable_PI_hi": 145.405811,
 "p_top": 1.0,
-"comparison": "50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -209,8 +209,8 @@
 "case_noun": "purchase order items",
 "points_below": "4.2 points below the overall score of 81.9 (5 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × (missing): 3,257 cases, 4.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 135.2 (raw 136.1; small groups discounted with γ = 20), rank 3 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 4.2 points below the overall score of 81.9 (5 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0000 × (missing): 3,257 cases, 4.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: high; priority 135.2 (raw 136.1; small groups discounted with γ = 20), rank 3 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 4.2 points below the overall score of 81.9 (5 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "stable_gap_lo": 0.038383,
 "stable_gap_hi": 0.044526
 },
@@ -250,7 +250,7 @@
 "stable_PI_lo": 103.179953,
 "stable_PI_hi": 154.660764,
 "p_top": 1.0,
-"comparison": "12 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"comparison": "Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+5.9 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -282,8 +282,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.6 points below the overall score of 81.9 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Trading & End Products: 22,292 cases, 0.6 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 24 % of these cases); confidence in rank: not computed for this run; priority 129.2 (raw 129.3; small groups discounted with γ = 20), rank 4 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Trading & End Products: 22,292 purchase order items, 0.6 points below the overall score of 81.9 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. 12 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"reading": "companyID_0000 × Trading & End Products: 22,292 cases, 0.6 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 24 % of these cases); confidence in rank: high; priority 129.2 (raw 129.3; small groups discounted with γ = 20), rank 4 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Trading & End Products: 22,292 purchase order items, 0.6 points below the overall score of 81.9 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+5.9 points).",
 "stable_gap_lo": 0.004601,
 "stable_gap_hi": 0.006914
 },
@@ -362,7 +362,7 @@
 "case_noun": "purchase order items",
 "points_below": "2.9 points below the overall score of 81.9 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Marketing: 1,789 cases, 2.9 % below expectation on average (2.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 95 % of these cases); confidence in rank: not computed for this run; priority 50.7 (raw 51.3; small groups discounted with γ = 20), rank 5 of 30 in the Finance perspective.",
+"reading": "companyID_0000 × Marketing: 1,789 cases, 2.9 % below expectation on average (2.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 95 % of these cases); confidence in rank: high; priority 50.7 (raw 51.3; small groups discounted with γ = 20), rank 5 of 30 in the Finance perspective.",
 "reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 2.9 points below the overall score of 81.9 (3 %) (high confidence); systematic: one kind of problem explains most of it: waiting too long between steps; most often missed: On time. Paid within terms: 69 days here against 64 elsewhere (+1.9 days).",
 "stable_gap_lo": 0.024594,
 "stable_gap_hi": 0.031197
@@ -428,7 +428,7 @@
 "case_noun": "purchase order items",
 "points_below": "0.3 points below the overall score of 81.9 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Additives: 18,318 cases, 0.3 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 96 % of these cases); confidence in rank: not computed for this run; priority 50.0 (small groups discounted with γ = 20), rank 6 of 30 in the Finance perspective.",
+"reading": "companyID_0000 × Additives: 18,318 cases, 0.3 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 96 % of these cases); confidence in rank: high; priority 50.0 (small groups discounted with γ = 20), rank 6 of 30 in the Finance perspective.",
 "reading_plain": "companyID_0000 × Additives: 18,318 purchase order items, 0.3 points below the overall score of 81.9 (0 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 71 days here against 63 elsewhere (+8.6 days).",
 "stable_gap_lo": 0.001354,
 "stable_gap_hi": 0.004089
@@ -469,7 +469,7 @@
 "stable_PI_lo": 15.5948,
 "stable_PI_hi": 25.591803,
 "p_top": 1.0,
-"comparison": "62 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 62 % of purchase order items here against 22 % elsewhere (+39 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -494,8 +494,8 @@
 "case_noun": "purchase order items",
 "points_below": "3.6 points below the overall score of 81.9 (4 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Real Estate: 583 cases, 3.6 % below expectation on average (3.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 62 % of these cases); confidence in rank: not computed for this run; priority 20.5 (raw 21.2; small groups discounted with γ = 20), rank 7 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 3.6 points below the overall score of 81.9 (4 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 62 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0003 × Real Estate: 583 cases, 3.6 % below expectation on average (3.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 62 % of these cases); confidence in rank: high; priority 20.5 (raw 21.2; small groups discounted with γ = 20), rank 7 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 3.6 points below the overall score of 81.9 (4 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 62 % of purchase order items here against 22 % elsewhere (+39 points).",
 "stable_gap_lo": 0.027128,
 "stable_gap_hi": 0.043388
 },
@@ -535,7 +535,7 @@
 "stable_PI_lo": 5.681767,
 "stable_PI_hi": 11.065976,
 "p_top": 0.975,
-"comparison": "75 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"comparison": "Invoice paid: missed in 75 % of purchase order items here against 23 % elsewhere (+53 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -560,8 +560,8 @@
 "case_noun": "purchase order items",
 "points_below": "7.9 points below the overall score of 81.9 (10 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Enterprise Services: 122 cases, 7.9 % below expectation on average (6.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 75 % of these cases); confidence in rank: not computed for this run; priority 8.3 (raw 9.6; small groups discounted with γ = 20), rank 8 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 7.9 points below the overall score of 81.9 (10 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 75 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × Enterprise Services: 122 cases, 7.9 % below expectation on average (6.8 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 75 % of these cases); confidence in rank: high; priority 8.3 (raw 9.6; small groups discounted with γ = 20), rank 8 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 7.9 points below the overall score of 81.9 (10 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. Invoice paid: missed in 75 % of purchase order items here against 23 % elsewhere (+53 points).",
 "stable_gap_lo": 0.049581,
 "stable_gap_hi": 0.086695
 },
@@ -601,7 +601,7 @@
 "stable_PI_lo": 4.429437,
 "stable_PI_hi": 8.123806,
 "p_top": 0.87,
-"comparison": "86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -633,8 +633,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.6 points below the overall score of 81.9 (7 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Workforce Services: 127 cases, 5.6 % below expectation on average (4.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: not computed for this run; priority 6.1 (raw 7.1; small groups discounted with γ = 20), rank 9 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 5.6 points below the overall score of 81.9 (7 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"reading": "companyID_0000 × Workforce Services: 127 cases, 5.6 % below expectation on average (4.8 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: high; priority 6.1 (raw 7.1; small groups discounted with γ = 20), rank 9 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 5.6 points below the overall score of 81.9 (7 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "stable_gap_lo": 0.035784,
 "stable_gap_hi": 0.060794
 },
@@ -674,7 +674,7 @@
 "stable_PI_lo": 4.14072,
 "stable_PI_hi": 7.855389,
 "p_top": 0.785,
-"comparison": "90 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"comparison": "Invoice paid: missed in 90 % of purchase order items here against 23 % elsewhere (+68 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -699,8 +699,8 @@
 "case_noun": "purchase order items",
 "points_below": "2.7 points below the overall score of 81.9 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Others: 241 cases, 2.7 % below expectation on average (2.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 90 % of these cases); confidence in rank: not computed for this run; priority 6.0 (raw 6.5; small groups discounted with γ = 20), rank 10 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × Others: 241 purchase order items, 2.7 points below the overall score of 81.9 (3 %) (medium confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 90 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × Others: 241 cases, 2.7 % below expectation on average (2.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 90 % of these cases); confidence in rank: medium; priority 6.0 (raw 6.5; small groups discounted with γ = 20), rank 10 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × Others: 241 purchase order items, 2.7 points below the overall score of 81.9 (3 %) (medium confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 90 % of purchase order items here against 23 % elsewhere (+68 points).",
 "stable_gap_lo": 0.017645,
 "stable_gap_hi": 0.031607
 },
@@ -740,7 +740,7 @@
 "stable_PI_lo": 1.425419,
 "stable_PI_hi": 3.481363,
 "p_top": 0.0,
-"comparison": "91 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"comparison": "Invoice paid: missed in 91 % of purchase order items here against 23 % elsewhere (+68 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -765,8 +765,8 @@
 "case_noun": "purchase order items",
 "points_below": "11.8 points below the overall score of 81.9 (14 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × (missing): 32 cases, 12 % below expectation on average (7.3 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 91 % of these cases); confidence in rank: not computed for this run; priority 2.3 (raw 3.8; small groups discounted with γ = 20), rank 12 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 11.8 points below the overall score of 81.9 (14 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 91 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × (missing): 32 cases, 12 % below expectation on average (7.3 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 91 % of these cases); confidence in rank: high; priority 2.3 (raw 3.8; small groups discounted with γ = 20), rank 12 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 11.8 points below the overall score of 81.9 (14 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. Invoice paid: missed in 91 % of purchase order items here against 23 % elsewhere (+68 points).",
 "stable_gap_lo": 0.052823,
 "stable_gap_hi": 0.093193
 },
@@ -806,7 +806,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 11.904312,
 "p_top": 0.325,
-"comparison": "10 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"comparison": "Goods or service received: missed in 10 % of purchase order items here against 6.4 % elsewhere (+3.8 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -831,8 +831,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.1 points below the overall score of 81.9 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 21 % of these cases); confidence in rank: not computed for this run; priority 3.5 (raw 3.6; small groups discounted with γ = 20), rank 11 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.1 points below the overall score of 81.9 (0 %) (medium confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. 10 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.1 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 21 % of these cases); confidence in rank: medium; priority 3.5 (raw 3.6; small groups discounted with γ = 20), rank 11 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.1 points below the overall score of 81.9 (0 %) (medium confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. Goods or service received: missed in 10 % of purchase order items here against 6.4 % elsewhere (+3.8 points).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.004633
 },
@@ -872,8 +872,8 @@
 "stable_PI_lo": 1.304535,
 "stable_PI_hi": 2.99117,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -897,8 +897,8 @@
 "case_noun": "purchase order items",
 "points_below": "9.4 points below the overall score of 81.9 (12 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 9.4 % below expectation on average (6.1 % with small groups discounted); most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 2.2 (raw 3.4; small groups discounted with γ = 20), rank 13 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 9.4 points below the overall score of 81.9 (12 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 9.4 % below expectation on average (6.1 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: high; priority 2.2 (raw 3.4; small groups discounted with γ = 20), rank 13 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 9.4 points below the overall score of 81.9 (12 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). nan",
 "stable_gap_lo": 0.046455,
 "stable_gap_hi": 0.072131
 },
@@ -938,8 +938,8 @@
 "stable_PI_lo": 0.68939,
 "stable_PI_hi": 2.750445,
 "p_top": 0.0,
-"comparison": "66 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -963,8 +963,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.6 points below the overall score of 81.9 (7 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 5.6 % below expectation on average (3.8 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 66 % of these cases); confidence in rank: not computed for this run; priority 1.7 (raw 2.4; small groups discounted with γ = 20), rank 15 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 5.6 points below the overall score of 81.9 (7 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 66 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 5.6 % below expectation on average (3.8 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 66 % of these cases); confidence in rank: high; priority 1.7 (raw 2.4; small groups discounted with γ = 20), rank 15 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 5.6 points below the overall score of 81.9 (7 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.018631,
 "stable_gap_hi": 0.055985
 },
@@ -1004,8 +1004,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 5.01881,
 "p_top": 0.045,
-"comparison": "20 % of purchase order items Price unchanged after ordering here against 4 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -1036,8 +1036,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.5 points below the overall score of 81.9 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.5 % below expectation on average (0.4 % with small groups discounted); most-missed expectation area: Value and commercial integrity (Price changes after ordering indicate commercial inconsistency risk, missed in 20 % of these cases); confidence in rank: not computed for this run; priority 1.8 (raw 1.9; small groups discounted with γ = 20), rank 14 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.5 points below the overall score of 81.9 (1 %) (high confidence); systematic: one kind of problem explains most of it: price or quantity changed after ordering; most often missed: Paying what was agreed. 20 % of purchase order items Price unchanged after ordering here against 4 % elsewhere.",
+"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.5 % below expectation on average (0.4 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Value and commercial integrity (Price changes after ordering indicate commercial inconsistency risk, missed in 20 % of these cases); confidence in rank: high; priority 1.8 (raw 1.9; small groups discounted with γ = 20), rank 14 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.5 points below the overall score of 81.9 (1 %) (high confidence); systematic: one kind of problem explains most of it: price or quantity changed after ordering; most often missed: Paying what was agreed. nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.011978
 },
@@ -1077,8 +1077,8 @@
 "stable_PI_lo": 0.030166,
 "stable_PI_hi": 0.514882,
 "p_top": 0.0,
-"comparison": "83 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -1095,8 +1095,8 @@
 "case_noun": "purchase order items",
 "points_below": "14.7 points below the overall score of 81.9 (18 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Sales: 6 cases, 15 % below expectation on average (3.4 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not computed for this run; priority 0.2 (raw 0.9; small groups discounted with γ = 20), rank 16 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 14.7 points below the overall score of 81.9 (18 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 83 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × Sales: 6 cases, 15 % below expectation on average (3.4 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not enough cases to be sure; priority 0.2 (raw 0.9; small groups discounted with γ = 20), rank 16 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 14.7 points below the overall score of 81.9 (18 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.015076,
 "stable_gap_hi": 0.051388
 },
@@ -1136,8 +1136,8 @@
 "stable_PI_lo": 0.010129,
 "stable_PI_hi": 0.229942,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -1146,8 +1146,8 @@
 "case_noun": "purchase order items",
 "points_below": "27.1 points below the overall score of 81.9 (33 %)",
 "kind_source": "analytics",
-"reading": "companyID_0002 × Marketing: 2 cases, 27 % below expectation on average (2.5 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.5; small groups discounted with γ = 20), rank 17 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 27.1 points below the overall score of 81.9 (33 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 100 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0002 × Marketing: 2 cases, 27 % below expectation on average (2.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.5; small groups discounted with γ = 20), rank 17 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 27.1 points below the overall score of 81.9 (33 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.010129,
 "stable_gap_hi": 0.049254
 },
@@ -1187,8 +1187,8 @@
 "stable_PI_lo": 0.000363,
 "stable_PI_hi": 0.107677,
 "p_top": 0.0,
-"comparison": "50 % of purchase order items Goods or service received here against 6 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -1197,8 +1197,8 @@
 "case_noun": "purchase order items",
 "points_below": "11.0 points below the overall score of 81.9 (13 %)",
 "kind_source": "analytics",
-"reading": "companyID_0001 × Sales: 2 cases, 11 % below expectation on average (1.0 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.2; small groups discounted with γ = 20), rank 18 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 11.0 points below the overall score of 81.9 (13 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 50 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"reading": "companyID_0001 × Sales: 2 cases, 11 % below expectation on average (1.0 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.2; small groups discounted with γ = 20), rank 18 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 11.0 points below the overall score of 81.9 (13 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.000363,
 "stable_gap_hi": 0.026919
 },
@@ -1238,8 +1238,8 @@
 "stable_PI_lo": 0.000245,
 "stable_PI_hi": 0.002211,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items No price changes on high-value items here against 4 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Paying what was agreed",
@@ -1248,8 +1248,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.5 points below the overall score of 81.9 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Real Estate: 1 cases, 0.5 % below expectation on average (0.03 % with small groups discounted); most-missed expectation area: Value and commercial integrity (Price changes after ordering indicate commercial inconsistency risk, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 19 of 30 in the Finance perspective.",
-"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 0.5 points below the overall score of 81.9 (1 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: price or quantity changed after ordering; most often missed: Paying what was agreed. 100 % of purchase order items No price changes on high-value items here against 4 % elsewhere.",
+"reading": "companyID_0000 × Real Estate: 1 cases, 0.5 % below expectation on average (0.03 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Value and commercial integrity (Price changes after ordering indicate commercial inconsistency risk, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 19 of 30 in the Finance perspective.",
+"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 0.5 points below the overall score of 81.9 (1 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: price or quantity changed after ordering; most often missed: Paying what was agreed. nan",
 "stable_gap_lo": 0.000245,
 "stable_gap_hi": 0.000737
 },
@@ -2090,7 +2090,7 @@
 "case_noun": "purchase order items",
 "points_below": "2.3 points below the overall score of 81.7 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Packaging: 109,199 cases, 2.3 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: not computed for this run; priority 2,460.6 (raw 2,461.1; small groups discounted with γ = 20), rank 1 of 30 in the Logistics perspective.",
+"reading": "companyID_0000 × Packaging: 109,199 cases, 2.3 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: high; priority 2,460.6 (raw 2,461.1; small groups discounted with γ = 20), rank 1 of 30 in the Logistics perspective.",
 "reading_plain": "companyID_0000 × Packaging: 109,199 purchase order items, 2.3 points below the overall score of 81.7 (3 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 83 days here against 55 elsewhere (+25 days).",
 "stable_gap_lo": 0.022206,
 "stable_gap_hi": 0.02292
@@ -2131,7 +2131,7 @@
 "stable_PI_lo": 256.551602,
 "stable_PI_hi": 283.869503,
 "p_top": 1.0,
-"comparison": "14 Received in few deliveries per purchase order item here against 1 elsewhere.",
+"comparison": "Received in few deliveries: 14 Record Goods Receipt or Record Service Entry Sheet events per purchase order item here against 1 elsewhere (+13).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -2170,8 +2170,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.2 points below the overall score of 81.7 (6 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Logistics: 5,242 cases, 5.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 77 % of these cases); confidence in rank: not computed for this run; priority 270.0 (raw 271.0; small groups discounted with γ = 20), rank 2 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 5.2 points below the overall score of 81.7 (6 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 14 Received in few deliveries per purchase order item here against 1 elsewhere.",
+"reading": "companyID_0000 × Logistics: 5,242 cases, 5.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 77 % of these cases); confidence in rank: high; priority 270.0 (raw 271.0; small groups discounted with γ = 20), rank 2 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 5.2 points below the overall score of 81.7 (6 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. Received in few deliveries: 14 Record Goods Receipt or Record Service Entry Sheet events per purchase order item here against 1 elsewhere (+13).",
 "stable_gap_lo": 0.049299,
 "stable_gap_hi": 0.053975
 },
@@ -2236,7 +2236,7 @@
 "case_noun": "purchase order items",
 "points_below": "0.7 points below the overall score of 81.7 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Additives: 18,318 cases, 0.7 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 96 % of these cases); confidence in rank: not computed for this run; priority 135.9 (raw 136.0; small groups discounted with γ = 20), rank 3 of 30 in the Logistics perspective.",
+"reading": "companyID_0000 × Additives: 18,318 cases, 0.7 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 96 % of these cases); confidence in rank: high; priority 135.9 (raw 136.0; small groups discounted with γ = 20), rank 3 of 30 in the Logistics perspective.",
 "reading_plain": "companyID_0000 × Additives: 18,318 purchase order items, 0.7 points below the overall score of 81.7 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 71 days here against 63 elsewhere (+8.6 days).",
 "stable_gap_lo": 0.006259,
 "stable_gap_hi": 0.008653
@@ -2316,7 +2316,7 @@
 "case_noun": "purchase order items",
 "points_below": "3.8 points below the overall score of 81.7 (5 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Marketing: 1,789 cases, 3.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: not computed for this run; priority 67.2 (raw 68.0; small groups discounted with γ = 20), rank 4 of 30 in the Logistics perspective.",
+"reading": "companyID_0000 × Marketing: 1,789 cases, 3.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: high; priority 67.2 (raw 68.0; small groups discounted with γ = 20), rank 4 of 30 in the Logistics perspective.",
 "reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 3.8 points below the overall score of 81.7 (5 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Paid within terms: 69 days here against 64 elsewhere (+1.9 days).",
 "stable_gap_lo": 0.033484,
 "stable_gap_hi": 0.041761
@@ -2357,7 +2357,7 @@
 "stable_PI_lo": 23.156719,
 "stable_PI_hi": 47.521079,
 "p_top": 1.0,
-"comparison": "98 % of purchase order items Invoice after the goods (GR-based flow) here against 50 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 98 % of purchase order items here against 50 % elsewhere (+48 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -2382,8 +2382,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.7 points below the overall score of 81.7 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 0.7 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 98 % of these cases); confidence in rank: not computed for this run; priority 34.5 (raw 34.7; small groups discounted with γ = 20), rank 5 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 0.7 points below the overall score of 81.7 (1 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). 98 % of purchase order items Invoice after the goods (GR-based flow) here against 50 % elsewhere.",
+"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 0.7 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 98 % of these cases); confidence in rank: high; priority 34.5 (raw 34.7; small groups discounted with γ = 20), rank 5 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 0.7 points below the overall score of 81.7 (1 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 98 % of purchase order items here against 50 % elsewhere (+48 points).",
 "stable_gap_lo": 0.004694,
 "stable_gap_hi": 0.009405
 },
@@ -2423,7 +2423,7 @@
 "stable_PI_lo": 11.521995,
 "stable_PI_hi": 18.028551,
 "p_top": 1.0,
-"comparison": "86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -2455,8 +2455,8 @@
 "case_noun": "purchase order items",
 "points_below": "13.0 points below the overall score of 81.7 (16 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Workforce Services: 127 cases, 13 % below expectation on average (11 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: not computed for this run; priority 14.3 (raw 16.6; small groups discounted with γ = 20), rank 6 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 13.0 points below the overall score of 81.7 (16 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"reading": "companyID_0000 × Workforce Services: 127 cases, 13 % below expectation on average (11 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: high; priority 14.3 (raw 16.6; small groups discounted with γ = 20), rank 6 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 13.0 points below the overall score of 81.7 (16 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "stable_gap_lo": 0.095809,
 "stable_gap_hi": 0.133404
 },
@@ -2496,7 +2496,7 @@
 "stable_PI_lo": 2.145443,
 "stable_PI_hi": 5.146235,
 "p_top": 0.995,
-"comparison": "100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 100 % of purchase order items here against 52 % elsewhere (+48 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -2521,8 +2521,8 @@
 "case_noun": "purchase order items",
 "points_below": "15.4 points below the overall score of 81.7 (19 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 15 % below expectation on average (9.9 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 3.6 (raw 5.6; small groups discounted with γ = 20), rank 8 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 15.4 points below the overall score of 81.7 (19 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 15 % below expectation on average (9.9 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: high; priority 3.6 (raw 5.6; small groups discounted with γ = 20), rank 8 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 15.4 points below the overall score of 81.7 (19 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 100 % of purchase order items here against 52 % elsewhere (+48 points).",
 "stable_gap_lo": 0.072622,
 "stable_gap_hi": 0.123448
 },
@@ -2562,7 +2562,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 10.890919,
 "p_top": 0.84,
-"comparison": "50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -2587,8 +2587,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.1 points below the overall score of 81.7 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × (missing): 3,257 cases, 0.1 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 4.8 (small groups discounted with γ = 20), rank 7 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 0.1 points below the overall score of 81.7 (0 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0000 × (missing): 3,257 cases, 0.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: high; priority 4.8 (small groups discounted with γ = 20), rank 7 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 0.1 points below the overall score of 81.7 (0 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.003403
 },
@@ -2628,7 +2628,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 4.257165,
 "p_top": 0.78,
-"comparison": "Paid within terms: 62 days here against 64 elsewhere (-6.3 days); the slowest tenth differ by -23 days.",
+"comparison": "Paid within terms: 62 days here against 64 elsewhere (-6.3 days).",
 "comparison_kind": "lag",
 "caveats": [
 {
@@ -2660,8 +2660,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.5 points below the overall score of 81.7 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.5 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 1.9 (raw 2.0; small groups discounted with γ = 20), rank 9 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.5 points below the overall score of 81.7 (1 %) (medium confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Paid within terms: 62 days here against 64 elsewhere (-6.3 days); the slowest tenth differ by -23 days.",
+"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.5 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: medium; priority 1.9 (raw 2.0; small groups discounted with γ = 20), rank 9 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.5 points below the overall score of 81.7 (1 %) (medium confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Paid within terms: 62 days here against 64 elsewhere (-6.3 days).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.010241
 },
@@ -2701,7 +2701,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 3.736083,
 "p_top": 0.67,
-"comparison": "3 Approved once per purchase order item here against 0 elsewhere.",
+"comparison": "Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -2726,8 +2726,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.2 points below the overall score of 81.7 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Real Estate: 583 cases, 0.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 1.2 (raw 1.3; small groups discounted with γ = 20), rank 10 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 0.2 points below the overall score of 81.7 (0 %) (medium confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 3 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Real Estate: 583 cases, 0.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: medium; priority 1.2 (raw 1.3; small groups discounted with γ = 20), rank 10 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 0.2 points below the overall score of 81.7 (0 %) (medium confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.006598
 },
@@ -2767,7 +2767,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 1.033846,
 "p_top": 0.415,
-"comparison": "3 Approved once per purchase order item here against 0 elsewhere.",
+"comparison": "Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -2792,8 +2792,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.6 points below the overall score of 81.7 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 1.6 % below expectation on average (1.1 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.5 (raw 0.7; small groups discounted with γ = 20), rank 11 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 1.6 points below the overall score of 81.7 (2 %) (medium confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 3 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 1.6 % below expectation on average (1.1 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: medium; priority 0.5 (raw 0.7; small groups discounted with γ = 20), rank 11 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 1.6 points below the overall score of 81.7 (2 %) (medium confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.023233
 },
@@ -2833,7 +2833,7 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 0.588489,
 "p_top": 0.115,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
+"comparison": "Approved once: 1 Change Approval for Purchase Order event per purchase order item here against 0 elsewhere (+1).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -2858,8 +2858,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.1 points below the overall score of 81.7 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × (missing): 32 cases, 1.1 % below expectation on average (0.7 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.2 (raw 0.4; small groups discounted with γ = 20), rank 12 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 1.1 points below the overall score of 81.7 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × (missing): 32 cases, 1.1 % below expectation on average (0.7 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 0.2 (raw 0.4; small groups discounted with γ = 20), rank 12 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 1.1 points below the overall score of 81.7 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. Approved once: 1 Change Approval for Purchase Order event per purchase order item here against 0 elsewhere (+1).",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.01651
 },
@@ -2899,8 +2899,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 0.283397,
 "p_top": 0.045,
-"comparison": "7 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -2931,8 +2931,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.4 points below the overall score of 81.7 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Energy: 15 cases, 1.4 % below expectation on average (0.6 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.1 (raw 0.2; small groups discounted with γ = 20), rank 13 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0003 × Energy: 15 purchase order items, 1.4 points below the overall score of 81.7 (2 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 7 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Energy: 15 cases, 1.4 % below expectation on average (0.6 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 0.1 (raw 0.2; small groups discounted with γ = 20), rank 13 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0003 × Energy: 15 purchase order items, 1.4 points below the overall score of 81.7 (2 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.01628
 },
@@ -2972,8 +2972,8 @@
 "stable_PI_lo": 0.001859,
 "stable_PI_hi": 0.042783,
 "p_top": 0.005,
-"comparison": "100 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -2982,8 +2982,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.1 points below the overall score of 81.7 (6 %)",
 "kind_source": "analytics",
-"reading": "companyID_0002 × Marketing: 2 cases, 5.1 % below expectation on average (0.5 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 15 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 5.1 points below the overall score of 81.7 (6 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 100 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0002 × Marketing: 2 cases, 5.1 % below expectation on average (0.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 15 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 5.1 points below the overall score of 81.7 (6 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.001859,
 "stable_gap_hi": 0.009378
 },
@@ -3023,8 +3023,8 @@
 "stable_PI_lo": 0.00144,
 "stable_PI_hi": 0.073779,
 "p_top": 0.005,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -3041,8 +3041,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.5 points below the overall score of 81.7 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Sales: 6 cases, 1.5 % below expectation on average (0.3 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 14 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 1.5 points below the overall score of 81.7 (2 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Sales: 6 cases, 1.5 % below expectation on average (0.3 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 14 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 1.5 points below the overall score of 81.7 (2 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.00048,
 "stable_gap_hi": 0.008417
 },
@@ -3082,8 +3082,8 @@
 "stable_PI_lo": 0.003309,
 "stable_PI_hi": 0.027353,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Received in few deliveries here against 3 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Doing it once",
@@ -3092,8 +3092,8 @@
 "case_noun": "purchase order items",
 "points_below": "7.0 points below the overall score of 81.7 (9 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Real Estate: 1 cases, 7.0 % below expectation on average (0.3 % with small groups discounted); most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 16 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 7.0 points below the overall score of 81.7 (9 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 100 % of purchase order items Received in few deliveries here against 3 % elsewhere.",
+"reading": "companyID_0000 × Real Estate: 1 cases, 7.0 % below expectation on average (0.3 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 16 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 7.0 points below the overall score of 81.7 (9 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.003309,
 "stable_gap_hi": 0.009118
 },
@@ -3133,8 +3133,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 0.018497,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Item not deleted here against 4 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -3143,8 +3143,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.6 points below the overall score of 81.7 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0001 × Sales: 2 cases, 1.6 % below expectation on average (0.1 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 17 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 1.6 points below the overall score of 81.7 (2 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 100 % of purchase order items Item not deleted here against 4 % elsewhere.",
+"reading": "companyID_0001 × Sales: 2 cases, 1.6 % below expectation on average (0.1 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 17 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 1.6 points below the overall score of 81.7 (2 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.004654
 },
@@ -3184,8 +3184,8 @@
 "stable_PI_lo": 0.000384,
 "stable_PI_hi": 0.004359,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Paid within terms here against 89 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "On time",
@@ -3194,8 +3194,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.8 points below the overall score of 81.7 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Chemicals & Intermediates: 1 cases, 0.8 % below expectation on average (0.04 % with small groups discounted); most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 18 of 30 in the Logistics perspective.",
-"reading_plain": "companyID_0000 × Chemicals & Intermediates: 1 purchase order items, 0.8 points below the overall score of 81.7 (1 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: waiting too long between steps; most often missed: On time. 100 % of purchase order items Paid within terms here against 89 % elsewhere.",
+"reading": "companyID_0000 × Chemicals & Intermediates: 1 cases, 0.8 % below expectation on average (0.04 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 18 of 30 in the Logistics perspective.",
+"reading_plain": "companyID_0000 × Chemicals & Intermediates: 1 purchase order items, 0.8 points below the overall score of 81.7 (1 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: waiting too long between steps; most often missed: On time. nan",
 "stable_gap_lo": 0.000384,
 "stable_gap_hi": 0.001233
 },
@@ -4117,7 +4117,7 @@
 "case_noun": "purchase order items",
 "points_below": "0.8 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Packaging: 109,199 cases, 0.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: not computed for this run; priority 882.0 (raw 882.2; small groups discounted with γ = 20), rank 1 of 30 in the Compliance perspective.",
+"reading": "companyID_0000 × Packaging: 109,199 cases, 0.8 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: high; priority 882.0 (raw 882.2; small groups discounted with γ = 20), rank 1 of 30 in the Compliance perspective.",
 "reading_plain": "companyID_0000 × Packaging: 109,199 purchase order items, 0.8 points below the overall score of 87.1 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 83 days here against 55 elsewhere (+25 days).",
 "stable_gap_lo": 0.0078,
 "stable_gap_hi": 0.008342
@@ -4158,7 +4158,7 @@
 "stable_PI_lo": 310.240104,
 "stable_PI_hi": 338.826577,
 "p_top": 1.0,
-"comparison": "67 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 67 % of purchase order items here against 22 % elsewhere (+45 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4197,8 +4197,8 @@
 "case_noun": "purchase order items",
 "points_below": "6.2 points below the overall score of 87.1 (7 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Logistics: 5,242 cases, 6.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 67 % of these cases); confidence in rank: not computed for this run; priority 323.9 (raw 325.2; small groups discounted with γ = 20), rank 2 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 6.2 points below the overall score of 87.1 (7 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 67 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0000 × Logistics: 5,242 cases, 6.2 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 67 % of these cases); confidence in rank: high; priority 323.9 (raw 325.2; small groups discounted with γ = 20), rank 2 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 6.2 points below the overall score of 87.1 (7 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 67 % of purchase order items here against 22 % elsewhere (+45 points).",
 "stable_gap_lo": 0.059637,
 "stable_gap_hi": 0.064129
 },
@@ -4238,7 +4238,7 @@
 "stable_PI_lo": 121.685289,
 "stable_PI_hi": 140.366514,
 "p_top": 1.0,
-"comparison": "50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"comparison": "Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4263,8 +4263,8 @@
 "case_noun": "purchase order items",
 "points_below": "4.1 points below the overall score of 87.1 (5 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × (missing): 3,257 cases, 4.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 132.3 (raw 133.1; small groups discounted with γ = 20), rank 3 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 4.1 points below the overall score of 87.1 (5 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 50 % of purchase order items Invoice paid here against 22 % elsewhere.",
+"reading": "companyID_0000 × (missing): 3,257 cases, 4.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: high; priority 132.3 (raw 133.1; small groups discounted with γ = 20), rank 3 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 4.1 points below the overall score of 87.1 (5 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Invoice paid: missed in 50 % of purchase order items here against 22 % elsewhere (+28 points).",
 "stable_gap_lo": 0.037861,
 "stable_gap_hi": 0.043027
 },
@@ -4304,7 +4304,7 @@
 "stable_PI_lo": 101.631207,
 "stable_PI_hi": 141.579278,
 "p_top": 1.0,
-"comparison": "12 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"comparison": "Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+5.9 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4336,8 +4336,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.5 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Trading & End Products: 22,292 cases, 0.5 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 24 % of these cases); confidence in rank: not computed for this run; priority 121.2 (raw 121.3; small groups discounted with γ = 20), rank 4 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Trading & End Products: 22,292 purchase order items, 0.5 points below the overall score of 87.1 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. 12 % of purchase order items Goods or service received here against 6 % elsewhere.",
+"reading": "companyID_0000 × Trading & End Products: 22,292 cases, 0.5 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 24 % of these cases); confidence in rank: high; priority 121.2 (raw 121.3; small groups discounted with γ = 20), rank 4 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Trading & End Products: 22,292 purchase order items, 0.5 points below the overall score of 87.1 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Closing the loop. Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+5.9 points).",
 "stable_gap_lo": 0.004547,
 "stable_gap_hi": 0.006319
 },
@@ -4377,7 +4377,7 @@
 "stable_PI_lo": 60.685679,
 "stable_PI_hi": 75.296611,
 "p_top": 1.0,
-"comparison": "56 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 56 % of purchase order items here against 52 % elsewhere (+4.6 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4416,8 +4416,8 @@
 "case_noun": "purchase order items",
 "points_below": "3.8 points below the overall score of 87.1 (4 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Marketing: 1,789 cases, 3.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: not computed for this run; priority 67.5 (raw 68.3; small groups discounted with γ = 20), rank 5 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 3.8 points below the overall score of 87.1 (4 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). 56 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Marketing: 1,789 cases, 3.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: high; priority 67.5 (raw 68.3; small groups discounted with γ = 20), rank 5 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 3.8 points below the overall score of 87.1 (4 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 56 % of purchase order items here against 52 % elsewhere (+4.6 points).",
 "stable_gap_lo": 0.033917,
 "stable_gap_hi": 0.041692
 },
@@ -4482,7 +4482,7 @@
 "case_noun": "purchase order items",
 "points_below": "0.3 points below the overall score of 87.1 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Additives: 18,318 cases, 0.3 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: not computed for this run; priority 51.3 (raw 51.4; small groups discounted with γ = 20), rank 6 of 30 in the Compliance perspective.",
+"reading": "companyID_0000 × Additives: 18,318 cases, 0.3 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: high; priority 51.3 (raw 51.4; small groups discounted with γ = 20), rank 6 of 30 in the Compliance perspective.",
 "reading_plain": "companyID_0000 × Additives: 18,318 purchase order items, 0.3 points below the overall score of 87.1 (0 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. Paid within terms: 71 days here against 63 elsewhere (+8.6 days).",
 "stable_gap_lo": 0.001748,
 "stable_gap_hi": 0.003808
@@ -4523,7 +4523,7 @@
 "stable_PI_lo": 37.321452,
 "stable_PI_hi": 61.435983,
 "p_top": 1.0,
-"comparison": "98 % of purchase order items Invoice after the goods (GR-based flow) here against 50 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 98 % of purchase order items here against 50 % elsewhere (+48 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4548,8 +4548,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.0 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 1.0 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 98 % of these cases); confidence in rank: not computed for this run; priority 49.1 (raw 49.3; small groups discounted with γ = 20), rank 7 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 1.0 points below the overall score of 87.1 (1 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). 98 % of purchase order items Invoice after the goods (GR-based flow) here against 50 % elsewhere.",
+"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 1.0 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 98 % of these cases); confidence in rank: high; priority 49.1 (raw 49.3; small groups discounted with γ = 20), rank 7 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 1.0 points below the overall score of 87.1 (1 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 98 % of purchase order items here against 50 % elsewhere (+48 points).",
 "stable_gap_lo": 0.007509,
 "stable_gap_hi": 0.012075
 },
@@ -4589,7 +4589,7 @@
 "stable_PI_lo": 16.2943,
 "stable_PI_hi": 23.922694,
 "p_top": 1.0,
-"comparison": "86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4621,8 +4621,8 @@
 "case_noun": "purchase order items",
 "points_below": "17.8 points below the overall score of 87.1 (20 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Workforce Services: 127 cases, 18 % below expectation on average (15 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: not computed for this run; priority 19.6 (raw 22.6; small groups discounted with γ = 20), rank 8 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 17.8 points below the overall score of 87.1 (20 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"reading": "companyID_0000 × Workforce Services: 127 cases, 18 % below expectation on average (15 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: high; priority 19.6 (raw 22.6; small groups discounted with γ = 20), rank 8 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 17.8 points below the overall score of 87.1 (20 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "stable_gap_lo": 0.134831,
 "stable_gap_hi": 0.174843
 },
@@ -4662,7 +4662,7 @@
 "stable_PI_lo": 9.841583,
 "stable_PI_hi": 24.417711,
 "p_top": 0.995,
-"comparison": "93 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 93 % of purchase order items here against 51 % elsewhere (+42 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4687,8 +4687,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.7 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.7 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 93 % of these cases); confidence in rank: not computed for this run; priority 17.5 (raw 17.6; small groups discounted with γ = 20), rank 9 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.7 points below the overall score of 87.1 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Buying channel and sequence (maverick buying). 93 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.7 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 93 % of these cases); confidence in rank: high; priority 17.5 (raw 17.6; small groups discounted with γ = 20), rank 9 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.7 points below the overall score of 87.1 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 93 % of purchase order items here against 51 % elsewhere (+42 points).",
 "stable_gap_lo": 0.003796,
 "stable_gap_hi": 0.009358
 },
@@ -4728,7 +4728,7 @@
 "stable_PI_lo": 2.569319,
 "stable_PI_hi": 11.987529,
 "p_top": 0.75,
-"comparison": "63 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 63 % of purchase order items here against 52 % elsewhere (+11 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4767,8 +4767,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.3 points below the overall score of 87.1 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Enterprise Services: 542 cases, 1.3 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 63 % of these cases); confidence in rank: not computed for this run; priority 7.0 (raw 7.3; small groups discounted with γ = 20), rank 10 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Enterprise Services: 542 purchase order items, 1.3 points below the overall score of 87.1 (2 %) (medium confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). 63 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Enterprise Services: 542 cases, 1.3 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 63 % of these cases); confidence in rank: medium; priority 7.0 (raw 7.3; small groups discounted with γ = 20), rank 10 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Enterprise Services: 542 purchase order items, 1.3 points below the overall score of 87.1 (2 %) (medium confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 63 % of purchase order items here against 52 % elsewhere (+11 points).",
 "stable_gap_lo": 0.004769,
 "stable_gap_hi": 0.022268
 },
@@ -4808,7 +4808,7 @@
 "stable_PI_lo": 2.84375,
 "stable_PI_hi": 6.275604,
 "p_top": 0.155,
-"comparison": "100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 100 % of purchase order items here against 52 % elsewhere (+48 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4833,8 +4833,8 @@
 "case_noun": "purchase order items",
 "points_below": "19.2 points below the overall score of 87.1 (22 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 19 % below expectation on average (12 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 4.5 (raw 6.9; small groups discounted with γ = 20), rank 11 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 19.2 points below the overall score of 87.1 (22 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 19 % below expectation on average (12 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: high; priority 4.5 (raw 6.9; small groups discounted with γ = 20), rank 11 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 19.2 points below the overall score of 87.1 (22 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 100 % of purchase order items here against 52 % elsewhere (+48 points).",
 "stable_gap_lo": 0.098299,
 "stable_gap_hi": 0.146354
 },
@@ -4874,7 +4874,7 @@
 "stable_PI_lo": 0.799301,
 "stable_PI_hi": 6.011583,
 "p_top": 0.085,
-"comparison": "84 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 84 % of purchase order items here against 52 % elsewhere (+33 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -4906,8 +4906,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.9 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.9 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 3.6 (raw 3.8; small groups discounted with γ = 20), rank 12 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.9 points below the overall score of 87.1 (1 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. 84 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Commodity Resins: 409 cases, 0.9 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: high; priority 3.6 (raw 3.8; small groups discounted with γ = 20), rank 12 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 0.9 points below the overall score of 87.1 (1 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Invoice after the goods (GR-based flow): missed in 84 % of purchase order items here against 52 % elsewhere (+33 points).",
 "stable_gap_lo": 0.002076,
 "stable_gap_hi": 0.014737
 },
@@ -4947,8 +4947,8 @@
 "stable_PI_lo": 0.180047,
 "stable_PI_hi": 0.895985,
 "p_top": 0.0,
-"comparison": "91 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -4972,8 +4972,8 @@
 "case_noun": "purchase order items",
 "points_below": "2.5 points below the overall score of 87.1 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × (missing): 32 cases, 2.5 % below expectation on average (1.5 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 91 % of these cases); confidence in rank: not computed for this run; priority 0.5 (raw 0.8; small groups discounted with γ = 20), rank 14 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 2.5 points below the overall score of 87.1 (3 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 91 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × (missing): 32 cases, 2.5 % below expectation on average (1.5 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 91 % of these cases); confidence in rank: high; priority 0.5 (raw 0.8; small groups discounted with γ = 20), rank 14 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 2.5 points below the overall score of 87.1 (3 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.005662,
 "stable_gap_hi": 0.024783
 },
@@ -5013,8 +5013,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 1.607249,
 "p_top": 0.0,
-"comparison": "75 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -5038,8 +5038,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.6 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Enterprise Services: 122 cases, 0.6 % below expectation on average; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 75 % of these cases); confidence in rank: not computed for this run; priority 0.7 (raw 0.8; small groups discounted with γ = 20), rank 13 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 0.6 points below the overall score of 87.1 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 75 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × Enterprise Services: 122 cases, 0.6 % below expectation on average; acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 75 % of these cases); confidence in rank: high; priority 0.7 (raw 0.8; small groups discounted with γ = 20), rank 13 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 0.6 points below the overall score of 87.1 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.013216
 },
@@ -5079,8 +5079,8 @@
 "stable_PI_lo": 0.008969,
 "stable_PI_hi": 0.193032,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Item not deleted here against 4 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -5089,8 +5089,8 @@
 "case_noun": "purchase order items",
 "points_below": "20.5 points below the overall score of 87.1 (24 %)",
 "kind_source": "analytics",
-"reading": "companyID_0002 × Marketing: 2 cases, 20 % below expectation on average (1.9 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.4; small groups discounted with γ = 20), rank 17 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 20.5 points below the overall score of 87.1 (24 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 100 % of purchase order items Item not deleted here against 4 % elsewhere.",
+"reading": "companyID_0002 × Marketing: 2 cases, 20 % below expectation on average (1.9 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.4; small groups discounted with γ = 20), rank 17 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 20.5 points below the overall score of 87.1 (24 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.008969,
 "stable_gap_hi": 0.038606
 },
@@ -5130,8 +5130,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 0.614987,
 "p_top": 0.0,
-"comparison": "66 % of purchase order items Invoice paid here against 23 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -5155,8 +5155,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.8 points below the overall score of 87.1 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 0.8 % below expectation on average (0.6 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 66 % of these cases); confidence in rank: not computed for this run; priority 0.2 (raw 0.4; small groups discounted with γ = 20), rank 15 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 0.8 points below the overall score of 87.1 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 66 % of purchase order items Invoice paid here against 23 % elsewhere.",
+"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 0.8 % below expectation on average (0.6 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 66 % of these cases); confidence in rank: high; priority 0.2 (raw 0.4; small groups discounted with γ = 20), rank 15 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 0.8 points below the overall score of 87.1 (1 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.013888
 },
@@ -5196,8 +5196,8 @@
 "stable_PI_lo": 0.015316,
 "stable_PI_hi": 0.196429,
 "p_top": 0.0,
-"comparison": "83 % of purchase order items Invoice received here against 11 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -5214,8 +5214,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.5 points below the overall score of 87.1 (6 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Sales: 6 cases, 5.5 % below expectation on average (1.3 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not computed for this run; priority 0.1 (raw 0.3; small groups discounted with γ = 20), rank 16 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 5.5 points below the overall score of 87.1 (6 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. 83 % of purchase order items Invoice received here against 11 % elsewhere.",
+"reading": "companyID_0003 × Sales: 6 cases, 5.5 % below expectation on average (1.3 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 83 % of these cases); confidence in rank: not enough cases to be sure; priority 0.1 (raw 0.3; small groups discounted with γ = 20), rank 16 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 5.5 points below the overall score of 87.1 (6 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.005105,
 "stable_gap_hi": 0.021769
 },
@@ -5255,8 +5255,8 @@
 "stable_PI_lo": 0.000637,
 "stable_PI_hi": 0.096436,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Item not deleted here against 4 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -5265,8 +5265,8 @@
 "case_noun": "purchase order items",
 "points_below": "10.1 points below the overall score of 87.1 (12 %)",
 "kind_source": "analytics",
-"reading": "companyID_0001 × Sales: 2 cases, 10 % below expectation on average (0.9 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.2; small groups discounted with γ = 20), rank 18 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 10.1 points below the overall score of 87.1 (12 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. 100 % of purchase order items Item not deleted here against 4 % elsewhere.",
+"reading": "companyID_0001 × Sales: 2 cases, 10 % below expectation on average (0.9 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.2; small groups discounted with γ = 20), rank 18 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 10.1 points below the overall score of 87.1 (12 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.000637,
 "stable_gap_hi": 0.024109
 },
@@ -5306,8 +5306,8 @@
 "stable_PI_lo": 0.000675,
 "stable_PI_hi": 0.005654,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Few manual touches here against 30 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Touchless where possible",
@@ -5316,8 +5316,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.4 points below the overall score of 87.1 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Real Estate: 1 cases, 1.4 % below expectation on average (0.07 % with small groups discounted); most-missed expectation area: Effort and automation friction (Too many manual touches reduce touchless processing potential, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 19 of 30 in the Compliance perspective.",
-"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 1.4 points below the overall score of 87.1 (2 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. 100 % of purchase order items Few manual touches here against 30 % elsewhere.",
+"reading": "companyID_0000 × Real Estate: 1 cases, 1.4 % below expectation on average (0.07 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (Too many manual touches reduce touchless processing potential, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 19 of 30 in the Compliance perspective.",
+"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 1.4 points below the overall score of 87.1 (2 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. nan",
 "stable_gap_lo": 0.000675,
 "stable_gap_hi": 0.001885
 },
@@ -6144,7 +6144,7 @@
 "case_noun": "purchase order items",
 "points_below": "0.9 points below the overall score of 84.4 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Packaging: 109,199 cases, 0.9 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: not computed for this run; priority 945.7 (raw 945.9; small groups discounted with γ = 20), rank 1 of 30 in the Automation perspective.",
+"reading": "companyID_0000 × Packaging: 109,199 cases, 0.9 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: high; priority 945.7 (raw 945.9; small groups discounted with γ = 20), rank 1 of 30 in the Automation perspective.",
 "reading_plain": "companyID_0000 × Packaging: 109,199 purchase order items, 0.9 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: On time. Paid within terms: 83 days here against 55 elsewhere (+25 days).",
 "stable_gap_lo": 0.008402,
 "stable_gap_hi": 0.008885
@@ -6185,7 +6185,7 @@
 "stable_PI_lo": 279.638547,
 "stable_PI_hi": 307.464102,
 "p_top": 1.0,
-"comparison": "14 Received in few deliveries per purchase order item here against 1 elsewhere.",
+"comparison": "Received in few deliveries: 14 Record Goods Receipt or Record Service Entry Sheet events per purchase order item here against 1 elsewhere (+13).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -6224,8 +6224,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.6 points below the overall score of 84.4 (7 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Logistics: 5,242 cases, 5.6 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 77 % of these cases); confidence in rank: not computed for this run; priority 294.2 (raw 295.3; small groups discounted with γ = 20), rank 2 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 5.6 points below the overall score of 84.4 (7 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 14 Received in few deliveries per purchase order item here against 1 elsewhere.",
+"reading": "companyID_0000 × Logistics: 5,242 cases, 5.6 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Rework and instability (Too many goods/service receipt events indicate fragmentation, missed in 77 % of these cases); confidence in rank: high; priority 294.2 (raw 295.3; small groups discounted with γ = 20), rank 2 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Logistics: 5,242 purchase order items, 5.6 points below the overall score of 84.4 (7 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. Received in few deliveries: 14 Record Goods Receipt or Record Service Entry Sheet events per purchase order item here against 1 elsewhere (+13).",
 "stable_gap_lo": 0.053786,
 "stable_gap_hi": 0.058795
 },
@@ -6265,7 +6265,7 @@
 "stable_PI_lo": 163.176674,
 "stable_PI_hi": 190.498603,
 "p_top": 1.0,
-"comparison": "98 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"comparison": "Mostly automatic: missed in 98 % of purchase order items here against 92 % elsewhere (+6.2 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6290,8 +6290,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.0 points below the overall score of 84.4 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Additives: 18,318 cases, 1.0 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: not computed for this run; priority 177.8 (raw 178.0; small groups discounted with γ = 20), rank 3 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Additives: 18,318 purchase order items, 1.0 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. 98 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"reading": "companyID_0000 × Additives: 18,318 cases, 1.0 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: high; priority 177.8 (raw 178.0; small groups discounted with γ = 20), rank 3 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Additives: 18,318 purchase order items, 1.0 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. Mostly automatic: missed in 98 % of purchase order items here against 92 % elsewhere (+6.2 points).",
 "stable_gap_lo": 0.008948,
 "stable_gap_hi": 0.010334
 },
@@ -6331,7 +6331,7 @@
 "stable_PI_lo": 80.345887,
 "stable_PI_hi": 98.218062,
 "p_top": 1.0,
-"comparison": "Mostly automatic: 0.8 here against 0.8 elsewhere (+0).",
+"comparison": "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).",
 "comparison_kind": "metric",
 "caveats": [
 {
@@ -6356,8 +6356,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.8 points below the overall score of 84.4 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 1.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 88.8 (raw 89.2; small groups discounted with γ = 20), rank 4 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 1.8 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Mostly automatic: 0.8 here against 0.8 elsewhere (+0).",
+"reading": "companyID_0000 × Latex & Monomers: 5,007 cases, 1.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: high; priority 88.8 (raw 89.2; small groups discounted with γ = 20), rank 4 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Latex & Monomers: 5,007 purchase order items, 1.8 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).",
 "stable_gap_lo": 0.016046,
 "stable_gap_hi": 0.019538
 },
@@ -6397,7 +6397,7 @@
 "stable_PI_lo": 46.36634,
 "stable_PI_hi": 54.852307,
 "p_top": 1.0,
-"comparison": "3 Approved once per purchase order item here against 0 elsewhere.",
+"comparison": "Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -6422,8 +6422,8 @@
 "case_noun": "purchase order items",
 "points_below": "9.0 points below the overall score of 84.4 (11 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Real Estate: 583 cases, 9.0 % below expectation on average (8.7 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 50.6 (raw 52.4; small groups discounted with γ = 20), rank 5 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 9.0 points below the overall score of 84.4 (11 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 3 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Real Estate: 583 cases, 9.0 % below expectation on average (8.7 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 50.6 (raw 52.4; small groups discounted with γ = 20), rank 5 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Real Estate: 583 purchase order items, 9.0 points below the overall score of 84.4 (11 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. Approved once: 3 Change Approval for Purchase Order events per purchase order item here against 0 elsewhere (+3).",
 "stable_gap_lo": 0.081074,
 "stable_gap_hi": 0.091849
 },
@@ -6463,7 +6463,7 @@
 "stable_PI_lo": 30.236788,
 "stable_PI_hi": 41.276876,
 "p_top": 1.0,
-"comparison": "Mostly automatic: 0.8 here against 0.8 elsewhere (+0).",
+"comparison": "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).",
 "comparison_kind": "metric",
 "caveats": [
 {
@@ -6488,8 +6488,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.1 points below the overall score of 84.4 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × (missing): 3,257 cases, 1.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 36.3 (raw 36.5; small groups discounted with γ = 20), rank 6 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 1.1 points below the overall score of 84.4 (1 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Mostly automatic: 0.8 here against 0.8 elsewhere (+0).",
+"reading": "companyID_0000 × (missing): 3,257 cases, 1.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 50 % of these cases); confidence in rank: high; priority 36.3 (raw 36.5; small groups discounted with γ = 20), rank 6 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × (missing): 3,257 purchase order items, 1.1 points below the overall score of 84.4 (1 %) (high confidence); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).",
 "stable_gap_lo": 0.009389,
 "stable_gap_hi": 0.012645
 },
@@ -6529,7 +6529,7 @@
 "stable_PI_lo": 15.829951,
 "stable_PI_hi": 25.669357,
 "p_top": 1.0,
-"comparison": "99 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"comparison": "Mostly automatic: missed in 99 % of purchase order items here against 92 % elsewhere (+7.1 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6561,8 +6561,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.8 points below the overall score of 84.4 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Solvents: 2,629 cases, 0.8 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 20.9 (raw 21.1; small groups discounted with γ = 20), rank 7 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Solvents: 2,629 purchase order items, 0.8 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. 99 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"reading": "companyID_0000 × Solvents: 2,629 cases, 0.8 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: high; priority 20.9 (raw 21.1; small groups discounted with γ = 20), rank 7 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Solvents: 2,629 purchase order items, 0.8 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. Mostly automatic: missed in 99 % of purchase order items here against 92 % elsewhere (+7.1 points).",
 "stable_gap_lo": 0.006037,
 "stable_gap_hi": 0.009784
 },
@@ -6602,7 +6602,7 @@
 "stable_PI_lo": 9.468653,
 "stable_PI_hi": 16.073212,
 "p_top": 0.995,
-"comparison": "86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"comparison": "Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6634,8 +6634,8 @@
 "case_noun": "purchase order items",
 "points_below": "11.4 points below the overall score of 84.4 (14 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Workforce Services: 127 cases, 11 % below expectation on average (9.9 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: not computed for this run; priority 12.5 (raw 14.5; small groups discounted with γ = 20), rank 9 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 11.4 points below the overall score of 84.4 (14 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 86 % of purchase order items Invoice after the goods (GR-based flow) here against 51 % elsewhere.",
+"reading": "companyID_0000 × Workforce Services: 127 cases, 11 % below expectation on average (9.9 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 86 % of these cases); confidence in rank: high; priority 12.5 (raw 14.5; small groups discounted with γ = 20), rank 9 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Workforce Services: 127 purchase order items, 11.4 points below the overall score of 84.4 (14 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). Invoice after the goods (GR-based flow): missed in 86 % of purchase order items here against 51 % elsewhere (+35 points).",
 "stable_gap_lo": 0.07936,
 "stable_gap_hi": 0.122133
 },
@@ -6675,7 +6675,7 @@
 "stable_PI_lo": 8.050357,
 "stable_PI_hi": 18.510725,
 "p_top": 0.975,
-"comparison": "98 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"comparison": "Mostly automatic: missed in 98 % of purchase order items here against 92 % elsewhere (+6.3 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6700,8 +6700,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.5 points below the overall score of 84.4 (1 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Specialty Resins: 2,406 cases, 0.5 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: not computed for this run; priority 13.1 (raw 13.2; small groups discounted with γ = 20), rank 8 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Specialty Resins: 2,406 purchase order items, 0.5 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. 98 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"reading": "companyID_0000 × Specialty Resins: 2,406 cases, 0.5 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 98 % of these cases); confidence in rank: high; priority 13.1 (raw 13.2; small groups discounted with γ = 20), rank 8 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Specialty Resins: 2,406 purchase order items, 0.5 points below the overall score of 84.4 (1 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. Mostly automatic: missed in 98 % of purchase order items here against 92 % elsewhere (+6.3 points).",
 "stable_gap_lo": 0.003327,
 "stable_gap_hi": 0.007953
 },
@@ -6741,7 +6741,7 @@
 "stable_PI_lo": 6.121571,
 "stable_PI_hi": 15.985545,
 "p_top": 0.94,
-"comparison": "96 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"comparison": "Mostly automatic: missed in 96 % of purchase order items here against 92 % elsewhere (+3.9 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6766,8 +6766,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.4 points below the overall score of 84.4 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.4 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 96 % of these cases); confidence in rank: not computed for this run; priority 10.8 (raw 10.9; small groups discounted with γ = 20), rank 10 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.4 points below the overall score of 84.4 (0 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. 96 % of purchase order items Mostly automatic here against 92 % elsewhere.",
+"reading": "companyID_0000 × Pigments & Colorants: 2,593 cases, 0.4 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 96 % of these cases); confidence in rank: high; priority 10.8 (raw 10.9; small groups discounted with γ = 20), rank 10 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Pigments & Colorants: 2,593 purchase order items, 0.4 points below the overall score of 84.4 (0 %) (high confidence); widespread: many purchase order items, each slightly off; most often missed: Touchless where possible. Mostly automatic: missed in 96 % of purchase order items here against 92 % elsewhere (+3.9 points).",
 "stable_gap_lo": 0.002372,
 "stable_gap_hi": 0.006005
 },
@@ -6807,7 +6807,7 @@
 "stable_PI_lo": 4.236431,
 "stable_PI_hi": 6.784635,
 "p_top": 0.045,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
+"comparison": "Approved once: 1 Change Approval for Purchase Order event per purchase order item here against 0 elsewhere (+1).",
 "comparison_kind": "count",
 "caveats": [
 {
@@ -6832,8 +6832,8 @@
 "case_noun": "purchase order items",
 "points_below": "5.2 points below the overall score of 84.4 (6 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Enterprise Services: 122 cases, 5.2 % below expectation on average (4.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 5.5 (raw 6.4; small groups discounted with γ = 20), rank 11 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 5.2 points below the overall score of 84.4 (6 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Enterprise Services: 122 cases, 5.2 % below expectation on average (4.5 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 5.5 (raw 6.4; small groups discounted with γ = 20), rank 11 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Enterprise Services: 122 purchase order items, 5.2 points below the overall score of 84.4 (6 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. Approved once: 1 Change Approval for Purchase Order event per purchase order item here against 0 elsewhere (+1).",
 "stable_gap_lo": 0.038401,
 "stable_gap_hi": 0.051285
 },
@@ -6873,7 +6873,7 @@
 "stable_PI_lo": 2.969558,
 "stable_PI_hi": 6.749542,
 "p_top": 0.01,
-"comparison": "92 % of purchase order items Few hands on the item here against 83 % elsewhere.",
+"comparison": "Few hands on the item: missed in 92 % of purchase order items here against 83 % elsewhere (+9.3 points).",
 "comparison_kind": "rate",
 "caveats": [
 {
@@ -6905,8 +6905,8 @@
 "case_noun": "purchase order items",
 "points_below": "1.3 points below the overall score of 84.4 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Commodity Resins: 409 cases, 1.3 % below expectation on average (1.2 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 4.9 (raw 5.2; small groups discounted with γ = 20), rank 12 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 1.3 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. 92 % of purchase order items Few hands on the item here against 83 % elsewhere.",
+"reading": "companyID_0000 × Commodity Resins: 409 cases, 1.3 % below expectation on average (1.2 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (High manual share indicates low straight-through processing, missed in 99 % of these cases); confidence in rank: high; priority 4.9 (raw 5.2; small groups discounted with γ = 20), rank 12 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Commodity Resins: 409 purchase order items, 1.3 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. Few hands on the item: missed in 92 % of purchase order items here against 83 % elsewhere (+9.3 points).",
 "stable_gap_lo": 0.007168,
 "stable_gap_hi": 0.016261
 },
@@ -6946,8 +6946,8 @@
 "stable_PI_lo": 3.248515,
 "stable_PI_hi": 5.484919,
 "p_top": 0.0,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -6971,8 +6971,8 @@
 "case_noun": "purchase order items",
 "points_below": "2.0 points below the overall score of 84.4 (2 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Others: 241 cases, 2.0 % below expectation on average (1.8 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 4.4 (raw 4.8; small groups discounted with γ = 20), rank 13 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Others: 241 purchase order items, 2.0 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Others: 241 cases, 2.0 % below expectation on average (1.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 4.4 (raw 4.8; small groups discounted with γ = 20), rank 13 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Others: 241 purchase order items, 2.0 points below the overall score of 84.4 (2 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.013304,
 "stable_gap_hi": 0.021732
 },
@@ -7012,8 +7012,8 @@
 "stable_PI_lo": 2.155669,
 "stable_PI_hi": 4.554313,
 "p_top": 0.0,
-"comparison": "3 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7037,8 +7037,8 @@
 "case_noun": "purchase order items",
 "points_below": "10.7 points below the overall score of 84.4 (13 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 11 % below expectation on average (7.4 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 3.2 (raw 4.7; small groups discounted with γ = 20), rank 14 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 10.7 points below the overall score of 84.4 (13 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 3 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × CAPEX & SOCS: 44 cases, 11 % below expectation on average (7.4 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 3.2 (raw 4.7; small groups discounted with γ = 20), rank 14 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × CAPEX & SOCS: 44 purchase order items, 10.7 points below the overall score of 84.4 (13 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.055509,
 "stable_gap_hi": 0.08879
 },
@@ -7078,8 +7078,8 @@
 "stable_PI_lo": 0.854813,
 "stable_PI_hi": 2.237635,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7103,8 +7103,8 @@
 "case_noun": "purchase order items",
 "points_below": "6.7 points below the overall score of 84.4 (8 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 6.7 % below expectation on average (4.3 % with small groups discounted); most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 1.6 (raw 2.4; small groups discounted with γ = 20), rank 16 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 6.7 points below the overall score of 84.4 (8 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). 100 % of purchase order items Invoice after the goods (GR-based flow) here against 52 % elsewhere.",
+"reading": "companyID_0000 × Spend Area Unidentified: 36 cases, 6.7 % below expectation on average (4.3 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 100 % of these cases); confidence in rank: high; priority 1.6 (raw 2.4; small groups discounted with γ = 20), rank 16 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Spend Area Unidentified: 36 purchase order items, 6.7 points below the overall score of 84.4 (8 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Buying channel and sequence (maverick buying). nan",
 "stable_gap_lo": 0.028388,
 "stable_gap_hi": 0.055278
 },
@@ -7144,8 +7144,8 @@
 "stable_PI_lo": 0.414003,
 "stable_PI_hi": 1.689873,
 "p_top": 0.0,
-"comparison": "7 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7176,8 +7176,8 @@
 "case_noun": "purchase order items",
 "points_below": "14.3 points below the overall score of 84.4 (17 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Energy: 15 cases, 14 % below expectation on average (6.1 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.9 (raw 2.1; small groups discounted with γ = 20), rank 18 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Energy: 15 purchase order items, 14.3 points below the overall score of 84.4 (17 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 7 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Energy: 15 cases, 14 % below expectation on average (6.1 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 0.9 (raw 2.1; small groups discounted with γ = 20), rank 18 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Energy: 15 purchase order items, 14.3 points below the overall score of 84.4 (17 %) (high confidence); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.038001,
 "stable_gap_hi": 0.081589
 },
@@ -7217,8 +7217,8 @@
 "stable_PI_lo": 0.0,
 "stable_PI_hi": 7.659883,
 "p_top": 0.035,
-"comparison": "Paid within terms: 69 days here against 64 elsewhere (+1.9 days).",
-"comparison_kind": "lag",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7256,8 +7256,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.1 points below the overall score of 84.4 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Marketing: 1,789 cases, 0.1 % below expectation on average; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: not computed for this run; priority 2.1 (small groups discounted with γ = 20), rank 15 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 0.1 points below the overall score of 84.4 (0 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). Paid within terms: 69 days here against 64 elsewhere (+1.9 days).",
+"reading": "companyID_0000 × Marketing: 1,789 cases, 0.1 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Flow-conditioned control discipline (In DF1, invoice evidence should not precede the first goods/service event, missed in 56 % of these cases); confidence in rank: high; priority 2.1 (small groups discounted with γ = 20), rank 15 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Marketing: 1,789 purchase order items, 0.1 points below the overall score of 84.4 (0 %) (high confidence); systematic: one kind of problem explains most of it: steps out of order for this flow type; most often missed: Buying channel and sequence (maverick buying). nan",
 "stable_gap_lo": 0.0,
 "stable_gap_hi": 0.004386
 },
@@ -7297,8 +7297,8 @@
 "stable_PI_lo": 0.779952,
 "stable_PI_hi": 2.03517,
 "p_top": 0.0,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7322,8 +7322,8 @@
 "case_noun": "purchase order items",
 "points_below": "6.6 points below the overall score of 84.4 (8 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × (missing): 32 cases, 6.6 % below expectation on average (4.1 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 1.3 (raw 2.1; small groups discounted with γ = 20), rank 17 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 6.6 points below the overall score of 84.4 (8 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × (missing): 32 cases, 6.6 % below expectation on average (4.1 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: high; priority 1.3 (raw 2.1; small groups discounted with γ = 20), rank 17 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × (missing): 32 purchase order items, 6.6 points below the overall score of 84.4 (8 %) (high confidence); acute: few purchase order items, far off the overall score; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.029549,
 "stable_gap_hi": 0.052145
 },
@@ -7363,8 +7363,8 @@
 "stable_PI_lo": 0.0182,
 "stable_PI_hi": 0.364918,
 "p_top": 0.0,
-"comparison": "1 Approved once per purchase order item here against 0 elsewhere.",
-"comparison_kind": "count",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "censoring",
@@ -7381,8 +7381,8 @@
 "case_noun": "purchase order items",
 "points_below": "8.4 points below the overall score of 84.4 (10 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Sales: 6 cases, 8.4 % below expectation on average (1.9 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.1 (raw 0.5; small groups discounted with γ = 20), rank 19 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 8.4 points below the overall score of 84.4 (10 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Doing it once. 1 Approved once per purchase order item here against 0 elsewhere.",
+"reading": "companyID_0003 × Sales: 6 cases, 8.4 % below expectation on average (1.9 % with small groups discounted); acute: few cases, far off; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.1 (raw 0.5; small groups discounted with γ = 20), rank 19 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Sales: 6 purchase order items, 8.4 points below the overall score of 84.4 (10 %) (not enough cases to be sure); acute: few purchase order items, far off the overall score; most often missed: Doing it once. nan",
 "stable_gap_lo": 0.006067,
 "stable_gap_hi": 0.037863
 },
@@ -7422,8 +7422,8 @@
 "stable_PI_lo": 0.014128,
 "stable_PI_hi": 0.116206,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Few manual touches here against 30 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Touchless where possible",
@@ -7432,8 +7432,8 @@
 "case_noun": "purchase order items",
 "points_below": "29.7 points below the overall score of 84.4 (35 %)",
 "kind_source": "analytics",
-"reading": "companyID_0000 × Real Estate: 1 cases, 30 % below expectation on average (1.4 % with small groups discounted); most-missed expectation area: Effort and automation friction (Too many manual touches reduce touchless processing potential, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.3; small groups discounted with γ = 20), rank 20 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 29.7 points below the overall score of 84.4 (35 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. 100 % of purchase order items Few manual touches here against 30 % elsewhere.",
+"reading": "companyID_0000 × Real Estate: 1 cases, 30 % below expectation on average (1.4 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Effort and automation friction (Too many manual touches reduce touchless processing potential, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.3; small groups discounted with γ = 20), rank 20 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0000 × Real Estate: 1 purchase order items, 29.7 points below the overall score of 84.4 (35 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: too many manual touches; most often missed: Touchless where possible. nan",
 "stable_gap_lo": 0.014128,
 "stable_gap_hi": 0.038735
 },
@@ -7473,8 +7473,8 @@
 "stable_PI_lo": 0.000782,
 "stable_PI_hi": 0.025942,
 "p_top": 0.0,
-"comparison": "Mostly automatic: 1 here against 0.8 elsewhere (+0.2).",
-"comparison_kind": "metric",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -7483,8 +7483,8 @@
 "case_noun": "purchase order items",
 "points_below": "3.2 points below the overall score of 84.4 (4 %)",
 "kind_source": "analytics",
-"reading": "companyID_0002 × Marketing: 2 cases, 3.2 % below expectation on average (0.3 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 21 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 3.2 points below the overall score of 84.4 (4 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Mostly automatic: 1 here against 0.8 elsewhere (+0.2).",
+"reading": "companyID_0002 × Marketing: 2 cases, 3.2 % below expectation on average (0.3 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (raw 0.1; small groups discounted with γ = 20), rank 21 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0002 × Marketing: 2 purchase order items, 3.2 points below the overall score of 84.4 (4 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.000782,
 "stable_gap_hi": 0.006322
 },
@@ -7524,8 +7524,8 @@
 "stable_PI_lo": 0.000782,
 "stable_PI_hi": 0.022726,
 "p_top": 0.0,
-"comparison": "Mostly automatic: 0.9 here against 0.8 elsewhere (+0.1).",
-"comparison_kind": "metric",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [],
 "n_caveats": 0,
 "plain_layer": "Closing the loop",
@@ -7534,8 +7534,8 @@
 "case_noun": "purchase order items",
 "points_below": "2.3 points below the overall score of 84.4 (3 %)",
 "kind_source": "analytics",
-"reading": "companyID_0001 × Sales: 2 cases, 2.3 % below expectation on average (0.2 % with small groups discounted); most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 22 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 2.3 points below the overall score of 84.4 (3 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. Mostly automatic: 0.9 here against 0.8 elsewhere (+0.1).",
+"reading": "companyID_0001 × Sales: 2 cases, 2.3 % below expectation on average (0.2 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice evidence should exist for invoice-bearing flows, missed in 50 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 22 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0001 × Sales: 2 purchase order items, 2.3 points below the overall score of 84.4 (3 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: missing invoice or payment; most often missed: Closing the loop. nan",
 "stable_gap_lo": 0.000782,
 "stable_gap_hi": 0.00483
 },
@@ -7575,8 +7575,8 @@
 "stable_PI_lo": 2.2e-05,
 "stable_PI_hi": 0.000279,
 "p_top": 0.0,
-"comparison": "100 % of purchase order items Approved once here against 2 % elsewhere.",
-"comparison_kind": "rate",
+"comparison": null,
+"comparison_kind": null,
 "caveats": [
 {
 "id": "window_edge",
@@ -7593,8 +7593,8 @@
 "case_noun": "purchase order items",
 "points_below": "0.1 points below the overall score of 84.4 (0 %)",
 "kind_source": "analytics",
-"reading": "companyID_0003 × Workforce Services: 1 cases, 0.06 % below expectation on average (0.00 % with small groups discounted); most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 0.0 (small groups discounted with γ = 20), rank 23 of 30 in the Automation perspective.",
-"reading_plain": "companyID_0003 × Workforce Services: 1 purchase order items, 0.1 points below the overall score of 84.4 (0 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. 100 % of purchase order items Approved once here against 2 % elsewhere.",
+"reading": "companyID_0003 × Workforce Services: 1 cases, 0.06 % below expectation on average (0.00 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Rework and instability (Approval changes should be rare, missed in 100 % of these cases); confidence in rank: not enough cases to be sure; priority 0.0 (small groups discounted with γ = 20), rank 23 of 30 in the Automation perspective.",
+"reading_plain": "companyID_0003 × Workforce Services: 1 purchase order items, 0.1 points below the overall score of 84.4 (0 %) (not enough cases to be sure); systematic: one kind of problem explains most of it: repeated or changed postings; most often missed: Doing it once. nan",
 "stable_gap_lo": 2.2e-05,
 "stable_gap_hi": 9.3e-05
 },

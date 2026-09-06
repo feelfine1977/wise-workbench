@@ -29,11 +29,13 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     const tray = await screen.findByRole("region", { name: "Jobs" }, T);
     await waitFor(() => expect(within(tray).getAllByText(/^Score (DF2|DF1|Consignment|2-way)/).length).toBe(4), T);
     await waitFor(() => expect(within(tray).getAllByText("done").length).toBe(4), { timeout: 15000 });
-    await waitFor(() => expect(screen.getByRole("combobox", { name: "Switch flow type" })).toBeInTheDocument(), T);
     await waitFor(() => expect(screen.getByText("Every flow type has its run")).toBeInTheDocument(), T);
+    // the Data step's ribbon shows project and dataset only; the scope switcher belongs to the Signals step
+    expect(screen.queryByRole("combobox", { name: "Switch scope" })).not.toBeInTheDocument();
     await user.click(within(screen.getByRole("list", { name: "Flow types" })).getAllByRole("button", { name: /Analyse the .* flow|Open this flow/ })[0]!);
     await waitFor(() => expect(screen.getByRole("list", { name: "Signals" })).toBeInTheDocument(), T);
     expect(screen.getByText(/Signals · DF2 flow only/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Switch scope" })).toHaveTextContent("DF2 only"), T);
   });
 
   it("the run page compares the flow types side by side for a run without scope", async () => {

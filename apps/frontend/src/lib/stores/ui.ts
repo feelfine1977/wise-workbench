@@ -14,9 +14,8 @@ interface UiState {
   helpTerm: string | undefined;
   paletteOpen: boolean;
   trayOpen: boolean;
-  railCollapsed: boolean;
-  /** "How to read this" paragraphs the reader has closed, by screen id (RG-5). */
-  howToReadClosed: Record<string, boolean>;
+  /** "How to read this" paragraphs the reader has opened from the ? beside a title, by screen id; closed by default. */
+  howToReadOpen: Record<string, boolean>;
   setHowToRead: (id: string, open: boolean) => void;
   setTheme: (t: Theme) => void;
   setDensity: (d: Density) => void;
@@ -25,7 +24,6 @@ interface UiState {
   closeHelp: () => void;
   setPaletteOpen: (open: boolean) => void;
   setTrayOpen: (open: boolean) => void;
-  setRailCollapsed: (collapsed: boolean) => void;
 }
 
 function applyTheme(theme: Theme) {
@@ -62,9 +60,8 @@ export const useUiStore = create<UiState>()(
       helpTerm: undefined,
       paletteOpen: false,
       trayOpen: true,
-      railCollapsed: false,
-      howToReadClosed: {},
-      setHowToRead: (id, open) => set((s) => ({ howToReadClosed: { ...s.howToReadClosed, [id]: !open } })),
+      howToReadOpen: {},
+      setHowToRead: (id, open) => set((s) => ({ howToReadOpen: { ...s.howToReadOpen, [id]: open } })),
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
@@ -78,11 +75,10 @@ export const useUiStore = create<UiState>()(
       closeHelp: () => set({ helpOpen: false, helpTerm: undefined }),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setTrayOpen: (trayOpen) => set({ trayOpen }),
-      setRailCollapsed: (railCollapsed) => set({ railCollapsed }),
     }),
     {
       name: "wise.ui",
-      partialize: (s) => ({ theme: s.theme, density: s.density, vocabulary: s.vocabulary, trayOpen: s.trayOpen, railCollapsed: s.railCollapsed, howToReadClosed: s.howToReadClosed }),
+      partialize: (s) => ({ theme: s.theme, density: s.density, vocabulary: s.vocabulary, trayOpen: s.trayOpen, howToReadOpen: s.howToReadOpen }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           applyTheme(state.theme);

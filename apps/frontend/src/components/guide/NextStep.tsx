@@ -12,11 +12,13 @@ export interface NextStepProps {
   params?: LinkProps["params"];
   search?: LinkProps["search"];
   onClick?: () => void;
+  /** One alternative in a muted line, as text or as a link. */
+  alternative?: { label: string; to?: LinkProps["to"]; params?: LinkProps["params"]; search?: LinkProps["search"]; onClick?: () => void };
   className?: string;
 }
 
-/** The next best action (UX-21): one suggested step with its reason, on every screen. */
-export function NextStep({ label, because, to, params, search, onClick, className }: NextStepProps) {
+/** The next best action: one suggested step with its reason and one alternative — on the dashboard and after a saved decision. */
+export function NextStep({ label, because, to, params, search, onClick, alternative, className }: NextStepProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-border bg-surface px-4 py-3", className)} data-testid="next-step">
       <span className="text-[11px] font-medium uppercase tracking-wide text-text-subtle">Next step</span>
@@ -34,6 +36,22 @@ export function NextStep({ label, because, to, params, search, onClick, classNam
         </Button>
       )}
       <span className="reading text-sm text-text-muted">because {because}</span>
+      {alternative && (
+        <span className="basis-full text-xs text-text-subtle">
+          Alternative:{" "}
+          {alternative.to ? (
+            <Link className="text-accent-text underline" to={alternative.to} params={alternative.params} search={alternative.search}>
+              {alternative.label}
+            </Link>
+          ) : alternative.onClick ? (
+            <button type="button" className="text-accent-text underline" onClick={alternative.onClick}>
+              {alternative.label}
+            </button>
+          ) : (
+            alternative.label
+          )}
+        </span>
+      )}
     </div>
   );
 }

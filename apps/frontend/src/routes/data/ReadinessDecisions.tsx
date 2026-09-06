@@ -19,16 +19,16 @@ const CHOICES: Record<string, { param: string; options: { id: string; label: str
   open_cases: {
     param: "handling",
     options: [
-      { id: "censor", label: "keep them; lags without an end are censored, not counted as late" },
-      { id: "exclude", label: "leave them out of the case table" },
-      { id: "keep", label: "keep them and count the missing closure" },
+      { id: "censor", label: "Censor: ignore the missing closures (lags without an end are not counted as late)" },
+      { id: "exclude", label: "Exclude the open cases from the case table" },
+      { id: "keep", label: "Keep them as they are and count the missing closure" },
     ],
   },
   zero_exposure: {
     param: "handling",
     options: [
-      { id: "exclude", label: "leave them out of value-weighted priorities" },
-      { id: "keep", label: "count them with their value of 0" },
+      { id: "exclude", label: "Exclude them from value-weighted priorities" },
+      { id: "keep", label: "Keep them with their value of 0" },
     ],
   },
 };
@@ -216,7 +216,7 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
                 <GateBadge state={it.level === "fail" ? "failed" : it.level === "warn" ? "pending" : "passed"} label={it.level} className="mt-0.5" />
                 <span className="reading min-w-0 flex-1 text-sm">{it.message}</span>
                 {kind && (
-                  <Button size="sm" variant={done ? "outline" : "default"} onClick={() => setOpenItem({ item: it, kind })} aria-label={`${PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
+                  <Button size="sm" variant="outline" onClick={() => setOpenItem({ item: it, kind })} aria-label={`${PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
                     {done ? "Decide again" : (PLAIN_LABEL[kind.kind] ?? kind.label)}
                   </Button>
                 )}

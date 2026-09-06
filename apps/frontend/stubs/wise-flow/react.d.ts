@@ -1,4 +1,4 @@
-import type { CSSProperties, JSX } from "react";
+import type { CSSProperties, JSX, ReactNode } from "react";
 import type { FlowGraph, Overlay, Positions, StyleSpec } from "./index";
 
 export type LayoutStatus = "idle" | "pending" | "ready" | "error";
@@ -21,6 +21,12 @@ export interface MenuTarget {
 export interface MenuAction {
   id: string;
   label: string;
+  clause?: unknown;
+}
+export interface Selection {
+  nodes: string[];
+  edges: string[];
+  groups: string[];
 }
 export interface ProcessMapProps {
   graph: FlowGraph;
@@ -50,5 +56,9 @@ export interface ProcessMapProps {
   onFilterChange?: (filter: { and: unknown[] }) => void;
   onAction?: (action: MenuAction, target: MenuTarget) => void | string;
   announce?: string;
+  abstraction?: { minNodeShare?: number; minEdgeShare?: number; keepConnected?: boolean; collapse?: string[] | "all" | false };
+  onAbstractionChange?: (options: { minNodeShare?: number; minEdgeShare?: number; keepConnected?: boolean; collapse?: string[] | "all" | false }) => void;
+  onSelect?: (selection: Selection) => void;
+  children?: ReactNode;
 }
 export declare function ProcessMap(props: ProcessMapProps): JSX.Element;

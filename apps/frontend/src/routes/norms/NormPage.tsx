@@ -1,6 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
+import { useVocabulary } from "@/components/Term";
+import { returnTarget, useNavStore } from "@/lib/stores/nav";
 import { useWorkbench } from "@/app/context";
 import { normRoute } from "@/app/router";
 import { LayerChip } from "@/components/badges";
@@ -8,7 +11,6 @@ import { DistributionLens } from "@/components/DistributionLens";
 import { BackControl } from "@/components/guide/BackControl";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
-import { NextStep } from "@/components/guide/NextStep";
 import { JsonView } from "@/components/JsonView";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +90,19 @@ export default function NormPage() {
   const dist = useQuery({ ...distributionQuery(ctx.projectId, runId ?? "", selected?.id ?? ""), enabled: !!runId && !!selected });
   const [pending, setPending] = useState<{ threshold: number; width: number }>();
   const [note, setNote] = useState("");
+  const { vocabulary } = useVocabulary();
+  // opened from a reason screen, the lens is a sub-screen of Why: the stepper keeps Why current with this line under it
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const visited = useNavStore((s) => s.visited);
+  const lastSlice = useNavStore((s) => s.lastSlice);
+  const setSubline = useNavStore((s) => s.setSubline);
+  const fromWhy = /\/slices\//.test(returnTarget(visited, pathname)?.pathname ?? "");
+  const lensName = selected ? (selected.description ?? sentence(selected)).replace(/\.$/, "") : undefined;
+  useEffect(() => {
+    if (fromWhy && lastSlice) setSubline(`${lastSlice.label} · lens of “${lensName ?? selected?.id ?? "an expectation"}”`);
+    else setSubline(undefined);
+    return () => setSubline(undefined);
+  }, [fromWhy, lastSlice, lensName, selected?.id, setSubline]);
 
   const setTab = (tab: NormTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab }) });
   const selectConstraint = (id: string) => void navigate({ to: ".", search: (s) => ({ ...s, constraint: id }) });
@@ -141,7 +156,7 @@ export default function NormPage() {
                   <Badge variant={nv.status === "approved" ? "success" : nv.status === "reviewed" ? "info" : "warning"} className="mr-2">
                     {nv.status}
                   </Badge>
-                  <span className="font-mono text-xs">{nv.fingerprint}</span> · {json?.scoring_mode} · {json?.layers?.length ?? 0} layers · {constraints.length} constraints · {json?.views?.length ?? 0} views
+                  <span title={`fingerprint ${nv.fingerprint}`}>{json?.scoring_mode} · {json?.layers?.length ?? 0} expectation areas · {constraints.length} expectations · {json?.views?.length ?? 0} perspectives</span>
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3" data-no-capture>
@@ -155,12 +170,6 @@ export default function NormPage() {
               The catalogue lists the expectations by area; the calibration lens shows how the cases are spread around the threshold of the selected expectation, with the threshold ϑ and the tolerance W draggable. Committing a threshold creates the next version and asks for a note.
               The JSON tab is the library's own document; version notes keep the lineage. Use the back control above to return to where you came from.
             </HowToRead>
-            {runId ? (
-              <NextStep label="Open the ranked list" because="the norm is scored; calibrate a threshold here only when a distribution tells you to" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId }} search={{ slicing: ctx.slicing, view: ctx.view }} />
-            ) : (
-              <NextStep label="Start a run" because="the lens reads the empirical distribution from a finished run" to="/p/$projectId/runs" params={{ projectId: ctx.projectId }} />
-            )}
-
             <Tabs value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
               <TabsList aria-label="Norm sections">
                 <TabsTrigger value="constraints">Constraints</TabsTrigger>
@@ -217,6 +226,9 @@ export default function NormPage() {
                         title={`${selected.id} · ${sentence(selected)}`}
                         direction={(selected.params.direction as "high" | "low" | undefined) ?? "high"}
                         onCommit={(next) => setPending(next)}
+                        mode={vocabulary}
+                        sliders="always"
+                        groupName="the whole log"
                       />
                     )}
                     {selected && dist.data && !thresholdOf(selected) && <p className="text-sm text-text-muted">{selected.type} constraints have no threshold to calibrate; the distribution shows the raw count.</p>}

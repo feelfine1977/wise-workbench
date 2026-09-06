@@ -4,12 +4,12 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { useWorkbench } from "@/app/context";
 import { backlogRoute } from "@/app/router";
-import { BACKLOG_DEFAULTS, stripBacklogDefaults, type BacklogSearch, type BacklogTab } from "@/app/search";
+import { stripBacklogDefaults, type BacklogSearch, type BacklogTab } from "@/app/search";
 import { filterPreviewQuery, type BacklogParamsC2, type RunC2, type Within } from "@/lib/api/cycle2";
 import { Explain } from "@/components/explain";
 import { FreezeButton } from "@/components/guide/Freeze";
+import { CaveatChips } from "@/components/guide/CaveatChips";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
-import { NextStep } from "@/components/guide/NextStep";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
 import { Term, useVocabulary } from "@/components/Term";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,9 @@ import { Card, CardTitle } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { parseFilter } from "@/lib/filter";
-import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
+import { fmtInt, fmtNum } from "@/lib/format";
 import { backlogQuery, normQuery } from "@/lib/queries";
+import { groupLabel, pageWideCaveats, sharedKeyValues } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
 import { rankingRule } from "@/lib/vocabulary";
 import { drillAttributeFor, sliceLabel } from "@/lib/utils";
@@ -131,11 +132,11 @@ export default function BacklogPage() {
   );
   const open = useCallback(
     (key: string, focus?: "finding") => {
-      const label = sliceLabel(rows.find((r) => r.key === key) ?? { key });
+      const label = groupLabel(rows.find((r) => r.key === key) ?? { key }, sharedKeyValues(rows));
       const target = {
         to: "/p/$projectId/runs/$runId/slices/$sliceKey" as const,
         params: { projectId: ctx.projectId, runId, sliceKey: key },
-        search: { slicing, view, tab: "flow" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter },
+        search: { slicing, view, tab: "why" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter },
       };
       setLastSlice(router.buildLocation(target).href, label);
       void navigate(target);
@@ -147,7 +148,9 @@ export default function BacklogPage() {
   const setTab = (tab: BacklogTab) => void navigate({ to: ".", search: (s) => stripBacklogDefaults({ ...(s as BacklogSearch), tab }) as BacklogSearch });
   const reset = () => void navigate({ to: ".", search: { slicing, view, tab: search.tab } });
 
-  if (!run) return ctx.isLoading ? <LoadingBlock rows={8} /> : <ErrorBlock error={new Error(`Run ${runId} is not in this project.`)} />;
+  if (!run) {
+    return ctx.isLoading ? <LoadingBlock rows={8} /> : <EmptyState title="This run does not exist in this workspace." reason={`Nothing is ranked for ${runId}; the ribbon stays on the project's latest run.`} action={{ label: "Go to Runs", to: "/p/$projectId/runs", params: { projectId: ctx.projectId } }} />;
+  }
   if (run.status !== "done") {
     return <EmptyState title={`Run ${run.id} is ${run.status}`} reason="The ranked list appears when scoring has finished." action={{ label: "Open the run monitor", to: "/p/$projectId/runs/$runId", params: { projectId: ctx.projectId, runId } }} />;
   }
@@ -160,9 +163,10 @@ export default function BacklogPage() {
   const grouping = run.slicings?.find((s) => s.id === slicing);
   const groupingText = groupingLabel(grouping?.attributes ?? (params.attributes as string[] | undefined) ?? slicing.split("+"), slicing);
   const noConfidenceComputed = confident && rows.length === 0 && (backlog.data?.rows ?? []).length > 0 && (backlog.data?.rows ?? []).every((r) => (r.stability ?? "unknown") === "unknown");
-  const first = rows[0];
-  const priorityShare = first && rows.length ? first.stable_PI / rows.reduce((s, r) => s + r.stable_PI, 0) : 0;
   const scope = run.scope?.flow_type;
+  // caveats that hold on nearly every group of the page are stated once here, not on every card
+  const pageCaveats = pageWideCaveats(rows);
+  const hideCaveats = new Set(pageCaveats.map((c) => c.id));
 
   const footer = (
     <footer className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
@@ -178,9 +182,7 @@ export default function BacklogPage() {
           Next
         </Button>
       </span>
-      <span>
-        keys: ↑↓ move · ↵ Why? · p pin · f finding · / refine <span className="text-text-subtle">(defaults: sort {BACKLOG_DEFAULTS.sort}, {BACKLOG_DEFAULTS.pageSize} per page)</span>
-      </span>
+      <span>keys: ↑↓ move · ↵ Why? · p pin · f finding · / refine</span>
     </footer>
   );
 
@@ -247,12 +249,26 @@ export default function BacklogPage() {
           {backlog.data ? (
             <>
               <strong>{fmtInt(total)}</strong> groups of {caseNoun} by <strong>{groupingText}</strong>
-              {within ? ` inside ${sliceLabel({ key: within.key })}` : ""}, ranked by {plain ? "how many × how far below the overall score, small groups discounted" : `stable PI`} ({plain ? "γ" : "γ"} = {fmtNum(gamma, 0)}), in the <strong>{view}</strong> {plain ? "perspective" : "view"}.
+              {within ? ` inside ${sliceLabel({ key: within.key })}` : ""}, ranked by{" "}
+              {plain ? (
+                <>
+                  how many × how far below the overall score, <span title={`caution against small groups: γ = ${fmtNum(gamma, 0)}`}>small groups discounted</span>
+                </>
+              ) : (
+                `stable PI (γ = ${fmtNum(gamma, 0)})`
+              )}
+              , in the <strong>{view}</strong> {plain ? "perspective" : "view"}.
             </>
           ) : (
             rankingRule(vocabulary, gamma)
           )}
         </p>
+        {pageCaveats.length > 0 && (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-text-muted" data-testid="page-caveats">
+            <span>On nearly every group here:</span>
+            <CaveatChips caveats={pageCaveats.map((c) => ({ id: c.id, share: c.share ?? null, status: "warn", text: c.text }))} max={4} />
+          </p>
+        )}
         {!plain && backlog.data && (
           <p className="flex flex-wrap items-center gap-2 text-xs" data-testid="method-strip">
             <Badge variant="outline">
@@ -268,22 +284,15 @@ export default function BacklogPage() {
           </p>
         )}
         <HowToRead id="signals">
-          Each card is one group of {caseNoun}. The first line carries the three numbers that matter: how many {caseNoun}, how far the group's score sits below the overall score (in score points, with the percent in brackets) and how sure the rank is.
-          The second line says what is mostly wrong and, where the backend has computed it, the real-unit comparison with everyone else. The bar is the priority (how many × how far); <strong>Why?</strong> opens the reasons behind one group. Filters sit behind <strong>Refine</strong>; every active one shows as a chip you can remove.
+          Each card is one group of {caseNoun}. Its sentence carries the three numbers that matter: how many {caseNoun}, how far the group's score sits below the overall score, and the expectation missed most with the share of {caseNoun} missing it. The
+          muted line under it is the real-unit comparison with everyone else where the backend has computed one. The bar is the priority (how many × how far) with the confidence in the rank beside it; <strong>Why?</strong> opens the reasons behind one group.
+          Filters sit behind <strong>Refine</strong>; every active one shows as a chip you can remove.
         </HowToRead>
       </header>
 
       <Refine ref={filterRef} search={search} layers={layers} runGamma={run.gamma ?? 20} filter={filter} preview={preview.data} within={within} onChange={(p) => patch(p)} onReset={reset} caseNoun={caseNoun}>
         {switchers}
       </Refine>
-
-      {first && !within && (
-        <NextStep
-          label={`Why? ${sliceLabel(first)}`}
-          because={`it carries ${fmtPct(priorityShare, 0)} of the priority on this page${first.stability === "stable" ? " and its rank is reliable" : ""}`}
-          onClick={() => open(first.key)}
-        />
-      )}
 
       <Tabs value={search.tab} onValueChange={(v) => setTab(v as BacklogTab)}>
         <TabsList aria-label="Views of the ranked list">
@@ -304,7 +313,7 @@ export default function BacklogPage() {
                   <EmptyState title={t("empty.noRows")} reason={t("empty.noRowsReason")} action={{ label: "Reset filters", onClick: reset }} />
                 )
               ) : (
-                <SignalsList rows={rows} maxPI={maxPI} view={view} layerNames={layerNames} caseNoun={caseNoun} pins={pins} activeKey={activeKey} onActive={setActiveKey} onTogglePin={togglePin} onOpen={open} onDrill={within ? undefined : drill} onFocusFilter={() => filterRef.current?.focus()} />
+                <SignalsList rows={rows} maxPI={maxPI} view={view} layerNames={layerNames} caseNoun={caseNoun} hideCaveats={hideCaveats} pins={pins} activeKey={activeKey} onActive={setActiveKey} onTogglePin={togglePin} onOpen={open} onDrill={within ? undefined : drill} onFocusFilter={() => filterRef.current?.focus()} />
               )}
               {footer}
             </TabsContent>

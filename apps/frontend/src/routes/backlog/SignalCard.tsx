@@ -2,12 +2,14 @@ import { ChevronDown, Pin } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import type { BacklogRow } from "@wise/api-schema";
 import type { BacklogRowC2 } from "@/lib/api/cycle2";
-import { ConfidenceMark, KindBadge, LayerChip } from "@/components/badges";
+import { KindBadge, LayerChip } from "@/components/badges";
 import { CaveatChips } from "@/components/guide/CaveatChips";
 import { Term, useVocabulary } from "@/components/Term";
 import { Button } from "@/components/ui/button";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
-import { cn, sliceLabel } from "@/lib/utils";
+import { belowExpectation, comparisonSentence, groupLabel, missedPhrase, readingSentence } from "@/lib/sentences";
+import { confidenceOf } from "@/lib/vocabulary";
+import { cn } from "@/lib/utils";
 
 export interface SignalCardProps {
   row: BacklogRow;
@@ -17,6 +19,10 @@ export interface SignalCardProps {
   layerNames?: Record<string, string>;
   /** The mapping's business name of a case ("purchase order items"); the row's own `case_noun` wins. */
   caseNoun?: string;
+  /** The group's name without the part every group on the page shares. */
+  label?: string;
+  /** Caveat ids the page states once in its header. */
+  hideCaveats?: Set<string>;
   active?: boolean;
   pinned?: boolean;
   onWhy: (key: string) => void;
@@ -28,8 +34,9 @@ export interface SignalCardProps {
 }
 
 /**
- * "0.9 points below the overall score of 84.4 (1 %)": distances as score points with the percent in brackets
- * (RG-18). The backend's own sentence (`points_below`) is used when it is served; otherwise it is computed.
+ * "0.9 points below the overall score of 84.4 (1 %)": the distance as score points with the percent in
+ * brackets, behind "more" on the card and in the method's words when the vocabulary is switched. The backend's
+ * own sentence (`points_below`) is used when it is served; otherwise it is computed.
  */
 export function distanceSentence(row: { gap: number; global_mean?: number | null; mean_score: number; points_below?: string | null }, plain: boolean): string {
   const mu = row.global_mean ?? row.mean_score + row.gap;
@@ -41,23 +48,28 @@ export function distanceSentence(row: { gap: number; global_mean?: number | null
 }
 
 /**
- * One signal (R2-O9): a rank, the group, its kind, then one reading sentence of at most two lines — the
- * three numbers a reader needs (cases, how far below, confidence) and the plain reason with the real-unit
- * comparison — caveat chips, the priority bar with the rank, one **Why?**; everything else behind "more".
+ * One signal: the rank and the name with the kind chip at the right end; one sentence with three numbers —
+ * cases, the share below expectation, the most-missed expectation as a plain phrase with its share; the
+ * real-unit comparison as a muted line when the backend serves one; the strip with the priority bar (accent),
+ * the priority, the confidence word and at most one caveat chip; **Why?** as the single primary button;
+ * everything else behind "more".
  */
-export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active, pinned, onWhy, onActivate, onTogglePin, onDrill, onKeyDown, className }: SignalCardProps) {
+export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label: givenLabel, hideCaveats, active, pinned, onWhy, onActivate, onTogglePin, onDrill, onKeyDown, className }: SignalCardProps) {
   const { vocabulary, t } = useVocabulary();
   const plain = vocabulary === "plain";
   const row = raw as BacklogRowC2;
   const [more, setMore] = useState(false);
-  const label = sliceLabel(row);
+  const label = givenLabel ?? groupLabel(row);
   const share = maxPI > 0 ? Math.max(0, Math.min(1, row.stable_PI / maxPI)) : 0;
   const area = row.dominant_layer_name ?? layerNames?.[row.dominant_layer ?? ""] ?? row.dominant_layer ?? undefined;
-  const missed = row.layer_missed_label ?? area;
   const noun = row.case_noun ?? caseNoun ?? (plain ? "cases" : "n_cases");
   const noShortfall = row.gap <= 0;
   const topDescription = row.top_constraint_description?.replace(/\.$/, "");
-  const topPlain = row.top_constraint_plain ?? topDescription;
+  const missed = missedPhrase(row);
+  const missedShare = row.top_constraint_share !== null && row.top_constraint_share !== undefined ? row.top_constraint_share : undefined;
+  const comparison = plain ? comparisonSentence(row) : row.comparison ?? undefined;
+  const confidence = confidenceOf(row.stability);
+  const reading = readingSentence(row);
   return (
     <article
       aria-current={active ? "true" : undefined}
@@ -70,13 +82,13 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
       onFocus={() => onActivate?.(row.key)}
       onClick={() => onActivate?.(row.key)}
       onKeyDown={onKeyDown}
-      className={cn("signal-card surface card-pad flex flex-col gap-3 outline-none transition-colors duration-fast hover:border-border-strong focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus", active && "border-accent bg-selection/30", className)}
+      className={cn("signal-card surface card-pad flex flex-col gap-3 outline-none transition-colors duration-fast hover:border-border-strong focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus", active && "border-accent", className)}
     >
       <header className="flex flex-wrap items-center gap-3">
         <span className="tnum inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-sm font-semibold" aria-hidden>
           {row.rank}
         </span>
-        <h3 className="min-w-0 flex-1 truncate text-lg font-semibold" title={label}>
+        <h3 className="min-w-0 flex-1 truncate text-lg font-semibold" title={groupLabel(row)}>
           {label}
         </h3>
         <KindBadge kind={row.kind} hotspotType={row.hotspot_type} short={plain} className="text-sm" />
@@ -97,46 +109,53 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
         )}
       </header>
 
-      <p className="reading text-base leading-7 text-text" data-testid="card-sentence">
+      <p className="reading text-md leading-7 text-text" data-testid="card-sentence" title={plain && !noShortfall ? distanceSentence(row, true) : undefined}>
         <strong className="tnum">{fmtInt(row.n_cases)}</strong> {plain ? noun : <Term id="n_cases" primaryOnly />}
         {" · "}
-        {noShortfall ? <span>at or above the overall score</span> : <span>{distanceSentence(row, plain)}</span>}
-        {" · "}
-        <ConfidenceMark value={row.stability} words className="text-base" title={row.stability_reason ?? undefined} />
+        {noShortfall ? (
+          <span>at or above the overall score</span>
+        ) : plain ? (
+          <>
+            <strong className="tnum">{belowExpectation(row)}</strong> below expectation
+          </>
+        ) : (
+          <span>{distanceSentence(row, false)}</span>
+        )}
+        {!noShortfall && missed && (
+          <>
+            {" · "}
+            <span title={topDescription ?? undefined}>
+              {plain ? missed : area}
+              {missedShare !== undefined ? (
+                <>
+                  {" "}
+                  in <strong className="tnum">{fmtPct(missedShare, 0)}</strong> of them
+                </>
+              ) : null}
+            </span>
+          </>
+        )}
+        .
       </p>
-      {!noShortfall && (missed || row.comparison) && (
-        <p className="reading clamp-2 text-base leading-7 text-text-muted" data-testid="card-reason" title={topDescription ? `${topDescription}${row.top_constraint_share !== null && row.top_constraint_share !== undefined ? `, missed in ${fmtPct(row.top_constraint_share)} of these ${noun}` : ""}` : undefined}>
-          {missed && (
-            <>
-              {plain ? "mostly" : "dominant layer"} <strong className="font-medium text-text">{plain ? missed : area}</strong>
-            </>
-          )}
-          {row.comparison ? (
-            <>
-              {missed ? " — " : ""}
-              {row.comparison}
-            </>
-          ) : topPlain ? (
-            <>
-              {missed ? " — " : ""}
-              {topPlain}
-              {row.top_constraint_share !== null && row.top_constraint_share !== undefined ? ` missed in ${fmtPct(row.top_constraint_share)} of these ${noun}` : ""}
-            </>
-          ) : null}
+      {!noShortfall && comparison && (
+        <p className="reading clamp-2 text-sm text-text-muted" data-testid="card-reason">
+          {comparison}
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <CaveatChips caveats={row.caveats} max={2} />
-        <span className="ml-auto flex min-w-[180px] items-center gap-2 text-xs text-text-muted">
-          <span role="meter" aria-valuemin={0} aria-valuemax={Math.max(maxPI, 1)} aria-valuenow={row.stable_PI} aria-label={`${t("PI")} ${fmtNum(row.stable_PI, 1)} of ${fmtNum(maxPI, 1)}`} title={`${t("stable_PI")}: ${fmtNum(row.stable_PI, 1)}`} className="h-2 min-w-[90px] flex-1 overflow-hidden rounded-full bg-surface-sunken">
-            <span className="block h-full rounded-full" style={{ width: `${Math.max(2, share * 100)}%`, background: row.kind ? `var(--kind-${row.kind}-solid)` : "var(--color-accent)" }} />
+        <span className="flex min-w-[220px] flex-1 items-center gap-2 text-xs text-text-muted">
+          <span role="meter" aria-valuemin={0} aria-valuemax={Math.max(maxPI, 1)} aria-valuenow={row.stable_PI} aria-label={`${t("PI")} ${fmtNum(row.stable_PI, 1)} of ${fmtNum(maxPI, 1)}`} title={`${t("stable_PI")}: ${fmtNum(row.stable_PI, 1)}`} className="h-1.5 min-w-[90px] max-w-[280px] flex-1 overflow-hidden rounded-full bg-surface-sunken">
+            <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(2, share * 100)}%` }} />
           </span>
-          <span className="tnum whitespace-nowrap">
-            {plain ? "" : `${t("rank")} `}
-            {row.rank}
-            {row.n_ranked ? ` of ${fmtInt(row.n_ranked)}` : ""}
+          <span className="tnum whitespace-nowrap" data-testid="card-strip">
+            {plain ? "priority" : t("stable_PI")} {fmtNum(row.stable_PI, 0)}
+            {" · "}
+            <span data-stability={row.stability ?? "unknown"} title={row.stability_reason ?? undefined}>
+              {plain ? `confidence ${confidence}` : `stability ${(row.stability ?? "unknown").replace("_", " ")}`}
+            </span>
           </span>
+          <CaveatChips caveats={row.caveats} max={1} hide={hideCaveats} />
         </span>
         <button
           type="button"
@@ -166,6 +185,12 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
 
       {more && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-t border-border pt-3 text-sm" data-testid="card-more">
+          {givenLabel && givenLabel !== groupLabel(row) && (
+            <>
+              <dt className="text-text-muted">group</dt>
+              <dd>{groupLabel(row)}</dd>
+            </>
+          )}
           {row.kind && (
             <>
               <dt className="text-text-muted">{plain ? "kind of problem" : "hotspot type"}</dt>
@@ -174,18 +199,23 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
               </dd>
             </>
           )}
+          {!noShortfall && (
+            <>
+              <dt className="text-text-muted">{plain ? "how far off" : t("gap")}</dt>
+              <dd className="tnum">{distanceSentence(row, plain)}</dd>
+            </>
+          )}
           {area && (
             <>
-              <dt className="text-text-muted">
-                <Term id="dominant_layer" primaryOnly />
-              </dt>
+              <dt className="text-text-muted">{plain ? "expectation area" : <Term id="dominant_layer" primaryOnly />}</dt>
               <dd>
-                <LayerChip id={row.dominant_layer} name={area} className="text-sm" />
+                <LayerChip id={row.dominant_layer} name={plain ? (row.plain_layer ?? area) : area} className="text-sm" />
+                {plain && row.plain_layer && row.plain_layer !== area ? <span className="ml-1 text-xs text-text-subtle">({area})</span> : null}
                 {topDescription && (
-                  <span className="text-text-muted">
-                    {" — "}
+                  <span className="block text-text-muted">
+                    {row.top_constraint_plain ? `${row.top_constraint_plain} — ` : ""}
                     {topDescription}
-                    {row.top_constraint_share !== null && row.top_constraint_share !== undefined ? `, missed in ${fmtPct(row.top_constraint_share)} of these ${noun}` : ""}
+                    {missedShare !== undefined ? `, missed in ${fmtPct(missedShare)} of these ${noun}` : ""}
                     {!plain && row.top_constraint ? <span className="ml-1 font-mono text-xs text-text-subtle">{row.top_constraint}</span> : null}
                   </span>
                 )}
@@ -208,6 +238,7 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
             {fmtNum(row.stable_PI, 1)}
             {fmtNum(row.PI, 1) !== fmtNum(row.stable_PI, 1) ? ` (${plain ? "before discounting" : "raw PI"} ${fmtNum(row.PI, 1)})` : ""}
             {row.PI_lower !== null && row.PI_lower !== undefined ? ` · ${t("PI_lower")} ${fmtNum(row.PI_lower, 1)}` : ""}
+            {row.n_ranked ? ` · rank ${row.rank} of ${fmtInt(row.n_ranked)}` : ` · rank ${row.rank}`}
           </dd>
           <dt className="text-text-muted">{plain ? "average score" : t("mean_score")}</dt>
           <dd className="tnum">
@@ -227,10 +258,10 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, active
               </dd>
             </>
           )}
-          {row.reading && (
+          {reading && (
             <>
               <dt className="text-text-muted">reading</dt>
-              <dd className="text-text-muted">{row.reading}</dd>
+              <dd className="text-text-muted">{reading}</dd>
             </>
           )}
           {onDrill && (

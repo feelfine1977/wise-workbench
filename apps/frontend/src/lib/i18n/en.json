@@ -30,17 +30,26 @@
     "flowType": "flow type",
     "notebook": "Notebook",
     "vocabulary": "words",
-    "vocabularies": { "plain": "plain", "method": "method" },
+    "vocabularies": {
+      "plain": "plain",
+      "method": "method"
+    },
     "switch": "Switch {{what}}",
     "noRun": "no run yet",
     "help": "Help and glossary",
     "palette": "Command palette",
     "theme": "Theme",
-    "density": "Density"
+    "density": "Density",
+    "scope": "scope"
   },
   "rail": {
     "title": "Journey",
-    "state": { "not_started": "not started", "in_progress": "in progress", "gated": "gated", "done": "done" },
+    "state": {
+      "not_started": "not started",
+      "in_progress": "in progress",
+      "gated": "gated",
+      "done": "done"
+    },
     "whyGated": "Why gated",
     "fixAt": "Fix at",
     "stages": {
@@ -61,14 +70,30 @@
   },
   "jobs": {
     "title": "Jobs",
-    "transport": { "stream": "live", "poll": "polling" },
+    "transport": {
+      "stream": "live",
+      "poll": "polling"
+    },
     "empty": "No jobs yet",
     "cancel": "Cancel job",
     "openResult": "Open result",
     "dismiss": "Dismiss",
-    "status": { "queued": "queued", "running": "running", "done": "done", "failed": "failed", "cancelled": "cancelled" },
+    "status": {
+      "queued": "queued",
+      "running": "running",
+      "done": "done",
+      "failed": "failed",
+      "cancelled": "cancelled"
+    },
     "announce": "Job {{label}} is {{status}}",
-    "kind": { "ingest": "Ingest", "build_cases": "Case table", "score_run": "Run", "load_preset": "Public log preset", "apply_decision": "Decision", "job": "Job" }
+    "kind": {
+      "ingest": "Ingest",
+      "build_cases": "Case table",
+      "score_run": "Run",
+      "load_preset": "Public log preset",
+      "apply_decision": "Decision",
+      "job": "Job"
+    }
   },
   "palette": {
     "placeholder": "Jump to a screen… (search for slices, constraints and cases arrives in v1)",
@@ -91,7 +116,12 @@
       "escape": "Close the open dialog"
     }
   },
-  "explain": { "trigger": "Explain this number", "formula": "Formula", "inputs": "Inputs", "caveats": "Caveats" },
+  "explain": {
+    "trigger": "Explain this number",
+    "formula": "Formula",
+    "inputs": "Inputs",
+    "caveats": "Caveats"
+  },
   "empty": {
     "nextStep": "Next step",
     "alternative": "Or",

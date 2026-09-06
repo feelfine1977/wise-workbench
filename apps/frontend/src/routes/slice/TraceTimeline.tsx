@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 const DAY = 86_400_000;
 
 /** A simple trace timeline: events on a time axis, violated constraints marked with a glyph and listed; table alternative below. */
-export function TraceTimeline({ trace, highlight, onHighlight }: { trace: Trace; highlight?: string; onHighlight?: (constraintId: string | undefined) => void }) {
+export function TraceTimeline({ trace, highlight, onHighlight, plainOf }: { trace: Trace; highlight?: string; onHighlight?: (constraintId: string | undefined) => void; plainOf?: (constraintId: string) => string }) {
+  const name = (id: string) => plainOf?.(id) ?? id;
   const events = useMemo(() => [...(trace.events ?? [])].sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? "")), [trace.events]);
   const t0 = events[0]?.timestamp ? new Date(events[0].timestamp).getTime() : 0;
   const t1 = events[events.length - 1]?.timestamp ? new Date(events[events.length - 1]?.timestamp as string).getTime() : t0;
@@ -38,6 +39,7 @@ export function TraceTimeline({ trace, highlight, onHighlight }: { trace: Trace;
             const bad = (e.violates?.length ?? 0) > 0;
             const hit = highlight && e.violates?.includes(highlight);
             const up = i % 2 === 0;
+            const dense = events.length > 24 && !bad;
             return (
               <g key={i} transform={`translate(${cx},70)`} onMouseEnter={() => onHighlight?.(e.violates?.[0])} onMouseLeave={() => onHighlight?.(undefined)}>
                 {bad ? (
@@ -46,9 +48,11 @@ export function TraceTimeline({ trace, highlight, onHighlight }: { trace: Trace;
                   <circle r={6} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth={1.5} />
                 )}
                 <line x1={0} y1={up ? -10 : 10} x2={0} y2={up ? -26 : 26} stroke="var(--color-border-strong)" />
-                <text x={0} y={up ? -30 : 40} textAnchor="middle" fontSize={10} fill="var(--color-text)" className="font-sans">
-                  {e.activity}
-                </text>
+                {!dense && (
+                  <text x={0} y={up ? -30 : 40} textAnchor="middle" fontSize={10} fill="var(--color-text)" className="font-sans">
+                    {e.activity}
+                  </text>
+                )}
                 <text x={0} y={up ? -42 : 52} textAnchor="middle" fontSize={9} fill="var(--color-text-subtle)">
                   {e.timestamp ? new Date(e.timestamp).toISOString().slice(0, 10) : ""}
                 </text>
@@ -90,9 +94,9 @@ export function TraceTimeline({ trace, highlight, onHighlight }: { trace: Trace;
                   {bad ? (
                     <span className="flex flex-wrap gap-1">
                       {e.violates?.map((v) => (
-                        <button key={v} type="button" onClick={() => onHighlight?.(highlight === v ? undefined : v)} className={cn("rounded-sm border px-1 font-mono text-[11px]", highlight === v ? "border-accent bg-accent-subtle text-accent-text" : "border-border")} aria-pressed={highlight === v}>
+                        <button key={v} type="button" title={v} onClick={() => onHighlight?.(highlight === v ? undefined : v)} className={cn("rounded-sm border px-1 text-[11px]", !plainOf && "font-mono", highlight === v ? "border-accent bg-accent-subtle text-accent-text" : "border-border")} aria-pressed={highlight === v}>
                           <span aria-hidden>▲ </span>
-                          {v}
+                          {name(v)}
                         </button>
                       ))}
                     </span>

@@ -2476,7 +2476,7 @@ components:
           - type: string
           - type: 'null'
           title: Comparison
-          description: one real-unit sentence from the top driver's contrast (top groups only)
+          description: 'one real-unit sentence from the top driver''s contrast (top groups only): ''<expectation>: <here> here against <elsewhere> elsewhere (<difference>)'', or ''No material difference on the top expectation (<expectation>)'' when the numbers round to the same value'
         comparison_kind:
           anyOf:
           - type: string
@@ -2486,8 +2486,10 @@ components:
             - share
             - metric
             - rate
+            - none
           - type: 'null'
           title: Comparison Kind
+          description: 'the form of the sentence: a duration, a count per case, a share, another case attribute, the share of cases missing the expectation, or none when there is no material difference'
         caveats:
           items:
             $ref: '#/components/schemas/Caveat'

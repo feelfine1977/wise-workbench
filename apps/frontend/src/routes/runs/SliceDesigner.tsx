@@ -1,5 +1,7 @@
 import { Plus, X } from "lucide-react";
-import type { BandSpec, SlicingSpecC2 } from "@/lib/api/cycle2";
+import { useQuery } from "@tanstack/react-query";
+import { slicingPreviewQuery, type BandSpec, type SlicingSpecC2 } from "@/lib/api/cycle2";
+import { fmtInt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +18,22 @@ export interface SliceDesignerProps {
   value: SlicingSpecC2[];
   onChange: (next: SlicingSpecC2[]) => void;
   className?: string;
+  /** A finished run whose case table previews the groupings (`GET …/slicings/preview`). */
+  preview?: { projectId: string; runId: string; minCases: number };
+}
+
+/** "1,975 groups, 1,709 below 20 cases" — what a grouping yields on the run's case table. */
+function SlicingPreviewLine({ projectId, runId, attributes, bands, minCases }: { projectId: string; runId: string; attributes: string[]; bands: BandSpec[] | undefined; minCases: number }) {
+  const q = useQuery({ ...slicingPreviewQuery(projectId, runId, attributes, bands, minCases), enabled: attributes.length > 0 });
+  if (!attributes.length) return null;
+  if (q.isPending) return <span className="text-xs text-text-subtle">counting the groups…</span>;
+  if (q.isError) return <span className="text-xs text-text-subtle">no preview: {q.error instanceof Error ? q.error.message : "unavailable"}</span>;
+  const p = q.data;
+  return (
+    <span className="tnum text-xs text-text-muted" data-testid="slicing-preview">
+      {fmtInt(p.groups)} groups over {fmtInt(p.cases)} cases; {fmtInt(p.belowMinCases)} below {fmtInt(p.minCases)} cases stay unranked
+    </span>
+  );
 }
 
 /**
@@ -23,7 +41,7 @@ export interface SliceDesignerProps {
  * banded (quantiles or explicit cut points) so that "exposure band × spend area" is one grouping. Rule-based
  * and saved groupings are cycle 3.
  */
-export function SliceDesigner({ attributes, value, onChange, className }: SliceDesignerProps) {
+export function SliceDesigner({ attributes, value, onChange, className, preview }: SliceDesignerProps) {
   const update = (i: number, patch: Partial<SlicingSpecC2>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch, id: slicingId(patch.attributes ?? s.attributes) } : s)));
   const setAttribute = (i: number, pos: number, attr: string) => {
     const current = value[i]!;
@@ -76,6 +94,7 @@ export function SliceDesigner({ attributes, value, onChange, className }: SliceD
               </Button>
             )}
           </div>
+          {preview && <SlicingPreviewLine projectId={preview.projectId} runId={preview.runId} attributes={s.attributes} bands={s.bands} minCases={preview.minCases} />}
           {(s.bands ?? []).map((b) => (
             <div key={b.attribute} className="flex flex-wrap items-center gap-2 pl-2 text-xs">
               <span className="font-mono">{b.attribute}</span>

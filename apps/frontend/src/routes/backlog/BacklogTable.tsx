@@ -71,7 +71,7 @@ export function BacklogTable(props: BacklogTableProps) {
               <button type="button" aria-label={`${pins.includes(row.original.key) ? "Unpin" : "Pin"} ${label}`} aria-pressed={pins.includes(row.original.key)} onClick={(e) => { e.stopPropagation(); onTogglePin(row.original.key); }} className="pin-glyph rounded-sm p-0.5 text-text-subtle hover:text-accent-text focus-visible:text-accent-text" tabIndex={-1}>
                 <Pin className={cn("size-3.5", pins.includes(row.original.key) && "fill-current")} aria-hidden />
               </button>
-              <Link to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: row.original.key }} search={{ slicing, view, tab: "flow", pins: pins.length ? pins : undefined }} className="truncate text-xs font-medium text-accent-text hover:underline" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} title={row.original.key}>
+              <Link to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: row.original.key }} search={{ slicing, view, tab: "why", pins: pins.length ? pins : undefined }} className="truncate text-xs font-medium text-accent-text hover:underline" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} title={row.original.key}>
                 {label}
               </Link>
             </span>

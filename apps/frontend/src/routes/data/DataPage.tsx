@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { useWorkbench } from "@/app/context";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
-import { NextStep } from "@/components/guide/NextStep";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
 import { YourProcess } from "../flow/YourProcess";
 import { Badge } from "@/components/ui/badge";
@@ -131,11 +130,6 @@ export default function DataPage() {
           flow types and asks whether to compare everything together or to analyse each flow type on its own.
         </HowToRead>
       </header>
-      {caseTable ? (
-        <NextStep label="Open the data caveats and decide" because={`${(caseTable.readiness?.items ?? []).filter((i) => i.level === "warn").length} caveats travel with every result until you decide about them`} to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: caseTable.datasetId }} search={{ caseTable: caseTable.id, tab: "readiness" }} />
-      ) : (
-        <NextStep label="Load the public log preset" because="one job ingests, builds the case table, imports the norm and scores; the data caveats appear on the way" onClick={() => document.getElementById("preset-heading")?.scrollIntoView({ block: "center" })} />
-      )}
       {caseTable && <YourProcess projectId={ctx.projectId} caseTableId={caseTable.id} runs={ctx.runs} mode="data" />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Dropzone projectId={ctx.projectId} />

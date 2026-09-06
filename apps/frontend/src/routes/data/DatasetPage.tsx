@@ -7,9 +7,8 @@ import { datasetRoute } from "@/app/router";
 import type { DatasetTab } from "@/app/search";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { BackControl } from "@/components/guide/BackControl";
+import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
-import { NextStep } from "@/components/guide/NextStep";
-import { ReadinessBanner } from "@/components/readiness";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { YourProcess } from "../flow/YourProcess";
@@ -166,7 +165,7 @@ export default function DatasetPage() {
   const tab: DatasetTab = readyCaseTable ? search.tab : "mapping";
   const setTab = (t: DatasetTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab: t }) });
   const warns = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "warn").length;
-  const doneRun = ctx.runs.find((r) => r.status === "done" && r.caseTableId === readyCaseTable?.id);
+  const fails = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "fail").length;
 
   const mappingForm = (
     <QueryState query={dataset} rows={6}>
@@ -303,10 +302,17 @@ export default function DatasetPage() {
           <BackControl className="normal-case tracking-normal" />
           <span>Data · mapping and case notion</span>
         </div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          {dataset.data?.name ?? datasetId}
-          <HowToReadToggle id="dataset" />
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+            {dataset.data?.name ?? datasetId}
+            <HowToReadToggle id="dataset" />
+          </h1>
+          {readyCaseTable && (
+            <div data-no-capture>
+              <FreezeButton projectId={ctx.projectId} screen={tab === "flows" ? "flow-types" : tab === "readiness" ? "readiness" : "mapping"} data={{ caseTable: readyCaseTable.id, readiness: readyCaseTable.readiness }} defaultTitle={`${dataset.data?.name ?? datasetId} · ${tab === "flows" ? "flow types" : tab === "readiness" ? "data caveats" : "column mapping"}`} />
+            </div>
+          )}
+        </div>
         <p className="reading text-base text-text-muted">
           {readyCaseTable ? (
             <>
@@ -330,14 +336,6 @@ export default function DatasetPage() {
       {caseTable.isPending && search.caseTable && <LoadingBlock rows={2} />}
       {create.data && !search.caseTable && <MappingJobFollower jobId={create.data.id} onDone={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />}
 
-      {readyCaseTable && (
-        <NextStep
-          label={doneRun ? "Choose the analysis path" : "Start a run"}
-          because={doneRun ? "the log is scored; decide whether to compare everything together or per flow type" : "scoring the case table against the norm produces the ranked list"}
-          {...(doneRun ? { onClick: () => setTab("flows") } : { to: "/p/$projectId/runs" as const, params: { projectId: ctx.projectId } })}
-        />
-      )}
-
       {readyCaseTable ? (
         <Tabs value={tab} onValueChange={(v) => setTab(v as DatasetTab)}>
           <TabsList aria-label="Data sections">
@@ -346,12 +344,10 @@ export default function DatasetPage() {
             <TabsTrigger value="mapping">Column mapping</TabsTrigger>
           </TabsList>
           <TabsContent value="readiness" className="flex flex-col gap-4">
-            <section aria-label="Readiness report">
-              <ReadinessBanner readiness={readyCaseTable.readiness ?? undefined} projectId={ctx.projectId} compact />
-              <p className="mt-1 text-xs text-text-muted">
-                Case table <span className="font-mono">{readyCaseTable.id}</span> · mapping <span className="font-mono">{readyCaseTable.mappingId}</span>
-              </p>
-            </section>
+            <p className="text-sm text-text-muted" title={`case table ${readyCaseTable.id}${readyCaseTable.mappingId ? ` · mapping ${readyCaseTable.mappingId}` : ""}`}>
+              Data readiness: {fails ? `${fails} blocking issue${fails === 1 ? "" : "s"}, ` : ""}
+              {warns} caveat{warns === 1 ? "" : "s"} travel with every result until you decide about them.
+            </p>
             <ReadinessDecisions readiness={readyCaseTable.readiness} projectId={ctx.projectId} caseTableId={readyCaseTable.id} onRebuilt={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />
           </TabsContent>
           <TabsContent value="flows">

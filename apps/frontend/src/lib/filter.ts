@@ -98,3 +98,29 @@ export function clauseForActivity(activityId: string, action: "keep" | "exclude"
 export function clauseForPath(a: string, b: string, action: "keep" | "exclude"): FilterClause {
   return { kind: "follows", a, b, directly: true, ...(action === "exclude" ? { never: true } : {}) };
 }
+
+/** The same clause with every activity reference (`activity`, `a`, `b`) passed through `fn`: node ids to labels for the backend, labels to ids for the map. */
+export function mapActivities(c: FilterClause, fn: (activity: string) => string): FilterClause {
+  switch (c.kind) {
+    case "activity":
+    case "count":
+      return { ...c, activity: fn(c.activity) };
+    case "follows":
+    case "lag":
+      return { ...c, a: fn(c.a), b: fn(c.b) };
+    case "any":
+      return { ...c, clauses: c.clauses.map((x) => mapActivities(x, fn)) };
+    default:
+      return c;
+  }
+}
+
+export function mapFilterActivities(f: Filter, fn: (activity: string) => string): Filter {
+  return { and: f.and.map((c) => mapActivities(c, fn)) };
+}
+
+/** The clauses of `next` that `prev` did not have. */
+export function addedClauses(prev: Filter | undefined, next: Filter | undefined): FilterClause[] {
+  const had = new Set((prev?.and ?? []).map(clauseKey));
+  return (next?.and ?? []).filter((c) => !had.has(clauseKey(c)));
+}

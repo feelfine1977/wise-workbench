@@ -6,7 +6,7 @@ import { runRoute } from "@/app/router";
 import type { RunTab } from "@/app/search";
 import { flowTypeOf } from "@/lib/api/cycle2";
 import { BackControl } from "@/components/guide/BackControl";
-import { NextStep } from "@/components/guide/NextStep";
+import { FreezeButton } from "@/components/guide/Freeze";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Term } from "@/components/Term";
 import { CompareFlowTypes } from "./CompareFlowTypes";
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Progress } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtDateTime, fmtNum, fmtPct } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { flowQuery, jobTransport, runQuery, useCancelJob, useJob } from "@/lib/queries";
 import { runStatusGlyph, runStatusVariant } from "./RunsPage";
 
@@ -42,17 +42,20 @@ export default function RunPage() {
                 <BackControl className="normal-case tracking-normal" />
                 <span>Run</span>
               </div>
-              <h1 className="flex items-center gap-3 text-2xl font-semibold">
-                <span className="font-mono">{r.id}</span>
+              <h1 className="flex items-center gap-3 text-2xl font-semibold" title={r.id}>
+                <span>{r.note?.trim() || "Run"}{r.manifest?.finishedAt ? ` · ${fmtDate(r.manifest.finishedAt)}` : ""}</span>
                 <Badge variant={runStatusVariant[r.status]}>
                   <span aria-hidden>{runStatusGlyph[r.status]}</span>
                   {r.status}
                 </Badge>
                 {flowTypeOf(r) && <Badge variant="accent">{flowTypeOf(r)} flow only</Badge>}
               </h1>
-              <p className="text-sm text-text-muted">{r.note}</p>
+              <p className="reading text-sm text-text-muted">
+                {r.status === "done" ? `${fmtInt(ctx.caseTable?.cases)} cases scored against the norm in ${(r.views ?? []).length} perspectives, small groups discounted with γ = ${fmtNum(r.gamma, 0)}.` : r.note}
+              </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2" data-no-capture>
+              {r.status === "done" && <FreezeButton projectId={ctx.projectId} screen={search.tab === "compare" ? "compare-flow-types" : search.tab === "flow" ? "run-flow" : "run"} context={{ run_id: r.id, scope: (r.scope as never) ?? null }} data={{ manifest: r.manifest, params: { gamma: r.gamma, minCases: r.minCases, views: r.views, slicings: r.slicings } }} defaultTitle={`Run ${r.id}${search.tab === "compare" ? " · flow types side by side" : search.tab === "flow" ? " · process map" : ""}`} />}
               {(r.status === "queued" || r.status === "running") && r.jobId && (
                 <Button variant="outline" onClick={() => r.jobId && cancel.mutate(r.jobId)}>
                   Cancel
@@ -61,7 +64,7 @@ export default function RunPage() {
               {r.status === "done" && (
                 <Button asChild>
                   <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0] }}>
-                    Open backlog
+                    Open the ranked list
                   </Link>
                 </Button>
               )}
@@ -84,8 +87,6 @@ export default function RunPage() {
             </Card>
           )}
 
-          {r.status === "done" && <NextStep label="Open the ranked list" because="scoring is done; the signals list is where the analysis starts" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0] }} />}
-
           <Tabs value={search.tab} onValueChange={(v) => setTab(v as RunTab)}>
             <TabsList aria-label="Run sections">
               <TabsTrigger value="monitor">Parameters and manifest</TabsTrigger>
@@ -106,7 +107,7 @@ export default function RunPage() {
                 {flow.isError && <ErrorBlock error={flow.error} retry={() => void flow.refetch()} />}
                 {flow.data && (
                   <Suspense fallback={<LoadingBlock rows={6} />}>
-                    <FlowMap graph={flow.data} title="Process map of the whole log with the expectations drawn on it" />
+                    <FlowMap graph={flow.data} title="Process map of the whole log with the expectations drawn on it" noun={(flow.data.meta as { caseNoun?: string } | undefined)?.caseNoun ?? "cases"} />
                   </Suspense>
                 )}
               </Card>

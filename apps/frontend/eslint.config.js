@@ -19,7 +19,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true, allowExportNames: ["buttonVariants", "useTrackJob", "useVocabulary", "kindGlyph", "toLibraryGraph", "makeQueryClient", "backlogExplain", "emphasise", "hotspotGlyph", "stabilityGlyph", "gateGlyph", "layerColor", "layerDecal", "runStatusVariant", "runStatusGlyph", "rootRoute", "indexRoute", "projectsRoute", "projectRoute", "dashboardRoute", "dataRoute", "datasetRoute", "normsRoute", "normRoute", "runsRoute", "runRoute", "backlogRoute", "sliceRoute", "notebookRoute", "routeTree", "createAppRouter", "distanceSentence", "currentStep", "isNumericAttribute", "slicingId"] }],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true, allowExportNames: ["buttonVariants", "useTrackJob", "useVocabulary", "kindGlyph", "toLibraryGraph", "makeQueryClient", "backlogExplain", "emphasise", "hotspotGlyph", "stabilityGlyph", "gateGlyph", "layerColor", "layerDecal", "runStatusVariant", "runStatusGlyph", "rootRoute", "indexRoute", "projectsRoute", "projectRoute", "dashboardRoute", "dataRoute", "datasetRoute", "normsRoute", "normRoute", "runsRoute", "runRoute", "backlogRoute", "sliceRoute", "notebookRoute", "routeTree", "createAppRouter", "distanceSentence", "currentStep", "isNumericAttribute", "slicingId", "useCurrentStep", "labelOf", "filterWithIds", "CAVEAT_SHORT", "caveatShort"] }],
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports", fixStyle: "inline-type-imports" }],
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },

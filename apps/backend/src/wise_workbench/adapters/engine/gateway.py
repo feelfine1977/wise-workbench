@@ -882,9 +882,16 @@ class EngineAdapter:
         df["caveats_json"] = caveats_json
         df["n_caveats"] = [len(json.loads(c)) for c in caveats_json]
         readings = []
+        method_readings = []
         for rec in df.to_dict("records"):
             readings.append(_plain_reading(rec, attrs, noun))
+            # the method's reading again, now with the confidence word and the kind the analytics decided
+            label = " × ".join(key_label(rec.get(a)) for a in attrs)
+            method_readings.append(
+                backlog_reading({str(k): jsonable(v) for k, v in rec.items()}, base.view, base.gamma, label)
+            )
         df["reading_plain"] = readings
+        df["reading"] = method_readings
         for col in (
             "stability_reason",
             "kind",

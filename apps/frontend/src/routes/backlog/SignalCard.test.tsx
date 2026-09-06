@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,44 +21,43 @@ function renderCard(props: Partial<ComponentProps<typeof SignalCard>> = {}) {
   return { onWhy };
 }
 
-describe("signal card (R2-O9)", () => {
+describe("signal card", () => {
   beforeEach(() => useUiStore.getState().setVocabulary("plain"));
 
-  it("first line: three numbers only — items, points below the overall score with the percent in brackets, the confidence word", async () => {
+  it("one sentence with three numbers — items, the share below expectation, the most-missed expectation with its share — then the comparison and the strip", async () => {
     const user = userEvent.setup();
-    const { onWhy } = renderCard();
-    const card = screen.getByRole("article", { name: "1. companyID_0000 × Packaging" });
-    expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent("companyID_0000 × Packaging");
+    const { onWhy } = renderCard({ label: "Packaging" });
+    const card = screen.getByRole("article", { name: "1. Packaging" });
+    expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent("Packaging");
     const sentence = within(card).getByTestId("card-sentence");
-    expect(sentence).toHaveTextContent(/109,199 purchase order items/);
-    expect(sentence).toHaveTextContent(/0\.9 points below the overall score of 84\.4 \(1 %\)/);
-    expect(sentence).toHaveTextContent(/confidence high/);
-    expect(sentence.textContent?.match(/\d[\d,.]*/g)?.length).toBeLessThanOrEqual(4);
-    // the second line: what is mostly wrong and the real-unit comparison
-    const reason = within(card).getByTestId("card-reason");
-    expect(reason).toHaveTextContent(/mostly waiting too long between steps/);
-    expect(reason).toHaveTextContent(/Paid within terms: 83 days here against 55 elsewhere \(\+25 days\)/);
+    expect(sentence).toHaveTextContent(/^109,199 purchase order items · 0\.9 % below expectation · waiting too long between steps in 97\s?% of them\.$/);
+    expect(sentence.textContent?.match(/\d[\d,.]*/g)?.length).toBe(3);
+    // the real-unit comparison as a muted line
+    expect(within(card).getByTestId("card-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+25 days\)\.$/);
     // the kind carries its glyph; the method's name stays hidden in plain mode
     const kind = within(card).getByText("widespread").closest("[data-kind]") as HTMLElement;
     expect(kind).toHaveAttribute("data-kind", "widespread");
     expect(kind.textContent).toContain("●");
     expect(within(kind).queryByText("reservoir")).not.toBeInTheDocument();
-    // caveat chips with shares
-    const chips = within(card).getByRole("list", { name: "Data caveats for this group" });
-    expect(chips).toHaveTextContent(/14\s?%/);
-    expect(chips).toHaveTextContent(/still open/);
-    // no method term, no constraint id on the card
-    expect(card).not.toHaveTextContent(/c_l3_invoice_to_clear_days|stable PI|hotspot/);
-    // the priority is a bar with the rank; the number sits behind "more"
+    // the strip: priority as a whole number, the confidence word, at most one caveat chip
+    expect(within(card).getByTestId("card-strip")).toHaveTextContent(/^priority 946 · confidence high$/);
+    expect(within(card).getByRole("list", { name: "Data caveats for this group" }).querySelectorAll("li")).toHaveLength(1);
+    expect(card).not.toHaveTextContent(/of 30/);
+    // no method term, no constraint id, no points sentence on the card
+    expect(card).not.toHaveTextContent(/c_l3_invoice_to_clear_days|stable PI|hotspot|points below/);
     expect(within(card).getByRole("meter", { name: /^priority 945\.7 of 1,000\.0/ })).toBeInTheDocument();
-    expect(card).toHaveTextContent(/1 of 30/);
-    expect(card).not.toHaveTextContent(/945\.7/);
-    await user.click(within(card).getByRole("button", { name: "More about companyID_0000 × Packaging" }));
+    await user.click(within(card).getByRole("button", { name: "More about Packaging" }));
     const more = within(card).getByTestId("card-more");
+    expect(more).toHaveTextContent(/0\.9 points below the overall score of 84\.4 \(1 %\)/);
     expect(more).toHaveTextContent(/945\.7/);
+    expect(more).toHaveTextContent(/rank 1 of 30/);
     expect(more).toHaveTextContent(/P\(stays in top-10\) = 1\.00/);
     expect(more).toHaveTextContent(/83\.6\s?% of the rules met/);
-    await user.click(within(card).getByRole("button", { name: "Why? companyID_0000 × Packaging" }));
+    expect(more).toHaveTextContent(/On time/);
+    // the reading sentence agrees with the card's confidence word
+    expect(more).toHaveTextContent(/confidence in rank: high/);
+    expect(more).not.toHaveTextContent(/not computed/);
+    await user.click(within(card).getByRole("button", { name: "Why? Packaging" }));
     expect(onWhy).toHaveBeenCalledWith(packaging.key);
   });
 
@@ -69,7 +68,7 @@ describe("signal card (R2-O9)", () => {
     const card = screen.getByRole("article");
     expect(card).toHaveTextContent(/109,199 n_cases/);
     expect(card).toHaveTextContent(/gap 0\.0087/);
-    expect(card).toHaveTextContent(/dominant layer Handovers and ageing/);
+    expect(card).toHaveTextContent(/Handovers and ageing/);
     const kind = within(card).getByText("reservoir").closest("[data-kind]") as HTMLElement;
     expect(kind).toHaveAttribute("data-hotspot", "reservoir");
     expect(within(kind).getByText("widespread")).toBeInTheDocument();
@@ -91,6 +90,17 @@ describe("signal card (R2-O9)", () => {
     expect(distanceSentence({ gap: 0.128, global_mean: 0.842, mean_score: 0.714 }, true)).toMatch(/^12\.8 points below the overall score of 84\.2 \(15\s?%\)$/);
     expect(distanceSentence({ gap: 0.128, global_mean: 0.842, mean_score: 0.714, points_below: "served" }, true)).toBe("served");
     expect(distanceSentence({ gap: 0.128, global_mean: 0.842, mean_score: 0.714 }, false)).toMatch(/^gap 0\.1280/);
+  });
+
+  it("prints the backend's comparison as served, also when it says there is no material difference", () => {
+    renderCard({ row: { ...packaging, comparison: "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).", comparison_kind: "metric", top_constraint_plain: "Mostly automatic" } });
+    expect(screen.getByTestId("card-reason")).toHaveTextContent(/^Mostly automatic: a manual share of 83 % here against 80 % elsewhere \(\+3\.3 points\)\.$/);
+    cleanup();
+    renderCard({ row: { ...packaging, comparison: "No material difference on the top expectation (Few manual touches).", comparison_kind: "none", top_constraint_plain: "Few manual touches" } });
+    expect(screen.getByTestId("card-reason")).toHaveTextContent(/^No material difference on the top expectation \(Few manual touches\)\.$/);
+    cleanup();
+    renderCard({ row: { ...packaging, comparison: null, comparison_kind: null } });
+    expect(screen.queryByTestId("card-reason")).not.toBeInTheDocument();
   });
 
   it("the case noun replaces \"cases\" and the drill button appears behind more", async () => {

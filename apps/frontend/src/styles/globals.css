@@ -99,14 +99,6 @@
     line-height: var(--text-lg-leading);
     letter-spacing: var(--text-lg-tracking);
   }
-  .stepper-arrow::after {
-    content: "→";
-    color: var(--color-text-subtle);
-    margin: 0 4px;
-  }
-  .stepper-arrow:last-child::after {
-    content: none;
-  }
 }
 
 /* Reduced motion: also switch off Radix animations */
@@ -115,4 +107,22 @@
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* The process map: zoom controls 32 px, translucent, bottom-left; nothing else floats over the map. */
+.wf-process-map .react-flow__controls {
+  box-shadow: none;
+  gap: 2px;
+  margin: 12px;
+}
+.wf-process-map .react-flow__controls button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  color: var(--color-text-muted);
+}
+.wf-process-map .react-flow__controls button:hover {
+  background: var(--color-surface);
 }

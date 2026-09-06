@@ -42,16 +42,23 @@ cd apps/backend
 python3 -m venv .venv
 .venv/bin/pip install -e ../../../wise-lib          # or: pip install "git+https://github.com/feelfine1977/wise-pm.git@v0.1.0"
 .venv/bin/pip install -e .                          # the backend and the wise-workbench command
-.venv/bin/pip install -e ../../packages/process-knowledge   # optional: stage groups on the process map
+.venv/bin/pip install -e ../../packages/process-knowledge   # optional: stage groups, plain names and guidance on every screen
+.venv/bin/pip install -e ../../packages/wise-analytics      # optional: confidence in rank, kinds, caveat shares, comparisons
 cd ../frontend && npm install                       # once; the flow library is optional (see apps/frontend/README.md)
 ```
 
 `pip install -e apps/backend` alone gives a working `wise-workbench`; the
 development extras (`.[dev]`) are only needed for the tests.
 
-The process map's stage boxes (Request, Order, Receive, Invoice, Match, Pay)
+The process map's stage boxes (Request, Order, Receive, Invoice, Match, Pay),
+the plain names of the expectations and the readiness decisions' wording
 come from the knowledge package; without it the map has no stage groups and
-everything else works. The flow library `@wise/flow` is expected as a sibling
+the screens fall back on the norm's own descriptions. The analytics package
+computes a run's confidence in rank, kinds of problem, caveat shares and
+real-unit comparisons after every scoring job (about 50 s on BPIC 2019;
+`WISE_ANALYTICS_AUTO=0` turns the automatic job off, `POST
+/api/v1/projects/{p}/runs/{r}/analytics` queues it by hand); without it the
+cards read *confidence not computed* and everything else works. The flow library `@wise/flow` is expected as a sibling
 checkout `../wise-flow` with a built `dist/`; without it the frontend builds
 with a stand-in and the Flow tabs show a notice instead of a map.
 

@@ -268,7 +268,9 @@ author, note, the resulting case table and the time.
 
 Runs → **New run**: every grouping combines one to three attributes; numeric attributes (exposure,
 n_events, …) are banded (equal-count bands with a number, or cut points); the id is the attributes
-joined by `+`; **scope** offers *all flow types together* or one flow type. On a card, **more → Drill
+joined by `+`; under each grouping its preview on the current run's case table (*1,975 groups over
+251,734 cases; 1,709 below 20 cases stay unranked*); **scope** offers *all flow types together* or one
+flow type. On a card, **more → Drill
 into this group** opens the finer grouping inside the group (*vendors inside companyID_0000 ×
 Packaging*: vendorID_0136 with 14,369 items first, from `GET /backlog?drillFrom=…&drillKey=…`) with a
 chip to leave it.
@@ -287,7 +289,7 @@ is visible in plain mode.
 
 ### CP-2.7 — the notebook (R2-O11)
 
-**Freeze this** on the dashboard, the signals list, Why?, the norm and the run screens: a dialog with
+**Freeze this** on the dashboard, the signals list, Why?, the norm, the run and the dataset screens: a dialog with
 a title (prefilled) and a note; the screen is captured in the browser (html-to-image) and sent with
 its numbers and context (run, grouping, perspective, filters, address, screen) to
 `POST /notebook/snapshots`; *Frozen · open the notebook*. The **Notebook** (ribbon icon) lists the
@@ -304,6 +306,41 @@ npm test          # Vitest: 20 files, 136 tests in about 10 s (jsdom, MSW): the 
 npm run lint      # ESLint 0 problems
 npx tsc -b        # strict TypeScript, clean
 npm run build:live  # tokens + tsc -b + vite build --mode live in 14 s (the build the backend serves)
+npm run e2e         # observed: 1 passed, 8.7 s (25 s with the build); live run on 8010: 1 passed, 5.3 s (22 s with the build)
 npm run e2e       # Playwright smoke on mocks: upload → decision → flow types → signals → Why? → freeze → notebook
 E2E_API_URL=http://127.0.0.1:8010 npm run e2e   # the live-backend run on the verified workspace (read only)
 ```
+
+## Fix pass (cycle 2, 2026-09-06)
+
+What changed on the screens after the UI review (`ui_design_cycle2.md` §2–§5), for anyone repeating the
+steps above:
+
+- Three bands on every screen: ribbon, stepper, page. The journey rail is gone (its twelve stages sit behind
+  **All stages** at the right end of the stepper) and so is the readiness banner (a `⚠ n caveats` chip in the
+  ribbon opens the data caveats). The ribbon shows only the switchers of the step (Data: project · dataset;
+  Norm: project · norm; Run: project · run; Signals and Why: project · run · perspective · grouping · scope);
+  the rest, with density, theme and the words switch, is in `⋯`. No id is visible; ids are tooltips.
+- The stepper's states come from the data (a case table, a scored norm, a finished run, a group opened, a
+  saved finding); the current step carries the accent ring and *you are here*; a sub-screen (the norm's lens
+  opened from Why, the notebook) shows as a second line under its step. `Alt+1` … `Alt+6` press the steps,
+  `Alt+←` the back control.
+- *How to read this* is collapsed and opens from the `?` beside the title. The next step exists on the
+  dashboard and, on the reason screen, after **Save**.
+- The cards read *109,199 purchase order items · 0.9 % below expectation · waiting too long between steps
+  in 97 % of them.* with the comparison sentence under it and *priority 946 · confidence high* in the strip;
+  the company shared by every group is dropped from the names (*Real Estate · company 0003* keeps it);
+  caveats that hold on nearly every group of the page are stated once in the header.
+- The reason screen's tabs are **Why · Compared · Flow · Cases · Data trust · Gain** (old `tab=` values
+  map onto them); Why holds the expectations, the comparison lens of the top expectation, the group's map,
+  two caveat lines and the typical causes. The filter chips sit above the tabs on every tab.
+- The map is the screen: no box floats over it, one *detail* control in the bar above it, the legend in a
+  column beside it, zoom controls 32 px bottom-left; a single click opens the activity's card with the
+  four actions; *Filter to cases with it* writes the activity's label (the backend's contract), recounts
+  *cases in*, adds a chip and announces *Filter added: cases with Record Goods Receipt — 234,479 of 251,734
+  remain*; the address holds `filter={"and":…}`.
+- The back control cuts the navigation stack back to its target, so list → Why → lens → back → back lands
+  on the list with its chips; when the origin is the list the label says what it restores
+  (*Back to Where is it worst? (page 1, widespread only)*).
+- The notebook card has a 160 px thumbnail (the full picture in a lightbox with *Open this screen again*)
+  and never scrolls sideways; the context line names the screen and the run's note, not ids.

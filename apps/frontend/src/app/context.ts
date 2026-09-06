@@ -42,7 +42,11 @@ export function useWorkbench(): WorkbenchContext {
   const runs = useQuery({ ...runsQuery(projectId), enabled: !!projectId });
 
   const runList = useMemo(() => runs.data ?? [], [runs.data]);
-  const runId = params.runId ?? project.data?.latestRunId ?? runList.find((r) => r.status === "done")?.id;
+  // A run named in the address that this project does not have leaves the ribbon on the project's latest run;
+  // the screen itself says that the run does not exist.
+  const latestRunId = project.data?.latestRunId ?? runList.find((r) => r.status === "done")?.id;
+  const requested = params.runId;
+  const runId = requested && (!runs.data || runList.some((r) => r.id === requested)) ? requested : latestRunId;
   const run = runList.find((r) => r.id === runId);
   const caseTableId = search.caseTable ?? run?.caseTableId;
   const caseTable = useQuery({ ...caseTableQuery(projectId, caseTableId ?? ""), enabled: !!projectId && !!caseTableId });

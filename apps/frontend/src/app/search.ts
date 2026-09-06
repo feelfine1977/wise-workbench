@@ -1,7 +1,19 @@
 /** Typed URL search params: every filter lives in the URL (UX-1). Validators are hand-written and tolerant. */
-import type { SearchSchemaInput } from "@tanstack/react-router";
+import { parseSearchWith, stringifySearchWith, type SearchSchemaInput } from "@tanstack/react-router";
 import type { HotspotType, Kind } from "@wise/api-schema";
 import { KIND_OF_HOTSPOT } from "@/lib/vocabulary";
+
+/**
+ * Search-param serialisation of the router: a string holding the JSON of an object (the filter model, the
+ * drill-in group) is written as that JSON, not as a JSON string of a string; every other value keeps the
+ * router's round trip (numbers, booleans, arrays and strings that look like them are quoted once).
+ */
+export const parseSearch = parseSearchWith(JSON.parse);
+export const stringifySearch = stringifySearchWith(JSON.stringify, (value: string) => {
+  const parsed = JSON.parse(value) as unknown;
+  if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) throw new Error("object JSON is written as is");
+  return parsed;
+});
 
 const HOTSPOTS: readonly HotspotType[] = ["severity", "mechanism", "reservoir"];
 const KINDS: readonly Kind[] = ["acute", "systematic", "widespread"];
@@ -18,7 +30,10 @@ const num = (v: unknown): number | undefined => {
 };
 const bool = (v: unknown): boolean | undefined => (v === true || v === "true" || v === "1" ? true : undefined);
 const oneOf = <T extends string>(v: unknown, options: readonly T[]): T | undefined => (typeof v === "string" && (options as readonly string[]).includes(v) ? (v as T) : undefined);
-/** A JSON object given as a string or already parsed by the router; kept as a string in the URL. */
+/**
+ * A JSON object given as a string or already parsed by the router; kept as a string in the application. The
+ * router writes it to the address as the object's JSON (`filter={"and":…}`, see `stringifySearch`).
+ */
 const json = (v: unknown): string | undefined => {
   if (typeof v === "string" && v.length > 1) return v;
   if (v && typeof v === "object") return JSON.stringify(v);
@@ -95,8 +110,15 @@ export function stripBacklogDefaults(s: BacklogSearch): Partial<BacklogSearch> {
   return out;
 }
 
-export const SLICE_TABS = ["flow", "drivers", "distributions", "cases", "validation", "headroom"] as const;
+export const SLICE_TABS = ["why", "compared", "flow", "cases", "trust", "gain"] as const;
 export type SliceTab = (typeof SLICE_TABS)[number];
+/** The tab values of earlier links map onto the six questions of the reason screen. */
+const OLD_SLICE_TABS: Record<string, SliceTab> = { drivers: "why", distributions: "compared", validation: "trust", headroom: "gain" };
+export function sliceTabOf(raw: unknown): SliceTab {
+  const direct = oneOf(raw, SLICE_TABS);
+  if (direct) return direct;
+  return (typeof raw === "string" && OLD_SLICE_TABS[raw]) || "why";
+}
 
 export interface SliceSearch {
   slicing?: string;
@@ -116,7 +138,7 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
   return {
     slicing: str(s.slicing),
     view: str(s.view),
-    tab: oneOf(s.tab, SLICE_TABS) ?? "flow",
+    tab: sliceTabOf(s.tab),
     case: str(s.case),
     constraint: str(s.constraint),
     focus: oneOf(s.focus, ["finding"] as const),

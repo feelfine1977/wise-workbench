@@ -23,20 +23,23 @@ describe("where is it worst: the signals list on the verified run", () => {
     const card = cards[0] as HTMLElement;
     expect(card).toHaveAccessibleName(`1. ${firstLabel}`);
     expect(within(card).getByTestId("card-sentence")).toHaveTextContent(new RegExp(`${first.n_cases.toLocaleString("en")} purchase order items`));
-    expect(within(card).getByTestId("card-sentence")).toHaveTextContent(first.points_below as string);
-    expect(within(card).getByTestId("card-sentence")).toHaveTextContent(/confidence not computed/);
+    expect(within(card).getByTestId("card-sentence")).toHaveTextContent(/% below expectation/);
+    expect(within(card).getByTestId("card-strip")).toHaveTextContent(/confidence not computed/);
     expect(within(card).getByRole("button", { name: `Why? ${firstLabel}` })).toBeInTheDocument();
     expect(within(list).getAllByRole("button", { name: /^Why\? / })).toHaveLength(10);
     // the reading sentence names what is ranked, in the run's words
     expect(screen.getByTestId("ranking-rule")).toHaveTextContent(/1,975 groups of purchase order items by Vendor/);
-    expect(screen.getByTestId("ranking-rule")).toHaveTextContent(/γ = 20/);
+    // γ sits in a tooltip in plain words, not in the sentence
+    expect(screen.getByTestId("ranking-rule")).not.toHaveTextContent(/γ/);
+    expect(screen.getByTitle(/γ = 20/)).toBeInTheDocument();
     // the filters sit in the Refine drawer, not on the screen
     expect(screen.queryByText("Only groups with at least … cases")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Refine/ })).toBeInTheDocument();
-    // one next step with its reason
-    expect(screen.getByTestId("next-step")).toHaveTextContent(`Why? ${firstLabel}`);
-    expect(screen.getByTestId("next-step")).toHaveTextContent(/because it carries/);
-    // the how-to-read paragraph is open the first time and closes
+    // no next-step bar on the list: Why? is the one primary action
+    expect(screen.queryByTestId("next-step")).not.toBeInTheDocument();
+    // the how-to-read paragraph is collapsed and opens from the ? beside the title
+    expect(screen.queryByTestId("how-to-read")).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Show how to read this screen" }));
     expect(screen.getByTestId("how-to-read")).toBeInTheDocument();
     // the illustrative badge is absent on a verified slicing
     expect(screen.queryByText("illustrative")).not.toBeInTheDocument();
@@ -53,11 +56,11 @@ describe("where is it worst: the signals list on the verified run", () => {
     await user.click(within(third).getByRole("button", { name: `Why? ${heading}` }));
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(heading), T);
     expect(screen.getByRole("heading", { name: "Decision" })).toBeInTheDocument();
-    // the Flow tab is the first and the selected one
-    expect(screen.getByRole("tab", { name: "Where in the flow" })).toHaveAttribute("aria-selected", "true");
+    // the Why tab is the first and the selected one
+    expect(screen.getByRole("tab", { name: "Why" })).toHaveAttribute("aria-selected", "true");
     // the back control returns to the signals list with its search params
     const back = screen.getByTestId("back-control");
-    expect(back).toHaveTextContent("Back to Where is it worst?");
+    expect(back).toHaveTextContent("Back to Where is it worst? (page 1)");
     await user.click(back);
     await screen.findByRole("list", { name: "Signals" }, T);
     expect(screen.getByTestId("ranking-rule")).toHaveTextContent(/Finance/);

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import type { BacklogRow } from "@wise/api-schema";
+import { groupLabel, sharedKeyValues } from "@/lib/sentences";
 import { SignalCard } from "./SignalCard";
 
 export interface SignalsListProps {
@@ -8,6 +9,8 @@ export interface SignalsListProps {
   view?: string;
   layerNames?: Record<string, string>;
   caseNoun?: string;
+  /** Caveat ids the page states once in its header. */
+  hideCaveats?: Set<string>;
   pins: string[];
   activeKey: string | undefined;
   onActive: (key: string | undefined) => void;
@@ -19,10 +22,13 @@ export interface SignalsListProps {
 
 /**
  * Ranked sentence cards with roving-tabindex keyboard navigation (↑↓ move, ↵ Why?, p pin, f finding, / filter).
- * A plain list of focusable articles: the cards carry buttons, so they are not options of a listbox.
+ * A plain list of focusable articles: the cards carry buttons, so they are not options of a listbox. The part
+ * of the name that every group on the page shares is dropped from the cards.
  */
-export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, pins, activeKey, onActive, onTogglePin, onOpen, onDrill, onFocusFilter }: SignalsListProps) {
+export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, hideCaveats, pins, activeKey, onActive, onTogglePin, onOpen, onDrill, onFocusFilter }: SignalsListProps) {
   const ref = useRef<HTMLOListElement>(null);
+  // the part of the name every group on the page shares (the company on BPIC 2019) is dropped
+  const shared = useMemo(() => sharedKeyValues(rows), [rows]);
   const activeIndex = Math.max(0, rows.findIndex((r) => r.key === activeKey));
 
   const focusCard = useCallback(
@@ -108,6 +114,8 @@ export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, pins, act
             view={view}
             layerNames={layerNames}
             caseNoun={caseNoun}
+            label={groupLabel(row, shared)}
+            hideCaveats={hideCaveats}
             active={activeKey ? row.key === activeKey : i === 0}
             pinned={pins.includes(row.key)}
             onWhy={(key) => onOpen(key)}

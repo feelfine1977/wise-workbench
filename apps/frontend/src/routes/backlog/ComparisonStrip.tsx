@@ -47,7 +47,7 @@ export function ComparisonStrip({ projectId, runId, slicing, view, pins, rows, l
             {key && (
               <>
                 <div className="flex items-center gap-2">
-                  <Link className="truncate text-xs font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: key }} search={{ slicing, view, tab: "drivers", pins }}>
+                  <Link className="truncate text-xs font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: key }} search={{ slicing, view, tab: "why", pins }}>
                     {label}
                   </Link>
                   <Button variant="ghost" size="iconSm" className="ml-auto" aria-label={`Unpin ${label}`} onClick={() => onUnpin(key)}>

@@ -8,14 +8,15 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { fmtDateTime } from "@/lib/format";
 import { findingId, useFindingStore, type Disposition } from "@/lib/stores/findings";
+import { useUiStore } from "@/lib/stores/ui";
 import { cn } from "@/lib/utils";
 
 const HOTSPOTS: HotspotType[] = ["severity", "mechanism", "reservoir"];
-const DISPOSITIONS: { id: Disposition; label: string; hint: string }[] = [
-  { id: "investigate", label: "investigate", hint: "proceeds to mechanism analysis" },
-  { id: "defer", label: "defer", hint: "stays in the backlog" },
-  { id: "waive", label: "waive", hint: "accepted shortfall" },
-  { id: "not_a_hotspot", label: "not a hotspot", hint: "returns a threshold to elicitation" },
+const DISPOSITIONS: { id: Disposition; label: string; method: string; hint: string }[] = [
+  { id: "investigate", label: "Investigate", method: "investigate", hint: "proceeds to mechanism analysis" },
+  { id: "defer", label: "Defer", method: "defer", hint: "stays in the backlog" },
+  { id: "waive", label: "Accept the shortfall", method: "waive", hint: "accepted shortfall" },
+  { id: "not_a_hotspot", label: "Not a problem", method: "not a hotspot", hint: "returns a threshold to elicitation" },
 ];
 
 export interface DecisionPaneProps {
@@ -24,15 +25,19 @@ export interface DecisionPaneProps {
   slicing: string;
   row: BacklogRow;
   layerName?: string;
+  /** The plain phrase of the top expectation, for the reading line. */
+  missed?: string;
   focus?: boolean;
   className?: string;
+  /** Called after a finding was saved, with what was saved. */
+  onSaved?: () => void;
 }
 
 /**
  * Decision pane (UX-5): the only place where the analyst writes. It never scrolls away.
  * A note is required only for human decisions: overriding the computed hotspot type and setting a disposition.
  */
-export function DecisionPane({ projectId, runId, slicing, row, layerName, focus, className }: DecisionPaneProps) {
+export function DecisionPane({ projectId, runId, slicing, row, layerName, missed, focus, className, onSaved }: DecisionPaneProps) {
   const id = findingId(runId, slicing, row.key);
   const existing = useFindingStore((s) => s.findings[id]);
   const upsert = useFindingStore((s) => s.upsert);
@@ -53,8 +58,9 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, focus,
   const overridden = !!type && type !== computed;
   void layerName;
   const needsOverrideNote = overridden && !overrideNote.trim();
+  // a note is required for every answer to "What next?"
   const needsDispositionNote = !!disposition && !dispositionNote.trim();
-  const canSave = !needsOverrideNote && !needsDispositionNote && (overridden || !!disposition || !!owner.trim());
+  const canSave = !needsOverrideNote && !needsDispositionNote && !!dispositionNote.trim() && (overridden || !!disposition || !!owner.trim());
 
   const save = () => {
     const f = upsert({
@@ -70,67 +76,57 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, focus,
       owner: owner.trim() || undefined,
     });
     setSaved(f.updatedAt);
+    onSaved?.();
   };
+  const plain = useUiStore((s) => s.vocabulary) === "plain";
+
 
   return (
     <aside className={cn("sticky-pane surface flex flex-col gap-3 p-4", className)} aria-labelledby="decision-heading">
       <h2 id="decision-heading" className="text-sm font-semibold">
         Decision
       </h2>
-      <p className="text-xs text-text-muted">
-        Computed reading: {computed ? <KindBadge hotspotType={computed} short /> : "no kind yet"} · <Term id="dominant_layer" primaryOnly /> <LayerChip id={row.dominant_layer} name={layerName} />
+      <p className="text-xs text-text-muted" data-testid="decision-reading">
+        Reading: {computed ? <KindBadge hotspotType={computed} short /> : "no kind yet"}
+        {missed ? `, ${missed}` : ""}
+        {!plain && (
+          <>
+            {" · "}
+            <Term id="dominant_layer" primaryOnly /> <LayerChip id={row.dominant_layer} name={layerName} />
+          </>
+        )}
       </p>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-xs font-medium text-text-muted">
-          <Term id="kind" /> (override needs a note)
-        </legend>
-        <div className="flex gap-1" role="radiogroup" aria-label="kind of problem">
-          {HOTSPOTS.map((h, i) => (
+        <legend className="text-xs font-medium text-text-muted">What next?</legend>
+        <div className="grid grid-cols-2 gap-1" role="radiogroup" aria-label="What next?">
+          {DISPOSITIONS.map((d, i) => (
             <button
-              key={h}
+              key={d.id}
               ref={i === 0 ? first : undefined}
               type="button"
               role="radio"
-              aria-checked={type === h}
-              aria-label={`${kindOf({ hotspot_type: h })} (${h})`}
-              onClick={() => setType(h)}
-              className={cn("flex-1 rounded border px-2 py-1 text-xs", type === h ? "border-accent bg-accent-subtle" : "border-border hover:bg-surface-sunken")}
+              aria-checked={disposition === d.id}
+              title={`${d.hint} (${d.method})`}
+              onClick={() => setDisposition(disposition === d.id ? undefined : d.id)}
+              className={cn("rounded border px-2 py-1 text-xs", disposition === d.id ? "border-accent bg-accent-subtle text-accent-text" : "border-border hover:bg-surface-sunken")}
             >
-              <KindBadge hotspotType={h} short />
+              {plain ? d.label : d.method}
             </button>
           ))}
         </div>
-        {overridden && (
-          <Field label="why override *" htmlFor="override-note">
-            <Textarea id="override-note" value={overrideNote} onChange={(e) => setOverrideNote(e.target.value)} placeholder="Evidence outside the log; who agreed" aria-invalid={needsOverrideNote} />
-          </Field>
-        )}
+        <Field label="note *" htmlFor="disposition-note" hint={disposition ? DISPOSITIONS.find((d) => d.id === disposition)?.hint : undefined}>
+          <Textarea id="disposition-note" value={dispositionNote} onChange={(e) => setDispositionNote(e.target.value)} placeholder="why, in one line" aria-invalid={needsDispositionNote} />
+        </Field>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-xs font-medium text-text-muted">disposition (needs a note)</legend>
-        <div className="grid grid-cols-2 gap-1" role="radiogroup" aria-label="disposition">
-          {DISPOSITIONS.map((d) => (
-            <button key={d.id} type="button" role="radio" aria-checked={disposition === d.id} title={d.hint} onClick={() => setDisposition(disposition === d.id ? undefined : d.id)} className={cn("rounded border px-2 py-1 text-xs", disposition === d.id ? "border-accent bg-accent-subtle text-accent-text" : "border-border hover:bg-surface-sunken")}>
-              {d.label}
-            </button>
-          ))}
-        </div>
-        {disposition && (
-          <Field label="note *" htmlFor="disposition-note" hint={DISPOSITIONS.find((d) => d.id === disposition)?.hint}>
-            <Textarea id="disposition-note" value={dispositionNote} onChange={(e) => setDispositionNote(e.target.value)} placeholder="One line: the reading and who was present" aria-invalid={needsDispositionNote} />
-          </Field>
-        )}
-      </fieldset>
-
-      <Field label="owner" htmlFor="owner" hint="No note needed.">
+      <Field label="owner" htmlFor="owner">
         <Input id="owner" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="name or role" />
       </Field>
 
       <div className="flex items-center gap-2">
         <Button onClick={save} disabled={!canSave}>
-          Save finding
+          Save
         </Button>
         {existing && (
           <Button variant="ghost" size="sm" onClick={() => { remove(id); setType(computed); setOverrideNote(""); setDisposition(undefined); setDispositionNote(""); setOwner(""); setSaved(undefined); }}>
@@ -138,9 +134,44 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, focus,
           </Button>
         )}
       </div>
-      <p className="text-xs text-text-subtle" aria-live="polite">
+      <p className="text-xs text-text-subtle" aria-live="polite" data-testid="decision-status">
         {saved ? `Saved ${fmtDateTime(saved)}` : existing ? `Last saved ${fmtDateTime(existing.updatedAt)}` : "Nothing saved yet. Findings stay in this browser until the review endpoints arrive."}
       </p>
+
+      <details className="text-xs">
+        <summary className="cursor-pointer text-text-muted">Change the kind</summary>
+        <fieldset className="mt-2 flex flex-col gap-2">
+          <legend className="sr-only">
+            <Term id="kind" /> (override needs a note)
+          </legend>
+          <div className="flex gap-1" role="radiogroup" aria-label="kind of problem">
+            {HOTSPOTS.map((h) => (
+              <button
+                key={h}
+                type="button"
+                role="radio"
+                aria-checked={type === h}
+                aria-label={`${kindOf({ hotspot_type: h })} (${h})`}
+                onClick={() => setType(h)}
+                className={cn("flex-1 rounded border px-2 py-1 text-xs", type === h ? "border-accent bg-accent-subtle" : "border-border hover:bg-surface-sunken")}
+              >
+                <KindBadge hotspotType={h} short />
+              </button>
+            ))}
+          </div>
+          {overridden && (
+            <Field label="why override *" htmlFor="override-note">
+              <Textarea id="override-note" value={overrideNote} onChange={(e) => setOverrideNote(e.target.value)} placeholder="Evidence outside the log; who agreed" aria-invalid={needsOverrideNote} />
+            </Field>
+          )}
+        </fieldset>
+      </details>
+      <details className="text-xs">
+        <summary className="cursor-pointer text-text-muted">Method terms</summary>
+        <p className="mt-1 text-text-muted">
+          What next? is the method's <em>disposition</em> (investigate · defer · waive · not a hotspot); the kind of problem is the <em>hotspot type</em> ({computed ?? "not typed"}). Overriding the computed kind needs a note.
+        </p>
+      </details>
     </aside>
   );
 }

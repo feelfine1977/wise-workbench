@@ -15,6 +15,7 @@ import { useWorkbench } from "@/app/context";
 import { fmtDateTime, fmtInt, fmtPct } from "@/lib/format";
 import { backlogQuery, runSummaryQuery } from "@/lib/queries";
 import { useFindingStore } from "@/lib/stores/findings";
+import { belowExpectation, groupLabel, missedPhrase, sharedKeyValues } from "@/lib/sentences";
 import { sliceLabel, tableRecords } from "@/lib/utils";
 import { distanceSentence } from "./backlog/SignalCard";
 import { YourProcess } from "./flow/YourProcess";
@@ -41,6 +42,8 @@ export default function DashboardPage() {
   const concentration = tableRecords<{ threshold: number; top_k: number; share_of_slices: number }>(summary.data?.concentration?.[slicing]?.[ctx.view ?? ""]);
   const eighty = concentration.find((r) => r.threshold === 0.8) ?? concentration[0];
   const first = top.data?.rows[0] as BacklogRowC2 | undefined;
+  // the part of the name every group shares (the company on BPIC 2019) is dropped
+  const firstLabel = first ? groupLabel(first, sharedKeyValues(top.data?.rows ?? [])) : "";
   const params = (top.data?.params ?? {}) as BacklogParamsC2;
   const noun = plain ? (first?.case_noun ?? params.case_noun ?? "cases") : "cases";
   const warns = (readiness?.items ?? []).filter((i) => i.level === "warn");
@@ -93,18 +96,23 @@ export default function DashboardPage() {
           <Card className="flex flex-col gap-3">
             <CardTitle id="kpi-heading" className="mb-0 flex flex-wrap items-baseline gap-2">
               {plain ? "Where is it worst?" : "Latest run"}
-              <span className="font-mono text-xs font-normal text-text-subtle">
-                {run.id}
+              <span className="text-xs font-normal text-text-subtle" title={run.id}>
+                {run.note ?? "latest run"}
                 {flowTypeOf(run) ? ` · ${flowTypeOf(run)} flow only` : ""}
-                {run.note ? ` · ${run.note}` : ""}
               </span>
             </CardTitle>
             {first ? (
               <>
-                <p className="reading headline text-text" data-testid="top-signal">
-                  <strong>{sliceLabel(first)}</strong> <KindBadge kind={first.kind} hotspotType={first.hotspot_type} short className="mx-1 align-baseline" /> {fmtInt(first.n_cases)} {noun}, {distanceSentence(first, plain)}
-                  {first.layer_missed_label ?? first.dominant_layer_name ? `, mostly ${plain ? (first.layer_missed_label ?? first.dominant_layer_name) : first.dominant_layer_name}` : ""} · rank 1{first.n_ranked ? ` of ${fmtInt(first.n_ranked)}` : ""}
-                  {ctx.view ? ` in the ${ctx.view} perspective` : ""}.
+                <p className="reading headline text-text" data-testid="top-signal" title={plain ? distanceSentence(first, true) : undefined}>
+                  <strong>{firstLabel}</strong> <KindBadge kind={first.kind} hotspotType={first.hotspot_type} short className="mx-1 align-baseline" /> — <strong className="tnum">{fmtInt(first.n_cases)}</strong> {noun},{" "}
+                  {plain ? (
+                    <>
+                      <strong className="tnum">{belowExpectation(first)}</strong> below expectation
+                    </>
+                  ) : (
+                    distanceSentence(first, false)
+                  )}
+                  {missedPhrase(first) ? `, mostly ${plain ? missedPhrase(first) : first.dominant_layer_name}` : ""}.
                 </p>
                 {first.comparison && <p className="reading text-base text-text-muted">{first.comparison}</p>}
               </>
@@ -144,11 +152,12 @@ export default function DashboardPage() {
           </Card>
           {first && (
             <NextStep
-              label={`Why? ${sliceLabel(first)}`}
+              label={`Why? ${firstLabel}`}
               because={`it is the largest signal of the ${ctx.view ?? ""} perspective${first.stability === "stable" ? " and its rank is reliable" : ""}`}
+              alternative={ctx.caseTable && warns.length ? { label: `read the ${warns.length} data caveats first`, to: "/p/$projectId/data/$datasetId", params: { projectId: ctx.projectId, datasetId: ctx.caseTable.datasetId }, search: { caseTable: ctx.caseTable.id, tab: "readiness" } } : undefined}
               to="/p/$projectId/runs/$runId/slices/$sliceKey"
               params={{ projectId: ctx.projectId, runId: run.id, sliceKey: first.key }}
-              search={{ slicing: ctx.slicing, view: ctx.view, tab: "flow" }}
+              search={{ slicing: ctx.slicing, view: ctx.view, tab: "why" }}
             />
           )}
         </section>
@@ -204,7 +213,7 @@ export default function DashboardPage() {
               <ul className="divide-y divide-border text-sm">
                 {findings.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center gap-3 py-2">
-                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId: ctx.projectId, runId: f.runId, sliceKey: f.key }} search={{ slicing: f.slicing, tab: "flow" }}>
+                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId: ctx.projectId, runId: f.runId, sliceKey: f.key }} search={{ slicing: f.slicing, tab: "why" }}>
                       {sliceLabel({ key: f.key })}
                     </Link>
                     <KindBadge hotspotType={f.hotspotType ?? f.computedType} short />

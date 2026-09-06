@@ -466,9 +466,18 @@ class BacklogRow(BaseModel):
     stable_PI_hi: float | None = None
     p_top: float | None = Field(default=None, description="bootstrap share of replicates in the top-k")
     comparison: str | None = Field(
-        default=None, description="one real-unit sentence from the top driver's contrast (top groups only)"
+        default=None,
+        description=(
+            "one real-unit sentence from the top driver's contrast (top groups only): "
+            "'<expectation>: <here> here against <elsewhere> elsewhere (<difference>)', or "
+            "'No material difference on the top expectation (<expectation>)' when the numbers round to the same value"
+        ),
     )
-    comparison_kind: Literal["lag", "count", "share", "metric", "rate"] | None = None
+    comparison_kind: Literal["lag", "count", "share", "metric", "rate", "none"] | None = Field(
+        default=None,
+        description="the form of the sentence: a duration, a count per case, a share, another case attribute, "
+        "the share of cases missing the expectation, or none when there is no material difference",
+    )
     caveats: list[Caveat] = Field(default_factory=list)
     n_caveats: int | None = None
     plain_layer: str | None = Field(default=None, description="the most-missed expectation area in plain words")

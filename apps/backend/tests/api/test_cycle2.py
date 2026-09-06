@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import time
 import zipfile
 from collections.abc import Iterator
@@ -129,8 +130,22 @@ def test_backlog_rows_carry_the_cycle2_fields(world: dict[str, Any]) -> None:
     ] == "systematic"
     assert top["case_noun"] == "purchase order items"
     assert "points below the overall score" in top["points_below"]
-    assert top["comparison"] and "here against" in top["comparison"]
+    assert top["comparison"] and ("here against" in top["comparison"] or "no material difference" in top["comparison"])
     assert "constraint" not in top["comparison"] and "c2" not in top["comparison"].split()
+    # the sentence is readable for every kind: it names the expectation first and never prints a zero difference
+    for r in rows:
+        if r["comparison"]:
+            assert r["comparison_kind"] in ("lag", "count", "share", "metric", "rate", "none"), r["comparison"]
+            assert not re.search(r"\((?:\+|-|±)0(?:\.0)?(?: [^)]*)?\)", r["comparison"]), r["comparison"]
+            if r["comparison_kind"] == "rate":
+                assert ": missed in " in r["comparison"] and "points)" in r["comparison"], r["comparison"]
+            if r["comparison_kind"] == "count":
+                assert " per purchase order item here against " in r["comparison"], r["comparison"]
+    # the method's reading agrees with the confidence word of the badge
+    words = {"stable": "high", "fragile": "medium", "insufficient_support": "not enough cases to be sure"}
+    for r in rows:
+        if r["gap"] > 0:
+            assert f"confidence in rank: {words[r['stability']]}" in r["reading"], r["reading"]
     assert top["plain_layer"] and top["reading_plain"].startswith(f"{top['keys']['vendor']}: ")
     assert "purchase order items" in top["reading_plain"] and "confidence" in top["reading_plain"]
     # caveats name the window end; the planted artefacts touch some groups

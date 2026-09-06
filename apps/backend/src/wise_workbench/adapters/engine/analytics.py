@@ -33,6 +33,7 @@ from wise_workbench.adapters.storage import Workspace, dumps_json
 from wise_workbench.adapters.storage.parquet import read_frame, write_frame
 from wise_workbench.application.ports import ProgressFn
 from wise_workbench.domain import ColumnMapping
+from wise_workbench.domain.comparison import Comparison, capitalised, readable_comparison
 
 from .tables import jsonable
 
@@ -422,7 +423,13 @@ def run_analytics(
                     signals = wa.raw_signals(log, norm)
                 except Exception:
                     signals = pd.DataFrame(index=result.cases.index)
-            comp_params = {"by": attrs, "view": view, "top": settings.comparison_top, "items": case_noun}
+            comp_params = {
+                "by": attrs,
+                "view": view,
+                "top": settings.comparison_top,
+                "items": case_noun,
+                "form": COMPARISON_FORM,
+            }
             comp_hash = params_hash("comparisons", comp_params)
             rows = []
             for key in ranked.index:
@@ -432,10 +439,13 @@ def run_analytics(
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         c = wa.contrast_slice(result, view, where, B=0, signals=signals, max_pairs=250_000)
-                        table = wa.comparisons(c, top=1, items=case_noun, labels=_labels_for(c, labels), norm=norm)
-                    sentence = wa.comparison_sentence(
-                        c, top=1, items=case_noun, labels=_labels_for(c, labels), norm=norm
-                    )
+                        table = readable_comparisons(
+                            wa.comparisons(c, top=1, items=case_noun, labels=_labels_for(c, labels), norm=norm),
+                            norm=norm,
+                            labels=_labels_for(c, labels),
+                            items=case_noun,
+                        )
+                    sentence = top_comparison(table, items=case_noun)
                     top = table.index[0] if len(table) else None
                     rows.append(
                         {
@@ -517,6 +527,68 @@ def _labels_for(contrast: Any, labels: Callable[[str], str | None] | None) -> di
         if text:
             out[str(cid)] = text
     return out or None
+
+
+# The form of the comparison sentence; part of the parameters hash so that cached sentences are rebuilt when it changes.
+COMPARISON_FORM = 2
+
+
+def _count_noun(norm: wise.Norm | None, cid: str) -> str | None:
+    """What a singularity expectation counts: the activity's events (``Record Goods Receipt events``)."""
+    if norm is None:
+        return None
+    try:
+        nc = norm.get_constraint(cid)
+    except Exception:
+        return None
+    c = getattr(nc, "constraint", None)
+    activity = getattr(c, "activity", None)
+    if activity is None:
+        return None
+    names = [str(a) for a in (activity if isinstance(activity, list | tuple) else [activity])]
+    if not names:
+        return None
+    joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+    return f"{joined} events"
+
+
+def readable_comparisons(
+    table: pd.DataFrame, *, norm: wise.Norm | None, labels: dict[str, str] | None, items: str
+) -> pd.DataFrame:
+    """The analytics package's comparison table with every ``sentence`` in the readable form of
+    :mod:`wise_workbench.domain.comparison` and ``kind`` set to the form actually used."""
+    if table is None or table.empty:
+        return table
+    out = table.copy()
+    sentences, kinds = [], []
+    for cid, r in out.iterrows():
+        name = (labels or {}).get(str(cid)) or str(r.get("description") or "").rstrip(".") or str(cid)
+        s = readable_comparison(
+            Comparison(
+                kind=str(r.get("kind")),
+                name=name,
+                value_slice=r.get("value_slice"),
+                value_rest=r.get("value_rest"),
+                difference=r.get("difference"),
+                unit=str(r.get("unit")) if r.get("unit") is not None else None,
+                rate_slice=r.get("rate_slice"),
+                rate_rest=r.get("rate_rest"),
+                count_noun=_count_noun(norm, str(cid)),
+            ),
+            items=items,
+        )
+        sentences.append(s.text)
+        kinds.append(s.kind)
+    out["sentence"] = sentences
+    out["kind"] = kinds
+    return out
+
+
+def top_comparison(table: pd.DataFrame | None, *, items: str) -> str:
+    """The card's comparison sentence: the first driver's sentence, capitalised, with a full stop."""
+    if table is None or table.empty:
+        return f"No expectation is missed more often by these {items} than elsewhere."
+    return capitalised(str(table["sentence"].iloc[0]))
 
 
 # ---------------------------------------------------------------------------- read side: backlog enrichment
@@ -714,8 +786,13 @@ def slice_analytics(
                 signals = wa.raw_signals(log, norm) if log is not None else None
                 contrast_obj = wa.contrast_slice(result, view, mask, B=0, signals=signals)
         lab = _labels_for(contrast_obj, labels)
-        out["comparisons"] = wa.comparisons(contrast_obj, top=3, items=case_noun, labels=lab, norm=norm)
-        out["comparison"] = wa.comparison_sentence(contrast_obj, top=1, items=case_noun, labels=lab, norm=norm)
+        out["comparisons"] = readable_comparisons(
+            wa.comparisons(contrast_obj, top=3, items=case_noun, labels=lab, norm=norm),
+            norm=norm,
+            labels=lab,
+            items=case_noun,
+        )
+        out["comparison"] = top_comparison(out["comparisons"], items=case_noun)
     except Exception:
         out["comparisons"] = None
         out["comparison"] = None

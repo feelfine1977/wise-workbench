@@ -37,9 +37,13 @@ export interface FlowGraph {
 }
 export type Positions = Record<string, { x: number; y: number }>;
 export interface StyleSpec {
-  readonly name: string;
+  readonly name?: string;
+  nodeColor?: unknown;
+  edgeColor?: unknown;
+  edgeWidth?: unknown;
 }
 export declare const defaultStyle: StyleSpec;
+export declare const palettes: { sequential: readonly string[]; sequentialBlue: readonly string[]; diverging: readonly string[]; categorical: readonly string[] };
 export declare const diffStyle: StyleSpec;
 export declare function diff(a: FlowGraph, b: FlowGraph): FlowGraph;
 export declare function filterPositions(positions: Positions, graph: FlowGraph): Positions;

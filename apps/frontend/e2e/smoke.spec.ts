@@ -15,7 +15,7 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(stepper).toContainText("Data");
   await expect(stepper).toContainText("What to do");
   // the dashboard leads with one sentence and the flow types
-  await expect(page.getByTestId("top-signal")).toContainText("companyID_0000 × Packaging");
+  await expect(page.getByTestId("top-signal")).toContainText("Packaging");
   await expect(page.getByRole("list", { name: "Flow types" })).toContainText("DF2");
 
   // S1: upload a small CSV; the ingest job appears in the tray and finishes
@@ -90,11 +90,18 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await third.getByRole("button", { name: /^Why\?/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(thirdName, { timeout: 20_000 });
   await expect(page.getByRole("heading", { name: "Decision" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Where in the flow" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByTestId("flow-map")).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("tab", { name: "Which expectations are missed" }).click();
+  // Why first: the expectations, then the map embedded in the Why block
+  await expect(page.getByRole("tab", { name: "Why" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("top-drivers")).toContainText("explains");
+  await expect(page.getByTestId("why-map").getByTestId("flow-map")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("typical-causes")).toContainText("cycle 3");
+  // the how-to-read paragraph is collapsed and opens from the ? beside the title
+  await expect(page.getByTestId("how-to-read")).toHaveCount(0);
+  await page.getByRole("button", { name: "Show how to read this screen" }).click();
+  await expect(page.getByTestId("how-to-read")).toBeVisible();
+  // no next-step bar before a decision is saved; the stepper marks Why with "you are here"
+  await expect(page.getByTestId("next-step")).toHaveCount(0);
+  await expect(page.getByTestId("you-are-here")).toBeVisible();
 
   // freeze the screen into the notebook
   await page.getByRole("button", { name: /^Freeze this screen/ }).click();
@@ -103,13 +110,26 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await freeze.getByRole("button", { name: "Freeze" }).click();
   await expect(page.getByText(/^Frozen/)).toBeVisible({ timeout: 20_000 });
   await page.getByRole("link", { name: "open the notebook" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Analysis notebook");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Notebook");
   const snapshots = page.getByRole("list", { name: "Snapshots" });
   await expect(snapshots.getByRole("listitem")).toHaveCount(1);
   await expect(snapshots).toContainText("the first reason screen of the smoke run");
   await expect(snapshots.locator("img")).toBeVisible();
+  // the thumbnail column is fixed; the page never scrolls sideways; the picture opens in a lightbox
+  expect((await snapshots.locator("img").boundingBox())?.width ?? 0).toBeLessThanOrEqual(160);
+  expect(await page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")).toBe(true);
+  await snapshots.getByRole("button", { name: /Open the picture of/ }).click();
+  await expect(page.getByRole("dialog")).toContainText("Open this screen again");
+  await page.keyboard.press("Escape");
+  // the ribbon counts the snapshot; the notebook shows under the step it was opened from
+  await expect(page.getByTestId("notebook-count")).toHaveText("1");
+  await expect(page.getByTestId("step-subline")).toContainText("Notebook");
 
-  // the back control returns to the reason screen
+  // the back control returns to the reason screen; Alt+← does the same from the keyboard
   await page.getByTestId("back-control").click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(thirdName);
+  await expect(page.getByTestId("back-control")).toContainText("Back to Where is it worst? (page 1, systematic only)");
+  await page.keyboard.press("Alt+ArrowLeft");
+  await expect(list).toBeVisible({ timeout: 20_000 });
+  expect(page.url()).toContain("kind=systematic");
 });

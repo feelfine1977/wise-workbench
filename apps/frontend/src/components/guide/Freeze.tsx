@@ -1,6 +1,6 @@
 import { Camera } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCreateSnapshot, type SnapshotContext } from "@/lib/api/cycle2";
 import { captureElement, screenElement } from "@/lib/capture";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { ErrorBlock } from "@/components/states";
+import { useNavStore } from "@/lib/stores/nav";
 import { cn } from "@/lib/utils";
 
 export interface FreezeProps {
@@ -34,6 +35,12 @@ export function FreezeButton({ projectId, screen, context, data, defaultTitle, c
   const [result, setResult] = useState<{ id: string; rendered: boolean }>();
   const href = useRouterState({ select: (s) => s.location.href });
   const create = useCreateSnapshot(projectId);
+  const registerFreeze = useNavStore((s) => s.registerFreeze);
+  // The ribbon's camera presses this button; it is enabled while a screen offers one.
+  useEffect(() => {
+    registerFreeze(1);
+    return () => registerFreeze(-1);
+  }, [registerFreeze]);
 
   const freeze = async () => {
     const el = target?.() ?? screenElement();
@@ -57,6 +64,7 @@ export function FreezeButton({ projectId, screen, context, data, defaultTitle, c
         size="sm"
         className={cn("gap-1.5", className)}
         data-no-capture
+        data-freeze-trigger
         onClick={() => {
           setTitle(defaultTitle);
           setOpen(true);

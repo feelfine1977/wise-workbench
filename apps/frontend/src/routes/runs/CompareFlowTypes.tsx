@@ -63,7 +63,7 @@ export function CompareFlowTypes({ projectId, runId, view, slicing, runs, caseNo
             {t.topGroups.slice(0, 3).map((row) => (
               <li key={row.key} className="flex flex-wrap items-baseline gap-2">
                 {scopedRun ? (
-                  <Link className="font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId: scopedRun, sliceKey: row.key }} search={{ slicing: data.slicing ?? slicing, view: v, tab: "flow" }}>
+                  <Link className="font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId: scopedRun, sliceKey: row.key }} search={{ slicing: data.slicing ?? slicing, view: v, tab: "why" }}>
                     {sliceLabel(row)}
                   </Link>
                 ) : (
