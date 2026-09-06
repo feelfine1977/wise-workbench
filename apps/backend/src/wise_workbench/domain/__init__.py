@@ -10,14 +10,17 @@ from .case_table import (
     ReadinessStatus,
 )
 from .dataset import ColumnProfile, DatasetStatus, DatasetVersion, SourceKind
+from .decision import DECISION_KINDS, Decision, DecisionPreview, validate_decision
 from .errors import ConflictError, DomainError, InvalidTransitionError, NotFoundError, ValidationError
 from .job import FINAL_STATUSES, Job, JobKind, JobStatus
 from .mapping import FLOW_TYPE_ATTRIBUTE, HEADER_EVENT_COUNT, ColumnMapping, FlowTypingRule
 from .norm import NormStatus, NormVersion
+from .notebook import Snapshot
 from .project import Project, utcnow
-from .run import Run, RunManifest, RunParams, RunStatus, Slicing, slicing_id
+from .run import Run, RunManifest, RunParams, RunStatus, Slicing, slicing_id, validate_scope
 
 __all__ = [
+    "DECISION_KINDS",
     "FINAL_STATUSES",
     "FLOW_TYPE_ATTRIBUTE",
     "HEADER_EVENT_COUNT",
@@ -29,6 +32,8 @@ __all__ = [
     "ConflictError",
     "DatasetStatus",
     "DatasetVersion",
+    "Decision",
+    "DecisionPreview",
     "DomainError",
     "FlowTypingRule",
     "InvalidTransitionError",
@@ -48,8 +53,11 @@ __all__ = [
     "RunParams",
     "RunStatus",
     "Slicing",
+    "Snapshot",
     "SourceKind",
     "ValidationError",
     "slicing_id",
     "utcnow",
+    "validate_decision",
+    "validate_scope",
 ]

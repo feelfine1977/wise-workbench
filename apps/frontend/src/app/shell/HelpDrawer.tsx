@@ -29,7 +29,7 @@ export function HelpDrawer() {
 
   const entries = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return needle ? glossary.filter((g) => g.term.toLowerCase().includes(needle) || g.method.toLowerCase().includes(needle) || g.definition.toLowerCase().includes(needle)) : glossary;
+    return needle ? glossary.filter((g) => g.term.toLowerCase().includes(needle) || g.method.toLowerCase().includes(needle) || g.definition.toLowerCase().includes(needle) || (g.reworded ?? "").toLowerCase().includes(needle)) : glossary;
   }, [q]);
 
   useEffect(() => {
@@ -44,6 +44,7 @@ export function HelpDrawer() {
     ["⌘K / Ctrl K", t("help.keys.palette")],
     ["?", t("help.keys.help")],
     ["/", t("help.keys.filter")],
+    ["Right click / ↵ on the map", "Actions on an activity or a path: filter to, exclude, paths, lens"],
     ["↑ ↓", t("help.keys.move")],
     ["↵", t("help.keys.open")],
     ["p", t("help.keys.pin")],
@@ -56,7 +57,7 @@ export function HelpDrawer() {
       <SheetContent className="max-w-lg">
         <div className="border-b border-border px-5 py-4">
           <SheetTitle className="text-lg font-semibold">{t("help.title")}</SheetTitle>
-          <SheetDescription className="text-sm text-text-muted">Plain words first, the method's term beside each, formulas and keys. Descriptive wording throughout: priorities are evidence for hypotheses, not causes.</SheetDescription>
+          <SheetDescription className="text-sm text-text-muted">Plain words first, the method's term beside each, the wording the comprehension test settled on, formulas and keys. Descriptive wording throughout: priorities are evidence for hypotheses, not causes.</SheetDescription>
         </div>
         <Tabs defaultValue={term ? "glossary" : "glossary"} className="flex min-h-0 flex-1 flex-col px-5 py-3">
           <TabsList aria-label="Help sections">
@@ -74,6 +75,12 @@ export function HelpDrawer() {
                     {g.method !== g.term && <span className="ml-2 text-xs font-normal text-text-subtle">method: {g.method}</span>}
                   </dt>
                   <dd className="text-sm text-text-muted">{g.definition}</dd>
+                  {g.reworded && (
+                    <dd className="text-sm text-text-muted">
+                      <span className="text-xs uppercase tracking-wide text-text-subtle">on the screens: </span>
+                      {g.reworded}
+                    </dd>
+                  )}
                   {g.formula && (
                     <dd>
                       <code className="mt-1 block whitespace-pre-wrap rounded bg-surface-sunken px-2 py-1 font-mono text-xs">{g.formula}</code>

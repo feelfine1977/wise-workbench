@@ -80,6 +80,33 @@
     max-height: calc(100vh - 72px);
     overflow: auto;
   }
+  /* One reading sentence of at most two lines (R2-O9). */
+  .reading {
+    max-width: var(--measure-reading);
+  }
+  .clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-pad {
+    padding: var(--card-padding);
+  }
+  /* The screen's one dominant element: the sentence a reader takes away. */
+  .headline {
+    font-size: var(--text-lg-size);
+    line-height: var(--text-lg-leading);
+    letter-spacing: var(--text-lg-tracking);
+  }
+  .stepper-arrow::after {
+    content: "→";
+    color: var(--color-text-subtle);
+    margin: 0 4px;
+  }
+  .stepper-arrow:last-child::after {
+    content: none;
+  }
 }
 
 /* Reduced motion: also switch off Radix animations */

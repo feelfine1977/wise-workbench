@@ -9,6 +9,7 @@ with the ``wise`` library when it is installed).
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cache, lru_cache
@@ -20,9 +21,26 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
-from .paths import PACK_FILES, knowledge_root, pack_dir, schema_dir
+from .paths import GUIDANCE_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files, schema_dir
 
-SCHEMA_KINDS = (*PACK_FILES, "templates", "datasets")
+SCHEMA_KINDS = (*PACK_FILES, "templates", GUIDANCE_FILE, "presets", "datasets")
+GUIDANCE_BLOCKS = (
+    "plain_name",
+    "expectation",
+    "meaning_when_missed",
+    "why_it_matters",
+    "how_detected",
+    "usual_reasons",
+    "usual_actions",
+    "what_to_check_first",
+    "examples",
+    "kpis",
+    "owner_role",
+    "stakeholders",
+    "sources",
+    "review_status",
+    "version",
+)
 
 
 @dataclass(frozen=True)
@@ -223,6 +241,11 @@ def _cross_check(path: Path, docs: dict[str, Any]) -> list[ValidationIssue]:
                 err("failure_modes", f"pattern uses unknown layer {p['layer']!r}", pw)
             if p.get("template") and template_ids and p["template"] not in template_ids:
                 err("failure_modes", f"pattern refers to unknown template {p['template']!r}", pw)
+            for extra in p.get("also_templates", []) or []:
+                if template_ids and extra not in template_ids:
+                    err("failure_modes", f"pattern refers to unknown template {extra!r} in also_templates", pw)
+                if not p.get("template"):
+                    err("failure_modes", "also_templates needs a primary template", pw)
             if p.get("constraint_ref") and not p.get("template"):
                 err("failure_modes", "constraint_ref needs a template", pw)
 
@@ -265,6 +288,199 @@ def _cross_check(path: Path, docs: dict[str, Any]) -> list[ValidationIssue]:
             tp = path / "templates" / t["file"]
             if not tp.is_file():
                 err("templates", f"template file {t['file']!r} not found", f"templates/{i}")
+    return issues
+
+
+def template_constraints(path: Path, tpl: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """Template id -> {"layers": [layer ids], "constraints": {constraint id -> layer id}} read from the JSON files."""
+    out: dict[str, dict[str, Any]] = {}
+    for t in (tpl or {}).get("templates", []) or []:
+        tp = path / "templates" / t["file"]
+        if not tp.is_file():
+            continue
+        try:
+            doc = json.loads(tp.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        layers = doc.get("layers", [])
+        layer_ids = [x["id"] for x in layers] if isinstance(layers, list) else list(layers)
+        out[t["id"]] = {
+            "layers": layer_ids,
+            "constraints": {c["id"]: c.get("layer") for c in doc.get("constraints", [])},
+        }
+    return out
+
+
+def _guidance_issues(path: Path, docs: dict[str, Any]) -> list[ValidationIssue]:
+    """Cross references and completeness of guidance.yaml.
+
+    Every pack layer, every constraint of every template and every failure mode
+    needs exactly one entry; entries resolve roles, layers and KPIs; every usual
+    reason says where it is checked; every action names a countermeasure; the
+    examples show a violating and a compliant case; layers carry a missed label.
+    """
+    issues: list[ValidationIssue] = []
+    doc = docs.get(GUIDANCE_FILE)
+    tpl = docs.get("templates")
+    file = str(path / f"{GUIDANCE_FILE}.yaml")
+    if doc is None:
+        if tpl:
+            issues.append(
+                ValidationIssue(file=file, message="missing guidance.yaml (a pack with templates needs guidance)")
+            )
+        return issues
+
+    def err(message: str, where: str = "") -> None:
+        issues.append(ValidationIssue(file=file, message=message, path=where))
+
+    fms = docs["failure_modes"]
+    layer_ids = _ids(fms.get("layers", []))
+    fm_ids = _ids(fms["failure_modes"])
+    role_ids = set(_ids(docs["slicing"]["roles"]))
+    kpi_ids = set(_ids(docs["kpis"]["kpis"]))
+    templates = template_constraints(path, tpl)
+    defaults = doc.get("defaults", {}) or {}
+
+    def check_blocks(e: dict[str, Any], where: str) -> None:
+        for block in ("stakeholders", "sources", "review_status", "version"):
+            if block not in e and block not in defaults:
+                err(f"entry {e.get('id')!r} lacks {block!r} (not in the entry, not in defaults)", where)
+        if e.get("owner_role") not in role_ids:
+            err(f"entry {e.get('id')!r} refers to unknown owner role {e.get('owner_role')!r}", where)
+        for k in e.get("kpis", []) or []:
+            if k not in kpi_ids:
+                err(f"entry {e.get('id')!r} refers to unknown kpi {k!r}", where)
+        for i, a in enumerate(e.get("usual_actions", []) or []):
+            if a.get("owner_role") not in role_ids:
+                err(f"action {i} of {e.get('id')!r} names unknown owner role {a.get('owner_role')!r}", where)
+            if a.get("effect_area") not in layer_ids:
+                err(f"action {i} of {e.get('id')!r} names unknown effect area {a.get('effect_area')!r}", where)
+        kinds = {x.get("kind") for x in e.get("examples", []) or []}
+        if not {"violating", "compliant"} <= kinds:
+            err(f"entry {e.get('id')!r} needs a violating and a compliant example", where)
+        text = " ".join(
+            str(e.get(b, "")) for b in ("expectation", "meaning_when_missed", "why_it_matters", "how_detected")
+        )
+        for cid in _constraint_id_mentions(text):
+            err(f"entry {e.get('id')!r} names constraint id {cid!r} in a plain-language block", where)
+
+    seen_layers: list[str] = []
+    for i, e in enumerate(doc.get("layers", []) or []):
+        where = f"layers/{i}"
+        check_blocks(e, where)
+        if e["id"] not in layer_ids:
+            err(f"layer guidance {e['id']!r} is not a layer of failure_modes.yaml", where)
+        if e["id"] in seen_layers:
+            err(f"duplicate layer guidance {e['id']!r}", where)
+        seen_layers.append(e["id"])
+        if not e.get("missed_label"):
+            err(f"layer guidance {e['id']!r} needs a missed_label", where)
+    for lid in layer_ids:
+        if lid not in seen_layers:
+            err(f"layer {lid!r} has no guidance")
+
+    covered: dict[tuple[str, str], str] = {}
+    for i, e in enumerate(doc.get("constraints", []) or []):
+        where = f"constraints/{i}"
+        check_blocks(e, where)
+        pairs = [(t, e["id"]) for t in e["templates"]] + list((e.get("aliases", {}) or {}).items())
+        for t, cid in pairs:
+            if t not in templates:
+                err(f"constraint guidance {e['id']!r} refers to unknown template {t!r}", where)
+                continue
+            if cid not in templates[t]["constraints"]:
+                err(f"constraint guidance {e['id']!r}: template {t!r} has no constraint {cid!r}", where)
+                continue
+            if (t, cid) in covered:
+                err(
+                    f"constraint {cid!r} of template {t!r} has guidance twice ({covered[(t, cid)]!r} and {e['id']!r})",
+                    where,
+                )
+            covered[(t, cid)] = e["id"]
+    for t, info in templates.items():
+        missing = sorted(cid for cid in info["constraints"] if (t, cid) not in covered)
+        if missing:
+            err(f"template {t!r}: constraints without guidance {missing}")
+        layer_map = {layer["id"]: layer.get("template_layers", {}).get(t) for layer in fms.get("layers", [])}
+        for tl in info["layers"]:
+            if tl not in layer_map.values() and tl not in layer_map:
+                err(f"template {t!r}: layer {tl!r} maps to no pack layer (template_layers) and has no guidance")
+
+    seen_fms: list[str] = []
+    for i, e in enumerate(doc.get("failure_modes", []) or []):
+        where = f"failure_modes/{i}"
+        check_blocks(e, where)
+        if e["id"] not in fm_ids:
+            err(f"failure-mode guidance {e['id']!r} is not a failure mode of failure_modes.yaml", where)
+        if e["id"] in seen_fms:
+            err(f"duplicate failure-mode guidance {e['id']!r}", where)
+        seen_fms.append(e["id"])
+    for fid in fm_ids:
+        if fid not in seen_fms:
+            err(f"failure mode {fid!r} has no guidance")
+    return issues
+
+
+_CONSTRAINT_ID_RX = re.compile(r"\b(?:c_l\d+_[a-z0-9_]+|b_[a-z]+_[a-z0-9_]+|o_[a-z]+_[a-z0-9_]+)\b")
+
+
+def _constraint_id_mentions(text: str) -> list[str]:
+    """Tokens that look like template constraint ids (``c_l3_...``, ``b_time_...``, ``o_deliv_...``)."""
+    return _CONSTRAINT_ID_RX.findall(text)
+
+
+def _preset_issues(path: Path, docs: dict[str, Any]) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    pack_id = docs["ontology"]["pack"]
+    template_ids = set(_ids(docs["templates"]["templates"])) if docs.get("templates") else set()
+    slice_ids = set(_ids(docs["slicing"]["slice_keys"]))
+    mapping_ids = {mp.stem for mp in (path / "mappings").glob("*.yaml")} if (path / "mappings").is_dir() else set()
+    try:
+        registry = read_yaml(knowledge_root() / "datasets.yaml")
+        dataset_ids = {d["id"] for d in registry.get("datasets", [])}
+    except (OSError, yaml.YAMLError):
+        dataset_ids = set()
+    for pp in preset_files(path):
+        file_issues = validate_file("presets", pp)
+        issues.extend(file_issues)
+        if file_issues:
+            continue
+        doc = read_yaml(pp)
+        file = str(pp)
+        if doc.get("pack") != pack_id:
+            issues.append(
+                ValidationIssue(file=file, message=f"preset pack {doc.get('pack')!r} differs from {pack_id!r}")
+            )
+        if doc["norm"]["template"] not in template_ids:
+            issues.append(
+                ValidationIssue(file=file, message=f"preset refers to unknown template {doc['norm']['template']!r}")
+            )
+        am = doc["mapping"].get("activity_mapping")
+        if am and am not in mapping_ids:
+            issues.append(ValidationIssue(file=file, message=f"preset refers to unknown activity mapping {am!r}"))
+        if dataset_ids and doc["dataset"] not in dataset_ids:
+            issues.append(ValidationIssue(file=file, message=f"preset refers to unknown dataset {doc['dataset']!r}"))
+        for i, sl in enumerate(doc["slicings"]):
+            if sl["id"] not in slice_ids:
+                issues.append(
+                    ValidationIssue(
+                        file=file,
+                        message=f"slicing {sl['id']!r} is not a slice key of slicing.yaml",
+                        path=f"slicings/{i}",
+                    )
+                )
+        aliases = doc["mapping"].get("attribute_aliases", {}) or {}
+        prepared = {a["name"] for a in doc.get("derived_case_attributes", []) or []}
+        case_attrs = set(doc["mapping"].get("case_attributes", []) or [])
+        for name, column in aliases.items():
+            if column not in case_attrs and column not in prepared:
+                issues.append(
+                    ValidationIssue(
+                        file=file,
+                        message=f"attribute alias {name!r} -> {column!r} is neither a mapped case attribute nor a prepared attribute",
+                        level="warning",
+                    )
+                )
     return issues
 
 
@@ -362,12 +578,21 @@ def validate_pack(name_or_path: str | Path) -> list[ValidationIssue]:
         docs["templates"] = None if file_issues else read_yaml(index)
     else:
         docs["templates"] = None
+    guidance_file = path / f"{GUIDANCE_FILE}.yaml"
+    if guidance_file.is_file():
+        file_issues = validate_file(GUIDANCE_FILE, guidance_file)
+        issues.extend(file_issues)
+        docs[GUIDANCE_FILE] = None if file_issues else read_yaml(guidance_file)
+    else:
+        docs[GUIDANCE_FILE] = None
     if any(i.level == "error" for i in issues):
         return issues
     issues.extend(_cross_check(path, docs))
     activity_ids = {a["id"] for a in docs["ontology"]["activities"]}
     issues.extend(_template_issues(path, docs["templates"], activity_ids))
     issues.extend(_mapping_issues(path, activity_ids))
+    issues.extend(_guidance_issues(path, docs))
+    issues.extend(_preset_issues(path, docs))
     return issues
 
 
@@ -384,9 +609,11 @@ def validate_datasets(path: Path | None = None) -> list[ValidationIssue]:
 
 
 __all__ = [
+    "GUIDANCE_BLOCKS",
     "SCHEMA_KINDS",
     "ValidationIssue",
     "read_yaml",
+    "template_constraints",
     "validate_datasets",
     "validate_document",
     "validate_file",

@@ -5,7 +5,10 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkbench } from "@/app/context";
 import { useTrackJob } from "@/app/shell/JobTray";
+import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
+import { NextStep } from "@/components/guide/NextStep";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
+import { YourProcess } from "../flow/YourProcess";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
@@ -107,19 +110,33 @@ export function PresetCard({ projectId }: { projectId: string }) {
   );
 }
 
-/** S1 — datasets, upload and public log presets. */
+/** Data — datasets, upload, public log presets and, once a case table exists, "Your process" by flow type. */
 export default function DataPage() {
   const { t } = useTranslation();
   const ctx = useWorkbench();
   const datasets = useQuery(datasetsQuery(ctx.projectId));
+  const caseTable = ctx.caseTable;
 
   return (
-    <div className="flex flex-col gap-4">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-text-subtle">S1 · Log intake and data caveats</p>
-        <h1 className="text-2xl font-semibold">Data and mapping</h1>
-        <p className="text-sm text-text-muted">Upload a log, map its columns, type header events away and read the data caveats before scoring — or load a public log in one click.</p>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-2">
+        <p className="text-xs uppercase tracking-wide text-text-subtle">Data · log intake and data caveats</p>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          Data and mapping
+          <HowToReadToggle id="data" />
+        </h1>
+        <p className="reading text-base text-text-muted">Upload a log, map its columns, decide about the data caveats and choose how to analyse the flow types — or load a public log in one click.</p>
+        <HowToRead id="data">
+          The journey starts with an event log. Drop a file or load a public log; the mapping form opens prefilled and builds the case table; the data caveats say what could distort the results. When a case table exists, <strong>Your process</strong> below shows the
+          flow types and asks whether to compare everything together or to analyse each flow type on its own.
+        </HowToRead>
       </header>
+      {caseTable ? (
+        <NextStep label="Open the data caveats and decide" because={`${(caseTable.readiness?.items ?? []).filter((i) => i.level === "warn").length} caveats travel with every result until you decide about them`} to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: caseTable.datasetId }} search={{ caseTable: caseTable.id, tab: "readiness" }} />
+      ) : (
+        <NextStep label="Load the public log preset" because="one job ingests, builds the case table, imports the norm and scores; the data caveats appear on the way" onClick={() => document.getElementById("preset-heading")?.scrollIntoView({ block: "center" })} />
+      )}
+      {caseTable && <YourProcess projectId={ctx.projectId} caseTableId={caseTable.id} runs={ctx.runs} mode="data" />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Dropzone projectId={ctx.projectId} />
         <PresetCard projectId={ctx.projectId} />
@@ -147,7 +164,7 @@ export default function DataPage() {
               {datasets.data.map((d) => (
                 <tr key={d.id}>
                   <Td>
-                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{}}>
+                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{ tab: "mapping" }}>
                       {d.name}
                     </Link>
                     <span className="ml-2 font-mono text-xs text-text-subtle">{d.id}</span>
@@ -164,7 +181,7 @@ export default function DataPage() {
                   <Td>
                     {d.status === "ready" && (
                       <Button asChild size="sm" variant="outline">
-                        <Link to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{}}>
+                        <Link to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{ tab: "mapping" }}>
                           Map columns
                         </Link>
                       </Button>

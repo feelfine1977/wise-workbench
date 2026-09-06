@@ -79,7 +79,7 @@ def _payload(nc: wise.NormConstraint, share: dict[str, float], n_cases: int) -> 
 
 def build_flow_graph(
     dfg: dict[str, Any],
-    norm: wise.Norm,
+    norm: wise.Norm | None,
     violation_shares: dict[str, dict[str, float]],
     *,
     abstraction: float,
@@ -100,9 +100,10 @@ def build_flow_graph(
             ids[label] = f"{base}_{seen[base]}"
         else:
             seen[base] = 0
+    constraints = list(norm.constraints) if norm is not None else []
     # violation share per activity: the largest share among the expectations that mention it
     node_violation: dict[str, float] = {}
-    for nc in norm.constraints:
+    for nc in constraints:
         node_share = violation_shares.get(nc.id, {}).get("shareViolated")
         if node_share is None:
             continue
@@ -198,7 +199,7 @@ def build_flow_graph(
     overlays: list[dict[str, Any]] = []
     without_activity: list[str] = []
     constraints_meta: list[dict[str, Any]] = []
-    for nc in norm.constraints:
+    for nc in constraints:
         c = nc.constraint
         share = violation_shares.get(nc.id, {})
         payload = _payload(nc, share, n_cases)

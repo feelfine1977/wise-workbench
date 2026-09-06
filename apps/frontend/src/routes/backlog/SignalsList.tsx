@@ -7,17 +7,22 @@ export interface SignalsListProps {
   maxPI: number;
   view?: string;
   layerNames?: Record<string, string>;
+  caseNoun?: string;
   pins: string[];
   activeKey: string | undefined;
   onActive: (key: string | undefined) => void;
   onTogglePin: (key: string) => void;
   onOpen: (key: string, focus?: "finding") => void;
+  onDrill?: (key: string) => void;
   onFocusFilter: () => void;
 }
 
-/** Ranked sentence cards with roving-tabindex keyboard navigation (↑↓ move, ↵ Why?, p pin, f finding, / filter). */
-export function SignalsList({ rows, maxPI, view, layerNames, pins, activeKey, onActive, onTogglePin, onOpen, onFocusFilter }: SignalsListProps) {
-  const ref = useRef<HTMLDivElement>(null);
+/**
+ * Ranked sentence cards with roving-tabindex keyboard navigation (↑↓ move, ↵ Why?, p pin, f finding, / filter).
+ * A plain list of focusable articles: the cards carry buttons, so they are not options of a listbox.
+ */
+export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, pins, activeKey, onActive, onTogglePin, onOpen, onDrill, onFocusFilter }: SignalsListProps) {
+  const ref = useRef<HTMLOListElement>(null);
   const activeIndex = Math.max(0, rows.findIndex((r) => r.key === activeKey));
 
   const focusCard = useCallback(
@@ -94,22 +99,25 @@ export function SignalsList({ rows, maxPI, view, layerNames, pins, activeKey, on
   };
 
   return (
-    <div ref={ref} role="listbox" aria-label="Signals" aria-activedescendant={undefined} className="flex flex-col gap-2">
+    <ol ref={ref} role="list" aria-label="Signals" className="m-0 flex list-none flex-col gap-[var(--card-gap)] p-0">
       {rows.map((row, i) => (
-        <SignalCard
-          key={row.key}
-          row={row}
-          maxPI={maxPI}
-          view={view}
-          layerNames={layerNames}
-          active={activeKey ? row.key === activeKey : i === 0}
-          pinned={pins.includes(row.key)}
-          onWhy={(key) => onOpen(key)}
-          onActivate={onActive}
-          onTogglePin={onTogglePin}
-          onKeyDown={onKeyDown}
-        />
+        <li key={row.key}>
+          <SignalCard
+            row={row}
+            maxPI={maxPI}
+            view={view}
+            layerNames={layerNames}
+            caseNoun={caseNoun}
+            active={activeKey ? row.key === activeKey : i === 0}
+            pinned={pins.includes(row.key)}
+            onWhy={(key) => onOpen(key)}
+            onActivate={onActive}
+            onTogglePin={onTogglePin}
+            onDrill={onDrill}
+            onKeyDown={onKeyDown}
+          />
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }

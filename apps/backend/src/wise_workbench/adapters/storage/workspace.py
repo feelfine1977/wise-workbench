@@ -9,7 +9,8 @@ Layout::
         case_tables/<case_table_id>/ cases.parquet  events.parquet  quality.json  activities.json  manifest.json
         norms/<norm_id>/vNNN.json
         runs/<run_id>/               frame.parquet violations.parquet in_scope.parquet summary.json
-                                     backlogs/  drivers/  diagnostics/  manifest.json
+                                     backlogs/  drivers/  diagnostics/  analytics/<name>/<params_hash>.parquet  manifest.json
+        notebook/<snapshot_id>.png   images of the analysis notebook
       cache/                         disposable
       tmp/                           staging area for atomic writes
 """
@@ -73,6 +74,10 @@ class Workspace:
 
     def run_dir(self, project_id: str, run_id: str) -> Path:
         return self.project_dir(project_id) / "runs" / run_id
+
+    def notebook_dir(self, project_id: str) -> Path:
+        """Images of the analysis notebook's snapshots."""
+        return self.project_dir(project_id) / "notebook"
 
     @property
     def cache_dir(self) -> Path:

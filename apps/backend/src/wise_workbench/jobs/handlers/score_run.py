@@ -36,6 +36,9 @@ def perform(c: Any, run_id: str, progress: ProgressFn) -> str:
     done = run_.transition(RunStatus.DONE, manifest=RunManifest.from_dict(manifest), error=None)
     c.repos.update_run(done)
     c.repos.set_latest_run(run_.project_id, run_.id)
+    from . import analytics
+
+    analytics.enqueue(c, run_.project_id, run_.id)
     return f"run:{run_.id}"
 
 

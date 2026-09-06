@@ -23,6 +23,7 @@ export function CommandPalette({ ctx }: { ctx: WorkbenchContext }) {
   const openHelp = useUiStore((s) => s.openHelp);
   const setTheme = useUiStore((s) => s.setTheme);
   const theme = useUiStore((s) => s.theme);
+  const vocabulary = useUiStore((s) => s.vocabulary);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const pid = ctx.projectId;
@@ -38,21 +39,21 @@ export function CommandPalette({ ctx }: { ctx: WorkbenchContext }) {
     if (runId) {
       list.push({
         id: "backlog",
-        label: `Backlog explorer · ${runId}`,
+        label: `${vocabulary === "plain" ? "Where is it worst?" : "Backlog explorer"} · ${runId}`,
         hint: "S6",
         run: () => void navigate({ to: "/p/$projectId/runs/$runId/backlog", params: { projectId: pid, runId }, search: { slicing: ctx.slicing, view: ctx.view } }),
       });
       for (const v of ctx.run?.views ?? []) {
-        list.push({ id: `view-${v}`, label: `Switch view to ${v}`, hint: "context", run: () => ctx.setView(v) });
+        list.push({ id: `view-${v}`, label: `Switch ${vocabulary === "plain" ? "perspective" : "view"} to ${v}`, hint: "context", run: () => ctx.setView(v) });
       }
       for (const s of ctx.run?.slicings ?? []) {
-        if (s.id) list.push({ id: `slicing-${s.id}`, label: `Slice by ${s.id}`, hint: "context", run: () => ctx.setSlicing(s.id as string) });
+        if (s.id) list.push({ id: `slicing-${s.id}`, label: `${vocabulary === "plain" ? "Group" : "Slice"} by ${s.id}`, hint: "context", run: () => ctx.setSlicing(s.id as string) });
       }
     }
     list.push({ id: "help", label: "Help and glossary", hint: "?", run: () => openHelp() });
     list.push({ id: "theme", label: `Theme: ${theme} → ${theme === "dark" ? "light" : "dark"}`, hint: "ui", run: () => setTheme(theme === "dark" ? "light" : "dark") });
     return list;
-  }, [ctx, navigate, pid, openHelp, setTheme, theme]);
+  }, [ctx, navigate, pid, openHelp, setTheme, theme, vocabulary]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

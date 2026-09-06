@@ -34,14 +34,23 @@ class ReadinessItem:
     level: ReadinessLevel
     message: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    decision: dict[str, Any] | None = None  # the caveat action a reader can take on this item
 
     def to_dict(self) -> dict[str, Any]:
-        return {"id": self.id, "level": str(self.level), "message": self.message, "evidence": dict(self.evidence)}
+        return {
+            "id": self.id,
+            "level": str(self.level),
+            "message": self.message,
+            "evidence": dict(self.evidence),
+            "decision": dict(self.decision) if self.decision else None,
+        }
 
 
 @dataclass(frozen=True)
 class Readiness:
     items: tuple[ReadinessItem, ...] = ()
+    window_end: str | None = None  # the one window end every censoring number was computed against
+    case_noun: str | None = None
 
     @property
     def status(self) -> ReadinessStatus:
@@ -53,7 +62,12 @@ class Readiness:
         return ReadinessStatus.PASS
 
     def to_dict(self) -> dict[str, Any]:
-        return {"status": str(self.status), "items": [i.to_dict() for i in self.items]}
+        return {
+            "status": str(self.status),
+            "items": [i.to_dict() for i in self.items],
+            "windowEnd": self.window_end,
+            "caseNoun": self.case_noun,
+        }
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Readiness:
@@ -63,10 +77,11 @@ class Readiness:
                 level=ReadinessLevel(str(i.get("level", "info"))),
                 message=str(i.get("message", "")),
                 evidence=dict(i.get("evidence") or {}),
+                decision=dict(i["decision"]) if i.get("decision") else None,
             )
             for i in d.get("items", [])
         )
-        return cls(items=items)
+        return cls(items=items, window_end=d.get("windowEnd"), case_noun=d.get("caseNoun"))
 
 
 @dataclass(frozen=True)

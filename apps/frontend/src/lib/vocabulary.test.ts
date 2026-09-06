@@ -23,7 +23,7 @@ describe("vocabulary: the plain-language layer", () => {
     expect(label("dominant_layer")).toBe("most-missed expectation area");
     expect(label("stable_PI")).toBe("priority, small groups discounted");
     expect(label("stable_PI", "method")).toBe("stable PI");
-    expect(definition("gap")).toBe("how far the group's average is below the overall average");
+    expect(definition("gap")).toMatch(/^how far the group's average score is below the overall score/);
     expect(label("nope")).toBe("nope");
     expect(secondary("nope")).toBeUndefined();
   });

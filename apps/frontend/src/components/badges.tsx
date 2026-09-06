@@ -35,9 +35,9 @@ export function KindBadge({ kind, hotspotType, short, reading, className }: Kind
   const k: Kind | undefined = kind ?? (hotspotType ? KIND_OF_HOTSPOT[hotspotType] : undefined);
   if (!k) {
     return (
-      <span className={cn("inline-flex items-center gap-1 text-xs text-text-subtle", className)} aria-label="no kind of problem yet">
+      <span role="img" className={cn("inline-flex items-center gap-1 text-xs text-text-subtle", className)} aria-label="no kind of problem yet">
         <span aria-hidden>–</span>
-        {!short && <span>{vocabulary === "plain" ? "no kind yet" : "not typed"}</span>}
+        {!short && <span aria-hidden>{vocabulary === "plain" ? "no kind yet" : "not typed"}</span>}
       </span>
     );
   }
@@ -66,18 +66,18 @@ export function HotspotBadge({ type, className, short }: { type: HotspotType | n
 }
 
 /** Confidence in the rank (the method's stability): dots plus words, never colour alone. */
-export function ConfidenceMark({ value, className, words }: { value: Stability | null | undefined; className?: string; words?: boolean }) {
+export function ConfidenceMark({ value, className, words, title }: { value: Stability | null | undefined; className?: string; words?: boolean; title?: string }) {
   const vocabulary = useUiStore((s) => s.vocabulary);
   const v: Stability = value ?? "unknown";
   const plain = confidenceOf(v);
   const method = v.replace("_", " ");
   const text = vocabulary === "plain" ? `confidence ${plain}` : `stability ${method}`;
   return (
-    <span className={cn("inline-flex items-center gap-1 text-xs", className)} style={{ color: `var(--stability-${v})` }} title={`confidence in rank: ${plain} (stability: ${method})`} data-stability={v}>
+    <span className={cn("inline-flex items-center gap-1 text-xs", className)} style={{ color: `var(--stability-${v})` }} title={`confidence in rank: ${plain} (stability: ${method})${title ? ` — ${title}` : ""}`} data-stability={v}>
       <span aria-hidden className="tracking-tighter">
         {stabilityGlyph[v]}
       </span>
-      {words ? <span>{vocabulary === "plain" ? plain : method}</span> : <span className="sr-only">{text}</span>}
+      {words ? <span>{text}</span> : <span className="sr-only">{text}</span>}
     </span>
   );
 }

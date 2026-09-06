@@ -117,16 +117,21 @@ const params: Record<string, string> = {
   caseTableId: "ct_1",
   normVersionId: "nv_7",
   runId: "run_41",
-  sliceKey: encodeURIComponent('["vendorID_0128"]'),
+  sliceKey: encodeURIComponent('["vendorID_0136"]'),
   caseId: "4507012345_00010",
   constraintId: "c_l3_invoice_to_clear_days",
   jobId: "job_41",
   presetId: "bpic2019",
+  snapshotId: "snap_1",
 };
 const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/backlog": `?slicing=${encodeURIComponent("case Vendor")}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/slices/{sliceKey}": `?slicing=${encodeURIComponent("case Vendor")}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/diagnostics": `?slicing=${encodeURIComponent("case Vendor")}`,
+  "/projects/{projectId}/runs/{runId}/slicings/preview": `?slicing=${encodeURIComponent("case Vendor,exposure")}&bands=${encodeURIComponent(JSON.stringify([{ attribute: "exposure", method: "quantile", q: 4 }]))}`,
+  "/projects/{projectId}/runs/{runId}/filters/preview": `?filter=${encodeURIComponent(JSON.stringify({ and: [{ kind: "activity", op: "contains", activity: "Remove Payment Block" }] }))}`,
+  "/projects/{projectId}/runs/{runId}/flow": "?focus=a_record_goods_receipt",
+  "/projects/{projectId}/decisions": "?caseTableId=ct_1",
 };
 const bodies: Record<string, unknown> = {
   "post /projects": { name: "New project", process: "p2p" },
@@ -134,8 +139,21 @@ const bodies: Record<string, unknown> = {
   "post /projects/{projectId}/norms": { norm: db.norms[2]?.norm, note: "contract test", parentId: "nv_7" },
   "patch /projects/{projectId}/norms/{normVersionId}": { status: "approved" },
   "post /projects/{projectId}/norms/{normVersionId}/check": { caseTableId: "ct_1" },
-  "post /projects/{projectId}/runs": { caseTableId: "ct_1", normVersionId: "nv_7", gamma: 50, slicings: [{ attributes: ["case Vendor"] }] },
+  "post /projects/{projectId}/runs": { caseTableId: "ct_1", normVersionId: "nv_7", gamma: 20, slicings: [{ attributes: ["case Vendor"] }], scope: { flow_type: "DF2", attribute: "flow_type" } },
+  "post /projects/{projectId}/case-tables/{caseTableId}/decisions/preview": { kind: "collapse_duplicates", params: {} },
+  "post /projects/{projectId}/case-tables/{caseTableId}/decisions": { kind: "open_cases", params: { handling: "exclude" }, note: "contract test", author: "tester" },
+  "post /projects/{projectId}/notebook/reorder": { ids: ["snap_1"] },
+  "patch /projects/{projectId}/notebook/snapshots/{snapshotId}": { title: "renamed", note: "edited" },
 };
+/** Operations whose path names a snapshot first need one (the database is reset between tests). */
+const needsSnapshot = (path: string) => path.includes("{snapshotId}") || path.endsWith("/notebook/reorder") || path.endsWith("/notebook/export");
+async function createSnapshot() {
+  const form = new FormData();
+  form.append("payload", JSON.stringify({ title: "contract test", note: "n", context: { screen: "signals", url: "/p/p2p2018" } }));
+  form.append("image", new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" }));
+  const res = await fetch(`${base}/projects/p2p2018/notebook/snapshots`, { method: "POST", body: form });
+  expect(res.status).toBe(201);
+}
 
 const fill = (p: string) => p.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? k);
 
@@ -150,10 +168,20 @@ describe("OpenAPI contract vs MSW mocks", () => {
     if (path === "/jobs/{jobId}/events") continue; // SSE: streamed, checked separately below
     it(`${method.toUpperCase()} ${path} (${op.operationId})`, async () => {
       const key = `${method} ${path}`;
+      if (needsSnapshot(path)) await createSnapshot();
       let init: RequestInit = { method: method.toUpperCase() };
       if (key === "post /projects/{projectId}/datasets") {
         const form = new FormData();
         form.append("file", new File(["case,activity,time\n1,a,2018-01-01"], "log.csv", { type: "text/csv" }));
+        init = { ...init, body: form };
+      } else if (key === "post /projects/{projectId}/notebook/snapshots") {
+        const form = new FormData();
+        form.append("payload", JSON.stringify({ title: "frozen", note: "", context: { screen: "why", url: "/p/p2p2018" }, data: { rows: 1 } }));
+        form.append("image", new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" }));
+        init = { ...init, body: form };
+      } else if (key === "post /projects/{projectId}/notebook/snapshots/{snapshotId}/image") {
+        const form = new FormData();
+        form.append("image", new File([new Uint8Array([137, 80, 78, 71])], "screen.png", { type: "image/png" }));
         init = { ...init, body: form };
       } else if (bodies[key]) {
         init = { ...init, body: JSON.stringify(bodies[key]), headers: { "Content-Type": "application/json" } };
@@ -163,7 +191,8 @@ describe("OpenAPI contract vs MSW mocks", () => {
       expect(expected, "2xx documented").not.toHaveLength(0);
       expect(expected).toContain(String(res.status));
       const schema = op.responses?.[String(res.status)]?.content?.["application/json"]?.schema as Schema | undefined;
-      if (schema) {
+      const isJson = (res.headers.get("content-type") ?? "").includes("json");
+      if (schema && isJson) {
         const body = await res.json();
         const errors: string[] = [];
         validate(body, schema, "$", errors);
@@ -181,14 +210,29 @@ describe("OpenAPI contract vs MSW mocks", () => {
   });
 
   it("uses the backend's key formats: JSON-array slice keys and column-name slicings", async () => {
-    const page = (await (await fetch(`${base}/projects/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&gamma=20&minCases=1`)).json()) as { rows: { key: string; keys: Record<string, string>; kind?: string; reading?: string }[]; maxStablePI: number };
-    expect(page.rows[0]?.key).toBe('["companyID_0000","Packaging"]');
+    const page = (await (await fetch(`${base}/projects/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&gamma=20&minCases=1`)).json()) as { rows: { key: string; keys: Record<string, string>; kind?: string; reading?: string; stability?: string; comparison?: string; points_below?: string; caveats?: unknown[] }[]; maxStablePI: number; params: Record<string, unknown> };
+    expect(JSON.parse(page.rows[0]?.key ?? "[]")).toEqual(["companyID_0000", "Packaging"]);
     expect(page.rows[0]?.keys).toEqual({ "case Company": "companyID_0000", "case Spend area text": "Packaging" });
     expect(page.rows[0]?.kind).toBe("widespread");
     expect(page.rows[0]?.reading).toMatch(/^companyID_0000 × Packaging: 109,199 cases, 0\.9 % below expectation on average; widespread: many cases, slightly off;/);
     expect(page.maxStablePI).toBeCloseTo(945.7, 1);
+    // the verified run's analytics fields (R1-01, R1-04, RG-20) travel with the row
+    expect(page.rows[0]?.stability).toBe("stable");
+    expect(page.rows[0]?.comparison).toBe("Paid within terms: 83 days here against 55 elsewhere (+25 days).");
+    expect(page.rows[0]?.points_below).toBe("0.9 points below the overall score of 84.4 (1 %)");
+    expect(page.rows[0]?.caveats).toHaveLength(2);
+    expect(page.params.case_noun).toBe("purchase order items");
+    expect(page.params.illustrative).toBe(false);
     const detail = await fetch(`${base}/projects/p2p2018/runs/run_41/slices/${encodeURIComponent('["companyID_0000","Packaging"]')}?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation`);
     expect(detail.status).toBe(200);
+    const d = (await detail.json()) as { contrast: { columns: string[] }; comparison: string; guidance_refs: unknown[]; headroom: { columns: string[] } };
+    expect(d.contrast.columns).toContain("median_elsewhere");
+    expect(d.comparison).toMatch(/83 days here against 55 elsewhere/);
+    expect(d.guidance_refs.length).toBeGreaterThan(0);
+    expect(d.headroom.columns).toContain("gain_points");
+    // illustrative slicings are marked
+    const illustrative = (await (await fetch(`${base}/projects/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Item Type")}&view=Finance`)).json()) as { params: Record<string, unknown> };
+    expect(illustrative.params.illustrative).toBe(true);
   });
 
   it("answers with RFC 9457 problems on unknown ids and missing parameters", async () => {

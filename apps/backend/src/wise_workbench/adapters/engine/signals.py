@@ -91,41 +91,96 @@ def raw_signal(log: wise.EventLog, nc: wise.NormConstraint) -> tuple[pd.Series, 
     return pd.Series(np.asarray(s, dtype=float), index=log.case_ids), meta
 
 
+ROBUST_QUANTILES = (0.005, 0.995)
+
+
+def _robust_range(x: np.ndarray, thr: float | None, sat: float | None) -> tuple[float, float]:
+    """The 0.5–99.5 % quantile range, widened to include the threshold and the saturation point."""
+    lo, hi = (float(v) for v in np.quantile(x, ROBUST_QUANTILES))
+    for marker in (thr, sat):
+        if marker is not None and np.isfinite(marker):
+            lo, hi = min(lo, float(marker)), max(hi, float(marker))
+    if hi <= lo:
+        hi = lo + 1.0
+    return lo, hi
+
+
 def distribution(
-    values: pd.Series, violations: pd.Series, meta: dict[str, Any], *, bins: int = 40, ecdf_points: int = 101
+    values: pd.Series,
+    violations: pd.Series,
+    meta: dict[str, Any],
+    *,
+    bins: int = 40,
+    ecdf_points: int = 101,
+    scale: str = "linear",
 ) -> dict[str, Any]:
-    """Histogram, ECDF and summary statistics of a signal restricted to the given cases."""
+    """Histogram, ECDF and summary statistics of a signal restricted to the given cases.
+
+    Robust histograms (R1-09): the bins cover the 0.5–99.5 % quantile range (widened to the threshold δ and the
+    saturation point δ + W), values beyond it are counted in a ``beyond`` bin, the two markers are returned and the
+    share beyond δ is printed; ``scale="log"`` bins log10 of the positive values (the returned edges are in the
+    signal's unit).
+    """
     x = values.dropna().to_numpy(dtype=float)
+    thr = meta.get("threshold")
+    width = meta.get("width")
+    direction = str(meta.get("direction") or "high")
+    sat = (float(thr) + float(width)) if (thr is not None and width) else None
+    if direction == "low" and thr is not None and width:
+        sat = float(thr) - float(width)
     out: dict[str, Any] = {
         "unit": meta.get("unit"),
         "label": meta.get("label"),
         "constraintId": meta.get("constraintId"),
         "type": meta.get("type"),
-        "direction": meta.get("direction"),
-        "threshold": meta.get("threshold"),
-        "width": meta.get("width"),
+        "direction": direction,
+        "threshold": thr,
+        "width": width,
+        "saturation": sat,
+        "scale": scale,
         "bins": [],
+        "beyond": None,
+        "below": None,
         "ecdf": [],
+        "markers": [],
         "stats": {"n": len(x), "nCases": len(values)},
     }
     if meta.get("note"):
         out["note"] = meta["note"]
     if len(x) == 0:
         return out
-    lo, hi = float(np.min(x)), float(np.max(x))
+    lo_all, hi_all = float(np.min(x)), float(np.max(x))
+    lo, hi = _robust_range(x, thr, sat)
     integral = bool(np.all(np.mod(x, 1) == 0)) and (hi - lo) <= bins
-    if integral:
+    if scale == "log":
+        positive = x[x > 0]
+        if len(positive) == 0:
+            scale = "linear"
+            out["scale"] = "linear"
+    if scale == "log":
+        plo, phi = _robust_range(
+            np.log10(x[x > 0]), np.log10(thr) if thr and thr > 0 else None, np.log10(sat) if sat and sat > 0 else None
+        )
+        edges = 10 ** np.linspace(plo, phi, bins + 1)
+        inside = x[(x > 0) & (x >= edges[0]) & (x <= edges[-1])]
+        counts, edges = np.histogram(inside, bins=edges)
+        lo, hi = float(edges[0]), float(edges[-1])
+    elif integral:
         edges = np.arange(np.floor(lo), np.floor(hi) + 2) - 0.5
-    elif hi == lo:
-        edges = np.array([lo - 0.5, hi + 0.5])
+        counts, edges = np.histogram(x[(x >= edges[0]) & (x <= edges[-1])], bins=edges)
     else:
         edges = np.linspace(lo, hi, bins + 1)
-    counts, edges = np.histogram(x, bins=edges)
+        counts, edges = np.histogram(x[(x >= lo) & (x <= hi)], bins=edges)
     out["bins"] = [{"x0": float(edges[i]), "x1": float(edges[i + 1]), "n": int(counts[i])} for i in range(len(counts))]
+    n_beyond = int(np.sum(x > float(edges[-1])))
+    n_below = int(np.sum(x < float(edges[0])))
+    if n_beyond:
+        out["beyond"] = {"x0": float(edges[-1]), "x1": hi_all, "n": n_beyond, "share": n_beyond / len(x)}
+    if n_below:
+        out["below"] = {"x0": lo_all, "x1": float(edges[0]), "n": n_below, "share": n_below / len(x)}
     qs = np.linspace(0, 1, ecdf_points)
     xs = np.quantile(x, qs)
     out["ecdf"] = [[float(a), float(b)] for a, b in zip(xs, qs)]
-    thr = meta.get("threshold")
     v = violations.reindex(values.index)
     evaluated = v.notna()
     stats = out["stats"]
@@ -135,13 +190,28 @@ def distribution(
             "median": float(np.median(x)),
             "p90": float(np.quantile(x, 0.9)),
             "p95": float(np.quantile(x, 0.95)),
-            "min": lo,
-            "max": hi,
+            "min": lo_all,
+            "max": hi_all,
+            "rangeLow": lo,
+            "rangeHigh": hi,
             "shareViolated": float((v[evaluated] > 0).mean()) if evaluated.any() else None,
             "meanViolation": float(v[evaluated].mean()) if evaluated.any() else None,
         }
     )
+    unit = str(meta.get("unit") or "")
+    unit_word = {"D": "days", "h": "hours", "W": "weeks", "min": "minutes", "events": "events"}.get(unit, unit)
     if thr is not None:
-        stats["shareAboveThreshold"] = float(np.mean(x > float(thr)))
-        stats["ecdfAtThreshold"] = float(np.mean(x <= float(thr)))
+        t = float(thr)
+        beyond = float(np.mean(x < t)) if direction == "low" else float(np.mean(x > t))
+        stats["shareAboveThreshold"] = float(np.mean(x > t))
+        stats["ecdfAtThreshold"] = float(np.mean(x <= t))
+        stats["shareBeyondThreshold"] = beyond
+        word = "below" if direction == "low" else "beyond"
+        stats["shareBeyondThresholdText"] = f"{beyond * 100:.0f} % {word} {t:g} {unit_word}".rstrip()
+        out["markers"].append({"id": "threshold", "x": t, "label": f"δ = {t:g} {unit_word}".rstrip()})
+        if sat is not None:
+            stats["shareBeyondSaturation"] = float(np.mean(x < sat)) if direction == "low" else float(np.mean(x > sat))
+            out["markers"].append(
+                {"id": "saturation", "x": float(sat), "label": f"δ + W = {sat:g} {unit_word}".rstrip()}
+            )
     return out

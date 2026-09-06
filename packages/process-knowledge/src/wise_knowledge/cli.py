@@ -1,4 +1,4 @@
-"""Command line: ``wise-knowledge validate | match | show | graph | explain``."""
+"""Command line: ``wise-knowledge validate | match | show | graph | explain | guidance | hub | stages | embed-guidance``."""
 
 from __future__ import annotations
 
@@ -10,10 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .flow import stage_lanes
 from .graph import build_graph
+from .guidance import build_hub, embed_guidance, guidance_complete, render_page
 from .labels import guess_label_column, read_labels, sniff_columns
 from .loaders import load_mapping, load_pack
 from .matching import KEY_COMPONENTS, Matcher, MatchKey, ObservedActivity
+from .models import GUIDANCE_KINDS
 from .paths import available_packs, knowledge_root
 from .schema import validate_datasets, validate_pack
 
@@ -230,6 +233,7 @@ def cmd_show(args: argparse.Namespace) -> int:
                     "id": fm.id,
                     "name": fm.name.get(lang, fm.name["en"]),
                     "stage": fm.stage,
+                    "kind": fm.kind,
                     "patterns": [p.type for p in fm.wise_patterns],
                     "constraints": refs,
                     "evidence": fm.evidence,
@@ -278,6 +282,43 @@ def cmd_show(args: argparse.Namespace) -> int:
             for n, lp in pack.label_packs.items()
         ]
         print(_table(rows))
+    elif args.what == "presets":
+        rows = [
+            {
+                "preset": pr.id,
+                "dataset": pr.dataset,
+                "file": pr.file,
+                "case_noun": pr.case_noun.get(lang, pr.case_noun["en"]),
+                "norm": pr.norm["template"],
+                "header_events": list(pr.header_events),
+                "prepared": [a["name"] for a in pr.derived_case_attributes],
+                "slicings": [" x ".join(sl["columns"]) for sl in pr.slicings],
+            }
+            for pr in pack.presets.values()
+        ]
+        print(_table(rows, max_width=70))
+    elif args.what == "guidance":
+        rows = [
+            {
+                "kind": g.kind,
+                "id": g.id,
+                "plain_name": g.plain_name.get(lang, g.plain_name["en"]),
+                "missed_label": g.missed_label.get(lang, g.missed_label.get("en", "")),
+                "templates": list(g.templates) + [f"{t}:{c}" for t, c in g.aliases.items()],
+                "reasons": len(g.usual_reasons),
+                "actions": len(g.usual_actions),
+                "owner": g.owner_role,
+                "status": g.review_status,
+            }
+            for g in pack.guidance
+        ]
+        print(_table(rows, max_width=48))
+        by_kind = {k: sum(1 for g in pack.guidance if g.kind == k) for k in GUIDANCE_KINDS}
+        print()
+        print(
+            f"pack {pack.id}: {len(pack.guidance)} guidance entries; "
+            + ", ".join(f"{k} {v}" for k, v in by_kind.items())
+        )
     return 0
 
 
@@ -315,6 +356,89 @@ def cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- guidance / hub / stages
+def cmd_guidance(args: argparse.Namespace) -> int:
+    pack = load_pack(args.pack)
+    hub = build_hub(pack, lang=args.lang)
+    node_id = hub.node_for(args.kind, args.id, template=args.template)
+    if node_id is None:
+        known = sorted(g.id for g in pack.guidance if g.kind == args.kind)
+        print(f"no {args.kind} {args.id!r} in pack {pack.id}; known: {known}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(hub.page(node_id), indent=2, ensure_ascii=False))
+    else:
+        print(render_page(hub, node_id, lang=args.lang))
+    return 0
+
+
+def cmd_hub(args: argparse.Namespace) -> int:
+    pack = load_pack(args.pack)
+    hub = build_hub(pack, lang=args.lang)
+    if args.node:
+        payload: Any = hub.page(args.node)
+    else:
+        payload = hub.export() if args.json or args.out else hub.index()
+    if args.out:
+        Path(args.out).write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"written {args.out}")
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+    elif not args.out:
+        by_kind = {k: sum(1 for n in hub.nodes if n["kind"] == k) for k in sorted({n["kind"] for n in hub.nodes})}
+        by_edge = {k: sum(1 for e in hub.edges if e["kind"] == k) for k in sorted({e["kind"] for e in hub.edges})}
+        print(f"hub {pack.id}: {len(hub.nodes)} nodes, {len(hub.edges)} edges")
+        print("nodes: " + ", ".join(f"{k} {v}" for k, v in by_kind.items()))
+        print("edges: " + ", ".join(f"{k} {v}" for k, v in by_edge.items()))
+        for t in pack.templates:
+            ok, missing = guidance_complete(pack, t.id)
+            print(f"template {t.id}: guidance {'complete' if ok else 'incomplete: ' + ', '.join(missing)}")
+    return 0
+
+
+def cmd_stages(args: argparse.Namespace) -> int:
+    pack = load_pack(args.pack)
+    payload = stage_lanes(pack, mapping=args.mapping, variant=args.variant, lang=args.lang)
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0
+    rows = []
+    for g in payload["groups"]:
+        acts = [n for n in payload["nodes"] if n["group"] == g["id"]]
+        rows.append(
+            {
+                "lane": g["label"],
+                "id": g["id"],
+                "activities": len(acts),
+                "milestones": payload["meta"]["milestones"][g["id"].split(":", 1)[1]],
+                "loops_to": payload["meta"]["loops_allowed_to"][g["id"].split(":", 1)[1]],
+            }
+        )
+    print(_table(rows))
+    print()
+    print(
+        f"pack {pack.id}; case noun {payload['meta']['case_noun']!r}; {len(payload['nodes'])} activities, {len(payload['edges'])} expected orderings; mapping {payload['meta']['mapping'] or 'none'}; variant {payload['meta']['variant'] or 'all'}"
+    )
+    return 0
+
+
+def cmd_embed_guidance(args: argparse.Namespace) -> int:
+    pack = load_pack(args.pack)
+    targets = args.template or [t.id for t in pack.templates if not t.verbatim]
+    stale = 0
+    for tid in targets:
+        entry = pack.template(tid)
+        if entry.verbatim:
+            print(f"{tid}: verbatim copy, guidance stays in guidance.yaml")
+            continue
+        ok, missing = guidance_complete(pack, tid)
+        changed, _ = embed_guidance(pack, tid, write=not args.check)
+        state = "up to date" if not changed else ("stale" if args.check else "written")
+        stale += int(changed and args.check)
+        print(f"{tid}: metadata.guidance {state}; {'complete' if ok else 'incomplete: ' + ', '.join(missing)}")
+    return 1 if stale else 0
+
+
 # --------------------------------------------------------------------------- parser
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="wise-knowledge", description="Process knowledge packs for WISE Workbench.")
@@ -350,7 +474,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("show", help="print parts of a pack")
     p.add_argument("pack")
-    p.add_argument("what", choices=["stages", "failure-modes", "glossary", "activities", "kpis", "label-packs"])
+    p.add_argument(
+        "what",
+        choices=["stages", "failure-modes", "glossary", "activities", "kpis", "label-packs", "presets", "guidance"],
+    )
     p.add_argument("--lang", choices=["en", "de"], default="en")
     p.set_defaults(func=cmd_show)
 
@@ -364,6 +491,39 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("constraint")
     p.add_argument("--template")
     p.set_defaults(func=cmd_explain)
+
+    p = sub.add_parser("guidance", help="print the knowledge-hub page of a layer, constraint or failure mode")
+    p.add_argument("pack")
+    p.add_argument("kind", choices=list(GUIDANCE_KINDS))
+    p.add_argument("id", help="layer id (pack or template), constraint id or failure-mode id")
+    p.add_argument("--template", help="template that carries the constraint or layer id")
+    p.add_argument("--lang", choices=["en", "de"], default="en")
+    p.add_argument("--json", action="store_true", help="the hub page in the contract's shape")
+    p.set_defaults(func=cmd_guidance)
+
+    p = sub.add_parser("hub", help="knowledge-hub index (nodes and edges) and pages")
+    p.add_argument("pack")
+    p.add_argument("--json", action="store_true", help="print the index with every page")
+    p.add_argument("--out", type=Path, help="write the index with every page to a JSON file")
+    p.add_argument("--node", help="print one page (hub node id such as layer:flow_discipline)")
+    p.add_argument("--lang", choices=["en", "de"], default="en")
+    p.set_defaults(func=cmd_hub)
+
+    p = sub.add_parser("stages", help="stage lanes with canonical activities in the FlowGraph groups shape")
+    p.add_argument("pack")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--mapping", help="curated label mapping id (mappings/<id>.yaml) to place the log's labels")
+    p.add_argument("--variant", help="limit lanes and orderings to one variant of stages.yaml")
+    p.add_argument("--lang", choices=["en", "de"], default="en")
+    p.set_defaults(func=cmd_stages)
+
+    p = sub.add_parser(
+        "embed-guidance", help="write metadata.guidance into the pack's template files from guidance.yaml"
+    )
+    p.add_argument("pack")
+    p.add_argument("template", nargs="*", help="template ids (default: every non-verbatim template)")
+    p.add_argument("--check", action="store_true", help="report stale blocks without writing; exit 1 when stale")
+    p.set_defaults(func=cmd_embed_guidance)
     return parser
 
 

@@ -15,6 +15,9 @@ interface UiState {
   paletteOpen: boolean;
   trayOpen: boolean;
   railCollapsed: boolean;
+  /** "How to read this" paragraphs the reader has closed, by screen id (RG-5). */
+  howToReadClosed: Record<string, boolean>;
+  setHowToRead: (id: string, open: boolean) => void;
   setTheme: (t: Theme) => void;
   setDensity: (d: Density) => void;
   setVocabulary: (v: Vocabulary) => void;
@@ -60,6 +63,8 @@ export const useUiStore = create<UiState>()(
       paletteOpen: false,
       trayOpen: true,
       railCollapsed: false,
+      howToReadClosed: {},
+      setHowToRead: (id, open) => set((s) => ({ howToReadClosed: { ...s.howToReadClosed, [id]: !open } })),
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
@@ -77,7 +82,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "wise.ui",
-      partialize: (s) => ({ theme: s.theme, density: s.density, vocabulary: s.vocabulary, trayOpen: s.trayOpen, railCollapsed: s.railCollapsed }),
+      partialize: (s) => ({ theme: s.theme, density: s.density, vocabulary: s.vocabulary, trayOpen: s.trayOpen, railCollapsed: s.railCollapsed, howToReadClosed: s.howToReadClosed }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           applyTheme(state.theme);

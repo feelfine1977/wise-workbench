@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from wise_workbench import __version__
 from wise_workbench.api import errors
 from wise_workbench.api.routers import api_router
+from wise_workbench.api.static import mount_spa
 from wise_workbench.container import Container
 from wise_workbench.jobs.worker import InProcessWorker
 from wise_workbench.logging import get_logger
@@ -38,6 +39,12 @@ def create_app(settings: Settings | None = None, container: Container | None = N
             worker.start()
             log.info("api.inprocess_worker", started=True)
         app.state.worker = worker
+        if app.state.static_dir is not None:
+            log.info("api.static", directory=str(app.state.static_dir))
+        elif c.settings.static_dir is not None:
+            log.warning(
+                "api.static_missing", directory=str(c.settings.static_dir), detail="no index.html; serving the API only"
+            )
         try:
             yield
         finally:
@@ -79,6 +86,12 @@ def create_app(settings: Settings | None = None, container: Container | None = N
 
     errors.install(app)
     app.include_router(api_router, prefix="/api/v1")
+    # The built frontend, when there is one; the message about it is logged at start-up (lifespan), after the
+    # logging configuration, so that ``wise-workbench openapi`` keeps a clean stdout.
+    static_dir = cfg.resolved_static_dir
+    app.state.static_dir = static_dir
+    if static_dir is not None:
+        mount_spa(app, static_dir)
     return app
 
 

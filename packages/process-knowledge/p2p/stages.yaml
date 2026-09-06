@@ -8,6 +8,7 @@ sources:
   - SAP MM documentation (GR-based invoice verification, consignment settlement, service entry)
   - APQC Process Classification Framework, 4.2 Procure materials and services
 case_notion:
+  noun: {en: purchase order items, de: Bestellpositionen}
   default: purchase order item (purchasing document x item)
   alternatives:
     - purchase order header (governance roll-up; document/object roll-up in prioritize)

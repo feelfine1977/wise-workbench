@@ -71,7 +71,7 @@ export function BacklogTable(props: BacklogTableProps) {
               <button type="button" aria-label={`${pins.includes(row.original.key) ? "Unpin" : "Pin"} ${label}`} aria-pressed={pins.includes(row.original.key)} onClick={(e) => { e.stopPropagation(); onTogglePin(row.original.key); }} className="pin-glyph rounded-sm p-0.5 text-text-subtle hover:text-accent-text focus-visible:text-accent-text" tabIndex={-1}>
                 <Pin className={cn("size-3.5", pins.includes(row.original.key) && "fill-current")} aria-hidden />
               </button>
-              <Link to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: row.original.key }} search={{ slicing, view, tab: "drivers", pins: pins.length ? pins : undefined }} className="truncate text-xs font-medium text-accent-text hover:underline" tabIndex={-1} onClick={(e) => e.stopPropagation()} title={row.original.key}>
+              <Link to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId, runId, sliceKey: row.original.key }} search={{ slicing, view, tab: "flow", pins: pins.length ? pins : undefined }} className="truncate text-xs font-medium text-accent-text hover:underline" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} title={row.original.key}>
                 {label}
               </Link>
             </span>
@@ -126,14 +126,19 @@ export function BacklogTable(props: BacklogTableProps) {
     },
   });
   const activeIndex = Math.max(0, rows.findIndex((r) => r.key === activeKey));
+  // Only keyboard moves scroll the active row into view: a mouse click must not move the row under the
+  // pointer between mousedown (focus, activation) and click, or the click on its link is lost (R2-O4).
+  const keyboardMove = useRef(false);
 
   useEffect(() => {
-    if (activeKey && activeIndex >= 0) virtualizer.scrollToIndex(activeIndex, { align: "auto" });
+    if (activeKey && activeIndex >= 0 && keyboardMove.current) virtualizer.scrollToIndex(activeIndex, { align: "auto" });
+    keyboardMove.current = false;
   }, [activeKey, activeIndex, virtualizer]);
 
   const focusRow = useCallback((index: number) => {
     const key = rows[index]?.key;
     if (!key) return;
+    keyboardMove.current = true;
     onActive(key);
     virtualizer.scrollToIndex(index, { align: "auto" });
     requestAnimationFrame(() => {

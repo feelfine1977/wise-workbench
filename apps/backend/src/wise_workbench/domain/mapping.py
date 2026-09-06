@@ -19,6 +19,9 @@ from .project import utcnow
 RESERVED_ATTRIBUTES = {"n_events", "first_ts", "last_ts", "exposure", "score"}
 FLOW_TYPE_ATTRIBUTE = "flow_type"
 HEADER_EVENT_COUNT = "header_event_count"
+OPEN_CASE_HANDLING = ("keep", "censor", "exclude")
+ZERO_EXPOSURE_HANDLING = ("keep", "exclude")
+DEFAULT_CASE_NOUN = "cases"
 
 
 @dataclass(frozen=True)
@@ -62,10 +65,23 @@ class ColumnMapping:
     dedupe: bool = False
     missing_label: str | None = "(missing)"
     note: str | None = None
+    case_noun: str | None = None
+    day_precision_activities: tuple[str, ...] = ()
+    open_cases: str = "keep"
+    zero_exposure: str = "keep"
+    censoring_window: str = "60D"
+    decisions: tuple[dict[str, Any], ...] = ()
+    parent_id: str | None = None
     created_at: datetime = field(default_factory=utcnow)
 
     def __post_init__(self) -> None:
         errors: list[dict[str, Any]] = []
+        if self.open_cases not in OPEN_CASE_HANDLING:
+            raise ValidationError(f"open cases handling must be one of {OPEN_CASE_HANDLING}", code="mapping.open_cases")
+        if self.zero_exposure not in ZERO_EXPOSURE_HANDLING:
+            raise ValidationError(
+                f"zero exposure handling must be one of {ZERO_EXPOSURE_HANDLING}", code="mapping.zero_exposure"
+            )
         for role in ("case_id", "activity", "timestamp"):
             if not getattr(self, role):
                 errors.append({"field": role, "message": "required"})
@@ -117,6 +133,16 @@ class ColumnMapping:
             )
 
     @property
+    def noun(self) -> str:
+        """The business name of a case ("purchase order items"); ``cases`` when the mapping has none."""
+        return self.case_noun or DEFAULT_CASE_NOUN
+
+    @property
+    def version(self) -> int:
+        """How many decisions this mapping carries (the mapping's decision version)."""
+        return len(self.decisions)
+
+    @property
     def all_case_attributes(self) -> list[str]:
         """Case attributes the case table carries: mapped ones plus the flow type."""
         attrs = list(self.case_attributes)
@@ -157,6 +183,13 @@ class ColumnMapping:
             "dedupe": self.dedupe,
             "missingLabel": self.missing_label,
             "note": self.note,
+            "caseNoun": self.case_noun,
+            "dayPrecisionActivities": list(self.day_precision_activities),
+            "openCases": self.open_cases,
+            "zeroExposure": self.zero_exposure,
+            "censoringWindow": self.censoring_window,
+            "decisions": [dict(d) for d in self.decisions],
+            "parentId": self.parent_id,
         }
 
     @classmethod
@@ -197,5 +230,12 @@ class ColumnMapping:
             if "missingLabel" in d
             else "(missing)",
             note=d.get("note") or None,
+            case_noun=str(d["caseNoun"]) if d.get("caseNoun") else None,
+            day_precision_activities=tuple(str(a) for a in d.get("dayPrecisionActivities") or ()),
+            open_cases=str(d.get("openCases") or "keep"),
+            zero_exposure=str(d.get("zeroExposure") or "keep"),
+            censoring_window=str(d.get("censoringWindow") or "60D"),
+            decisions=tuple(dict(x) for x in d.get("decisions") or ()),
+            parent_id=d.get("parentId") or None,
             **kwargs,
         )

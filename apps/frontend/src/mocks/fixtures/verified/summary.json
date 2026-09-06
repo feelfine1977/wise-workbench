@@ -1,0 +1,207 @@
+{
+"means": {
+"Finance": 0.819125,
+"Logistics": 0.81697,
+"Compliance": 0.870676,
+"Automation": 0.844359
+},
+"scored": {
+"Finance": 251734,
+"Logistics": 251734,
+"Compliance": 251734,
+"Automation": 251734
+},
+"density": {
+"evaluated": 0.762361,
+"inScope": 0.841401
+},
+"layers": {
+"columns": [
+"view",
+"L1_closure_completeness",
+"L2_flow_discipline",
+"L3_timeliness_ageing",
+"L4_rework_instability",
+"L5_exceptions_corrections",
+"L6_value_commercial",
+"L7_effort_automation"
+],
+"rows": [
+[
+"Finance",
+0.045559,
+0.001985,
+0.107773,
+0.000991,
+0.001946,
+0.005351,
+0.017269
+],
+[
+"Logistics",
+0.018845,
+0.005941,
+0.112275,
+0.004073,
+0.002253,
+0.001008,
+0.038635
+],
+[
+"Compliance",
+0.025544,
+0.00733,
+0.054055,
+0.001082,
+0.00701,
+0.001506,
+0.032797
+],
+[
+"Automation",
+0.009546,
+0.001955,
+0.044905,
+0.004268,
+0.001307,
+0.001659,
+0.092002
+]
+]
+},
+"concentration": {
+"case Company+case Spend area text": {
+"Finance": {
+"columns": [
+"threshold",
+"top_k",
+"share_of_slices"
+],
+"rows": [
+[
+0.8,
+2,
+0.066667
+],
+[
+0.95,
+4,
+0.133333
+]
+]
+},
+"Logistics": {
+"columns": [
+"threshold",
+"top_k",
+"share_of_slices"
+],
+"rows": [
+[
+0.8,
+1,
+0.033333
+],
+[
+0.95,
+3,
+0.1
+]
+]
+},
+"Compliance": {
+"columns": [
+"threshold",
+"top_k",
+"share_of_slices"
+],
+"rows": [
+[
+0.8,
+4,
+0.133333
+],
+[
+0.95,
+7,
+0.233333
+]
+]
+},
+"Automation": {
+"columns": [
+"threshold",
+"top_k",
+"share_of_slices"
+],
+"rows": [
+[
+0.8,
+3,
+0.1
+],
+[
+0.95,
+6,
+0.2
+]
+]
+}
+}
+},
+"agreement": {
+"case Company+case Spend area text": {
+"columns": [
+"view_a",
+"view_b",
+"top20_overlap",
+"score_correlation"
+],
+"rows": [
+[
+"Finance",
+"Logistics",
+0.681818,
+0.78198
+],
+[
+"Finance",
+"Compliance",
+0.809524,
+0.816783
+],
+[
+"Finance",
+"Automation",
+0.695652,
+0.569848
+],
+[
+"Logistics",
+"Compliance",
+0.681818,
+0.766681
+],
+[
+"Logistics",
+"Automation",
+0.652174,
+0.770978
+],
+[
+"Compliance",
+"Automation",
+0.625,
+0.617203
+]
+]
+}
+},
+"cases": 251734,
+"views": [
+"Finance",
+"Logistics",
+"Compliance",
+"Automation"
+]
+}

@@ -1,7 +1,8 @@
 # packages/design-tokens
 
 `tokens.json` is the single source: 4 px spacing scale, 8-step type scale with
-tabular numerals, radii, three elevations, motion, light and dark palettes, and
+tabular numerals (base 15 px since 0.2, the reading measure of 68 characters),
+card padding and gap per density, radii, three elevations, motion, light and dark palettes, and
 the semantic scales (sequential score / violation, diverging delta, categorical
 layers with decal twins, fixed colours and glyphs for hotspot types, gate states,
 stability and journey stage states).

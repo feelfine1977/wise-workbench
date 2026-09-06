@@ -4,8 +4,12 @@ import { Suspense, lazy } from "react";
 import { useWorkbench } from "@/app/context";
 import { runRoute } from "@/app/router";
 import type { RunTab } from "@/app/search";
+import { flowTypeOf } from "@/lib/api/cycle2";
+import { BackControl } from "@/components/guide/BackControl";
+import { NextStep } from "@/components/guide/NextStep";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Term } from "@/components/Term";
+import { CompareFlowTypes } from "./CompareFlowTypes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Progress } from "@/components/ui/misc";
@@ -16,7 +20,7 @@ import { runStatusGlyph, runStatusVariant } from "./RunsPage";
 
 const FlowMap = lazy(() => import("@/components/flow/FlowMap"));
 
-/** S5 — run monitor: parameters, job progress (over the event stream), the manifest and the process map of the whole log. */
+/** Run — the run monitor: parameters, job progress (over the event stream), the manifest, the process map of the whole log and the flow types side by side. */
 export default function RunPage() {
   const ctx = useWorkbench();
   const { runId } = runRoute.useParams();
@@ -31,16 +35,20 @@ export default function RunPage() {
   return (
     <QueryState query={run} rows={6}>
       {(r) => (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <header className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-text-subtle">S5 · Run monitor</p>
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
+                <BackControl className="normal-case tracking-normal" />
+                <span>Run</span>
+              </div>
               <h1 className="flex items-center gap-3 text-2xl font-semibold">
                 <span className="font-mono">{r.id}</span>
                 <Badge variant={runStatusVariant[r.status]}>
                   <span aria-hidden>{runStatusGlyph[r.status]}</span>
                   {r.status}
                 </Badge>
+                {flowTypeOf(r) && <Badge variant="accent">{flowTypeOf(r)} flow only</Badge>}
               </h1>
               <p className="text-sm text-text-muted">{r.note}</p>
             </div>
@@ -76,13 +84,19 @@ export default function RunPage() {
             </Card>
           )}
 
+          {r.status === "done" && <NextStep label="Open the ranked list" because="scoring is done; the signals list is where the analysis starts" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0] }} />}
+
           <Tabs value={search.tab} onValueChange={(v) => setTab(v as RunTab)}>
             <TabsList aria-label="Run sections">
               <TabsTrigger value="monitor">Parameters and manifest</TabsTrigger>
               <TabsTrigger value="flow" disabled={r.status !== "done"}>
                 <Term id="flow" primaryOnly />
               </TabsTrigger>
+              <TabsTrigger value="compare" disabled={r.status !== "done" || !!flowTypeOf(r)}>
+                Flow types side by side
+              </TabsTrigger>
             </TabsList>
+            <TabsContent value="compare">{r.status === "done" && !flowTypeOf(r) && <CompareFlowTypes projectId={ctx.projectId} runId={r.id} view={ctx.view ?? r.views?.[0]} slicing={r.slicings?.[0]?.id ?? undefined} runs={ctx.runs} />}</TabsContent>
             <TabsContent value="flow">
               <Card>
                 <CardTitle>
@@ -120,6 +134,8 @@ export default function RunPage() {
                 <dd className="tnum">{fmtNum(r.minCases, 0)}</dd>
                 <dt className="text-text-muted">baseline run</dt>
                 <dd className="font-mono">{r.baselineRunId ?? "– (global mean of this run)"}</dd>
+                <dt className="text-text-muted">scope</dt>
+                <dd>{flowTypeOf(r) ? `${flowTypeOf(r)} flow type only` : "all flow types together"}</dd>
               </dl>
             </Card>
             <Card>

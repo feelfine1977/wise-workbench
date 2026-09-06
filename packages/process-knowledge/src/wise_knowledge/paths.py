@@ -17,6 +17,8 @@ from pathlib import Path
 ENV_ROOT = "WISE_KNOWLEDGE_ROOT"
 ENTRY_POINT_GROUP = "wise_knowledge.packs"
 PACK_FILES = ("ontology", "stages", "failure_modes", "kpis", "glossary", "playbooks", "slicing")
+GUIDANCE_FILE = "guidance"  # optional for third-party packs; required once a pack ships templates
+PRESETS_DIR = "presets"
 
 
 def knowledge_root() -> Path:
@@ -42,6 +44,11 @@ def schema_dir() -> Path:
 
 def is_pack_dir(path: Path) -> bool:
     return all((path / f"{name}.yaml").is_file() for name in PACK_FILES)
+
+
+def preset_files(pack_path: Path) -> list[Path]:
+    d = pack_path / PRESETS_DIR
+    return sorted(d.glob("*.yaml")) if d.is_dir() else []
 
 
 def builtin_packs() -> dict[str, Path]:

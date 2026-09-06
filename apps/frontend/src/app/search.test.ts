@@ -30,7 +30,7 @@ describe("typed search params", () => {
     expect(stripBacklogDefaults({ ...s, sort: "-gap", page: 2, tab: "table" })).toEqual({ slicing: "case Vendor", view: "Finance", sort: "-gap", page: 2, tab: "table" });
   });
   it("defaults the slice tab", () => {
-    expect(validateSliceSearch({ tab: "nope" } as unknown as Parameters<typeof validateSliceSearch>[0]).tab).toBe("drivers");
+    expect(validateSliceSearch({ tab: "nope" } as unknown as Parameters<typeof validateSliceSearch>[0]).tab).toBe("flow");
     expect(validateSliceSearch({ tab: "flow" } as unknown as Parameters<typeof validateSliceSearch>[0]).tab).toBe("flow");
     expect(validateSliceSearch({ tab: "cases", case: "x" } as unknown as Parameters<typeof validateSliceSearch>[0]).case).toBe("x");
   });

@@ -36,9 +36,26 @@ def test_all_readings_are_descriptive(p2p_result, synthetic_artefacts):
             log, truth.norm, result=result, by=["company", "spend_area"], view="Finance", gamma=20.0, closure="Clear Invoice"
         ),
         wa.readiness(p2p_result.log, p2p_result.norm),
+        wa.subgroups(
+            result, dict(truth.hotspots[0].where), ["vendor", "flow_type"], view="Finance", period="Q", closure="Clear Invoice"
+        ),
+        wa.subgroups(p2p_result, {"company": "B"}, ["vendor"], view="Finance"),
     ]
     for res in results:
         assert len(res.readings) >= 1
         for sentence in res.readings:
             check_reading(sentence)
         assert res.record.record_id and res.table is not None
+    q = wa.readiness(
+        log, truth.norm, result=result, by=["company", "spend_area"], view="Finance", gamma=20.0, closure="Clear Invoice"
+    )
+    for c in wa.caveats_for_slice(q, dict(truth.hotspots[0].where)):
+        check_reading(c.text)
+    for text in q.slices["reading"]:
+        check_reading(text)
+    contrast = wa.contrast_slice(result, "Finance", dict(truth.hotspots[0].where), B=0)
+    check_reading(wa.comparison_sentence(contrast, top=3))
+    for kind in ("acute", "systematic", "widespread", "none"):
+        check_reading(wa.kind_reading(kind))
+    check_reading(wa.points_below(0.64, 0.71))
+    check_reading(wa.KIND_RULE)

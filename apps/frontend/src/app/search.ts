@@ -18,6 +18,12 @@ const num = (v: unknown): number | undefined => {
 };
 const bool = (v: unknown): boolean | undefined => (v === true || v === "true" || v === "1" ? true : undefined);
 const oneOf = <T extends string>(v: unknown, options: readonly T[]): T | undefined => (typeof v === "string" && (options as readonly string[]).includes(v) ? (v as T) : undefined);
+/** A JSON object given as a string or already parsed by the router; kept as a string in the URL. */
+const json = (v: unknown): string | undefined => {
+  if (typeof v === "string" && v.length > 1) return v;
+  if (v && typeof v === "object") return JSON.stringify(v);
+  return undefined;
+};
 const list = (v: unknown): string[] | undefined => {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && x.length > 0);
   if (typeof v === "string" && v.length) return v.split(",").filter(Boolean);
@@ -42,6 +48,10 @@ export interface BacklogSearch {
   pageSize: number;
   pins?: string[];
   row?: string;
+  /** The filter model (RF-01) as URL-safe JSON; scopes the list, the map and the analytics. */
+  filter?: string;
+  /** Drill into one group: a finer slicing restricted to the group's cases, as JSON `{slicing, key}`. */
+  within?: string;
 }
 
 export const BACKLOG_DEFAULTS = { minCases: 20, sort: "-stable_PI", tab: "signals", page: 1, pageSize: 10 } as const;
@@ -66,6 +76,8 @@ export function validateBacklogSearch(input: Partial<BacklogSearch> & SearchSche
     pageSize: Math.min(500, Math.max(10, Math.floor(num(s.pageSize) ?? BACKLOG_DEFAULTS.pageSize))),
     pins: list(s.pins)?.slice(0, 3),
     row: str(s.row),
+    filter: json(s.filter),
+    within: json(s.within),
   };
 }
 
@@ -83,7 +95,7 @@ export function stripBacklogDefaults(s: BacklogSearch): Partial<BacklogSearch> {
   return out;
 }
 
-export const SLICE_TABS = ["drivers", "distributions", "cases", "validation", "flow", "headroom"] as const;
+export const SLICE_TABS = ["flow", "drivers", "distributions", "cases", "validation", "headroom"] as const;
 export type SliceTab = (typeof SLICE_TABS)[number];
 
 export interface SliceSearch {
@@ -94,6 +106,9 @@ export interface SliceSearch {
   constraint?: string;
   focus?: "finding";
   pins?: string[];
+  filter?: string;
+  /** Activity whose paths are shown on the map. */
+  activity?: string;
 }
 
 export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaInput): SliceSearch {
@@ -101,12 +116,31 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
   return {
     slicing: str(s.slicing),
     view: str(s.view),
-    tab: oneOf(s.tab, SLICE_TABS) ?? "drivers",
+    tab: oneOf(s.tab, SLICE_TABS) ?? "flow",
     case: str(s.case),
     constraint: str(s.constraint),
     focus: oneOf(s.focus, ["finding"] as const),
     pins: list(s.pins)?.slice(0, 3),
+    filter: json(s.filter),
+    activity: str(s.activity),
   };
+}
+
+export interface CompareSearch {
+  view?: string;
+  slicing?: string;
+}
+export function validateCompareSearch(input: Partial<CompareSearch> & SearchSchemaInput): CompareSearch {
+  const s = input as Record<string, unknown>;
+  return { view: str(s.view), slicing: str(s.slicing) };
+}
+
+export interface NotebookSearch {
+  snapshot?: string;
+}
+export function validateNotebookSearch(input: Partial<NotebookSearch> & SearchSchemaInput): NotebookSearch {
+  const s = input as Record<string, unknown>;
+  return { snapshot: str(s.snapshot) };
 }
 
 export const NORM_TABS = ["constraints", "json", "history"] as const;
@@ -120,15 +154,18 @@ export function validateNormSearch(input: Partial<NormSearch> & SearchSchemaInpu
   return { tab: oneOf(s.tab, NORM_TABS) ?? "constraints", constraint: str(s.constraint) };
 }
 
+export const DATASET_TABS = ["readiness", "mapping", "flows"] as const;
+export type DatasetTab = (typeof DATASET_TABS)[number];
 export interface DatasetSearch {
   caseTable?: string;
+  tab: DatasetTab;
 }
 export function validateDatasetSearch(input: Partial<DatasetSearch> & SearchSchemaInput): DatasetSearch {
   const s = input as Record<string, unknown>;
-  return { caseTable: str(s.caseTable) };
+  return { caseTable: str(s.caseTable), tab: oneOf(s.tab, DATASET_TABS) ?? "readiness" };
 }
 
-export const RUN_TABS = ["monitor", "flow"] as const;
+export const RUN_TABS = ["monitor", "flow", "compare"] as const;
 export type RunTab = (typeof RUN_TABS)[number];
 export interface RunSearch {
   tab: RunTab;

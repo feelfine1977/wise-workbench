@@ -1,4 +1,4 @@
-"""Checkpoint CP-C1: run the MVP analytics on the running example and on a synthetic log.
+"""Checkpoint CP-C2: run the analytics on the running example and on a synthetic log.
 
 Usage::
 
@@ -6,9 +6,12 @@ Usage::
 
 Prints, for the paper's running example and for a synthetic P2P log with
 planted hotspots and artefacts: bootstrap intervals with stability badges,
-a contrast waterfall that sums to the gap, headroom under the norm, and a
-readiness report. Exit code 0 when every identity holds and every planted
-artefact is flagged; 1 otherwise.
+a contrast waterfall that sums to the gap, headroom under the norm, the
+readiness report with its window end, the plain card sentences (real-unit
+comparison, points below the overall score, kind of problem), the caveats
+that touch a group, and the sub-groups inside it. Exit code 0 when every
+identity holds, every planted artefact is flagged and every sentence passes
+the vocabulary check; 1 otherwise.
 """
 
 from __future__ import annotations
@@ -24,8 +27,11 @@ import wise
 from . import synthetic
 from ._version import __version__
 from .contrast import contrast_slice
-from .quality import readiness
+from .plain import comparison_sentence, kind_reading, points_below, problem_kind
+from .quality import caveats_for_slice, readiness
+from .subgroups import subgroups
 from .uncertainty import bootstrap_backlog, sensitivity_envelope
+from .vocabulary import forbidden_terms
 from .whatif import headroom
 
 ARTEFACT_CHECKS = {
@@ -36,6 +42,8 @@ ARTEFACT_CHECKS = {
     "precision_mix": ("timestamp_precision",),
     "vocabulary_drift": ("vocabulary_drift",),
     "unit_mixing": ("exposure_sanity",),
+    "logging_asymmetry": ("logging_asymmetry",),
+    "frequency_drift": ("frequency_drift",),
 }
 
 
@@ -134,7 +142,23 @@ def run_running_example(B: int, seed: int, quiet: bool) -> list[str]:
         opened_by="Record Invoice Receipt",
     )
     _show(q.table, ["status", "value", "threshold_warn", "threshold_fail"])
-    print(f"overall: {q.status}")
+    print(f"overall: {q.status}   window end {q.summary['window_end']} ({q.summary['window_end_source']})")
+
+    _title("11. Running example: plain card sentences for company=B (Finance, γ = 2)")
+    backlog = wise.prioritize(result, "company", view="Finance", gamma=2.0)
+    kinds = problem_kind(backlog)
+    row = backlog.loc["B"]
+    sentence = comparison_sentence(c, items="purchase order items", labels={"c3": "invoiced vs received amount"})
+    print(f"  comparison : {sentence}")
+    print(f"  distance   : {points_below(row['mean_score'], row['global_mean'])}")
+    print(
+        f"  kind       : {kind_reading(kinds.loc['B', 'kind'], items='purchase order items')} (library alias: {kinds.loc['B', 'hotspot']})"
+    )
+    for text in (sentence, kind_reading(kinds.loc["B", "kind"])):
+        if forbidden_terms(text):
+            failures.append(f"running example: plain sentence uses forbidden vocabulary: {text!r}")
+    caveats = caveats_for_slice(q, {"company": "B"}, items="purchase order items", closure_label="clearing")
+    print("  caveats    : " + ("; ".join(cv.text for cv in caveats) if caveats else "none touch this group"))
     return failures
 
 
@@ -152,7 +176,8 @@ def run_synthetic(n_cases: int, B: int, seed: int, quiet: bool) -> list[str]:
     print(
         "planted artefacts: "
         + ", ".join(
-            f"{k}={v['share'] if 'share' in v else v.get('company', v.get('new_label', ''))}" for k, v in truth.artefacts.items()
+            f"{k}={v['share'] if 'share' in v else v.get('company', v.get('new_label', v.get('activity', '')))}"
+            for k, v in truth.artefacts.items()
         )
     )
 
@@ -243,7 +268,8 @@ def run_synthetic(n_cases: int, B: int, seed: int, quiet: bool) -> list[str]:
         document_col="document",
     )
     _show(q.table, ["status", "value", "threshold_warn", "threshold_fail"])
-    print(f"overall: {q.status}   record: {q.record.cite()}   runtime {q.summary['runtime_s']:.2f} s")
+    print(f"overall: {q.status}   window end {q.summary['window_end']} ({q.summary['window_end_source']})")
+    print(f"record: {q.record.cite()}   runtime {q.summary['runtime_s']:.2f} s")
     if not quiet:
         for r in q.readings:
             print("  " + r)
@@ -256,6 +282,57 @@ def run_synthetic(n_cases: int, B: int, seed: int, quiet: bool) -> list[str]:
         print(f"  {art:18s} {'flagged' if flagged else 'MISSED ':8s} {statuses}")
         if not flagged:
             failures.append(f"synthetic: artefact {art} not flagged")
+
+    _title(f"12. Synthetic: plain card sentences and caveats for {planted.label()} (Finance, γ = 20)")
+    backlog = bootstrap_backlog(result, by=by, view="Finance", gamma=20.0, B=1, seed=seed).table
+    kinds = problem_kind(backlog)
+    key = tuple(planted.where[k] for k in by)
+    sentence = comparison_sentence(c, items="purchase order items")
+    print(f"  comparison : {sentence}")
+    print(f"  distance   : {points_below(backlog.loc[key, 'mean_score'], backlog.loc[key, 'global_mean'])}")
+    print(
+        f"  kind       : {kind_reading(kinds.loc[key, 'kind'], items='purchase order items')} (library alias: {kinds.loc[key, 'hotspot']})"
+    )
+    if forbidden_terms(sentence) or not sentence:
+        failures.append(f"synthetic: comparison sentence empty or not descriptive: {sentence!r}")
+    if kinds.loc[key, "kind"] == "none":
+        failures.append("synthetic: the planted hotspot has no kind")
+    caveats = caveats_for_slice(q, dict(planted.where), items="purchase order items", closure_label="clearing")
+    for cv in caveats:
+        print(f"  caveat [{cv.status:4s}] {cv.text}")
+        if not 0.0 <= cv.share <= 1.0 or forbidden_terms(cv.text):
+            failures.append(f"synthetic: caveat {cv.id} out of range or not descriptive")
+    if q.slices is not None and "censored_share" in q.slices.columns:
+        most = q.slices["censored_share"].idxmax()
+        print(f"  most censored top slice {most}: {q.slices.loc[most, 'reading']}")
+
+    _title(f"13. Synthetic: sub-groups inside {planted.label()} by vendor, flow type and start quarter (Finance)")
+    sg = subgroups(
+        result,
+        dict(planted.where),
+        ["vendor", "flow_type"],
+        view="Finance",
+        period="Q",
+        censored=q.case_flags["censored"] if q.case_flags is not None else None,
+        window_end=q.window_end,
+        top=5,
+        items="purchase order items",
+        closure_label="clearing",
+    )
+    _show(sg.table, ["n_cases", "penalty_mass", "mean_penalty", "share", "cum_share", "censored_share", "partial_period"])
+    for attr, facts in sg.summary["per_attribute"].items():
+        print(f"  {attr}: {facts['values_for_80pct']} of {facts['n_values']} values carry 80 % of the penalty mass")
+    if not quiet:
+        for r in sg.readings:
+            print("  " + r)
+    full = subgroups(result, dict(planted.where), ["vendor", "flow_type"], view="Finance")
+    for attr in full.attributes:
+        share_sum = float(full.table.loc[attr, "share"].sum())
+        if abs(share_sum - 1.0) > 1e-9:
+            failures.append(f"synthetic: sub-group shares by {attr} sum to {share_sum}, not 1")
+    for text in sg.readings:
+        if forbidden_terms(text):
+            failures.append(f"synthetic: sub-group reading uses forbidden vocabulary: {text!r}")
     return failures
 
 
@@ -280,7 +357,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         for f in failures:
             print("  - " + f)
         return 1
-    print("all checks passed: waterfalls sum to the gap, headroom identities hold, planted artefacts flagged")
+    print(
+        "all checks passed: waterfalls sum to the gap, headroom identities hold, planted artefacts flagged, sentences descriptive"
+    )
     return 0
 
 

@@ -1,4 +1,15 @@
-"""Building library event logs from stored events, flow typing, and the readiness report."""
+"""Building library event logs from stored events, flow typing, decisions on data caveats, and the readiness report.
+
+One window end (R1-02)
+----------------------
+Every censoring number the backend prints is computed against one window
+end: the end the analytics gate resolves (the library's robust observation
+window, ``EventLog.observation_window``, unless that end is itself a far-out
+placeholder date), or the same robust end when the analytics package is not
+installed. The value is stored in the case table's readiness report
+(``windowEnd``), reused by the validation table and the analytics job, and
+printed in every caveat sentence.
+"""
 
 from __future__ import annotations
 
@@ -10,8 +21,10 @@ import pandas as pd
 import wise
 
 from wise_workbench.domain import (
+    DECISION_KINDS,
     FLOW_TYPE_ATTRIBUTE,
     ColumnMapping,
+    DecisionPreview,
     Readiness,
     ReadinessItem,
     ReadinessLevel,
@@ -19,6 +32,12 @@ from wise_workbench.domain import (
 )
 
 from .tables import jsonable
+
+# readiness item → the decision a reader can take on it (R2-O1)
+DECISION_FOR_ITEM: dict[str, str] = {spec["item"]: kind for kind, spec in DECISION_KINDS.items()}
+DECISION_FOR_ITEM["event_replication"] = "header_events"
+EVENT_LEVEL_DECISIONS = ("drop_outside_window", "sentinel_as_missing")
+CASE_LEVEL_DECISIONS = ("open_cases", "zero_exposure")
 
 SENTINEL_DATES = (
     "1900-01-01",
@@ -64,11 +83,252 @@ def build_log(df: pd.DataFrame, mapping: ColumnMapping, *, typed: bool = False) 
         kwargs["keep_transitions"] = mapping.keep_transitions
         kwargs["dedupe"] = mapping.dedupe
     try:
-        return wise.EventLog(df, **kwargs)
+        log = wise.EventLog(df, **kwargs)
     except wise.LogSchemaError as exc:
         raise _library_error(exc, "mapping.invalid") from exc
     except ValueError as exc:
         raise _library_error(exc, "mapping.invalid") from exc
+    if not typed:
+        log = apply_event_decisions(log, mapping)
+    if mapping.open_cases == "censor" and log.window is None:
+        # open lags are censored at the window end (Lag(missing_b="censor") reads the log's window)
+        start, end = log.observation_window()
+        if pd.notna(start) and pd.notna(end):
+            log.window = (start, end)
+    return log
+
+
+def rebuild(log: wise.EventLog, events: pd.DataFrame, mapping: ColumnMapping) -> wise.EventLog:
+    """A new log from a subset (or an edited copy) of ``log.events``; typed columns, no re-parsing."""
+    attrs = [a for a in mapping.all_case_attributes if a in events.columns]
+    kwargs: dict[str, Any] = {
+        "case_col": mapping.case_id,
+        "activity_col": mapping.activity,
+        "timestamp_col": mapping.timestamp,
+        "case_attributes": attrs,
+        "exposure_col": mapping.exposure if mapping.exposure in events.columns else None,
+        "exposure_agg": mapping.exposure_agg,
+        "order_col": mapping.order if mapping.order in events.columns else None,
+        "event_id_col": mapping.event_id if mapping.event_id in events.columns else None,
+        "utc": mapping.utc,
+        "missing_timestamps": "keep",
+    }
+    try:
+        out = wise.EventLog(events, **kwargs)
+    except (wise.LogSchemaError, ValueError) as exc:
+        raise _library_error(exc, "mapping.invalid") from exc
+    if log.window is not None:
+        out.window = log.window
+    return out
+
+
+def sublog(log: wise.EventLog, mapping: ColumnMapping, case_mask: pd.Series) -> wise.EventLog:
+    """The log restricted to the cases where ``case_mask`` (indexed by case id) is true."""
+    keep = case_mask.reindex(log.case_ids, fill_value=False).to_numpy(dtype=bool)
+    if keep.all():
+        return log
+    if not keep.any():
+        raise ValidationError("the scope selects no case", code="run.scope_empty")
+    ev = log.events[keep[log._codes]]
+    out = rebuild(log, ev, mapping)
+    for attr in log.cases.columns:
+        if attr in ("n_events", "first_ts", "last_ts", "exposure") or attr in out.cases.columns:
+            continue
+        out.add_case_attribute(attr, log.cases[attr].reindex(out.case_ids))
+    return out
+
+
+def scope_mask(log: wise.EventLog, scope: dict[str, Any] | None) -> pd.Series | None:
+    """Boolean per case for a run scope ``{"flow_type": …}`` or ``{"attribute", "value"}``."""
+    if not scope:
+        return None
+    attribute = str(scope.get("attribute") or FLOW_TYPE_ATTRIBUTE)
+    value = scope.get("flow_type", scope.get("value"))
+    if attribute not in log.cases.columns:
+        raise ValidationError(
+            f"scope attribute {attribute!r} is not a case attribute; known: {list(log.cases.columns)}",
+            code="run.scope_attribute",
+        )
+    col = log.cases[attribute]
+    mask = col.astype(str) == str(value)
+    if not mask.any():
+        raise ValidationError(
+            f"no case has {attribute} = {value!r}; values: {sorted(col.dropna().astype(str).unique().tolist())[:20]}",
+            code="run.scope_empty",
+        )
+    return mask
+
+
+# ---------------------------------------------------------------------------- decisions (R2-O1)
+def resolve_window_bounds(log: wise.EventLog) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """Both ends of the observation window with the gate's sentinel-aware rule (else the robust window)."""
+    try:
+        from .analytics import gate_window_bounds
+    except ImportError:  # pragma: no cover
+        gate_window_bounds = None  # type: ignore[assignment]
+    bounds = gate_window_bounds(log) if gate_window_bounds is not None else None
+    if bounds is not None:
+        return bounds
+    start, end = log.observation_window()
+    return pd.Timestamp(start), pd.Timestamp(end)
+
+
+def _outside_window_mask(log: wise.EventLog, params: dict[str, Any]) -> np.ndarray:
+    start, end = resolve_window_bounds(log)
+    if params.get("start"):
+        start = log._to_ts(params["start"])  # type: ignore[assignment]
+    if params.get("end"):
+        end = log._to_ts(params["end"])  # type: ignore[assignment]
+    ts = log.events[log.timestamp_col]
+    mask = pd.Series(False, index=ts.index)
+    if pd.notna(start):
+        mask |= ts < start
+    if pd.notna(end):
+        mask |= ts > end
+    return mask.to_numpy(dtype=bool)
+
+
+def _sentinel_mask(log: wise.EventLog, params: dict[str, Any]) -> np.ndarray:
+    stamps = {log._to_ts(t) for t in params.get("timestamps") or []}
+    ts = log.events[log.timestamp_col]
+    mask = ts.isin(list(stamps))
+    activities = params.get("activities")
+    if activities:
+        mask &= log.events[log.activity_col].astype(str).isin([str(a) for a in activities])
+    return mask.to_numpy(dtype=bool)
+
+
+def apply_event_decisions(log: wise.EventLog, mapping: ColumnMapping) -> wise.EventLog:
+    """Apply the event-level decisions of the mapping (drop outside window, placeholder dates as missing)."""
+    decisions = [d for d in mapping.decisions if d.get("kind") in EVENT_LEVEL_DECISIONS]
+    if not decisions:
+        return log
+    ev = log.events.copy()
+    drop = np.zeros(len(ev), dtype=bool)
+    for d in decisions:
+        params = dict(d.get("params") or {})
+        if d["kind"] == "drop_outside_window":
+            drop |= _outside_window_mask(log, params)
+        elif d["kind"] == "sentinel_as_missing":
+            hit = _sentinel_mask(log, params)
+            ev.loc[hit, log.timestamp_col] = pd.NaT
+    if drop.any():
+        ev = ev[~drop]
+    return rebuild(log, ev, mapping)
+
+
+def censored_mask(log: wise.EventLog, mapping: ColumnMapping, window_end: Any = None) -> pd.Series | None:
+    """The one censoring definition: ``wise.right_censored`` with the mapping's closure activities and the window end."""
+    if not mapping.closure_activities:
+        return None
+    end = window_end if window_end is not None else resolve_window_end(log)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            return wise.right_censored(
+                log, list(mapping.closure_activities), window=mapping.censoring_window, window_end=end
+            )
+    except wise.WiseError:
+        return None
+
+
+def apply_case_decisions(log: wise.EventLog, mapping: ColumnMapping) -> tuple[wise.EventLog, dict[str, int]]:
+    """Exclude open cases and cases with exposure 0 when the mapping says so; returns the counts removed."""
+    removed: dict[str, int] = {}
+    drop = pd.Series(False, index=log.case_ids)
+    if mapping.open_cases == "exclude":
+        c = censored_mask(log, mapping)
+        if c is not None:
+            removed["open_cases"] = int(c.sum())
+            drop |= c
+    if mapping.zero_exposure == "exclude" and "exposure" in log.cases.columns:
+        z = log.cases["exposure"].fillna(0.0) <= 0
+        removed["zero_exposure"] = int(z.sum())
+        drop |= z
+    if not drop.any():
+        return log, removed
+    if drop.all():
+        raise ValidationError("the decisions exclude every case", code="decision.empty")
+    return sublog(log, mapping, ~drop), removed
+
+
+def preview_decision(log: wise.EventLog, mapping: ColumnMapping, kind: str, params: dict[str, Any]) -> DecisionPreview:
+    """Cases and events a decision would affect, computed on the current case table's log."""
+    ev = log.events
+    n_cases, n_events = len(log), len(ev)
+    detail: dict[str, Any] = {}
+
+    def by_events(mask: np.ndarray) -> tuple[int, int]:
+        codes = log._codes[mask]
+        return len(np.unique(codes)), int(mask.sum())
+
+    if kind == "drop_outside_window":
+        start, end = resolve_window_bounds(log)
+        if params.get("start"):
+            start = log._to_ts(params["start"])  # type: ignore[assignment]
+        if params.get("end"):
+            end = log._to_ts(params["end"])  # type: ignore[assignment]
+        mask = _outside_window_mask(log, params)
+        cases, events = by_events(mask)
+        counts = np.bincount(log._codes[mask], minlength=n_cases)
+        detail = {
+            "start": jsonable(start),
+            "end": jsonable(end),
+            "casesDropped": int((counts == np.bincount(log._codes, minlength=n_cases)).sum()) if mask.any() else 0,
+        }
+    elif kind == "sentinel_as_missing":
+        cases, events = by_events(_sentinel_mask(log, params))
+    elif kind == "collapse_duplicates":
+        dup = ev.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).to_numpy()
+        cases, events = by_events(dup)
+    elif kind in ("day_precision", "header_events"):
+        acts = [str(a) for a in params.get("activities") or []]
+        mask = ev[log.activity_col].astype(str).isin(acts).to_numpy()
+        cases, events = by_events(mask)
+        if kind == "header_events":
+            detail["replicatedShare"] = _header_replication(log, acts) if acts else 0.0
+    elif kind == "open_cases":
+        closure = [str(a) for a in params.get("closure") or mapping.closure_activities]
+        end = resolve_window_end(log)
+        if not closure:
+            raise ValidationError(
+                "open cases need closure activities (in the mapping or the decision)", code="decision.params"
+            )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            c = wise.right_censored(log, closure, window=str(params.get("window") or "60D"), window_end=end)
+        cases = int(c.sum())
+        events = int(log.cases.loc[c, "n_events"].sum())
+        detail = {"handling": params.get("handling", "censor"), "windowEnd": jsonable(end), "closure": closure}
+    elif kind == "zero_exposure":
+        if "exposure" not in log.cases.columns:
+            raise ValidationError("the mapping has no exposure column", code="decision.params")
+        z = log.cases["exposure"].fillna(0.0) <= 0
+        cases = int(z.sum())
+        events = int(log.cases.loc[z, "n_events"].sum())
+        detail = {"handling": params.get("handling", "exclude")}
+    elif kind == "flow_type_assignment":
+        from wise_workbench.domain.mapping import FlowTypingRule
+
+        probe = ColumnMapping.from_dict(
+            "probe",
+            mapping.dataset_id,
+            {
+                **mapping.to_dict(),
+                "flowTyping": [{"name": str(r["name"]), "rule": dict(r["rule"])} for r in params["rules"]],
+                "flowTypeDefault": str(params.get("default") or "other"),
+            },
+        )
+        assert all(isinstance(r, FlowTypingRule) for r in probe.flow_typing)
+        new = _flow_types(log, probe)
+        old = log.cases[FLOW_TYPE_ATTRIBUTE] if FLOW_TYPE_ATTRIBUTE in log.cases.columns else None
+        changed = (new != old.astype(object)) if old is not None else pd.Series(True, index=new.index)
+        cases = int(changed.sum())
+        events = int(log.cases.loc[changed, "n_events"].sum())
+        detail = {"counts": {str(k): int(v) for k, v in new.value_counts(dropna=False).items()}}
+    else:
+        raise ValidationError(f"unknown decision kind {kind!r}", code="decision.kind")
+    return DecisionPreview(cases=cases, events=events, total_cases=n_cases, total_events=n_events, detail=detail)
 
 
 def _prepare_raw(df: pd.DataFrame, mapping: ColumnMapping, attrs: list[str]) -> pd.DataFrame:
@@ -91,6 +351,12 @@ def apply_flow_typing(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series |
     """Evaluate the ordered flow-typing rules with the library's applicability grammar."""
     if not mapping.flow_typing:
         return None
+    flow = _flow_types(log, mapping)
+    log.add_case_attribute(FLOW_TYPE_ATTRIBUTE, flow)
+    return flow
+
+
+def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
     flow = pd.Series(mapping.flow_type_default, index=log.case_ids, dtype=object)
     assigned = pd.Series(False, index=log.case_ids)
     for rule in mapping.flow_typing:
@@ -107,8 +373,24 @@ def apply_flow_typing(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series |
         hit = mask.astype(bool) & ~assigned
         flow[hit] = rule.name
         assigned |= hit
-    log.add_case_attribute(FLOW_TYPE_ATTRIBUTE, flow)
     return flow
+
+
+def flow_type_column(log: wise.EventLog, attribute: str | None) -> tuple[str, pd.Series]:
+    """The attribute that splits the log into flow types: the mapping's ``flow_type`` or a named case attribute."""
+    name = attribute or FLOW_TYPE_ATTRIBUTE
+    if name not in log.cases.columns:
+        candidates = [
+            str(c)
+            for c in log.cases.columns
+            if c not in ("n_events", "first_ts", "last_ts", "exposure") and 1 < log.cases[c].nunique(dropna=True) <= 12
+        ]
+        raise ValidationError(
+            f"no flow typing in the mapping and no attribute {name!r} in the case table; "
+            f"name one with ?attribute= (low-cardinality attributes: {candidates})",
+            code="flow_types.attribute",
+        )
+    return name, log.cases[name].astype(object).where(log.cases[name].notna(), "(missing)")
 
 
 def apply_mapping_recipes(log: wise.EventLog, mapping: ColumnMapping) -> list[str]:
@@ -240,11 +522,55 @@ def _sentinel_dates(
     return out
 
 
-def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_ratio_flag: float = 2.0) -> Readiness:
-    """The data-readiness report: library diagnostics plus precision, sentinel dates and duplicates."""
+def resolve_window_end(log: wise.EventLog) -> pd.Timestamp:
+    """The window end of the one censoring definition (module docstring): the analytics gate's resolution when the
+    package is installed, else the library's robust observation-window end."""
+    try:
+        from .analytics import gate_window_end
+    except ImportError:  # pragma: no cover - the analytics adapter is part of the package
+        gate_window_end = None  # type: ignore[assignment]
+    if gate_window_end is not None:
+        end = gate_window_end(log)
+        if end is not None:
+            return end
+    return pd.Timestamp(log.observation_window()[1])
+
+
+_GATE_LEVELS = {"pass": ReadinessLevel.INFO, "warn": ReadinessLevel.WARN, "fail": ReadinessLevel.FAIL}
+_GATE_ONLY_CHECKS = (
+    "timestamp_concentration",
+    "vocabulary_drift",
+    "frequency_drift",
+    "logging_asymmetry",
+    "exposure_sanity",
+    "window_edge_share",
+    "replication",
+)
+
+
+def readiness_report(
+    log: wise.EventLog,
+    mapping: ColumnMapping,
+    *,
+    replication_ratio_flag: float = 2.0,
+    case_noun: str | None = None,
+    closure_label: str = "closure",
+) -> Readiness:
+    """The data-readiness report: library diagnostics plus precision, sentinel dates and duplicates, merged with the
+    analytics gate (same window end, same censored share, same duplicate count) and the decision each item allows."""
     items: list[ReadinessItem] = []
+    noun = case_noun or mapping.noun
+    try:
+        from .analytics import gate_report
+
+        gate = gate_report(log, mapping, items=noun, closure_label=closure_label)
+    except ImportError:  # pragma: no cover
+        gate = None
     v = log.validate()
     start, end = log.observation_window()
+    robust_end = end
+    end = gate.window_end if gate is not None and gate.window_end is not None else end
+    end_source = str(gate.summary.get("window_end_source")) if gate is not None else "robust observation window"
     n_events, n_cases = int(v["n_events"]), int(v["n_cases"])
     items.append(
         ReadinessItem(
@@ -265,8 +591,17 @@ def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_
         ReadinessItem(
             "window",
             ReadinessLevel.INFO,
-            f"Observation window {start} to {end} (robust quantiles); raw timestamps span {raw_min} to {raw_max}.",
-            {"start": start, "end": end, "rawMin": raw_min, "rawMax": raw_max},
+            f"Observation window {start} to {end}; window end {pd.Timestamp(end).date()} from the {end_source}; "
+            f"raw timestamps span {raw_min} to {raw_max}.",
+            {
+                "start": start,
+                "end": end,
+                "windowEnd": end,
+                "windowEndSource": end_source,
+                "robustEnd": robust_end,
+                "rawMin": raw_min,
+                "rawMax": raw_max,
+            },
         )
     )
     outliers = int(wise.timestamp_outliers(log).sum())
@@ -339,6 +674,11 @@ def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_
         )
     )
     dup = int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
+    if gate is not None and "duplicate_events" in gate.table.index:
+        # the gate counts the same key (case, activity, timestamp); its evidence is printed next to the count
+        gate_dup = gate.evidence.get("duplicate_events")
+        if gate_dup is not None and "n" in getattr(gate_dup, "columns", []):
+            dup = int(gate_dup["n"].sum()) if len(gate_dup) else dup
     if dup:
         items.append(
             ReadinessItem(
@@ -419,28 +759,39 @@ def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_
                 {"casesFlagged": n_flagged, "ratioFlag": replication_ratio_flag},
             )
         )
-    # censoring (library) — when closure activities are known
+    # censoring (library) — one definition: right_censored with the closure activities and the window end above
+    window = mapping.censoring_window
+    when = f"at the end of the data ({pd.Timestamp(end).date()})" if pd.notna(end) else "at the end of the data"
     if mapping.closure_activities:
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", UserWarning)  # the window is reported above
-                censored = wise.right_censored(log, list(mapping.closure_activities), window="60D")
+        censored = censored_mask(log, mapping, window_end=end)
+        if censored is not None:
             n_c = int(censored.sum())
+            share = n_c / max(n_cases, 1)
+            handling = {
+                "keep": "",
+                "censor": " Open lags are censored at the window end (decision taken).",
+                "exclude": " Open cases were excluded from this case table (decision taken).",
+            }[mapping.open_cases]
             items.append(
                 ReadinessItem(
                     "right_censored",
-                    ReadinessLevel.WARN if n_c / max(n_cases, 1) >= 0.05 else ReadinessLevel.INFO,
-                    f"{n_c:,} cases ({n_c / max(n_cases, 1):.1%}) are still open within 60 days of the window end; "
-                    "their missing closure is a window artefact until proven otherwise.",
-                    {"cases": n_c, "closure": list(mapping.closure_activities), "window": "60D"},
+                    ReadinessLevel.WARN if share >= 0.05 else ReadinessLevel.INFO,
+                    f"{n_c:,} {noun} ({share:.1%}) are still open {when}: they lack a closure activity and were "
+                    f"active within {window} of the window end; late {closure_label} cannot be judged for them.{handling}",
+                    {
+                        "cases": n_c,
+                        "share": share,
+                        "closure": list(mapping.closure_activities),
+                        "window": window,
+                        "windowEnd": end,
+                        "handling": mapping.open_cases,
+                    },
                 )
             )
-        except wise.WiseError as exc:
-            items.append(
-                ReadinessItem("right_censored", ReadinessLevel.INFO, f"Censoring diagnostic unavailable: {exc}", {})
-            )
+        else:
+            items.append(ReadinessItem("right_censored", ReadinessLevel.INFO, "Censoring diagnostic unavailable.", {}))
     else:
-        horizon = end - pd.Timedelta("60D") if pd.notna(end) else None
+        horizon = end - pd.Timedelta(window) if pd.notna(end) else None
         if horizon is not None:
             last = log.cases["last_ts"]
             active = int((last >= horizon).sum())
@@ -448,9 +799,9 @@ def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_
                 ReadinessItem(
                     "right_censored",
                     ReadinessLevel.INFO,
-                    f"{active:,} cases ({active / max(n_cases, 1):.1%}) were still active within 60 days of the window end; "
-                    "name the closure activities in the mapping to separate open from closed cases.",
-                    {"casesActiveLate": active, "window": "60D"},
+                    f"{active:,} {noun} ({active / max(n_cases, 1):.1%}) were still active within {window} of the window end "
+                    f"({pd.Timestamp(end).date()}); name the closure activities in the mapping to separate open from closed cases.",
+                    {"casesActiveLate": active, "window": window, "windowEnd": end},
                 )
             )
     if FLOW_TYPE_ATTRIBUTE in log.cases.columns:
@@ -464,7 +815,59 @@ def readiness_report(log: wise.EventLog, mapping: ColumnMapping, *, replication_
                 {"counts": {str(k): int(n) for k, n in counts.items()}, "untyped": other},
             )
         )
-    return Readiness(items=tuple(ReadinessItem(i.id, i.level, i.message, jsonable(i.evidence)) for i in items))
+    else:
+        items.append(
+            ReadinessItem(
+                "flow_types",
+                ReadinessLevel.INFO,
+                "No flow typing in the mapping; assign flow types from an attribute or rules to analyse per flow type.",
+                {"counts": {}, "untyped": n_cases},
+            )
+        )
+    if mapping.day_precision_activities:
+        items.append(
+            ReadinessItem(
+                "day_precision_marked",
+                ReadinessLevel.INFO,
+                f"Day-precision activities marked by decision: {', '.join(mapping.day_precision_activities)}; "
+                "lag thresholds on them are read in days only.",
+                {"activities": list(mapping.day_precision_activities)},
+            )
+        )
+    # the analytics gate's own checks, with the same window end
+    if gate is not None:
+        for check in _GATE_ONLY_CHECKS:
+            if check not in gate.table.index:
+                continue
+            row = gate.table.loc[check]
+            status = str(row["status"])
+            if status == "skipped":
+                continue
+            items.append(
+                ReadinessItem(
+                    f"gate:{check}",
+                    _GATE_LEVELS.get(status, ReadinessLevel.INFO),
+                    f"{row['evidence']} (window end {pd.Timestamp(end).date()}).",
+                    {
+                        "check": check,
+                        "status": status,
+                        "metric": str(row["metric"]),
+                        "value": jsonable(row["value"]),
+                        "thresholdWarn": jsonable(row["threshold_warn"]),
+                        "thresholdFail": jsonable(row["threshold_fail"]),
+                        "windowEnd": end,
+                    },
+                )
+            )
+    out: list[ReadinessItem] = []
+    for i in items:
+        evidence = dict(i.evidence)
+        kind = DECISION_FOR_ITEM.get(i.id)
+        decision = None
+        if kind is not None:
+            decision = {"kind": kind, "label": DECISION_KINDS[kind]["label"], "params": DECISION_KINDS[kind]["params"]}
+        out.append(ReadinessItem(i.id, i.level, i.message, jsonable(evidence), decision=decision))
+    return Readiness(items=tuple(out), window_end=jsonable(end), case_noun=noun)
 
 
 def _header_replication(log: wise.EventLog, header_events: list[str]) -> float:
@@ -477,15 +880,9 @@ def _header_replication(log: wise.EventLog, header_events: list[str]) -> float:
     return float((n_cases > 1).mean())
 
 
-def censored_flags(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series | None:
-    if not mapping.closure_activities:
-        return None
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
-            return wise.right_censored(log, list(mapping.closure_activities), window="60D")
-    except wise.WiseError:
-        return None
+def censored_flags(log: wise.EventLog, mapping: ColumnMapping, window_end: Any = None) -> pd.Series | None:
+    """Alias of :func:`censored_mask` (the one censoring definition)."""
+    return censored_mask(log, mapping, window_end=window_end)
 
 
 def flow_type_counts(log: wise.EventLog) -> dict[str, int]:

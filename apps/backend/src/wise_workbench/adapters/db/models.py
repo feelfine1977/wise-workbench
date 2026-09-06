@@ -126,3 +126,37 @@ class JobRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class DecisionRow(Base):
+    __tablename__ = "decisions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    case_table_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    readiness_item: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    mapping_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_case_table_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    preview: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    author: Mapped[str | None] = mapped_column(String(255))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class SnapshotRow(Base):
+    __tablename__ = "notebook_snapshots"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    note: Mapped[str] = mapped_column(Text, default="")
+    context: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    data: Mapped[Any] = mapped_column(JSON)
+    image_path: Mapped[str | None] = mapped_column(Text)
+    order: Mapped[int] = mapped_column("position", Integer, nullable=False, default=0)
+    author: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

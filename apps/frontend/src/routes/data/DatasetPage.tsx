@@ -4,9 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import type { ColumnMapping, DatasetVersion } from "@wise/api-schema";
 import { useWorkbench } from "@/app/context";
 import { datasetRoute } from "@/app/router";
+import type { DatasetTab } from "@/app/search";
 import { useTrackJob } from "@/app/shell/JobTray";
+import { BackControl } from "@/components/guide/BackControl";
+import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
+import { NextStep } from "@/components/guide/NextStep";
 import { ReadinessBanner } from "@/components/readiness";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { YourProcess } from "../flow/YourProcess";
+import { ReadinessDecisions } from "./ReadinessDecisions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -96,7 +103,10 @@ function ColumnSelect({ id, value, onChange, columns, allowNone }: { id: string;
   );
 }
 
-/** S1–S2 — column profiler, mapping form (incl. header events) and the readiness report of the built case table. */
+/**
+ * Data — the dataset: the readiness report with its decisions (R2-O1), the column mapping, and "Your process"
+ * with the flow types and the choice of the analysis path (R2-O10).
+ */
 export default function DatasetPage() {
   const ctx = useWorkbench();
   const { datasetId } = datasetRoute.useParams();
@@ -153,40 +163,13 @@ export default function DatasetPage() {
 
   const isValid = form.caseId && form.activity && form.timestamp;
   const readyCaseTable = caseTable.data;
+  const tab: DatasetTab = readyCaseTable ? search.tab : "mapping";
+  const setTab = (t: DatasetTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab: t }) });
+  const warns = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "warn").length;
+  const doneRun = ctx.runs.find((r) => r.status === "done" && r.caseTableId === readyCaseTable?.id);
 
-  return (
-    <div className="flex flex-col gap-4">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-text-subtle">S1–S2 · Mapping and case notion</p>
-        <h1 className="text-2xl font-semibold">{dataset.data?.name ?? datasetId}</h1>
-        <p className="text-sm text-text-muted">
-          <span className="font-mono">{datasetId}</span>
-          {dataset.data?.contentHash && (
-            <>
-              {" · "}
-              <span className="font-mono">{dataset.data.contentHash}</span>
-            </>
-          )}
-          {dataset.data?.events !== undefined && ` · ${fmtInt(dataset.data.events)} events`}
-        </p>
-      </header>
-
-      {readyCaseTable && (
-        <section aria-label="Readiness report">
-          {readyCaseTable.status === "ready" ? (
-            <ReadinessBanner readiness={readyCaseTable.readiness ?? undefined} projectId={ctx.projectId} />
-          ) : (
-            <p className="text-sm text-text-muted">The case table is {readyCaseTable.status}{readyCaseTable.error ? `: ${readyCaseTable.error}` : ""}.</p>
-          )}
-          <p className="mt-1 text-xs text-text-muted">
-            Case table <span className="font-mono">{readyCaseTable.id}</span> · mapping <span className="font-mono">{readyCaseTable.mappingId}</span> · {fmtInt(readyCaseTable.cases)} cases
-            {readyCaseTable.events ? ` · ${fmtInt(readyCaseTable.events)} events` : ""}
-          </p>
-        </section>
-      )}
-      {caseTable.isError && <ErrorBlock error={caseTable.error} />}
-
-      <QueryState query={dataset} rows={6}>
+  const mappingForm = (
+    <QueryState query={dataset} rows={6}>
         {(ds) =>
           ds.status !== "ready" ? (
             <Card>
@@ -311,8 +294,74 @@ export default function DatasetPage() {
           )
         }
       </QueryState>
+  );
+
+  return (
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
+          <BackControl className="normal-case tracking-normal" />
+          <span>Data · mapping and case notion</span>
+        </div>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          {dataset.data?.name ?? datasetId}
+          <HowToReadToggle id="dataset" />
+        </h1>
+        <p className="reading text-base text-text-muted">
+          {readyCaseTable ? (
+            <>
+              <strong className="tnum text-text">{fmtInt(readyCaseTable.cases)}</strong> cases from {fmtInt(readyCaseTable.events ?? dataset.data?.events)} events
+              {warns ? `; ${warns} caveat${warns === 1 ? "" : "s"} travel with every result until you decide about them` : "; no caveat"}.
+            </>
+          ) : (
+            <>
+              {dataset.data?.events !== undefined ? `${fmtInt(dataset.data.events)} events` : "an event log"}; map its columns to build the case table and read the data caveats.
+            </>
+          )}
+        </p>
+        <HowToRead id="dataset">
+          <strong>Data caveats</strong> lists what in the log could distort the results; every item that allows a decision has a button that previews how many cases and events it touches, then applies it and rebuilds the case table. <strong>Your process</strong> splits the
+          log by flow type and offers the choice between one comparison of everything and one analysis per flow type. <strong>Column mapping</strong> is where the case notion was set.
+        </HowToRead>
+      </header>
+
+      {readyCaseTable && readyCaseTable.status !== "ready" && <p className="text-sm text-text-muted">The case table is {readyCaseTable.status}{readyCaseTable.error ? `: ${readyCaseTable.error}` : ""}.</p>}
+      {caseTable.isError && <ErrorBlock error={caseTable.error} />}
       {caseTable.isPending && search.caseTable && <LoadingBlock rows={2} />}
-      {create.data && !search.caseTable && <MappingJobFollower jobId={create.data.id} onDone={(id) => void navigate({ to: ".", search: { caseTable: id } })} />}
+      {create.data && !search.caseTable && <MappingJobFollower jobId={create.data.id} onDone={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />}
+
+      {readyCaseTable && (
+        <NextStep
+          label={doneRun ? "Choose the analysis path" : "Start a run"}
+          because={doneRun ? "the log is scored; decide whether to compare everything together or per flow type" : "scoring the case table against the norm produces the ranked list"}
+          {...(doneRun ? { onClick: () => setTab("flows") } : { to: "/p/$projectId/runs" as const, params: { projectId: ctx.projectId } })}
+        />
+      )}
+
+      {readyCaseTable ? (
+        <Tabs value={tab} onValueChange={(v) => setTab(v as DatasetTab)}>
+          <TabsList aria-label="Data sections">
+            <TabsTrigger value="readiness">Data caveats{warns ? ` (${warns})` : ""}</TabsTrigger>
+            <TabsTrigger value="flows">Your process</TabsTrigger>
+            <TabsTrigger value="mapping">Column mapping</TabsTrigger>
+          </TabsList>
+          <TabsContent value="readiness" className="flex flex-col gap-4">
+            <section aria-label="Readiness report">
+              <ReadinessBanner readiness={readyCaseTable.readiness ?? undefined} projectId={ctx.projectId} compact />
+              <p className="mt-1 text-xs text-text-muted">
+                Case table <span className="font-mono">{readyCaseTable.id}</span> · mapping <span className="font-mono">{readyCaseTable.mappingId}</span>
+              </p>
+            </section>
+            <ReadinessDecisions readiness={readyCaseTable.readiness} projectId={ctx.projectId} caseTableId={readyCaseTable.id} onRebuilt={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />
+          </TabsContent>
+          <TabsContent value="flows">
+            <YourProcess projectId={ctx.projectId} caseTableId={readyCaseTable.id} runs={ctx.runs} mode="data" caseNoun="cases" />
+          </TabsContent>
+          <TabsContent value="mapping">{mappingForm}</TabsContent>
+        </Tabs>
+      ) : (
+        mappingForm
+      )}
     </div>
   );
 }

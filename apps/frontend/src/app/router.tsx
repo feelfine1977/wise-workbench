@@ -3,7 +3,8 @@ import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRout
 import { projectsQuery } from "@/lib/queries";
 import { AppShell } from "./shell/AppShell";
 import { NotFound } from "./NotFound";
-import { validateBacklogSearch, validateDatasetSearch, validateNormSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { validateBacklogSearch, validateDatasetSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { LoadingBlock } from "@/components/states";
 
 export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => <Outlet />,
@@ -92,10 +93,17 @@ export const sliceRoute = createRoute({
   component: lazyRouteComponent(() => import("@/routes/slice/SlicePage")),
 });
 
+export const notebookRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "notebook",
+  validateSearch: validateNotebookSearch,
+  component: lazyRouteComponent(() => import("@/routes/notebook/NotebookPage")),
+});
+
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   projectsRoute,
-  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, sliceRoute]),
+  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, sliceRoute, notebookRoute]),
 ]);
 
 export function createAppRouter(queryClient: QueryClient, history?: Parameters<typeof createRouter>[0]["history"]) {
@@ -103,7 +111,10 @@ export function createAppRouter(queryClient: QueryClient, history?: Parameters<t
     routeTree,
     context: { queryClient },
     defaultPreload: "intent",
-    defaultPendingMs: 200,
+    // The first click on a screen whose code has not loaded yet shows a skeleton at once (R2-O4).
+    defaultPendingMs: 50,
+    defaultPendingMinMs: 200,
+    defaultPendingComponent: () => <LoadingBlock rows={6} className="p-4" />,
     scrollRestoration: true,
     history,
   });

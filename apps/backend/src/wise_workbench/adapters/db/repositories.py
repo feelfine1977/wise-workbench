@@ -16,6 +16,8 @@ from wise_workbench.domain import (
     ColumnProfile,
     DatasetStatus,
     DatasetVersion,
+    Decision,
+    DecisionPreview,
     Job,
     JobStatus,
     NormStatus,
@@ -27,10 +29,21 @@ from wise_workbench.domain import (
     RunManifest,
     RunParams,
     RunStatus,
+    Snapshot,
     SourceKind,
 )
 
-from .models import CaseTableRow, DatasetRow, JobRow, MappingRow, NormVersionRow, ProjectRow, RunRow
+from .models import (
+    CaseTableRow,
+    DatasetRow,
+    DecisionRow,
+    JobRow,
+    MappingRow,
+    NormVersionRow,
+    ProjectRow,
+    RunRow,
+    SnapshotRow,
+)
 from .session import Database
 
 
@@ -140,6 +153,47 @@ def _job(row: JobRow) -> Job:
         updated_at=row.updated_at,
         started_at=row.started_at,
         finished_at=row.finished_at,
+    )
+
+
+def _decision(row: DecisionRow) -> Decision:
+    pv = dict(row.preview or {})
+    return Decision(
+        id=row.id,
+        project_id=row.project_id,
+        case_table_id=row.case_table_id,
+        kind=row.kind,
+        params=dict(row.params or {}),
+        readiness_item=row.readiness_item,
+        version=int(row.version or 1),
+        mapping_id=row.mapping_id,
+        result_case_table_id=row.result_case_table_id,
+        preview=DecisionPreview(
+            cases=int(pv.get("cases", 0)),
+            events=int(pv.get("events", 0)),
+            total_cases=int(pv.get("totalCases", 0)),
+            total_events=int(pv.get("totalEvents", 0)),
+            detail=dict(pv.get("detail") or {}),
+        ),
+        author=row.author,
+        note=row.note,
+        created_at=row.created_at,
+    )
+
+
+def _snapshot(row: SnapshotRow) -> Snapshot:
+    return Snapshot(
+        id=row.id,
+        project_id=row.project_id,
+        title=row.title,
+        note=row.note or "",
+        context=dict(row.context or {}),
+        data=row.data,
+        image_path=row.image_path,
+        order=int(row.order or 0),
+        author=row.author,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
 
 
@@ -373,6 +427,123 @@ class Repositories:
                 raise NotFoundError(f"norm version {n.id!r} not found", code="norm.not_found")
             row.status = str(n.status)
         return n
+
+    def update_norm_validation(self, n: NormVersion) -> NormVersion:
+        with self.db.session() as s:
+            row = s.get(NormVersionRow, n.id)
+            if row is None:
+                raise NotFoundError(f"norm version {n.id!r} not found", code="norm.not_found")
+            row.validation = list(n.validation)
+        return n
+
+    # ---- decisions
+    def add_decision(self, d: Decision) -> Decision:
+        with self.db.session() as s:
+            s.add(
+                DecisionRow(
+                    id=d.id,
+                    project_id=d.project_id,
+                    case_table_id=d.case_table_id,
+                    kind=d.kind,
+                    params=dict(d.params),
+                    readiness_item=d.readiness_item,
+                    version=d.version,
+                    mapping_id=d.mapping_id,
+                    result_case_table_id=d.result_case_table_id,
+                    preview=d.preview.to_dict(),
+                    author=d.author,
+                    note=d.note,
+                    created_at=d.created_at,
+                )
+            )
+        return d
+
+    def get_decision(self, decision_id: str) -> Decision:
+        with self.db.session() as s:
+            row = s.get(DecisionRow, decision_id)
+            if row is None:
+                raise NotFoundError(f"decision {decision_id!r} not found", code="decision.not_found")
+            return _decision(row)
+
+    def list_decisions(self, project_id: str, case_table_id: str | None = None) -> list[Decision]:
+        with self.db.session() as s:
+            stmt = select(DecisionRow).where(DecisionRow.project_id == project_id)
+            if case_table_id is not None:
+                stmt = stmt.where(
+                    (DecisionRow.case_table_id == case_table_id) | (DecisionRow.result_case_table_id == case_table_id)
+                )
+            rows = s.scalars(stmt.order_by(DecisionRow.created_at)).all()
+            return [_decision(r) for r in rows]
+
+    # ---- notebook snapshots
+    def add_snapshot(self, snap: Snapshot) -> Snapshot:
+        with self.db.session() as s:
+            s.add(
+                SnapshotRow(
+                    id=snap.id,
+                    project_id=snap.project_id,
+                    title=snap.title,
+                    note=snap.note,
+                    context=dict(snap.context),
+                    data=snap.data,
+                    image_path=snap.image_path,
+                    order=snap.order,
+                    author=snap.author,
+                    created_at=snap.created_at,
+                    updated_at=snap.updated_at,
+                )
+            )
+        return snap
+
+    def update_snapshot(self, snap: Snapshot) -> Snapshot:
+        with self.db.session() as s:
+            row = s.get(SnapshotRow, snap.id)
+            if row is None:
+                raise NotFoundError(f"snapshot {snap.id!r} not found", code="snapshot.not_found")
+            row.title = snap.title
+            row.note = snap.note
+            row.context = dict(snap.context)
+            row.data = snap.data
+            row.image_path = snap.image_path
+            row.order = snap.order
+            row.author = snap.author
+            row.updated_at = snap.updated_at
+        return snap
+
+    def get_snapshot(self, snapshot_id: str) -> Snapshot:
+        with self.db.session() as s:
+            row = s.get(SnapshotRow, snapshot_id)
+            if row is None:
+                raise NotFoundError(f"snapshot {snapshot_id!r} not found", code="snapshot.not_found")
+            return _snapshot(row)
+
+    def list_snapshots(self, project_id: str) -> list[Snapshot]:
+        with self.db.session() as s:
+            rows = s.scalars(
+                select(SnapshotRow)
+                .where(SnapshotRow.project_id == project_id)
+                .order_by(SnapshotRow.order, SnapshotRow.created_at)
+            ).all()
+            return [_snapshot(r) for r in rows]
+
+    def delete_snapshot(self, snapshot_id: str) -> None:
+        with self.db.session() as s:
+            row = s.get(SnapshotRow, snapshot_id)
+            if row is None:
+                raise NotFoundError(f"snapshot {snapshot_id!r} not found", code="snapshot.not_found")
+            s.delete(row)
+
+    def set_snapshot_order(self, project_id: str, ordered_ids: list[str]) -> None:
+        with self.db.session() as s:
+            rows = s.scalars(select(SnapshotRow).where(SnapshotRow.project_id == project_id)).all()
+            position = {sid: i for i, sid in enumerate(ordered_ids)}
+            tail = len(ordered_ids)
+            for row in sorted(rows, key=lambda r: (r.order, r.created_at)):
+                if row.id in position:
+                    row.order = position[row.id]
+                else:
+                    row.order = tail
+                    tail += 1
 
     # ---- runs
     def add_run(self, r: Run) -> Run:

@@ -42,7 +42,21 @@ Artefacts (``artefacts={name: value}``):
 ``vocabulary_drift`` (``True`` or a mapping with ``from``, ``activity``, ``new_label``)
     the invoice-receipt label renamed from 92 days before the last event on,
 ``unit_mixing`` (company id)
-    exposure of that company multiplied by 1000 (a currency-unit mix).
+    exposure of that company multiplied by 1000 (a currency-unit mix),
+``logging_asymmetry`` (share of cases, or a mapping with ``share``,
+``set_share``, ``setting``, ``releasing``)
+    a *Remove Payment Block* event on that share of invoice-bearing cases
+    while *Set Payment Block* is logged for ``set_share`` (1 %) of them
+    only — the block itself is invisible in the log,
+``frequency_drift`` (``True`` or a mapping with ``activity``,
+``share_before``, ``share_after``, ``from_share``)
+    a *Create Purchase Requisition Item* event before the order on 10 % of
+    the cases starting before 60 % of the window and on 60 % of those
+    starting after it (a step in the share of cases with the activity).
+
+The last two artefacts are planted on their own random streams after the
+others, so that the hotspots and the other artefacts of a seed are the
+same with or without them.
 """
 
 from __future__ import annotations
@@ -61,6 +75,9 @@ GR = "Record Goods Receipt"
 INV = "Record Invoice Receipt"
 CLR = "Clear Invoice"
 CINV = "Cancel Invoice Receipt"
+SET_BLOCK = "Set Payment Block"
+REMOVE_BLOCK = "Remove Payment Block"
+REQ = "Create Purchase Requisition Item"
 
 CASE_ATTRIBUTES = ("flow_type", "company", "spend_area", "vendor", "document")
 
@@ -86,6 +103,8 @@ DEFAULT_ARTEFACTS: dict[str, Any] = {
     "precision_mix": 0.30,
     "vocabulary_drift": True,
     "unit_mixing": "C3",
+    "logging_asymmetry": 0.25,
+    "frequency_drift": True,
 }
 
 DEFAULT_PARAMS: dict[str, Any] = {
@@ -427,6 +446,68 @@ def generate(
             "new_label": new_label,
             "n_events": int(m.sum()),
         }
+
+    # ---- artefacts on their own random streams: logging asymmetry, frequency drift --------
+    late_rows: list[pd.DataFrame] = []
+    if art.get("logging_asymmetry"):
+        raw = art["logging_asymmetry"]
+        spec_a: dict[str, Any] = dict(raw) if isinstance(raw, Mapping) else {"share": raw}
+        share = float(spec_a.get("share", 0.25))
+        set_share = float(spec_a.get("set_share", 0.01))
+        setting = str(spec_a.get("setting", SET_BLOCK))
+        releasing = str(spec_a.get("releasing", REMOVE_BLOCK))
+        rng_a = np.random.default_rng(seed + 101)
+        m_rel = (rng_a.uniform(size=n) < share) & has_inv
+        rel_day = inv_day + rng_a.uniform(0.5, 5.0, size=n)
+        m_set = m_rel & (rng_a.uniform(size=n) < set_share)
+        set_day = inv_day + 0.1
+        late_rows.append(
+            pd.DataFrame({"case": cases["case"][m_rel], "activity": releasing, "day": rel_day[m_rel], "amount": np.nan})
+        )
+        late_rows.append(
+            pd.DataFrame({"case": cases["case"][m_set], "activity": setting, "day": set_day[m_set], "amount": np.nan})
+        )
+        art_truth["logging_asymmetry"] = {
+            "share": share,
+            "set_share": set_share,
+            "setting": setting,
+            "releasing": releasing,
+            "n_release_cases": int(m_rel.sum()),
+            "n_set_cases": int(m_set.sum()),
+        }
+    if art.get("frequency_drift"):
+        raw = art["frequency_drift"]
+        spec_f: dict[str, Any] = dict(raw) if isinstance(raw, Mapping) else {}
+        activity = str(spec_f.get("activity", REQ))
+        share_before = float(spec_f.get("share_before", 0.10))
+        share_after = float(spec_f.get("share_after", 0.60))
+        from_day = float(spec_f.get("from_share", 0.6)) * span_days
+        rng_f = np.random.default_rng(seed + 202)
+        prob = np.where(t0 >= from_day, share_after, share_before)
+        m_req = rng_f.uniform(size=n) < prob
+        req_day = t0 - rng_f.uniform(1.0, 10.0, size=n)
+        late_rows.append(
+            pd.DataFrame({"case": cases["case"][m_req], "activity": activity, "day": req_day[m_req], "amount": np.nan})
+        )
+        art_truth["frequency_drift"] = {
+            "activity": activity,
+            "from": str(start + pd.Timedelta(days=from_day)),
+            "share_before": share_before,
+            "share_after": share_after,
+            "n_events": int(m_req.sum()),
+            "n_cases_after": int((t0 >= from_day).sum()),
+        }
+    if late_rows:
+        add = pd.concat(late_rows, ignore_index=True)
+        rng_r = np.random.default_rng(seed + 303)
+        add["resource"] = np.where(
+            rng_r.uniform(size=len(add)) < float(p["batch_share"]), "batch_01", rng_r.choice(users, size=len(add))
+        )
+        add["time"] = _timestamps(start, add["day"].to_numpy())
+        add = add.drop(columns="day")
+        if "censoring" in art_truth:
+            add = add[add["time"].to_numpy() <= np.datetime64(end.to_datetime64(), "ns")]
+        ev = pd.concat([ev, add[ev.columns]], ignore_index=True)
 
     # ---- attributes and exposure ------------------------------------------------------
     attrs = cases.set_index("case")

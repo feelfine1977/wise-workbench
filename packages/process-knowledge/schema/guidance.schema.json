@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/guidance.schema.json",
+  "title": "Stakeholder guidance for layers, expectations (template constraints) and failure modes",
+  "description": "The generic tier of the knowledge hub (docs/panel/knowledge_hub_panel.md §1). One entry per layer of the pack, per constraint of the pack's templates and per failure mode. Every entry carries the same blocks: what it is called, what is expected, what it means when missed, why it matters, how it is detected, usual reasons (each in the log with a check, or outside the log with whom to ask), usual actions (each with a countermeasure type, owner role and effect area), what to check first, examples, KPIs, owner, stakeholders, sources, review status and version.",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "layers", "constraints", "failure_modes"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "defaults": {
+      "type": "object",
+      "description": "Values applied to every entry that does not state its own stakeholders, sources, review_status or version.",
+      "properties": {
+        "stakeholders": { "type": "string", "minLength": 1 },
+        "sources": { "$ref": "common.schema.json#/$defs/sources" },
+        "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+        "version": { "$ref": "common.schema.json#/$defs/version" }
+      },
+      "additionalProperties": false
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/blocks" },
+          {
+            "type": "object",
+            "required": ["id", "missed_label"],
+            "properties": { "id": { "$ref": "common.schema.json#/$defs/id", "description": "Layer id of failure_modes.yaml; template layer ids resolve through template_layers." } }
+          }
+        ],
+        "unevaluatedProperties": false
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/blocks" },
+          {
+            "type": "object",
+            "required": ["id", "templates"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "description": "Constraint id inside the templates listed." },
+              "templates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/id" }, "description": "Templates (templates/index.yaml ids) that carry this constraint id." },
+              "aliases": {
+                "type": "object",
+                "description": "Other templates that carry the same expectation under a different constraint id (template id -> constraint id).",
+                "additionalProperties": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        ],
+        "unevaluatedProperties": false
+      }
+    },
+    "failure_modes": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/blocks" },
+          {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "$ref": "common.schema.json#/$defs/id", "description": "Failure-mode id of failure_modes.yaml." } }
+          }
+        ],
+        "unevaluatedProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "blocks": {
+      "type": "object",
+      "required": [
+        "plain_name",
+        "expectation",
+        "meaning_when_missed",
+        "why_it_matters",
+        "how_detected",
+        "usual_reasons",
+        "usual_actions",
+        "what_to_check_first",
+        "examples",
+        "kpis",
+        "owner_role"
+      ],
+      "properties": {
+        "plain_name": { "$ref": "common.schema.json#/$defs/text", "description": "What the stakeholders call it; names the expectation." },
+        "missed_label": { "$ref": "common.schema.json#/$defs/text", "description": "What a card shows when the expectation is missed (required for layers)." },
+        "expectation": { "type": "string", "minLength": 1, "description": "What is expected, one sentence." },
+        "meaning_when_missed": { "type": "string", "minLength": 1 },
+        "why_it_matters": { "type": "string", "minLength": 1, "description": "The business consequence." },
+        "how_detected": { "type": "string", "minLength": 1, "description": "Which expectations and thresholds detect it, in plain words; no constraint ids." },
+        "usual_reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/reason" } },
+        "usual_actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action" } },
+        "what_to_check_first": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
+        "examples": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/example" } },
+        "kpis": { "$ref": "common.schema.json#/$defs/idList" },
+        "owner_role": { "$ref": "common.schema.json#/$defs/id", "description": "Role id of slicing.yaml." },
+        "stakeholders": { "type": "string", "minLength": 1, "description": "Who defined it and who owns the guidance." },
+        "sources": { "$ref": "common.schema.json#/$defs/sources" },
+        "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+        "version": { "$ref": "common.schema.json#/$defs/version" },
+        "notes": { "type": "string" }
+      }
+    },
+    "reason": {
+      "type": "object",
+      "required": ["text", "where", "check"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "description": "A candidate cause, never a finding." },
+        "where": { "type": "string", "enum": ["log", "outside"], "description": "'log' when the event log can show it, 'outside' when someone must be asked." },
+        "check": { "type": "string", "minLength": 1, "description": "In the log: the check to run. Outside the log: whom to ask and what." }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["text", "countermeasure", "owner_role", "effect_area"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "countermeasure": {
+          "type": "string",
+          "enum": ["policy", "system_setting", "standard_work", "training", "catalogue", "contract", "master_data", "automation", "review", "measurement"],
+          "description": "Countermeasure type: policy, system setting, standard work, training, catalogue, contract, master data, automation, review cadence, or a measurement fix (data quality, norm applicability)."
+        },
+        "owner_role": { "$ref": "common.schema.json#/$defs/id", "description": "Role id of slicing.yaml." },
+        "effect_area": { "$ref": "common.schema.json#/$defs/id", "description": "Layer id of failure_modes.yaml where the effect is expected." }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "type": "object",
+      "required": ["kind", "text"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["violating", "compliant"] },
+        "text": { "type": "string", "minLength": 1, "description": "A case in words." },
+        "trace": { "type": ["string", "null"], "description": "Case id or trace link when one is known." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -3,27 +3,53 @@
   "$id": "https://wise-workbench.local/schema/failure_modes.schema.json",
   "title": "Failure-mode catalogue with WISE constraint patterns",
   "type": "object",
-  "required": ["pack", "version", "review_status", "failure_modes"],
+  "required": [
+    "pack",
+    "version",
+    "review_status",
+    "failure_modes"
+  ],
   "properties": {
-    "pack": { "$ref": "common.schema.json#/$defs/id" },
-    "version": { "$ref": "common.schema.json#/$defs/version" },
-    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
-    "sources": { "$ref": "common.schema.json#/$defs/sources" },
-    "notes": { "type": "string" },
+    "pack": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "review_status": {
+      "$ref": "common.schema.json#/$defs/reviewStatus"
+    },
+    "sources": {
+      "$ref": "common.schema.json#/$defs/sources"
+    },
+    "notes": {
+      "type": "string"
+    },
     "layers": {
       "type": "array",
       "description": "Layer vocabulary used by the constraint patterns of this pack.",
       "items": {
         "type": "object",
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "properties": {
-          "id": { "$ref": "common.schema.json#/$defs/id" },
-          "name": { "$ref": "common.schema.json#/$defs/text" },
-          "description": { "type": "string" },
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/text"
+          },
+          "description": {
+            "type": "string"
+          },
           "template_layers": {
             "type": "object",
             "description": "Layer ids used for this layer inside each template (template id -> layer id).",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false
@@ -32,85 +58,225 @@
     "failure_modes": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/failureMode" }
+      "items": {
+        "$ref": "#/$defs/failureMode"
+      }
     }
   },
   "additionalProperties": false,
   "$defs": {
     "failureMode": {
       "type": "object",
-      "required": ["id", "version", "name", "stage", "signature", "wise_patterns", "evidence", "typical_causes", "typical_remedies", "evidence_to_check", "owner_role", "sources", "review_status"],
+      "required": [
+        "id",
+        "version",
+        "name",
+        "stage",
+        "signature",
+        "wise_patterns",
+        "evidence",
+        "typical_causes",
+        "typical_remedies",
+        "evidence_to_check",
+        "owner_role",
+        "sources",
+        "review_status"
+      ],
       "properties": {
-        "id": { "$ref": "common.schema.json#/$defs/id" },
-        "version": { "$ref": "common.schema.json#/$defs/version" },
-        "name": { "$ref": "common.schema.json#/$defs/text" },
-        "stage": { "$ref": "common.schema.json#/$defs/id" },
-        "signature": { "type": "string", "minLength": 1, "description": "The signature in event terms, using canonical activity ids." },
-        "signature_activities": { "$ref": "common.schema.json#/$defs/idList" },
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "stage": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "process_behaviour",
+            "data_quality"
+          ],
+          "default": "process_behaviour",
+          "description": "'data_quality' marks a pattern that measures logging (asymmetric or partial recording) rather than process behaviour; such entries are readiness checks, never scored expectations."
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The signature in event terms, using canonical activity ids."
+        },
+        "signature_activities": {
+          "$ref": "common.schema.json#/$defs/idList"
+        },
         "wise_patterns": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/pattern" }
+          "items": {
+            "$ref": "#/$defs/pattern"
+          }
         },
         "observed_share": {
           "type": "array",
-          "items": { "$ref": "#/$defs/observedShare" },
+          "items": {
+            "$ref": "#/$defs/observedShare"
+          },
           "description": "Measured shares; seeds for the catalogue, never thresholds."
         },
-        "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+        "evidence": {
+          "$ref": "common.schema.json#/$defs/evidence"
+        },
         "typical_causes": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "description": "Candidate explanations to test in S8; never findings."
         },
         "typical_remedies": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "description": "Candidate countermeasures for action cards; owners decide."
         },
         "evidence_to_check": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "owner_role": { "$ref": "common.schema.json#/$defs/id" },
-        "kpis": { "$ref": "common.schema.json#/$defs/idList" },
-        "sources": { "$ref": "common.schema.json#/$defs/sources" },
-        "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
-        "notes": { "type": "string" }
+        "owner_role": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "kpis": {
+          "$ref": "common.schema.json#/$defs/idList"
+        },
+        "sources": {
+          "$ref": "common.schema.json#/$defs/sources"
+        },
+        "review_status": {
+          "$ref": "common.schema.json#/$defs/reviewStatus"
+        },
+        "notes": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "pattern": {
       "type": "object",
-      "required": ["type", "layer"],
+      "required": [
+        "type",
+        "layer"
+      ],
       "properties": {
-        "type": { "type": "string", "enum": ["presence", "exclusion", "singularity", "lag", "precedence", "balance", "metric"] },
-        "activities": { "$ref": "common.schema.json#/$defs/idList", "description": "Canonical activities for presence, exclusion, singularity (merged as one activity)." },
-        "a": { "$ref": "common.schema.json#/$defs/idList", "description": "Activation activities for lag and precedence." },
-        "b": { "$ref": "common.schema.json#/$defs/idList", "description": "Response activities for lag and precedence." },
-        "after": { "$ref": "common.schema.json#/$defs/idList" },
-        "before": { "$ref": "common.schema.json#/$defs/idList" },
-        "attribute": { "type": "string", "description": "Case attribute for metric patterns; event attribute for balance patterns." },
-        "params": { "type": "object", "description": "Parameters in the library's vocabulary (m, k, K, delta, width, unit, missing_a, missing_b, tau, threshold, direction, ...)." },
-        "layer": { "$ref": "common.schema.json#/$defs/id" },
-        "applicability": { "type": "string", "description": "Applicability rule in words (variants, attributes)." },
-        "template": { "$ref": "common.schema.json#/$defs/id", "description": "Template in templates/index.yaml that carries this pattern." },
-        "constraint_ref": { "type": "string", "description": "Constraint id inside the template." },
-        "calibration": { "type": "string", "enum": ["calibrated", "uncalibrated", "derived"] },
-        "note": { "type": "string" }
+        "type": {
+          "type": "string",
+          "enum": [
+            "presence",
+            "exclusion",
+            "singularity",
+            "lag",
+            "precedence",
+            "balance",
+            "metric"
+          ]
+        },
+        "activities": {
+          "$ref": "common.schema.json#/$defs/idList",
+          "description": "Canonical activities for presence, exclusion, singularity (merged as one activity)."
+        },
+        "a": {
+          "$ref": "common.schema.json#/$defs/idList",
+          "description": "Activation activities for lag and precedence."
+        },
+        "b": {
+          "$ref": "common.schema.json#/$defs/idList",
+          "description": "Response activities for lag and precedence."
+        },
+        "after": {
+          "$ref": "common.schema.json#/$defs/idList"
+        },
+        "before": {
+          "$ref": "common.schema.json#/$defs/idList"
+        },
+        "attribute": {
+          "type": "string",
+          "description": "Case attribute for metric patterns; event attribute for balance patterns."
+        },
+        "params": {
+          "type": "object",
+          "description": "Parameters in the library's vocabulary (m, k, K, delta, width, unit, missing_a, missing_b, tau, threshold, direction, ...)."
+        },
+        "layer": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "applicability": {
+          "type": "string",
+          "description": "Applicability rule in words (variants, attributes)."
+        },
+        "template": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "Template in templates/index.yaml that carries this pattern."
+        },
+        "also_templates": {
+          "$ref": "common.schema.json#/$defs/idList",
+          "description": "Further templates that carry the same constraint id with the same activities and parameters (a derived norm draft)."
+        },
+        "constraint_ref": {
+          "type": "string",
+          "description": "Constraint id inside the template."
+        },
+        "calibration": {
+          "type": "string",
+          "enum": [
+            "calibrated",
+            "uncalibrated",
+            "derived"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "observedShare": {
       "type": "object",
-      "required": ["value", "of", "source"],
+      "required": [
+        "value",
+        "of",
+        "source"
+      ],
       "properties": {
-        "value": { "type": "number", "minimum": 0 },
-        "of": { "type": "string", "minLength": 1 },
-        "source": { "type": "string", "minLength": 1 },
-        "date": { "type": "string" },
-        "unit": { "type": "string" },
-        "note": { "type": "string" }
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "of": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     }

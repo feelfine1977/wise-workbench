@@ -2,8 +2,8 @@ import type { Run } from "@wise/api-schema";
 
 /** Slicing ids are the backend's: the case attributes (column names) joined by `+`. */
 export const slicings = [
-  { id: "case Vendor", attributes: ["case Vendor"] },
   { id: "case Company+case Spend area text", attributes: ["case Company", "case Spend area text"] },
+  { id: "case Vendor", attributes: ["case Vendor"] },
   { id: "case Item Type", attributes: ["case Item Type"] },
   { id: "flow_type", attributes: ["flow_type"] },
 ];
@@ -14,8 +14,8 @@ const base = {
   normVersionId: "nv_7",
   views,
   slicings,
-  gamma: 50,
-  minCases: 20,
+  gamma: 20,
+  minCases: 1,
 };
 
 const manifest = (paramsHash: string, startedAt: string, finishedAt: string) => ({

@@ -1,0 +1,336 @@
+{
+"attribute": "flow_type",
+"views": [
+"Finance",
+"Logistics",
+"Compliance",
+"Automation"
+],
+"overall": {
+"Finance": {
+"mean_score": 0.819125,
+"cases": 251734
+},
+"Logistics": {
+"mean_score": 0.81697,
+"cases": 251734
+},
+"Compliance": {
+"mean_score": 0.870676,
+"cases": 251734
+},
+"Automation": {
+"mean_score": 0.844359,
+"cases": 251734
+}
+},
+"windowEnd": null,
+"caseNoun": "purchase order items",
+"slicing": "case Company+case Spend area text",
+"types": [
+{
+"name": "DF2",
+"cases": 221010,
+"share": 0.877951,
+"views": {
+"Finance": {
+"mean_score": 0.812881,
+"gap": 0.006244,
+"points_below": "0.6 points below the overall score of 81.9 (1 %)"
+},
+"Logistics": {
+"mean_score": 0.812843,
+"gap": 0.004127,
+"points_below": "0.4 points below the overall score of 81.7 (1 %)"
+},
+"Compliance": {
+"mean_score": 0.871573,
+"gap": 0.0,
+"points_below": "0.1 points above the overall score of 87.1 (0 %)"
+},
+"Automation": {
+"mean_score": 0.842861,
+"gap": 0.001498,
+"points_below": "0.1 points below the overall score of 84.4 (0 %)"
+}
+},
+"mostMissed": {
+"constraint": "c_l7_manual_share",
+"description": "High manual share indicates low straight-through processing.",
+"plain_name": "Mostly automatic",
+"share": 0.934546
+},
+"censoredShare": 0.135926,
+"topGroups": [
+{
+"key": "[\"companyID_0000\", \"Packaging\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Packaging"
+},
+"n_cases": 96303,
+"stable_PI": 3462.944535,
+"gap": 0.035966,
+"kind": "systematic",
+"reading": "companyID_0000 × Packaging: 96,303 cases, 3.6 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 97 % of these cases); confidence in rank: not computed for this run; priority 3,462.9 (raw 3,463.7; small groups discounted with γ = 20), rank 1 of 20 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0000\", \"Additives\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Additives"
+},
+"n_cases": 15501,
+"stable_PI": 384.598092,
+"gap": 0.024843,
+"kind": "systematic",
+"reading": "companyID_0000 × Additives: 15,501 cases, 2.5 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 96 % of these cases); confidence in rank: not computed for this run; priority 384.6 (raw 385.1; small groups discounted with γ = 20), rank 2 of 20 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0000\", \"(missing)\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "(missing)"
+},
+"n_cases": 2937,
+"stable_PI": 138.279354,
+"gap": 0.047402,
+"kind": "systematic",
+"reading": "companyID_0000 × (missing): 2,937 cases, 4.7 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 52 % of these cases); confidence in rank: not computed for this run; priority 138.3 (raw 139.2; small groups discounted with γ = 20), rank 3 of 20 in the Finance perspective."
+}
+],
+"scope": {
+"flow_type": "DF2",
+"attribute": "flow_type"
+}
+},
+{
+"name": "DF1",
+"cases": 15182,
+"share": 0.06031,
+"views": {
+"Finance": {
+"mean_score": 0.770916,
+"gap": 0.048209,
+"points_below": "4.8 points below the overall score of 81.9 (6 %)"
+},
+"Logistics": {
+"mean_score": 0.740036,
+"gap": 0.076935,
+"points_below": "7.7 points below the overall score of 81.7 (9 %)"
+},
+"Compliance": {
+"mean_score": 0.764611,
+"gap": 0.106065,
+"points_below": "10.6 points below the overall score of 87.1 (12 %)"
+},
+"Automation": {
+"mean_score": 0.808368,
+"gap": 0.035991,
+"points_below": "3.6 points below the overall score of 84.4 (4 %)"
+}
+},
+"mostMissed": {
+"constraint": "c_l3_invoice_to_clear_days",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"plain_name": "Paid within terms",
+"share": 0.889819
+},
+"censoredShare": 0.142076,
+"topGroups": [
+{
+"key": "[\"companyID_0000\", \"Logistics\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Logistics"
+},
+"n_cases": 4602,
+"stable_PI": 472.596808,
+"gap": 0.10314,
+"kind": "systematic",
+"reading": "companyID_0000 × Logistics: 4,602 cases, 10 % below expectation on average; systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 65 % of these cases); confidence in rank: not computed for this run; priority 472.6 (raw 474.7; small groups discounted with γ = 20), rank 1 of 20 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0000\", \"Packaging\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Packaging"
+},
+"n_cases": 4332,
+"stable_PI": 104.369788,
+"gap": 0.024204,
+"kind": "widespread",
+"reading": "companyID_0000 × Packaging: 4,332 cases, 2.4 % below expectation on average; widespread: many cases, slightly off; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 99 % of these cases); confidence in rank: not computed for this run; priority 104.4 (raw 104.9; small groups discounted with γ = 20), rank 2 of 20 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0000\", \"Latex & Monomers\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Latex & Monomers"
+},
+"n_cases": 386,
+"stable_PI": 39.521114,
+"gap": 0.107691,
+"kind": "systematic",
+"reading": "companyID_0000 × Latex & Monomers: 386 cases, 11 % below expectation on average (10 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 100 % of these cases); confidence in rank: not computed for this run; priority 39.5 (raw 41.6; small groups discounted with γ = 20), rank 3 of 20 in the Finance perspective."
+}
+],
+"scope": {
+"flow_type": "DF1",
+"attribute": "flow_type"
+}
+},
+{
+"name": "Consignment",
+"cases": 14498,
+"share": 0.057593,
+"views": {
+"Finance": {
+"mean_score": 0.967849,
+"gap": 0.0,
+"points_below": "14.9 points above the overall score of 81.9 (18 %)"
+},
+"Logistics": {
+"mean_score": 0.959995,
+"gap": 0.0,
+"points_below": "14.3 points above the overall score of 81.7 (18 %)"
+},
+"Compliance": {
+"mean_score": 0.96787,
+"gap": 0.0,
+"points_below": "9.7 points above the overall score of 87.1 (11 %)"
+},
+"Automation": {
+"mean_score": 0.909922,
+"gap": 0.0,
+"points_below": "6.6 points above the overall score of 84.4 (8 %)"
+}
+},
+"mostMissed": {
+"constraint": "c_l7_manual_share",
+"description": "High manual share indicates low straight-through processing.",
+"plain_name": "Mostly automatic",
+"share": 0.99324
+},
+"censoredShare": 0.161402,
+"topGroups": [
+{
+"key": "[\"companyID_0000\", \"Packaging\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Packaging"
+},
+"n_cases": 8564,
+"stable_PI": 0.0,
+"gap": 0.0,
+"kind": null,
+"reading": "companyID_0000 × Packaging: 8,564 cases at or above expectation on average in the Finance perspective; no shortfall, priority 0."
+},
+{
+"key": "[\"companyID_0000\", \"Additives\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Additives"
+},
+"n_cases": 2466,
+"stable_PI": 0.0,
+"gap": 0.0,
+"kind": null,
+"reading": "companyID_0000 × Additives: 2,466 cases at or above expectation on average in the Finance perspective; no shortfall, priority 0."
+},
+{
+"key": "[\"companyID_0000\", \"Latex & Monomers\"]",
+"keys": {
+"case Company": "companyID_0000",
+"case Spend area text": "Latex & Monomers"
+},
+"n_cases": 1184,
+"stable_PI": 0.0,
+"gap": 0.0,
+"kind": null,
+"reading": "companyID_0000 × Latex & Monomers: 1,184 cases at or above expectation on average in the Finance perspective; no shortfall, priority 0."
+}
+],
+"scope": {
+"flow_type": "Consignment",
+"attribute": "flow_type"
+}
+},
+{
+"name": "2-way",
+"cases": 1044,
+"share": 0.004147,
+"views": {
+"Finance": {
+"mean_score": 0.776786,
+"gap": 0.04234,
+"points_below": "4.2 points below the overall score of 81.9 (5 %)"
+},
+"Logistics": {
+"mean_score": 0.823299,
+"gap": 0.0,
+"points_below": "0.6 points above the overall score of 81.7 (1 %)"
+},
+"Compliance": {
+"mean_score": 0.873489,
+"gap": 0.0,
+"points_below": "0.3 points above the overall score of 87.1 (0 %)"
+},
+"Automation": {
+"mean_score": 0.774464,
+"gap": 0.069895,
+"points_below": "7.0 points below the overall score of 84.4 (8 %)"
+}
+},
+"mostMissed": {
+"constraint": "c_l4_change_approval_repeats",
+"description": "Approval changes should be rare.",
+"plain_name": "Approved once",
+"share": 1.0
+},
+"censoredShare": 0.391762,
+"topGroups": [
+{
+"key": "[\"companyID_0003\", \"Real Estate\"]",
+"keys": {
+"case Company": "companyID_0003",
+"case Spend area text": "Real Estate"
+},
+"n_cases": 583,
+"stable_PI": 20.470955,
+"gap": 0.036318,
+"kind": "systematic",
+"reading": "companyID_0003 × Real Estate: 583 cases, 3.6 % below expectation on average (3.5 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Handovers and ageing (Invoice-bearing flows should clear in a reasonable time, missed in 35 % of these cases); confidence in rank: not computed for this run; priority 20.5 (raw 21.2; small groups discounted with γ = 20), rank 1 of 8 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0003\", \"Enterprise Services\"]",
+"keys": {
+"case Company": "companyID_0003",
+"case Spend area text": "Enterprise Services"
+},
+"n_cases": 122,
+"stable_PI": 8.271906,
+"gap": 0.078918,
+"kind": "systematic",
+"reading": "companyID_0003 × Enterprise Services: 122 cases, 7.9 % below expectation on average (6.8 % with small groups discounted); systematic: one pattern behind it; most-missed expectation area: Expected completion and closure (Invoice-bearing flows should eventually be cleared, missed in 75 % of these cases); confidence in rank: not computed for this run; priority 8.3 (raw 9.6; small groups discounted with γ = 20), rank 2 of 8 in the Finance perspective."
+},
+{
+"key": "[\"companyID_0003\", \"Others\"]",
+"keys": {
+"case Company": "companyID_0003",
+"case Spend area text": "Others"
+},
+"n_cases": 241,
+"stable_PI": 6.004669,
+"gap": 0.026983,
+"kind": "widespread",
+"reading": "companyID_0003 × Others: 241 cases, 2.7 % below expectation on average (2.5 % with small groups discounted); widespread: many cases, slightly off; most-missed expectation area: Exceptions and corrections (Invoice receipt cancellations should be exceptional, missed in 1.7 % of these cases); confidence in rank: not computed for this run; priority 6.0 (raw 6.5; small groups discounted with γ = 20), rank 3 of 8 in the Finance perspective."
+}
+],
+"scope": {
+"flow_type": "2-way",
+"attribute": "flow_type"
+}
+}
+]
+}

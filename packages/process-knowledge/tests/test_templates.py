@@ -65,31 +65,32 @@ def test_pattern_and_template_constraints_agree(p2p, o2c):
         norms = {t.id: (t, wise.Norm.load(t.path)) for t in pack.templates}
         for fm in pack.failure_modes:
             for p in fm.wise_patterns:
-                if not p.template:
-                    continue
-                t, norm = norms[p.template]
-                c = norm.get_constraint(p.constraint_ref)
-                assert c.type == p.type, (fm.id, p.constraint_ref)
-                acts = set(c.constraint.activities())
-                if t.activity_labels == "log_labels":
-                    acts = {label_to_id[a] for a in acts}
-                assert acts == set(p.referenced_activities()), (
-                    fm.id,
-                    p.constraint_ref,
-                    acts,
-                    p.referenced_activities(),
-                )
-                params = c.constraint.params()
-                for k, v in p.params.items():
-                    assert params[k] == v or (isinstance(v, int | float) and float(params[k]) == float(v)), (
+                for template_id in p.templates:  # the primary template and every derived one (also_templates)
+                    t, norm = norms[template_id]
+                    c = norm.get_constraint(p.constraint_ref)
+                    assert c.type == p.type, (fm.id, template_id, p.constraint_ref)
+                    acts = set(c.constraint.activities())
+                    if t.activity_labels == "log_labels":
+                        acts = {label_to_id[a] for a in acts}
+                    assert acts == set(p.referenced_activities()), (
                         fm.id,
+                        template_id,
                         p.constraint_ref,
-                        k,
-                        params[k],
-                        v,
+                        acts,
+                        p.referenced_activities(),
                     )
-                if p.type == "metric":
-                    assert params["attribute"] == p.attribute
+                    params = c.constraint.params()
+                    for k, v in p.params.items():
+                        assert params[k] == v or (isinstance(v, int | float) and float(params[k]) == float(v)), (
+                            fm.id,
+                            template_id,
+                            p.constraint_ref,
+                            k,
+                            params[k],
+                            v,
+                        )
+                    if p.type == "metric":
+                        assert params["attribute"] == p.attribute
 
 
 def test_o2c_baseline_scores_synthetic_log(o2c):

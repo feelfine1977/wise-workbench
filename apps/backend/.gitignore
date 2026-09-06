@@ -1,0 +1,2 @@
+# Built frontend copied in for wheel builds (see README, "Run"); the checkout serves apps/frontend/dist instead.
+src/wise_workbench/static/

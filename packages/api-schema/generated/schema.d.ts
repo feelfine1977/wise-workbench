@@ -277,6 +277,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/case-tables/{caseTableId}/flow-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Flow Types
+         * @description The detected flow types of a case table (from the mapping's flow typing, else from the named attribute): counts, share, one process map each with stage groups, and a readiness headline per type. Each type carries the run scope that analyses it alone.
+         */
+        get: operations["getFlowTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/decisions/kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Decision Kinds
+         * @description The decisions a reader can take on readiness items, with the parameters each accepts.
+         */
+        get: operations["listDecisionKinds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Decisions
+         * @description Decisions taken in the project (optionally those that touch one case table).
+         */
+        get: operations["listDecisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/case-tables/{caseTableId}/decisions/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Decision
+         * @description Cases and events a decision would affect, before it is applied.
+         */
+        post: operations["previewDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/case-tables/{caseTableId}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Decision
+         * @description Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built from it (job) and its readiness report is the re-evaluation.
+         */
+        post: operations["applyDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/norms": {
         parameters: {
             query?: never;
@@ -305,7 +405,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Norm Version */
+        /**
+         * Get Norm Version
+         * @description A norm version; `warnings` lists activities and attributes it names that never occur in the case table (recomputed against `caseTableId` when given).
+         */
         get: operations["getNormVersion"];
         put?: never;
         post?: never;
@@ -422,6 +525,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/runs/{runId}/slicings/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Slicing
+         * @description The slice designer's preview: how many groups a slicing (two or three attributes, banded numbers) makes and how big they are.
+         */
+        get: operations["previewSlicing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/filters/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Filter
+         * @description Cases in and out of a filter, what each clause removes on its own, and cases in scope per expectation.
+         */
+        get: operations["previewFilter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Analytics
+         * @description Whether the run's analytics (stability, kinds, comparisons, caveats, readiness gate) are computed, with the manifest of cached records.
+         */
+        get: operations["getAnalytics"];
+        put?: never;
+        /**
+         * Request Analytics
+         * @description Queue the analytics job for a finished run (it runs after every scoring job by default).
+         */
+        post: operations["requestAnalytics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/compare-flow-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare Flow Types
+         * @description Per flow type side by side: cases, score and shortfall per view, the most-missed expectation and the top groups (a run without scope).
+         */
+        get: operations["compareFlowTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/runs/{runId}/slices/{sliceKey}": {
         parameters: {
             query?: never;
@@ -497,9 +684,129 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Flow */
+        /**
+         * Get Flow
+         * @description The process map of the run (its scope), of one group, or of the cases a filter keeps; with focus the incoming and outgoing paths of one activity.
+         */
         get: operations["getFlow"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notebook */
+        get: operations["getNotebook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Snapshot
+         * @description Freeze a screen: multipart with an optional PNG `image` and a JSON `payload` ({title, note, context {run_id, slicing, view, filters, url, screen}, data, author}); the title may also come as a form field.
+         */
+        post: operations["createSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reorder Snapshots
+         * @description The snapshots in the given order; snapshots not listed keep their relative order after them.
+         */
+        post: operations["reorderSnapshots"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Notebook
+         * @description The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint arrives in cycle 4.
+         */
+        get: operations["exportNotebook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook/snapshots/{snapshotId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Snapshot */
+        get: operations["getSnapshot"];
+        put?: never;
+        post?: never;
+        /** Delete Snapshot */
+        delete: operations["deleteSnapshot"];
+        options?: never;
+        head?: never;
+        /** Update Snapshot */
+        patch: operations["updateSnapshot"];
+        trace?: never;
+    };
+    "/projects/{projectId}/notebook/snapshots/{snapshotId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Snapshot Image */
+        get: operations["getSnapshotImage"];
+        /**
+         * Replace Snapshot Image
+         * @description Replace the snapshot's PNG.
+         */
+        put: operations["replaceSnapshotImage"];
         post?: never;
         delete?: never;
         options?: never;
@@ -575,13 +882,38 @@ export interface components {
             /** Cases */
             cases: number;
         };
+        /** AnalyticsStatus */
+        AnalyticsStatus: {
+            /** Runid */
+            runId: string;
+            /**
+             * Status
+             * @description not_computed | done
+             */
+            status: string;
+            /** Package */
+            package?: {
+                [key: string]: unknown;
+            };
+            /** Jobid */
+            jobId?: string | null;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Manifest */
+            manifest?: {
+                [key: string]: unknown;
+            };
+        };
         /** BacklogPage */
         BacklogPage: {
             /** Rows */
             rows: components["schemas"]["BacklogRow"][];
             /** Total */
             total: number;
-            /** Params */
+            /**
+             * Params
+             * @description echoes the slicing, view, gamma, window_end, case_noun, scope, filter, analytics_record_ids
+             */
             params: {
                 [key: string]: unknown;
             };
@@ -680,10 +1012,107 @@ export interface components {
              * @enum {string}
              */
             stability?: "stable" | "fragile" | "insufficient_support" | "unknown";
+            /**
+             * Stability Reason
+             * @description the bootstrap share behind the badge
+             */
+            stability_reason?: string | null;
+            /** Rank Lo */
+            rank_lo?: number | null;
+            /** Rank Hi */
+            rank_hi?: number | null;
+            /** Stable Pi Lo */
+            stable_PI_lo?: number | null;
+            /** Stable Pi Hi */
+            stable_PI_hi?: number | null;
+            /**
+             * P Top
+             * @description bootstrap share of replicates in the top-k
+             */
+            p_top?: number | null;
+            /**
+             * Comparison
+             * @description one real-unit sentence from the top driver's contrast (top groups only)
+             */
+            comparison?: string | null;
+            /** Comparison Kind */
+            comparison_kind?: ("lag" | "count" | "share" | "metric" | "rate") | null;
+            /** Caveats */
+            caveats?: components["schemas"]["Caveat"][];
+            /** N Caveats */
+            n_caveats?: number | null;
+            /**
+             * Plain Layer
+             * @description the most-missed expectation area in plain words
+             */
+            plain_layer?: string | null;
+            /**
+             * Layer Missed Label
+             * @description what it looks like when that area is missed
+             */
+            layer_missed_label?: string | null;
+            /** Top Constraint Plain */
+            top_constraint_plain?: string | null;
+            /**
+             * Case Noun
+             * @description the business name of a case ("purchase order items")
+             */
+            case_noun?: string | null;
+            /**
+             * Points Below
+             * @description "0.9 points below the overall score of 84.4 (1 %)"
+             */
+            points_below?: string | null;
+            /** Kind Source */
+            kind_source?: ("analytics" | "library") | null;
             /** Reading */
             reading?: string | null;
+            /**
+             * Reading Plain
+             * @description the one-sentence card reading (three numbers)
+             */
+            reading_plain?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** BandSpec */
+        BandSpec: {
+            /** Attribute */
+            attribute: string;
+            /**
+             * Method
+             * @default quantile
+             * @enum {string}
+             */
+            method?: "quantile" | "cuts";
+            /**
+             * Q
+             * @description number of quantile bands (2 to 20)
+             */
+            q?: number | null;
+            /**
+             * Cuts
+             * @description ascending cut points
+             */
+            cuts?: number[] | null;
+            /** Labels */
+            labels?: string[] | null;
+        };
+        /** Body_createSnapshot */
+        Body_createSnapshot: {
+            /** Image */
+            image?: string | null;
+            /** Payload */
+            payload?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** Body_replaceSnapshotImage */
+        Body_replaceSnapshotImage: {
+            /** Image */
+            image: string;
         };
         /** Body_uploadDataset */
         Body_uploadDataset: {
@@ -723,6 +1152,19 @@ export interface components {
              * Format: date-time
              */
             createdAt: string;
+        };
+        /** Caveat */
+        Caveat: {
+            /** Id */
+            id: string;
+            /** Share */
+            share?: number | null;
+            /** Status */
+            status?: string | null;
+            /** Text */
+            text: string;
+            /** Window End */
+            window_end?: string | null;
         };
         /** ColumnMapping */
         ColumnMapping: {
@@ -802,6 +1244,42 @@ export interface components {
             missingLabel?: string | null;
             /** Note */
             note?: string | null;
+            /**
+             * Casenoun
+             * @description the business name of a case, e.g. "purchase order items"
+             */
+            caseNoun?: string | null;
+            /**
+             * Dayprecisionactivities
+             * @description activities marked as day-precise (lag thresholds on them in days only)
+             */
+            dayPrecisionActivities?: string[];
+            /**
+             * Opencases
+             * @default keep
+             * @enum {string}
+             */
+            openCases?: "keep" | "censor" | "exclude";
+            /**
+             * Zeroexposure
+             * @default keep
+             * @enum {string}
+             */
+            zeroExposure?: "keep" | "exclude";
+            /**
+             * Censoringwindow
+             * @default 60D
+             */
+            censoringWindow?: string;
+            /**
+             * Decisions
+             * @description the decisions on data caveats this mapping carries (versioned)
+             */
+            decisions?: {
+                [key: string]: unknown;
+            }[];
+            /** Parentid */
+            parentId?: string | null;
         };
         /** ColumnMappingOut */
         ColumnMappingOut: {
@@ -881,6 +1359,42 @@ export interface components {
             missingLabel?: string | null;
             /** Note */
             note?: string | null;
+            /**
+             * Casenoun
+             * @description the business name of a case, e.g. "purchase order items"
+             */
+            caseNoun?: string | null;
+            /**
+             * Dayprecisionactivities
+             * @description activities marked as day-precise (lag thresholds on them in days only)
+             */
+            dayPrecisionActivities?: string[];
+            /**
+             * Opencases
+             * @default keep
+             * @enum {string}
+             */
+            openCases?: "keep" | "censor" | "exclude";
+            /**
+             * Zeroexposure
+             * @default keep
+             * @enum {string}
+             */
+            zeroExposure?: "keep" | "exclude";
+            /**
+             * Censoringwindow
+             * @default 60D
+             */
+            censoringWindow?: string;
+            /**
+             * Decisions
+             * @description the decisions on data caveats this mapping carries (versioned)
+             */
+            decisions?: {
+                [key: string]: unknown;
+            }[];
+            /** Parentid */
+            parentId?: string | null;
             /** Id */
             id: string;
             /** Datasetid */
@@ -933,6 +1447,99 @@ export interface components {
             /** Sourcekind */
             sourceKind?: string | null;
         };
+        /** Decision */
+        Decision: {
+            /** Id */
+            id: string;
+            /** Projectid */
+            projectId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Kind */
+            kind: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Readinessitem */
+            readinessItem: string;
+            /** Version */
+            version: number;
+            /** Mappingid */
+            mappingId: string;
+            /** Resultcasetableid */
+            resultCaseTableId: string;
+            /** Preview */
+            preview: {
+                [key: string]: unknown;
+            };
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** DecisionApplied */
+        DecisionApplied: {
+            decision: components["schemas"]["Decision"];
+            caseTable: components["schemas"]["CaseTable"];
+            job: components["schemas"]["Job"];
+        };
+        /** DecisionKind */
+        DecisionKind: {
+            /** Kind */
+            kind: string;
+            /** Item */
+            item: string;
+            /** Params */
+            params: string[];
+            /** Label */
+            label: string;
+        };
+        /** DecisionPreviewOut */
+        DecisionPreviewOut: {
+            /** Kind */
+            kind: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Readinessitem */
+            readinessItem: string;
+            /** Label */
+            label: string;
+            /**
+             * Preview
+             * @description cases, events, totalCases, totalEvents, detail
+             */
+            preview: {
+                [key: string]: unknown;
+            };
+            /** Casetableid */
+            caseTableId: string;
+            /** Version */
+            version: number;
+        };
+        /** DecisionRequest */
+        DecisionRequest: {
+            /**
+             * Kind
+             * @description drop_outside_window | sentinel_as_missing | collapse_duplicates | day_precision | header_events | open_cases | zero_exposure | flow_type_assignment
+             */
+            kind: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+        };
         /** Distribution */
         Distribution: {
             /** Unit */
@@ -945,14 +1552,33 @@ export interface components {
             type?: string | null;
             /** Direction */
             direction?: string | null;
-            /** Bins */
+            /**
+             * Bins
+             * @description bins over the robust range
+             */
             bins?: components["schemas"]["DistributionBin"][];
+            /** @description values beyond the robust range */
+            beyond?: components["schemas"]["DistributionBeyond"] | null;
+            below?: components["schemas"]["DistributionBeyond"] | null;
             /** Ecdf */
             ecdf?: number[][];
             /** Threshold */
             threshold?: number | null;
             /** Width */
             width?: number | null;
+            /**
+             * Saturation
+             * @description δ + W
+             */
+            saturation?: number | null;
+            /**
+             * Scale
+             * @default linear
+             * @enum {string}
+             */
+            scale?: "linear" | "log";
+            /** Markers */
+            markers?: components["schemas"]["DistributionMarker"][];
             /** Stats */
             stats?: {
                 [key: string]: unknown;
@@ -963,8 +1589,25 @@ export interface components {
             } | null;
             /** Casesinscope */
             casesInScope?: number | null;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
             /** Note */
             note?: string | null;
+        };
+        /** DistributionBeyond */
+        DistributionBeyond: {
+            /** X0 */
+            x0: number;
+            /** X1 */
+            x1: number;
+            /** N */
+            n: number;
+            /** Share */
+            share: number;
         };
         /** DistributionBin */
         DistributionBin: {
@@ -974,6 +1617,37 @@ export interface components {
             x1: number;
             /** N */
             n: number;
+        };
+        /** DistributionMarker */
+        DistributionMarker: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "threshold" | "saturation";
+            /** X */
+            x: number;
+            /** Label */
+            label: string;
+        };
+        /** FilterPreview */
+        FilterPreview: {
+            /** Cases In */
+            cases_in: number;
+            /** Cases Out */
+            cases_out: number;
+            /** Per Clause */
+            per_clause?: {
+                [key: string]: unknown;
+            }[];
+            /** In Scope By Constraint */
+            in_scope_by_constraint?: {
+                [key: string]: number;
+            };
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** FlowEdge */
         FlowEdge: {
@@ -1011,6 +1685,8 @@ export interface components {
             meta?: {
                 [key: string]: unknown;
             };
+            /** @description with focus: incoming and outgoing paths */
+            paths?: components["schemas"]["FlowPaths"] | null;
         };
         /** FlowGroup */
         FlowGroup: {
@@ -1060,6 +1736,112 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** FlowPath */
+        FlowPath: {
+            /** Node */
+            node?: string | null;
+            /** Count */
+            count: number;
+            /** Cases */
+            cases: number;
+            /**
+             * Median Lag
+             * @description median lag of the transition in hours
+             */
+            median_lag?: number | null;
+            /**
+             * Violation Share
+             * @description share of the cases on the path missing any expectation
+             */
+            violation_share?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** FlowPaths */
+        FlowPaths: {
+            /** Incoming */
+            incoming?: components["schemas"]["FlowPath"][];
+            /** Outgoing */
+            outgoing?: components["schemas"]["FlowPath"][];
+        };
+        /** FlowType */
+        FlowType: {
+            /** Name */
+            name: string;
+            /** Cases */
+            cases: number;
+            /** Share */
+            share: number;
+            /** Events */
+            events: number;
+            /** Activities */
+            activities: number;
+            map: components["schemas"]["FlowGraph"];
+            readiness: components["schemas"]["FlowTypeReadiness"];
+            /**
+             * Scope
+             * @description the run scope that analyses this flow type alone
+             */
+            scope: {
+                [key: string]: unknown;
+            };
+        };
+        /** FlowTypeComparison */
+        FlowTypeComparison: {
+            /** Attribute */
+            attribute: string;
+            /** Views */
+            views: string[];
+            /** Overall */
+            overall: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Slicing */
+            slicing?: string | null;
+            /** Types */
+            types: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** FlowTypeReadiness */
+        FlowTypeReadiness: {
+            /** Censoredshare */
+            censoredShare?: number | null;
+            /** Replicatedshare */
+            replicatedShare?: number | null;
+            /** Mediandurationdays */
+            medianDurationDays?: number | null;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Headline */
+            headline: string;
+        };
+        /** FlowTypes */
+        FlowTypes: {
+            /** Casetableid */
+            caseTableId: string;
+            /** Attribute */
+            attribute: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "mapping" | "attribute";
+            /** Cases */
+            cases: number;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Types */
+            types: components["schemas"]["FlowType"][];
+        };
         /** FlowTypingRule */
         FlowTypingRule: {
             /** Name */
@@ -1068,6 +1850,22 @@ export interface components {
             rule: {
                 [key: string]: unknown;
             };
+        };
+        /** GuidanceRefOut */
+        GuidanceRefOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "layer" | "constraint" | "failure_mode";
+            /** Id */
+            id: string;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Missed Label */
+            missed_label?: string | null;
+            /** Hub Node */
+            hub_node?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1136,6 +1934,8 @@ export interface components {
             constraints: components["schemas"]["NormCheckConstraint"][];
             /** Issues */
             issues?: string[];
+            /** Warnings */
+            warnings?: string[];
             /** Cases */
             cases?: number | null;
             /** Fingerprint */
@@ -1198,6 +1998,17 @@ export interface components {
             /** Validation */
             validation?: string[];
             /**
+             * Warnings
+             * @description Norm.check: activities or attributes the norm names that never occur
+             */
+            warnings?: string[];
+            /**
+             * Guidance Complete
+             * @description every layer and expectation has a plain name
+             * @default false
+             */
+            guidance_complete?: boolean;
+            /**
              * Createdat
              * Format: date-time
              */
@@ -1224,6 +2035,15 @@ export interface components {
             parentId?: string | null;
             /** Author */
             author?: string | null;
+        };
+        /** Notebook */
+        Notebook: {
+            /** Projectid */
+            projectId: string;
+            /** Snapshots */
+            snapshots: components["schemas"]["Snapshot"][];
+            /** Exportformats */
+            exportFormats?: string[];
         };
         /** Preset */
         Preset: {
@@ -1321,6 +2141,13 @@ export interface components {
             status: "pass" | "warn" | "fail";
             /** Items */
             items?: components["schemas"]["ReadinessItem"][];
+            /**
+             * Windowend
+             * @description the one window end every censoring number uses
+             */
+            windowEnd?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
         };
         /** ReadinessItem */
         ReadinessItem: {
@@ -1337,6 +2164,13 @@ export interface components {
             evidence?: {
                 [key: string]: unknown;
             };
+            /**
+             * Decision
+             * @description the caveat action a reader can take on this item: kind, label, params
+             */
+            decision?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** Run */
         Run: {
@@ -1362,6 +2196,13 @@ export interface components {
             baselineRunId?: string | null;
             /** Note */
             note?: string | null;
+            /**
+             * Scope
+             * @description the run's sub-log scope as recorded
+             */
+            scope?: {
+                [key: string]: unknown;
+            } | null;
             /** Id */
             id: string;
             /**
@@ -1410,6 +2251,8 @@ export interface components {
             baselineRunId?: string | null;
             /** Note */
             note?: string | null;
+            /** @description a sub-log: one flow type (applicability untouched) */
+            scope?: components["schemas"]["RunScope"] | null;
         };
         /** RunManifest */
         RunManifest: {
@@ -1441,6 +2284,31 @@ export interface components {
                     [key: string]: unknown;
                 };
             };
+            /** Scope */
+            scope?: {
+                [key: string]: unknown;
+            } | null;
+            /** Cases */
+            cases?: number | null;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Normwarnings */
+            normWarnings?: string[];
+        };
+        /** RunScope */
+        RunScope: {
+            /**
+             * Flow Type
+             * @description restrict the run to this flow type of the mapping
+             */
+            flow_type?: string | null;
+            /**
+             * Attribute
+             * @description the attribute that holds the flow type (default flow_type)
+             */
+            attribute?: string | null;
+            /** Value */
+            value?: string | null;
         };
         /** RunSummary */
         RunSummary: {
@@ -1477,6 +2345,8 @@ export interface components {
             row: components["schemas"]["BacklogRow"];
             /** Reading */
             reading: string;
+            /** Reading Plain */
+            reading_plain?: string | null;
             drivers: components["schemas"]["Table"];
             layers: components["schemas"]["Table"];
             penaltyMass: components["schemas"]["Table"];
@@ -1488,18 +2358,132 @@ export interface components {
             };
             /** Worstcases */
             worstCases?: components["schemas"]["WorstCase"][];
+            /** @description possible gain per expectation in score points and percent of the priority */
             headroom: components["schemas"]["Table"];
+            /** @description per expectation: shares missed here and elsewhere, risk difference with interval, real-unit medians, shift, share of shortfall */
+            contrast?: components["schemas"]["Table"];
+            /** Caveats */
+            caveats?: components["schemas"]["Caveat"][];
+            subgroups?: components["schemas"]["Table"];
+            /** Guidance Refs */
+            guidance_refs?: components["schemas"]["GuidanceRefOut"][];
+            /** Comparison */
+            comparison?: string | null;
+            comparisons?: components["schemas"]["Table"];
+            /** Analytics */
+            analytics?: {
+                [key: string]: unknown;
+            };
             /** Params */
             params?: {
                 [key: string]: unknown;
             };
         };
+        /** SlicingPreview */
+        SlicingPreview: {
+            /** Attributes */
+            attributes: string[];
+            /**
+             * Effectiveattributes
+             * @description key columns (banded reserved columns get ' band')
+             */
+            effectiveAttributes?: string[];
+            /** Bands */
+            bands?: {
+                [key: string]: unknown;
+            }[];
+            /** Groups */
+            groups: number;
+            /** Cases */
+            cases: number;
+            /** Belowmincases */
+            belowMinCases: number;
+            /** Mincases */
+            minCases: number;
+            /** Sizes */
+            sizes: {
+                [key: string]: number;
+            };
+            /** Largest */
+            largest?: {
+                [key: string]: unknown;
+            }[];
+        };
         /** SlicingSpec */
         SlicingSpec: {
             /** Id */
             id?: string | null;
-            /** Attributes */
+            /**
+             * Attributes
+             * @description one to three case attributes
+             */
             attributes: string[];
+            /**
+             * Bands
+             * @description banded numeric attributes
+             */
+            bands?: components["schemas"]["BandSpec"][];
+        };
+        /** Snapshot */
+        Snapshot: {
+            /** Id */
+            id: string;
+            /** Projectid */
+            projectId: string;
+            /** Title */
+            title: string;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            };
+            /** Data */
+            data?: unknown;
+            /**
+             * Hasimage
+             * @default false
+             */
+            hasImage?: boolean;
+            /** Imageurl */
+            imageUrl?: string | null;
+            /** Order */
+            order: number;
+            /** Author */
+            author?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** SnapshotOrder */
+        SnapshotOrder: {
+            /** Ids */
+            ids: string[];
+        };
+        /** SnapshotUpdate */
+        SnapshotUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+            /** Data */
+            data?: unknown;
+            /** Author */
+            author?: string | null;
         };
         /** Table */
         Table: {
@@ -2142,6 +3126,178 @@ export interface operations {
             };
         };
     };
+    getFlowTypes: {
+        parameters: {
+            query?: {
+                /** @description case attribute holding the flow type (default: the mapping's) */
+                attribute?: string | null;
+                abstraction?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowTypes"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDecisionKinds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionKind"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDecisions: {
+        parameters: {
+            query?: {
+                caseTableId?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    previewDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    applyDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionApplied"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     listNorms: {
         parameters: {
             query?: never;
@@ -2210,7 +3366,9 @@ export interface operations {
     };
     getNormVersion: {
         parameters: {
-            query?: never;
+            query?: {
+                caseTableId?: string | null;
+            };
             header?: never;
             path: {
                 projectId: string;
@@ -2493,7 +3651,17 @@ export interface operations {
                 kind?: ("acute" | "systematic" | "widespread") | null;
                 /** @description most-missed expectation area (layer id) */
                 layer?: string | null;
+                /** @description confidence badge */
+                stability?: ("stable" | "fragile" | "insufficient_support" | "unknown") | null;
                 q?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                /** @description drill into one group of this slicing (id or attributes): a finer backlog scoped to it */
+                drillFrom?: string | null;
+                /** @description the group's key (JSON array) in drillFrom */
+                drillKey?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
                 page?: number;
                 pageSize?: number;
             };
@@ -2526,6 +3694,178 @@ export interface operations {
             };
         };
     };
+    previewSlicing: {
+        parameters: {
+            query: {
+                /** @description slicing id or comma-separated case attributes */
+                slicing: string;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                minCases?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlicingPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    previewFilter: {
+        parameters: {
+            query?: {
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getAnalytics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requestAnalytics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compareFlowTypes: {
+        parameters: {
+            query?: {
+                /** @description attribute holding the flow type (default: the mapping's) */
+                attribute?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowTypeComparison"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getSlice: {
         parameters: {
             query: {
@@ -2533,6 +3873,8 @@ export interface operations {
                 view?: string | null;
                 /** @description case attribute for the penalty-mass Pareto */
                 drilldown?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
             };
             header?: never;
             path: {
@@ -2637,6 +3979,12 @@ export interface operations {
             query?: {
                 slicing?: string | null;
                 sliceKey?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+                /** @description bin scale of the histogram */
+                scale?: "linear" | "log";
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
             };
             header?: never;
             path: {
@@ -2674,6 +4022,12 @@ export interface operations {
                 slicing?: string | null;
                 sliceKey?: string | null;
                 abstraction?: number;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+                /** @description activity node id or label */
+                focus?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
             };
             header?: never;
             path: {
@@ -2691,6 +4045,317 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowGraph"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getNotebook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_createSnapshot"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorderSnapshots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SnapshotOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exportNotebook: {
+        parameters: {
+            query?: {
+                format?: "markdown" | "pptx";
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description a zip file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/zip": unknown;
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SnapshotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getSnapshotImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the PNG */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/png": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replaceSnapshotImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                snapshotId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_replaceSnapshotImage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
                 };
             };
             /** @description Validation Error */

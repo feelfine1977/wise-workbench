@@ -1,12 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCircle, Moon, Rows3, Search, Sun } from "lucide-react";
+import { BookOpen, HelpCircle, Moon, Rows3, Search, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/misc";
+import { flowTypeOf } from "@/lib/api/cycle2";
 import { useMocks } from "@/lib/config";
 import { projectsQuery } from "@/lib/queries";
 import { useUiStore } from "@/lib/stores/ui";
@@ -59,6 +60,11 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   const vocabulary = useUiStore((s) => s.vocabulary);
   const setVocabulary = useUiStore((s) => s.setVocabulary);
   const pid = ctx.projectId;
+  // The flow-type switcher (R2-O10): the unscoped run and the runs forked from it.
+  const current = ctx.run;
+  const parent = current && !flowTypeOf(current) ? current : [...ctx.runs].reverse().find((r) => r.status === "done" && !flowTypeOf(r) && r.caseTableId === current?.caseTableId && r.normVersionId === current?.normVersionId);
+  const family = ctx.runs.filter((r) => r.status === "done" && flowTypeOf(r) && r.caseTableId === current?.caseTableId && r.normVersionId === current?.normVersionId);
+  const flowOptions = current && (family.length > 0 || flowTypeOf(current)) ? [...(parent ? [{ value: parent.id, label: "all flow types" }] : []), ...family.map((r) => ({ value: r.id, label: `${flowTypeOf(r)} only`, hint: r.id }))] : [];
 
   return (
     <header role="banner" className="sticky top-0 z-ribbon flex h-12 items-center gap-3 border-b border-border bg-surface px-3 shadow-1">
@@ -113,7 +119,8 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
             options={(ctx.run?.slicings ?? []).map((s) => ({ value: s.id ?? "", label: (s.attributes ?? []).map((a) => a.replace(/^case /, "")).join(" × ") || (s.id ?? ""), hint: s.id ?? undefined }))}
             onChange={ctx.setSlicing}
           />
-          <Switcher label={t("ribbon.period")} value={ctx.run?.id} options={ctx.periods.map((p) => ({ value: p.runId, label: p.label }))} onChange={(v) => ctx.navigateRun(v)} />
+          {flowOptions.length > 0 && <Switcher label={t("ribbon.flowType")} value={ctx.run?.id} options={flowOptions} onChange={(v) => ctx.navigateRun(v)} />}
+          <Switcher label={t("ribbon.period")} value={ctx.run?.id} options={ctx.periods.filter((p) => !flowTypeOf(ctx.runs.find((r) => r.id === p.runId))).map((p) => ({ value: p.runId, label: p.label }))} onChange={(v) => ctx.navigateRun(v)} />
           <Switcher
             label={t("ribbon.vocabulary")}
             value={vocabulary}
@@ -127,6 +134,14 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
           <span aria-hidden>{useMocks ? "◌" : "●"}</span>
           {useMocks ? t("app.mocks") : t("app.backend")}
         </Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="iconSm" aria-label={t("ribbon.notebook")} onClick={() => void navigate({ to: "/p/$projectId/notebook", params: { projectId: pid }, search: {} })}>
+              <BookOpen />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("ribbon.notebook")}</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="iconSm" aria-label={t("ribbon.palette")} onClick={() => setPaletteOpen(true)}>

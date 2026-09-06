@@ -27,7 +27,9 @@
       "@wise/api-schema": ["../../packages/api-schema/generated/index.ts"],
       "@wise/api-schema/*": ["../../packages/api-schema/generated/*"],
       "@wise/design-tokens": ["../../packages/design-tokens/tokens.json"],
-      "@wise/design-tokens/*": ["../../packages/design-tokens/*"]
+      "@wise/design-tokens/*": ["../../packages/design-tokens/*"],
+      "@wise/flow": ["./node_modules/@wise/flow/dist/index.d.ts", "./stubs/wise-flow/index.d.ts"],
+      "@wise/flow/react": ["./node_modules/@wise/flow/dist/react/index.d.ts", "./stubs/wise-flow/react.d.ts"]
     }
   },
   "include": ["src", "../../packages/api-schema/generated/**/*.ts", "../../packages/design-tokens/tokens.json"]

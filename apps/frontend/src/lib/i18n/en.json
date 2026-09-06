@@ -27,6 +27,8 @@
     "sliceKey": "by",
     "grouping": "grouping",
     "period": "period",
+    "flowType": "flow type",
+    "notebook": "Notebook",
     "vocabulary": "words",
     "vocabularies": { "plain": "plain", "method": "method" },
     "switch": "Switch {{what}}",
@@ -66,7 +68,7 @@
     "dismiss": "Dismiss",
     "status": { "queued": "queued", "running": "running", "done": "done", "failed": "failed", "cancelled": "cancelled" },
     "announce": "Job {{label}} is {{status}}",
-    "kind": { "ingest": "Ingest", "build_cases": "Case table", "score_run": "Run", "load_preset": "Public log preset", "job": "Job" }
+    "kind": { "ingest": "Ingest", "build_cases": "Case table", "score_run": "Run", "load_preset": "Public log preset", "apply_decision": "Decision", "job": "Job" }
   },
   "palette": {
     "placeholder": "Jump to a screen… (search for slices, constraints and cases arrives in v1)",

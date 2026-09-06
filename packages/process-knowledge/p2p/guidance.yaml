@@ -1,0 +1,3329 @@
+# Purchase-to-pay guidance: the generic tier of the knowledge hub.
+# One entry per layer, per constraint of the pack's templates and per failure
+# mode, in the blocks of docs/panel/knowledge_hub_panel.md §1. Plain words
+# first, the method term second; every usual reason says whether the log can
+# show it (with the check) or whether someone must be asked; every action names
+# a countermeasure type, an owner role and the expectation area it affects.
+# Reasons are candidates to test, never findings. Shares quoted in the text are
+# the seeds of failure_modes.yaml (BPIC 2019, measured 2026-09-05).
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - docs/panel/knowledge_hub_panel.md §1 and §5 (seed guidance for the seven layers)
+  - cycle 1 review §9 (plain layer names and missed labels proposed by the clerk and the owner)
+  - failure_modes.yaml of this pack (candidate causes, remedies, evidence to check, measured shares)
+  - BPI Challenge 2019 winner reports (HPI, Rhine-Waal, Melbourne, RWTH, DFKI)
+  - SAP MM and FI-AP documentation (GR-based invoice verification, tolerance keys, payment blocks, release strategy)
+defaults:
+  stakeholders: "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note."
+  sources: [docs/panel/knowledge_hub_panel.md §1 and §5, failure_modes.yaml (p2p), BPI Challenge 2019 reports]
+  review_status: draft
+  version: 1
+
+# =============================================================================
+# Layers (expectation areas)
+# =============================================================================
+layers:
+  - id: closure_completeness
+    plain_name: {en: "Closing the loop", de: "Den Kreis schließen"}
+    missed_label: {en: "missing invoice or payment", de: "Rechnung oder Zahlung fehlt"}
+    expectation: Every ordered item is received, invoiced and paid, so that nothing stays open longer than it should.
+    meaning_when_missed: "An item is missing one of its expected milestones: goods were ordered but no receipt is posted, goods were received but no invoice arrived, or an invoice was recorded but never cleared."
+    why_it_matters: Open items hide liabilities and unpaid vendors, distort accruals at period end and make the purchase order history unusable for planning; every open item is a call, an e-mail or a manual clean-up later.
+    how_detected: "Three presence rules on the flows where the milestone is expected: invoice evidence on invoice-bearing items, a payment on invoice-bearing items, and a goods or service receipt on three-way items. Items still open at the end of the data are flagged separately as not yet judgeable."
+    usual_reasons:
+      - text: "The item was still open when the data was extracted (right-censoring)"
+        where: log
+        check: "share of items whose last event is within 60 days of the window end, per group; read the shortfall only after excluding them"
+      - text: "The vendor invoices late or invoices are captured without an order reference"
+        where: log
+        check: "goods received without invoice evidence after 60 days, by vendor; invoice documents without item link in the source system"
+      - text: "Service entry sheets are not posted for services already rendered"
+        where: log
+        check: "service items with an invoice but no service entry sheet, by purchasing group"
+      - text: "The item was deleted, blocked or closed by reducing the quantity instead of receiving it"
+        where: log
+        check: "deletion, block and quantity-change events on the open items"
+      - text: "The item category expects a milestone that this purchase never has (framework, consignment)"
+        where: outside
+        check: "ask the buyer whether the document type needs a receipt or an item-level clearing at all"
+    usual_actions:
+      - text: "Period-end review of open items with the buyers, closing or correcting each with a reason"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: closure_completeness
+      - text: "Dunning of missing invoices for received goods and a mandatory order reference on incoming invoices"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+      - text: "Service entry sheet discipline with a monthly reminder for open service items"
+        countermeasure: standard_work
+        owner_role: requester
+        effect_area: closure_completeness
+      - text: "Exclude censored items from the reading and set the observation window in the run"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+    what_to_check_first:
+      - How many of the missing milestones are on items still open at the end of the data
+      - Whether the missing milestone is the receipt, the invoice or the payment, and which vendors carry it
+      - Whether the affected items were deleted or blocked instead of completed
+    examples:
+      - kind: violating
+        text: "A three-way item received in March with no invoice by the end of the data in August; the vendor's other items are invoiced within a week."
+      - kind: compliant
+        text: "An item ordered, received, invoiced and cleared within the quarter; every milestone present once."
+    kpis: [p2p.kpi.open_invoice_share, p2p.kpi.open_receipt_share]
+    owner_role: accounts_payable
+
+  - id: flow_discipline
+    plain_name: {en: "Buying channel and sequence (maverick buying)", de: "Beschaffungsweg und Reihenfolge (Maverick Buying)"}
+    missed_label: {en: "steps out of order for this flow type", de: "Schritte in falscher Reihenfolge für diesen Flusstyp"}
+    expectation: "Requisition, order, receipt and invoice happen in the order the flow type prescribes: in GR-based flows the invoice follows the receipt, in invoice-first flows the payment block is released only after the goods arrive, two-way and consignment items show no postings they should not have."
+    meaning_when_missed: Goods or services were bought or paid outside the agreed channel, an invoice was processed before delivery was confirmed, a block was released before the goods arrived, or an item is typed as a flow it does not follow.
+    why_it_matters: Off-contract prices, no leverage over the vendor, payment for goods not received, audit findings on the three-way match, and repair work in accounts payable to fix documents after the fact.
+    how_detected: "Order rules per flow type: invoice evidence not before the first receipt in GR-based flows; payment block released after the first receipt in invoice-first flows; no receipt postings on two-way items; no item-level clearing on consignment items."
+    usual_reasons:
+      - text: "The vendor issues the invoice at dispatch, so the vendor's invoice date precedes the receipt although the posting does not"
+        where: log
+        check: "compare the share of early invoices by vendor invoice date with the share by invoice posting date (the split expectations of norm draft v1.1)"
+      - text: "After-the-fact orders created to pay an invoice that was already in the house"
+        where: log
+        check: "order item created after the vendor's invoice date, by requester, spend area and document type"
+      - text: "The item category is wrong for how the vendor actually delivers"
+        where: log
+        check: "vendors whose GR-based items are mostly invoice-first; share of early invoices per vendor"
+      - text: "Receipts are posted late at the dock although the goods arrived before the invoice"
+        where: log
+        check: "delivery-note date against receipt posting date where available; receipt-to-invoice lags near zero or negative"
+      - text: "Urgent needs bypass the requisition and the buyer"
+        where: outside
+        check: "ask the requesters and the category manager which spend areas run on phone orders"
+    usual_actions:
+      - text: "No-purchase-order-no-pay policy with a maintained exception list"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+      - text: "Catalogue coverage for the top free-text items and guided buying with an approval service level"
+        countermeasure: catalogue
+        owner_role: purchasing
+        effect_area: flow_discipline
+      - text: "GR-based invoice verification flag and item category maintained per vendor and material"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: flow_discipline
+      - text: "Framework contracts for recurring off-contract vendors"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: flow_discipline
+      - text: "Receipt posted on the day of arrival, with invoices parked until the receipt exists"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Which evidence is early, the vendor's invoice date or the invoice posting
+      - Share by requester, vendor and spend area; whether after-the-fact orders cluster in one area
+      - Whether the affected invoices were still paid on time or blocked
+    examples:
+      - kind: violating
+        text: "A GR-based item whose invoice was posted twelve days before the goods receipt and cleared after a block was removed by hand."
+      - kind: compliant
+        text: "A GR-based item with receipt on Monday, invoice posted on Thursday, matched without a block and cleared within terms."
+    kpis: [p2p.kpi.three_way_match_first_time_rate, p2p.kpi.spend_under_requisition]
+    owner_role: purchasing
+
+  - id: approval_discipline
+    plain_name: {en: "Approved before ordering", de: "Genehmigt vor der Bestellung"}
+    missed_label: {en: "ordered without or long before approval", de: "ohne oder lange vor Genehmigung bestellt"}
+    expectation: Every order that needs a requisition has one, and requisitions and orders are released within the agreed days without repeated re-approval.
+    meaning_when_missed: An order went out without the required request and release, the release took longer than agreed, or the order was changed so often that it needed approval again and again.
+    why_it_matters: Spending outside the budget owner's sight, delayed deliveries while the release queue waits, and approvers re-reading the same order after every change.
+    how_detected: Presence of a requisition or shopping cart where the document type requires one; days from requisition and order creation to their release against a target; count of approval changes per item.
+    usual_reasons:
+      - text: "Direct orders from contracts or material planning that need no requisition (legitimate)"
+        where: log
+        check: "document type and source of the order; restrict the rule to document types that require a requisition"
+      - text: "Approver absent without substitute; multi-level release strategies"
+        where: log
+        check: "release lag per purchasing group and value band; day-of-week pattern"
+      - text: "Price or quantity changes reset the release and trigger re-approval"
+        where: log
+        check: "which change event precedes each re-approval"
+      - text: "Release strategy thresholds too low for routine orders"
+        where: outside
+        check: "ask finance for the release strategy values and compare with the order value distribution"
+    usual_actions:
+      - text: "Substitute rules and escalation after a fixed number of days in the release workflow"
+        countermeasure: system_setting
+        owner_role: approver
+        effect_area: approval_discipline
+      - text: "Release strategy thresholds reviewed with finance; batch approvals for catalogue items"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: approval_discipline
+      - text: "Commercially relevant fields locked after release or a reason required for changes"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: approval_discipline
+      - text: "Apply the requisition rule only to document types that require one"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: approval_discipline
+    what_to_check_first:
+      - Whether release events are logged at all for the purchasing organisation
+      - Release lag by purchasing group and value band
+      - Which change precedes each re-approval
+    examples:
+      - kind: violating
+        text: "An order item released nine days after creation, after two approval changes triggered by price edits."
+      - kind: compliant
+        text: "A requisition released the same day and turned into an order item the next morning, no re-approval."
+    kpis: [p2p.kpi.po_release_lead_time, p2p.kpi.po_cycle_time, p2p.kpi.spend_under_requisition]
+    owner_role: approver
+
+  - id: timeliness_ageing
+    plain_name: {en: "On time", de: "Pünktlich"}
+    missed_label: {en: "waiting too long between steps", de: "zu lange Wartezeit zwischen den Schritten"}
+    expectation: Receipts, invoices, block releases and payments follow each other within the agreed number of days.
+    meaning_when_missed: Items age between two steps; invoices wait for a receipt or a release, released invoices wait for a payment run, and vendors wait for their money.
+    why_it_matters: Lost early-payment discounts, vendor escalations and delivery stops, working capital tied up or paid out too early, and a backlog that accounts payable works through by hand.
+    how_detected: "Time-between-steps rules with a target and a tolerance: receipt to invoice in GR-based flows (target 10 days, tolerance to 30 in the paper's norm), invoice to payment (30 days, tolerance to 90), receipt to block release and release to payment in invoice-first flows (2 and 5 days). Each item scores between met and fully missed according to how far beyond the target it is."
+    usual_reasons:
+      - text: "Long contractual payment terms (60 or 90 days) make a 30-day target look violated"
+        where: log
+        check: "median invoice-to-payment days per vendor; vendors with medians near 60 or 90 days follow terms, not a delay"
+      - text: "Payment blocks hold the invoice until a variance is resolved"
+        where: log
+        check: "share of items with a block release and the receipt-to-release lag on the same items"
+      - text: "The vendor invoices late after delivery"
+        where: log
+        check: "receipt-to-invoice lag by vendor and spend area"
+      - text: "Approval queues delay the release where approvals are logged"
+        where: log
+        check: "order-to-release lag on items with a logged release"
+      - text: "Payment runs on fixed dates and cash-management holds at period end"
+        where: outside
+        check: "ask accounts payable for the payment-run calendar and any period-end holds"
+    usual_actions:
+      - text: "Payment terms per vendor as a case attribute so that days beyond terms are scored instead of a fixed target"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: timeliness_ageing
+      - text: "Root-cause review of blocking reasons with a release cadence per reason"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Accounts payable workload levelling and a target for invoice ageing"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Early-payment discounts where cash allows, agreed per vendor"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Payment terms of the vendors with the longest invoice-to-payment medians
+      - Share of blocked invoices among the late ones
+      - Whether the late items are still open at the end of the data
+    examples:
+      - kind: violating
+        text: "An invoice posted in May and cleared 106 days later after a block release in August, on a vendor with 30-day terms."
+      - kind: compliant
+        text: "Receipt, invoice within a week, cleared on the next payment run 28 days after the invoice."
+    kpis: [p2p.kpi.invoice_to_clear_days, p2p.kpi.gr_to_invoice_days, p2p.kpi.payment_block_rate]
+    owner_role: accounts_payable
+
+  - id: rework_instability
+    plain_name: {en: "Doing it once", de: "Einmal richtig"}
+    missed_label: {en: "repeated or changed postings", de: "wiederholte oder geänderte Buchungen"}
+    expectation: Each step is posted once and stays; no repeated receipts, invoices, approvals, confirmations or term changes on the same item.
+    meaning_when_missed: The same step was posted several times or changed afterwards, so the item was handled more than once and its history is unstable.
+    why_it_matters: Every repeat is a manual touch, a matching problem and a chance for a duplicate payment; unstable commitments make planning and vendor evaluation unreliable.
+    how_detected: "Count rules with a tolerated number and a saturation point: receipt events (more than two count), invoice receipts (more than one), approval changes (any), payment-term changes (any), vendor confirmations and confirmed-date changes in the baseline."
+    usual_reasons:
+      - text: "Partial deliveries and partial invoices split one item over several postings (often legitimate)"
+        where: log
+        check: "quantities per receipt against the order quantity; whether repeats are splits or corrections"
+      - text: "Price and quantity edits after ordering trigger re-approvals and re-postings"
+        where: log
+        check: "change events preceding each repeat"
+      - text: "Cancelled receipts or invoices re-posted after a correction"
+        where: log
+        check: "cancellation events between the repeats"
+      - text: "Master data (rounding, minimum quantities, terms) is incomplete so postings are corrected by hand"
+        where: outside
+        check: "ask master data whether info records and vendor terms are maintained for the affected vendors"
+    usual_actions:
+      - text: "Confirm price and quantity before ordering; lock them after release"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Vendor confirmations recorded with tolerance instead of copied into the order"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Master-data cleanup of rounding profiles, minimum quantities and payment terms"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: rework_instability
+      - text: "Separate blanket and call-off items from one-off items in the rule's applicability"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Whether repeats are partial deliveries (different quantities) or corrections (same quantity, cancellation in between)
+      - Vendor and material group concentration of the repeats
+      - Header replication of order-level changes onto every item
+    examples:
+      - kind: violating
+        text: "An item with four goods receipts, two invoice receipts and one cancellation in between, all for the same quantity."
+      - kind: compliant
+        text: "One receipt, one invoice, one clearing."
+    kpis: [p2p.kpi.confirmation_churn, p2p.kpi.invoice_cancellation_rate]
+    owner_role: purchasing
+
+  - id: exceptions_corrections
+    plain_name: {en: "Exceptions stay rare", de: "Ausnahmen bleiben selten"}
+    missed_label: {en: "cancellations and memos", de: "Stornos und Gutschriften"}
+    expectation: Cancellations of receipts and invoices, item deletions, blocks and vendor memos are the exception, not part of the normal path.
+    meaning_when_missed: A posting had to be undone or corrected with a separate document; the item did not go straight through.
+    why_it_matters: Corrections cost effort in the warehouse and in accounts payable, they delay payment, they carry audit risk, and memos signal disputes with the vendor.
+    how_detected: "Rules that expect an activity never to occur: cancelled invoice receipt, cancelled goods receipt, deleted item, vendor debit memo, vendor credit memo, and in the baseline item blocks, manual payment blocks and interface failures."
+    usual_reasons:
+      - text: "Disputed deliveries (wrong quantity, material or storage location) reversed at the dock"
+        where: log
+        check: "goods receipt cancellations shortly after receipts, by plant and vendor"
+      - text: "Duplicate invoices detected after posting"
+        where: log
+        check: "invoice cancellations with a repeated invoice receipt on the same item"
+      - text: "Price differences settled by a memo instead of a dispute before payment"
+        where: log
+        check: "memos preceded by a price change or an invoice cancellation"
+      - text: "Delete-and-recreate used instead of changing an item"
+        where: log
+        check: "deletion followed by a new item on the same order"
+      - text: "Vendor master data (tax, bank, currency) wrong so invoices are re-issued"
+        where: outside
+        check: "ask accounts payable for the top cancellation reasons of the affected vendors"
+    usual_actions:
+      - text: "Quality gate at receipt with scan-based posting against the delivery note"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+      - text: "Duplicate-invoice check on reference number, date and amount at capture"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Vendor scorecard on memos and cancellations with a review of memo-heavy relationships"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+      - text: "Change the item instead of deleting and recreating it"
+        countermeasure: training
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between the posting and its cancellation, and whether a corrected posting follows
+      - Vendor and plant concentration of cancellations and memos
+      - Share of corrections on high-value items
+    examples:
+      - kind: violating
+        text: "A receipt cancelled two hours after posting, re-posted the next day, and a debit memo from the vendor a month later."
+      - kind: compliant
+        text: "No cancellation, deletion, block or memo on the item."
+    kpis: [p2p.kpi.invoice_cancellation_rate, p2p.kpi.gr_cancellation_rate, p2p.kpi.item_deletion_rate]
+    owner_role: accounts_payable
+
+  - id: value_commercial
+    plain_name: {en: "Paying what was agreed", de: "Zahlen, was vereinbart war"}
+    missed_label: {en: "price or quantity changed after ordering", de: "Preis oder Menge nach Bestellung geändert"}
+    expectation: The price and quantity on the order are the ones agreed with the vendor before ordering, and invoiced values match ordered and received values, especially on high-value items.
+    meaning_when_missed: The order was edited after it went out, or correction documents moved the value of the item; what is paid may not be what was agreed.
+    why_it_matters: Money paid above the agreed price, no audit trail of the negotiation, and invoice verification that passes because the order was changed to fit the invoice.
+    how_detected: "Count rules on price and quantity changes (any change counts, two saturate), value-weighted rules that count memos and price changes more on high-exposure items, and the spread of the cumulative net worth across the item's postings; these are commercial-risk indicators, not audit findings."
+    usual_reasons:
+      - text: "Quotation or info record expired before ordering and the price was settled afterwards"
+        where: log
+        check: "price changes shortly after item creation, by vendor and spend area"
+      - text: "Invoice price variance resolved by editing the order instead of disputing the invoice"
+        where: log
+        check: "price changes after the first goods receipt or invoice on the same item"
+      - text: "Vendor confirmation carries a different price or quantity and the order is aligned to it"
+        where: log
+        check: "confirmation events preceding the change"
+      - text: "Tolerance keys set so wide that variances pass without a block"
+        where: outside
+        check: "ask finance for the tolerance settings of invoice verification"
+      - text: "Contract prices not loaded into the purchasing master data"
+        where: outside
+        check: "ask category management which contracts have price conditions in the system"
+    usual_actions:
+      - text: "Contract and info-record prices loaded before ordering; release blocked until the price is confirmed"
+        countermeasure: master_data
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Invoice price variances routed through tolerance keys and dispute, not through order edits"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: value_commercial
+      - text: "Tolerance review with finance per spend area"
+        countermeasure: system_setting
+        owner_role: finance_controlling
+        effect_area: value_commercial
+      - text: "Price agreements per vendor with a scorecard on confirmation deviations"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: value_commercial
+    what_to_check_first:
+      - Timing of the price change relative to receipt and invoice
+      - Exposure of the affected items and vendor concentration
+      - Whether a header-level condition change lands on every item of the order
+    examples:
+      - kind: violating
+        text: "A high-value item whose price was changed after the invoice arrived, followed by a vendor debit memo."
+      - kind: compliant
+        text: "Price and quantity unchanged from order to payment; invoice equals the order."
+    kpis: [p2p.kpi.price_change_rate, p2p.kpi.quantity_change_rate]
+    owner_role: purchasing
+
+  - id: effort_automation
+    plain_name: {en: "Touchless where possible", de: "Ohne manuelle Eingriffe, wo möglich"}
+    missed_label: {en: "too many manual touches", de: "zu viele manuelle Eingriffe"}
+    expectation: Items pass from order to payment with as few manual touches, hand-offs and events as the flow needs.
+    meaning_when_missed: People had to intervene several times on the item, several people touched it, or the item collected a long chain of events.
+    why_it_matters: Effort in purchasing and accounts payable, waiting time at each hand-off, and errors introduced by manual work; the touchless rate is the lever for automation.
+    how_detected: "Threshold rules on derived counts: manual touches by named users (more than 4, saturating at 10), distinct human users (more than 2), total events (more than 10) and the manual share of events (above half); batch users are excluded by name."
+    usual_reasons:
+      - text: "Exceptions (changes, blocks, cancellations) each add manual steps"
+        where: log
+        check: "which activities carry the manual touches, by constraint and activity"
+      - text: "Header events copied onto every item inflate the counts"
+        where: log
+        check: "replication diagnostics before reading touch counts; type header events away and compare"
+      - text: "No electronic vendor integration, so confirmations and invoices are keyed in"
+        where: outside
+        check: "ask purchasing which vendors send EDI confirmations and e-invoices"
+      - text: "Batch users not recognised as such and counted as manual"
+        where: log
+        check: "user names of the most frequent touches; batch or system users in the resource column"
+    usual_actions:
+      - text: "Touchless targets per spend area with a monthly review"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: effort_automation
+      - text: "EDI confirmations and e-invoicing with the largest vendors"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: effort_automation
+      - text: "Exception reduction upstream (price and quantity aligned before ordering)"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Error-proofing in the buying front end (mandatory fields, catalogue defaults)"
+        countermeasure: system_setting
+        owner_role: it_process_owner
+        effect_area: effort_automation
+    what_to_check_first:
+      - Replication diagnostics and the batch-user list before trusting the counts
+      - Which activities and users carry the touches in the affected group
+      - Whether the touches come with changes, blocks or cancellations on the same items
+    examples:
+      - kind: violating
+        text: "An item with 14 events, six of them manual edits by four different users, before it cleared."
+      - kind: compliant
+        text: "Order, receipt, invoice and payment posted by the system and one buyer, five events in total."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+# =============================================================================
+# Constraints (expectations) of the templates
+# =============================================================================
+constraints:
+  # ---------------------------------------------------------------- L1 closing the loop
+  - id: c_l1_invoice_present
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_closure_invoice_present}
+    plain_name: {en: "Invoice received", de: "Rechnung eingegangen"}
+    missed_label: {en: "no invoice", de: "keine Rechnung"}
+    expectation: Every purchase order item that is meant to be invoiced shows invoice evidence, either an invoice posted in the system or an invoice dated by the vendor.
+    meaning_when_missed: Goods or services were ordered (and often received) but no invoice is on record for the item.
+    why_it_matters: Unrecorded liabilities at period end, vendors that are not paid and escalate, and a purchase order history that cannot be closed.
+    how_detected: A presence rule on invoice-bearing flow types (three-way and two-way); consignment items are out of scope. Items open at the end of the data need the censoring caveat.
+    usual_reasons:
+      - text: "The item was still open when the data ended"
+        where: log
+        check: "age of the item at the window end; share flagged as still open per group"
+      - text: "The vendor has not invoiced yet or invoiced without an order reference"
+        where: log
+        check: "receipt present without invoice after 60 days, by vendor"
+      - text: "The item was deleted or the delivery never completed"
+        where: log
+        check: "deletion events and missing receipts on the same items"
+      - text: "Framework or consignment purchases typed as invoice-bearing"
+        where: outside
+        check: "ask the buyer whether the document type is invoiced per item"
+    usual_actions:
+      - text: "Vendor communication on missing invoices for received goods, with a monthly list"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+      - text: "Invoice capture with a mandatory order reference"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+      - text: "Exclude items still open at the window end before reading the shortfall"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Share of the missing invoices on items still open at the end of the data
+      - Whether a receipt exists (goods received, invoice outstanding) or nothing at all
+      - Vendors with invoices posted without order reference in the source system
+    examples:
+      - kind: violating
+        text: "A three-way item received in March; no invoice by the end of the data five months later."
+      - kind: compliant
+        text: "An item with the invoice posted a week after the receipt."
+    kpis: [p2p.kpi.open_invoice_share]
+    owner_role: accounts_payable
+
+  - id: c_l1_clear_invoice_present
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_closure_clear_present}
+    plain_name: {en: "Invoice paid", de: "Rechnung bezahlt"}
+    missed_label: {en: "not paid", de: "nicht bezahlt"}
+    expectation: Every invoice-bearing item is eventually cleared by a payment.
+    meaning_when_missed: The item has no clearing; the invoice is open, blocked, disputed or was never posted.
+    why_it_matters: Unpaid vendors, missed discounts, open items in the ledger and the working-capital picture distorted in both directions.
+    how_detected: A presence rule for the clearing on three-way and two-way items. In the paper's norm a missing clearing on an open item counts fully; the baseline scores open invoices by their age instead.
+    usual_reasons:
+      - text: "The item was still open at the end of the data (22.6 % of invoice-bearing items in BPIC 2019 have no clearing, many of them censored)"
+        where: log
+        check: "censored share per group with the observation window printed"
+      - text: "The invoice is blocked for a variance or a missing receipt"
+        where: log
+        check: "block release events on the same items and the receipt status"
+      - text: "No invoice was posted in the first place"
+        where: log
+        check: "items without invoice evidence among those without clearing"
+      - text: "Payment held by cash management or a dispute with the vendor"
+        where: outside
+        check: "ask accounts payable for the open-item list with blocking reasons"
+    usual_actions:
+      - text: "Blocked-invoice review with an owner per blocking reason"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+      - text: "Open-item ageing report shared with purchasing each month"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+      - text: "Score open invoices by their age (censored lag) instead of as full violations"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Censored share of the group and the observation window
+      - Whether the unpaid items are blocked or simply not yet due
+      - Whether the invoice itself is missing
+    examples:
+      - kind: violating
+        text: "An invoice posted in June, blocked in July, and still open at the end of the data in September."
+      - kind: compliant
+        text: "Invoice posted and cleared on the next payment run."
+    kpis: [p2p.kpi.open_invoice_share, p2p.kpi.invoice_to_clear_days]
+    owner_role: accounts_payable
+
+  - id: c_l1_goods_or_ses_present
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_closure_goods_present}
+    plain_name: {en: "Goods or service received", de: "Ware oder Leistung erhalten"}
+    missed_label: {en: "no receipt", de: "kein Wareneingang"}
+    expectation: Every three-way item shows a goods receipt or a service entry sheet.
+    meaning_when_missed: No receipt is posted for an item that needs one; the delivery is pending, was never posted, was posted elsewhere, or the item should not have been a three-way item.
+    why_it_matters: Invoices cannot be matched and are blocked, stock and cost are understated, and the vendor's delivery performance cannot be measured.
+    how_detected: A presence rule on three-way items (both GR-based and invoice-first); two-way and consignment items are out of scope.
+    usual_reasons:
+      - text: "The item was still open at the end of the data (6.4 % of three-way items lack a receipt in BPIC 2019, including open and deleted ones)"
+        where: log
+        check: "censored share per group; deletion events on the same items"
+      - text: "The item was deleted or blocked before delivery"
+        where: log
+        check: "deletion and block events preceding the window end"
+      - text: "The receipt was posted against another item of the same material"
+        where: log
+        check: "items with an invoice but no receipt whose order has receipts on sibling items"
+      - text: "Wrong item category (a two-way or framework purchase typed three-way)"
+        where: outside
+        check: "ask the buyer whether a receipt is expected for the material or service"
+    usual_actions:
+      - text: "Goods receipt monitoring for overdue items with a weekly list to the requesters"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: closure_completeness
+      - text: "Item category maintained per vendor and material"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: closure_completeness
+      - text: "Exclude censored and deleted items before reading the shortfall"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Censored share and deletion events on the items without receipt
+      - Whether an invoice exists without a receipt (points to category or posting issues)
+      - Sibling items of the same order with receipts
+    examples:
+      - kind: violating
+        text: "A three-way item with an invoice and a payment block, no receipt ever posted, the vendor's invoice released by hand."
+      - kind: compliant
+        text: "Receipt posted on the delivery date, invoice matched against it."
+    kpis: [p2p.kpi.open_receipt_share]
+    owner_role: warehouse
+
+  # ---------------------------------------------------------------- L2 buying channel and sequence
+  - id: c_l2_df1_invoice_after_goods
+    templates: [p2p_bpic19]
+    aliases: {p2p_baseline: b_flow_invoice_after_goods}
+    plain_name: {en: "Invoice after the goods (GR-based flow)", de: "Rechnung nach der Ware (WE-bezogener Fluss)"}
+    missed_label: {en: "invoice before goods receipt", de: "Rechnung vor Wareneingang"}
+    expectation: In GR-based three-way flows the invoice, whether posted or dated by the vendor, does not precede the first goods or service receipt.
+    meaning_when_missed: Invoice evidence exists before any receipt on an item whose flow type says the receipt comes first.
+    why_it_matters: The three-way match cannot be completed at posting, invoices are blocked or paid on trust, and the flow type is not what the vendor actually does.
+    how_detected: "An order rule on GR-based items comparing the first invoice evidence (posting or vendor invoice date, merged) with the first receipt. In BPIC 2019 the merged rule flags 51.7 % of GR-based items, almost entirely through the vendor's invoice date; by posting date the share is 0.0 %. Norm draft v1.1 therefore splits it into a commercial and a compliance expectation."
+    usual_reasons:
+      - text: "The vendor dates the invoice at dispatch, before the goods arrive (a commercial pattern, not a posting error)"
+        where: log
+        check: "share early by vendor invoice date against share early by invoice posting"
+      - text: "Receipt posted late at the dock although the goods arrived first"
+        where: log
+        check: "receipt-to-invoice lags near zero or negative; delivery-note dates where available"
+      - text: "The item should be an invoice-first item (wrong category)"
+        where: log
+        check: "vendors whose GR-based items are mostly invoice-first"
+      - text: "Drop shipments and services where the receipt is a formality posted later"
+        where: outside
+        check: "ask the buyer how the vendor delivers and who posts the receipt"
+    usual_actions:
+      - text: "Split the expectation into the vendor's invoice date (commercial) and the invoice posting (compliance) as in norm draft v1.1"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+      - text: "GR-based invoice verification flag corrected per vendor and material"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: flow_discipline
+      - text: "Receipt posted on the day of arrival; invoices parked until the receipt exists"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+      - text: "Evaluated receipt settlement for vendors with stable prices"
+        countermeasure: automation
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Whether the early evidence is the vendor document or the posting
+      - Posting delay of receipts against delivery-note dates; vendor concentration
+      - Item category correctness on the vendor's other items
+    examples:
+      - kind: violating
+        text: "A GR-based item whose vendor invoice is dated ten days before the receipt; the posting itself came after the receipt."
+      - kind: compliant
+        text: "Receipt first, vendor invoice dated two days later, posted a day after that."
+    kpis: [p2p.kpi.three_way_match_first_time_rate, p2p.kpi.gr_to_invoice_days]
+    owner_role: accounts_payable
+
+  - id: c_l2_df1_vendor_invoice_after_goods
+    templates: [p2p_bpic19_v1_1]
+    plain_name: {en: "Vendor invoices after delivering (GR-based flow)", de: "Lieferant fakturiert nach der Lieferung (WE-bezogener Fluss)"}
+    missed_label: {en: "vendor invoice dated before the goods", de: "Lieferantenrechnung vor der Ware datiert"}
+    expectation: In GR-based flows the vendor's invoice date is not earlier than the first goods or service receipt.
+    meaning_when_missed: The vendor invoiced before the goods were received; a commercial pattern of the vendor, not a posting error on our side.
+    why_it_matters: Invoices arrive before they can be matched, the payment clock may start before delivery, and the vendor's practice contradicts the agreed GR-based flow.
+    how_detected: "An order rule on GR-based items comparing the vendor's invoice date with the first receipt (the commercial half of the split of the paper's merged rule). In BPIC 2019 53.6 % of GR-based items with both dates show the vendor's invoice first."
+    usual_reasons:
+      - text: "The vendor invoices at dispatch as a matter of course"
+        where: log
+        check: "share of early vendor invoices per vendor; vendors near 100 % invoice at dispatch"
+      - text: "Transport time between dispatch and receipt for distant vendors"
+        where: log
+        check: "vendor country and the lag from vendor invoice date to receipt"
+      - text: "Terms agreed as invoice-on-dispatch in the contract"
+        where: outside
+        check: "ask vendor management which contracts allow invoicing at dispatch"
+    usual_actions:
+      - text: "Invoicing terms per vendor agreed as invoice-on-receipt for GR-based flows"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: flow_discipline
+      - text: "Move vendors that always invoice at dispatch to the invoice-first flow type"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: flow_discipline
+      - text: "Payment clock started at the receipt for GR-based items"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Vendors with the highest share of early vendor invoices
+      - Vendor country and transport lag
+      - Whether the posting rule is also missed (then the flow type is wrong, not the vendor)
+    examples:
+      - kind: violating
+        text: "The vendor's invoice dated the day of dispatch; goods received a week later; invoice posted after the receipt."
+      - kind: compliant
+        text: "Vendor invoice dated two days after the receipt."
+    kpis: [p2p.kpi.gr_to_invoice_days]
+    owner_role: vendor_management
+
+  - id: c_l2_df1_invoice_posting_after_goods
+    templates: [p2p_bpic19_v1_1]
+    plain_name: {en: "Invoice posted after the goods (GR-based flow)", de: "Rechnung nach der Ware gebucht (WE-bezogener Fluss)"}
+    missed_label: {en: "invoice posted before goods receipt", de: "Rechnung vor Wareneingang gebucht"}
+    expectation: In GR-based flows the invoice is not posted before the first goods or service receipt.
+    meaning_when_missed: Accounts payable recorded the invoice before the receipt existed; GR-based invoice verification was bypassed or the receipt was posted late.
+    why_it_matters: A compliance point of the three-way match; invoices posted before the receipt are blocked or paid without matching evidence.
+    how_detected: "An order rule on GR-based items comparing the invoice posting with the first receipt (the compliance half of the split). In BPIC 2019 the posting is before the receipt on 0.0 % of GR-based items; the challenge reports found 5.0 % under their own rule."
+    usual_reasons:
+      - text: "The receipt was posted late although the goods arrived first"
+        where: log
+        check: "receipt posted within a day after the invoice posting"
+      - text: "GR-based verification switched off for the vendor although the item category says otherwise"
+        where: log
+        check: "vendors with early postings on GR-based items"
+      - text: "Manual posting of an urgent invoice with the block released by hand"
+        where: outside
+        check: "ask accounts payable who may post before the receipt and why"
+    usual_actions:
+      - text: "GR-based invoice verification enforced by the system setting for GR-based item categories"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+      - text: "Receipt posted on the day of arrival"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Receipt posting delay on the affected items
+      - Whether the vendor's invoice date is also early (vendor pattern) or only the posting
+      - Who posted the early invoices
+    examples:
+      - kind: violating
+        text: "Invoice posted on Monday, receipt posted on Wednesday for goods that arrived the previous Friday."
+      - kind: compliant
+        text: "Receipt posted first, invoice posted against it."
+    kpis: [p2p.kpi.three_way_match_first_time_rate]
+    owner_role: accounts_payable
+
+  - id: c_l2_clear_after_goods
+    templates: [p2p_bpic19_v1_1]
+    plain_name: {en: "Paid after the goods arrived", de: "Bezahlt, nachdem die Ware da war"}
+    missed_label: {en: "paid before goods receipt", de: "vor Wareneingang bezahlt"}
+    expectation: In three-way flows the invoice is not cleared before the first goods or service receipt.
+    meaning_when_missed: Money left the company before the goods or service were confirmed as received.
+    why_it_matters: Payment for goods not received is the classic three-way-match finding; it removes the leverage over the vendor and is an audit issue in both GR-based and invoice-first flows.
+    how_detected: "An order rule on three-way items (GR-based and invoice-first) comparing the first receipt with the clearing (the challenge reports' 'cleared before goods' rule, 4.6 % of GR-based items there)."
+    usual_reasons:
+      - text: "Block released by hand before the receipt arrived"
+        where: log
+        check: "block release before the receipt on the same items; users releasing them"
+      - text: "Receipt posted long after arrival, so the payment looks early"
+        where: log
+        check: "receipt posting delay; sibling items received earlier"
+      - text: "Prepayment or down-payment agreed with the vendor"
+        where: outside
+        check: "ask purchasing which vendors have prepayment terms"
+    usual_actions:
+      - text: "Manual block releases before receipt require a documented reason and a second pair of eyes"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+      - text: "Prepayment vendors marked in the master data and excluded from the rule"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Who released the block and when, relative to the receipt
+      - Vendor concentration and whether prepayment applies
+      - Receipt posting delay on the affected items
+    examples:
+      - kind: violating
+        text: "Invoice cleared in April; the goods receipt was posted in May."
+      - kind: compliant
+        text: "Receipt in April, block released and invoice cleared in May."
+    kpis: [p2p.kpi.three_way_match_first_time_rate]
+    owner_role: accounts_payable
+
+  - id: c_l2_df2_release_after_goods
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_flow_release_after_goods}
+    plain_name: {en: "Block released after the goods (invoice-first flow)", de: "Sperre nach der Ware aufgehoben (Rechnung-zuerst-Fluss)"}
+    missed_label: {en: "block released before goods receipt", de: "Sperre vor Wareneingang aufgehoben"}
+    expectation: In invoice-first flows the payment block on the early invoice is released only after the first goods or service receipt.
+    meaning_when_missed: The block that protects an early invoice was removed before the goods were confirmed.
+    why_it_matters: The block is the only control in invoice-first flows; releasing it early means paying for goods not received.
+    how_detected: An order rule on invoice-first items comparing the first receipt with the block release; violated on 0.7 % of such items in BPIC 2019.
+    usual_reasons:
+      - text: "Manual release for an urgent payment before the goods arrived"
+        where: log
+        check: "release before receipt; the user and the receipt-to-release lag"
+      - text: "Receipt posted late although the goods arrived before the release"
+        where: log
+        check: "receipt posting delay on the same items"
+      - text: "Release run configured to release on a quantity tolerance"
+        where: outside
+        check: "ask accounts payable for the release-run settings"
+    usual_actions:
+      - text: "Release only through the release run, manual releases with a reason"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+      - text: "Receipt posted on the day of arrival"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Who released the block and how long before the receipt
+      - Receipt posting delay
+      - Vendor concentration
+    examples:
+      - kind: violating
+        text: "Invoice-first item, block released on the 3rd, goods receipt posted on the 10th."
+      - kind: compliant
+        text: "Receipt on the 3rd, release by the release run on the 4th."
+    kpis: [p2p.kpi.payment_block_rate]
+    owner_role: accounts_payable
+
+  - id: c_l2_2way_no_goods_expected
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_flow_no_goods_in_two_way}
+    plain_name: {en: "No receipt on two-way items", de: "Kein Wareneingang auf Zweiwege-Positionen"}
+    missed_label: {en: "receipt posted where none is expected", de: "Wareneingang gebucht, wo keiner erwartet wird"}
+    expectation: Two-way items (invoice matched against the order only) show no goods or service receipt postings.
+    meaning_when_missed: A receipt was posted on an item whose category says it is not received; the category or the posting is wrong.
+    why_it_matters: Wrong categories distort the flow-type mix and the applicability of every other rule; stray receipts create stock and cost that do not exist.
+    how_detected: A rule expecting no receipt on two-way items; 0.0 % of the 1,044 two-way items in BPIC 2019 have one.
+    usual_reasons:
+      - text: "Item category set to two-way for goods that are physically received"
+        where: log
+        check: "material and item type of the affected items"
+      - text: "Receipt posted by habit on a service or limit item"
+        where: outside
+        check: "ask the warehouse whether the item is delivered at all"
+    usual_actions:
+      - text: "Item category maintenance; receipt posting disabled for two-way categories"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Item type and material of the affected items
+      - Whether the vendor's other items are three-way
+    examples:
+      - kind: violating
+        text: "A two-way framework item with a goods receipt posted at the dock."
+      - kind: compliant
+        text: "A two-way item invoiced and cleared, no receipt."
+    kpis: []
+    owner_role: purchasing
+
+  - id: c_l2_consignment_no_clear_invoice
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_flow_consignment_no_clear}
+    plain_name: {en: "Consignment settled, not paid per item", de: "Konsignation abgerechnet, nicht je Position bezahlt"}
+    missed_label: {en: "consignment item cleared per item", de: "Konsignationsposition einzeln ausgeglichen"}
+    expectation: Consignment items are settled periodically from withdrawals, not cleared invoice by invoice.
+    meaning_when_missed: An item-level clearing appears on a consignment item; the vendor invoiced withdrawals directly or the item is not really consignment.
+    why_it_matters: Double settlement risk and a broken consignment agreement.
+    how_detected: A rule expecting no clearing on consignment items; 0.0 % of the 14,498 consignment items in BPIC 2019 are cleared.
+    usual_reasons:
+      - text: "Item category wrongly set to consignment"
+        where: log
+        check: "material and vendor of the affected items against their other categories"
+      - text: "The vendor invoices withdrawals directly instead of the settlement run"
+        where: outside
+        check: "ask accounts payable how the vendor is settled"
+    usual_actions:
+      - text: "Consignment settlement run as the only settlement path; item category maintained"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Settlement documents in the source system
+      - Vendor concentration
+    examples:
+      - kind: violating
+        text: "A consignment item with an invoice receipt and a clearing."
+      - kind: compliant
+        text: "Consignment withdrawals settled monthly, no item-level clearing."
+    kpis: []
+    owner_role: accounts_payable
+
+  # ---------------------------------------------------------------- L3 on time
+  - id: c_l3_df1_goods_to_invoice_days
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_time_goods_to_invoice}
+    plain_name: {en: "Invoice soon after the goods", de: "Rechnung bald nach der Ware"}
+    missed_label: {en: "invoice long after the goods", de: "Rechnung lange nach der Ware"}
+    expectation: In GR-based flows the invoice follows the receipt within the agreed days (10 days, tolerance to 30 in the paper's norm).
+    meaning_when_missed: The vendor invoiced late after delivering, or the invoice sat unposted; the item ages between receipt and invoice.
+    why_it_matters: Accruals for received-not-invoiced goods, late knowledge of the real cost, and vendors that later ask for quick payment.
+    how_detected: "A time rule from the first receipt to the first invoice evidence on GR-based items; scored between met at 10 days and fully missed at 30. In BPIC 2019 38.4 % of GR-based items with goods first exceed 10 days (median 5 days, p90 35)."
+    usual_reasons:
+      - text: "The vendor invoices at period end or in batches"
+        where: log
+        check: "receipt-to-invoice lag by vendor; day-of-month pattern of invoice dates"
+      - text: "Invoices wait in the mailroom or the scanning queue before posting"
+        where: log
+        check: "vendor invoice date against posting date on the same items"
+      - text: "Partial deliveries invoiced only after the last delivery"
+        where: log
+        check: "receipt count on the late items"
+      - text: "Invoicing terms in the contract allow late invoicing"
+        where: outside
+        check: "ask vendor management for the invoicing terms of the top late vendors"
+    usual_actions:
+      - text: "E-invoicing with the largest vendors"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: timeliness_ageing
+      - text: "Invoice capture service level from receipt of the document to posting"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Invoicing terms agreed per vendor"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Vendor invoice date against posting date (vendor late or we posted late)
+      - Vendor concentration and day-of-month pattern
+      - Receipt fragmentation on the late items
+    examples:
+      - kind: violating
+        text: "Goods received on the 2nd, invoice dated on the 29th and posted on the 35th day."
+      - kind: compliant
+        text: "Goods received on the 2nd, invoice posted on the 6th."
+    kpis: [p2p.kpi.gr_to_invoice_days]
+    owner_role: accounts_payable
+
+  - id: c_l3_invoice_to_clear_days
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_time_invoice_to_clear}
+    plain_name: {en: "Paid within terms", de: "Innerhalb der Zahlungsfrist bezahlt"}
+    missed_label: {en: "invoices cleared late", de: "Rechnungen spät ausgeglichen"}
+    expectation: Invoices are cleared within the agreed days after the invoice (30 days, tolerance to 90 in the paper's norm; the real payment terms of the vendor once they are a case attribute).
+    meaning_when_missed: The invoice waited longer than the target before payment, because of a block, a payment-run calendar, long terms or a dispute.
+    why_it_matters: Lost discounts, vendor escalations and delivery stops when paid late; working capital paid out early when the terms are longer than the target.
+    how_detected: "A time rule from the first invoice evidence to the clearing on invoice-bearing items, scored between met at 30 days and fully missed at 90. In BPIC 2019 the median is 63.6 days and 88.9 % of cleared items exceed 30 days, so without payment terms this rule is a lateness meter rather than a pass-fail rule; the baseline scores open invoices by their age."
+    usual_reasons:
+      - text: "Contractual terms of 60 or 90 days, so the item is on time by contract"
+        where: log
+        check: "median invoice-to-clearing days per vendor; vendors with medians near 60 or 90 days"
+      - text: "Payment block until a variance or missing receipt is resolved"
+        where: log
+        check: "block release on the same items and the lag from receipt to release"
+      - text: "The item was still open at the end of the data"
+        where: log
+        check: "censored share; score open invoices by age"
+      - text: "Payment runs on fixed dates and period-end holds"
+        where: outside
+        check: "ask accounts payable for the payment-run calendar"
+      - text: "Dispute with the vendor about price or quantity"
+        where: outside
+        check: "ask accounts payable for dispute cases on the top late vendors"
+    usual_actions:
+      - text: "Payment terms per vendor as a case attribute and days beyond terms as the scored quantity"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: timeliness_ageing
+      - text: "Blocked-invoice review cadence with owners per blocking reason"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Early-payment discounts where cash allows"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Payment terms of the vendors with the longest medians
+      - Share of blocked invoices among the late ones
+      - Censored share at the end of the data
+    examples:
+      - kind: violating
+        text: "Invoice posted in May, block released in August, cleared 106 days after the invoice, on 30-day terms."
+      - kind: compliant
+        text: "Invoice posted and cleared 28 days later on the payment run."
+    kpis: [p2p.kpi.invoice_to_clear_days]
+    owner_role: accounts_payable
+
+  - id: c_l3_df2_goods_to_rpb_days
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "Block released soon after the goods", de: "Sperre bald nach der Ware aufgehoben"}
+    missed_label: {en: "block released late after the goods", de: "Sperre lange nach der Ware aufgehoben"}
+    expectation: In invoice-first flows the payment block is released within days of the receipt (2 days, tolerance to 12 in the paper's norm).
+    meaning_when_missed: The goods arrived but the blocked invoice stayed blocked; the release run did not run, or the match failed on price or quantity.
+    why_it_matters: The invoice ages although the goods are there; the vendor is paid late for no reason.
+    how_detected: A time rule from the first receipt to the block release on invoice-first items.
+    usual_reasons:
+      - text: "Release run scheduled weekly or by hand"
+        where: log
+        check: "lag distribution from receipt to release; weekday pattern of releases"
+      - text: "Price or quantity variance keeps the block after the receipt"
+        where: log
+        check: "price and quantity changes on the same items around the release"
+      - text: "Partial receipt so the quantity block stays until the rest arrives"
+        where: log
+        check: "receipt count and quantities on the late items"
+      - text: "Blocking reason other than the receipt (manual, date)"
+        where: outside
+        check: "ask accounts payable for the blocking reasons of the late items"
+    usual_actions:
+      - text: "Daily release run with ownership per blocking reason"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Tolerance review for quantity and price blocks"
+        countermeasure: system_setting
+        owner_role: finance_controlling
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Weekday pattern of the releases
+      - Blocking reason from the source system
+      - Partial receipts on the late items
+    examples:
+      - kind: violating
+        text: "Goods received on the 1st, block released on the 18th after a price change."
+      - kind: compliant
+        text: "Goods received on the 1st, block released by the run on the 2nd."
+    kpis: [p2p.kpi.payment_block_rate]
+    owner_role: accounts_payable
+
+  - id: c_l3_df2_rpb_to_clear_days
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_time_release_to_clear}
+    plain_name: {en: "Paid soon after the release", de: "Bald nach der Freigabe bezahlt"}
+    missed_label: {en: "released but paid late", de: "freigegeben, aber spät bezahlt"}
+    expectation: Once the block is released, the invoice is cleared within days (5 days, tolerance to 25 in the paper's norm).
+    meaning_when_missed: The invoice was released for payment but waited for a payment run or a second hold.
+    why_it_matters: Late payment after the control has passed is pure waiting; it costs discounts and goodwill.
+    how_detected: A time rule from the block release to the clearing on invoice-first items; the baseline applies it to every item with a release and scores open ones by age.
+    usual_reasons:
+      - text: "Payment runs on fixed dates"
+        where: log
+        check: "lag distribution from release to clearing; weekday and day-of-month pattern"
+      - text: "The invoice was not yet due under the payment terms when released"
+        where: log
+        check: "release-to-clearing lag against the vendor's terms; early releases wait for the due date"
+      - text: "A second block or a cash hold after the release"
+        where: outside
+        check: "ask accounts payable for holds after release"
+    usual_actions:
+      - text: "Payment-run cadence reviewed against the terms of the largest vendors"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Score days beyond the due date rather than days after the release"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Day-of-month pattern of clearings
+      - Whether the release came long before the due date
+    examples:
+      - kind: violating
+        text: "Block released on the 3rd, invoice cleared on the 31st."
+      - kind: compliant
+        text: "Block released on the 3rd, cleared on the 5th."
+    kpis: [p2p.kpi.invoice_to_clear_days]
+    owner_role: accounts_payable
+
+  # ---------------------------------------------------------------- L4 doing it once
+  - id: c_l4_goods_fragmentation
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_rework_gr_fragmentation}
+    plain_name: {en: "Received in few deliveries", de: "In wenigen Lieferungen erhalten"}
+    missed_label: {en: "many receipt postings per item", de: "viele Wareneingangsbuchungen je Position"}
+    expectation: An item is received in at most two postings; more receipts mean the delivery was fragmented.
+    meaning_when_missed: The item was received in three or more postings, by partial shipments, call-offs, pallets or corrections.
+    why_it_matters: Every posting is handling and matching effort, partial invoices follow partial receipts, and the invoice cannot be matched until the last delivery.
+    how_detected: A count rule on receipt and service-entry events on three-way and consignment items (two tolerated, three saturate); 2.5 % of those items in BPIC 2019.
+    usual_reasons:
+      - text: "The vendor ships in several partial shipments"
+        where: log
+        check: "quantities per receipt against the order quantity, by vendor"
+      - text: "Blanket items with call-offs booked separately (legitimate)"
+        where: log
+        check: "document type and item type of the fragmented items"
+      - text: "Service entry sheets per period on one service item (legitimate)"
+        where: log
+        check: "service items among the fragmented ones"
+      - text: "Receipts posted per pallet or handling unit"
+        where: outside
+        check: "ask the warehouse how receipts are posted for the affected materials"
+    usual_actions:
+      - text: "Delivery lot sizes and under-delivery tolerance agreed with the vendor"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: rework_instability
+      - text: "Blanket and service items separated from one-off items in the rule's applicability"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Quantities per receipt against the order quantity
+      - Whether the item is a service or blanket item
+      - Vendor and material group
+    examples:
+      - kind: violating
+        text: "One order item received in five postings over three weeks, invoiced in three parts."
+      - kind: compliant
+        text: "One receipt for the full quantity."
+    kpis: []
+    owner_role: warehouse
+
+  - id: c_l4_change_approval_repeats
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_approval_change_repeats}
+    plain_name: {en: "Approved once", de: "Einmal genehmigt"}
+    missed_label: {en: "approval changed repeatedly", de: "Genehmigung mehrfach geändert"}
+    expectation: The approval of an order is not changed after release.
+    meaning_when_missed: The order was re-approved because something changed after the release.
+    why_it_matters: Approvers re-read the same order, deliveries wait during re-approval, and the release strategy loses its meaning.
+    how_detected: A count rule on approval changes (any counts, two saturate); 1.7 % of BPIC 2019 items carry one, 0.35 % two or more.
+    usual_reasons:
+      - text: "Price, quantity or delivery-date edits after release reset the approval"
+        where: log
+        check: "which change event precedes each approval change"
+      - text: "A header change is replicated onto every item of the order"
+        where: log
+        check: "replication diagnostics; identical timestamps across items of one order"
+      - text: "Release strategy triggers on fields that change routinely"
+        where: outside
+        check: "ask finance which fields reset the release"
+    usual_actions:
+      - text: "Commercially relevant fields locked after release or a reason required for changes"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Release strategy reviewed so that routine changes do not reset it"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: approval_discipline
+    what_to_check_first:
+      - Which change precedes each re-approval
+      - Header replication of approval changes
+    examples:
+      - kind: violating
+        text: "Every item of a framework order carries three approval changes after price edits."
+      - kind: compliant
+        text: "Released once, never re-approved."
+    kpis: [p2p.kpi.po_release_lead_time]
+    owner_role: approver
+
+  - id: c_l4_repeated_invoice_receipt
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_rework_repeated_ir}
+    plain_name: {en: "Invoiced once", de: "Einmal fakturiert"}
+    missed_label: {en: "several invoice postings per item", de: "mehrere Rechnungsbuchungen je Position"}
+    expectation: An item carries at most one invoice receipt; partial invoices and duplicates both count as repeats.
+    meaning_when_missed: Two or more invoice receipts were posted on the item.
+    why_it_matters: Duplicate payment risk, matching effort and a sign of fragmented deliveries or re-posted invoices.
+    how_detected: A count rule on invoice receipts on invoice-bearing items (one tolerated, two saturate); 4.1 % of BPIC 2019 invoice-bearing items.
+    usual_reasons:
+      - text: "Partial invoices per partial delivery (legitimate when receipts are fragmented)"
+        where: log
+        check: "receipt count against invoice count on the item"
+      - text: "The vendor sent the invoice twice (paper and electronic)"
+        where: log
+        check: "repeats with a cancellation on the same item; vendor concentration"
+      - text: "Invoice cancelled and re-posted after a correction"
+        where: log
+        check: "cancellation events between the repeats"
+      - text: "Freight or surcharges invoiced separately"
+        where: outside
+        check: "ask accounts payable whether the vendor invoices freight separately"
+    usual_actions:
+      - text: "Duplicate-invoice check on reference number, date and amount"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: rework_instability
+      - text: "One invoice channel per vendor"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: rework_instability
+      - text: "Consolidated invoicing agreed with fragmenting vendors"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: rework_instability
+    what_to_check_first:
+      - Whether a cancellation accompanies the repeat
+      - Receipt count against invoice count
+      - Sum of invoiced amounts against the order value
+    examples:
+      - kind: violating
+        text: "Two invoice receipts for the same amount three days apart, one of them cancelled a week later."
+      - kind: compliant
+        text: "One invoice receipt for the full order."
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    owner_role: accounts_payable
+
+  - id: c_l4_change_payment_terms_repeats
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_rework_payment_terms_changes}
+    plain_name: {en: "Payment terms stay as ordered", de: "Zahlungsbedingungen bleiben wie bestellt"}
+    missed_label: {en: "payment terms changed on the order", de: "Zahlungsbedingungen der Bestellung geändert"}
+    expectation: The payment terms of an order are not changed after ordering.
+    meaning_when_missed: The terms were edited on the order, usually at header level and replicated onto every item.
+    why_it_matters: Terms edited on orders bypass the vendor master and the contract; discounts and due dates become unpredictable.
+    how_detected: "A count rule on payment-term changes (any counts). The paper's norm names the activity 'Change Payment Terms', the BPIC 2019 CSV logs 'Change payment term' (7 events), so the paper's constraint never fires on the raw CSV; norm draft v1.1 uses the CSV spelling."
+    usual_reasons:
+      - text: "Vendor master terms changed after ordering and copied into open orders"
+        where: log
+        check: "whether the change hits every open item of the vendor at the same time"
+      - text: "Early-payment discount negotiated after the fact"
+        where: outside
+        check: "ask purchasing about term negotiations on the affected vendors"
+      - text: "Manual correction of wrong default terms"
+        where: outside
+        check: "ask master data whether the vendor's default terms were wrong"
+    usual_actions:
+      - text: "Terms maintained in the vendor master and contracts; manual term changes on orders above a value limit forbidden"
+        countermeasure: policy
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Whether the change is a header change replicated onto items
+      - Vendor concentration
+    examples:
+      - kind: violating
+        text: "Payment terms changed from 30 to 60 days on an open order, on every item at the same second."
+      - kind: compliant
+        text: "Terms unchanged from order to payment."
+    kpis: []
+    owner_role: purchasing
+
+  # ---------------------------------------------------------------- L5 exceptions stay rare
+  - id: c_l5_cancel_invoice_receipt
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_exc_cancel_ir}
+    plain_name: {en: "Invoice not cancelled", de: "Rechnung nicht storniert"}
+    missed_label: {en: "invoice cancelled", de: "Rechnung storniert"}
+    expectation: Posted invoice receipts are not cancelled.
+    meaning_when_missed: An invoice posting was reversed, because it was wrong, duplicated or disputed.
+    why_it_matters: Each cancellation is rework in accounts payable, delays the payment and may hide a duplicate or a dispute.
+    how_detected: A rule expecting no invoice cancellation on invoice-bearing items; 2.6 % of BPIC 2019 items carry one.
+    usual_reasons:
+      - text: "Invoice posted against the wrong item or with wrong amounts and re-posted"
+        where: log
+        check: "time between posting and cancellation; whether a re-posting follows"
+      - text: "Duplicate invoice detected after posting"
+        where: log
+        check: "repeated invoice receipts on the same item"
+      - text: "The vendor re-issued the invoice with corrected tax or currency data"
+        where: outside
+        check: "ask accounts payable for the top cancellation reasons per vendor"
+      - text: "Dispute settled by cancellation instead of a credit memo"
+        where: outside
+        check: "ask accounts payable how disputes are settled"
+    usual_actions:
+      - text: "Validation at capture (e-invoicing, checks on reference and amount)"
+        countermeasure: automation
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Credit memo procedure for disputes; vendor master quality on tax, bank and currency"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between posting and cancellation, and whether a re-posting follows
+      - Vendor and company code concentration
+      - Share on high-value items
+    examples:
+      - kind: violating
+        text: "Invoice posted on Monday, cancelled on Tuesday, re-posted on Wednesday with a different amount."
+      - kind: compliant
+        text: "One invoice posting, never cancelled."
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    owner_role: accounts_payable
+
+  - id: c_l5_cancel_goods_receipt
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_exc_cancel_gr}
+    plain_name: {en: "Receipt not cancelled", de: "Wareneingang nicht storniert"}
+    missed_label: {en: "goods receipt cancelled", de: "Wareneingang storniert"}
+    expectation: Posted goods receipts are not cancelled.
+    meaning_when_missed: A receipt was reversed at the dock or by the buyer.
+    why_it_matters: Stock and cost swing back and forth, the invoice match is delayed, and the reason (wrong posting, quality rejection) stays undocumented.
+    how_detected: A rule expecting no receipt cancellation on three-way and consignment items; 1.0 % of BPIC 2019 items carry one.
+    usual_reasons:
+      - text: "Wrong quantity, material or storage location posted at the dock"
+        where: log
+        check: "time between receipt and cancellation; corrected receipt afterwards"
+      - text: "Posted against the wrong item when several open items exist for the material"
+        where: log
+        check: "sibling items of the same material on the order"
+      - text: "Quality rejection handled as reversal instead of a return delivery"
+        where: outside
+        check: "ask the warehouse how rejected goods are posted"
+      - text: "One delivery note posted twice"
+        where: log
+        check: "two receipts within minutes followed by a cancellation"
+    usual_actions:
+      - text: "Scan-based receipt with a delivery-note reference"
+        countermeasure: automation
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+      - text: "Quality rejections posted as return deliveries with their own movement type"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+      - text: "Training on posting against the right item; open items per material consolidated"
+        countermeasure: training
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between receipt and cancellation and whether a corrected receipt follows
+      - Plant and storage location concentration
+      - Receipt fragmentation on the same items
+    examples:
+      - kind: violating
+        text: "Receipt posted at 09:12, cancelled at 09:40, re-posted at 09:45 on the sibling item."
+      - kind: compliant
+        text: "One receipt, never reversed."
+    kpis: [p2p.kpi.gr_cancellation_rate]
+    owner_role: warehouse
+
+  - id: c_l5_delete_item
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_exc_delete_item}
+    plain_name: {en: "Item not deleted", de: "Position nicht gelöscht"}
+    missed_label: {en: "order item deleted", de: "Bestellposition gelöscht"}
+    expectation: Order items are not deleted once execution is under way.
+    meaning_when_missed: The item was deleted, before or after receipts and invoices.
+    why_it_matters: Deleted items hide withdrawn demand and vendor failures, break the history of changed items, and make open-item cleanup invisible.
+    how_detected: A rule expecting no deletion on any flow type; 3.5 % of BPIC 2019 items end deleted (deletion adds about 72 days on average according to the challenge reports).
+    usual_reasons:
+      - text: "Duplicate orders or demand withdrawn after ordering"
+        where: log
+        check: "deletion before any receipt; requester and spend area"
+      - text: "The vendor could not deliver and the item was re-ordered elsewhere"
+        where: log
+        check: "a replacement item on the same order shortly after"
+      - text: "Delete-and-recreate used instead of a change"
+        where: log
+        check: "new item numbers created right after the deletion"
+      - text: "Period-end cleanup of old open items"
+        where: outside
+        check: "ask purchasing whether bulk deletions run at period end"
+    usual_actions:
+      - text: "Change the item instead of deleting and recreating it"
+        countermeasure: training
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+      - text: "Vendor availability check before ordering"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+      - text: "Open-item review with owners instead of bulk deletions"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Deletion timing (before any receipt or after receipt and invoice)
+      - Whether a replacement item appears on the same order
+      - Document type, vendor and purchasing organisation concentration
+    examples:
+      - kind: violating
+        text: "An item deleted six weeks after creation with no receipt, a new item for the same material created the same day."
+      - kind: compliant
+        text: "Item executed to payment, never deleted."
+    kpis: [p2p.kpi.item_deletion_rate]
+    owner_role: purchasing
+
+  - id: c_l5_debit_memo
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_exc_debit_credit_memo}
+    plain_name: {en: "No vendor debit memo", de: "Keine Lastschrift des Lieferanten"}
+    missed_label: {en: "vendor debit memo", de: "Lastschrift des Lieferanten"}
+    expectation: The vendor does not claim additional money on the item after the invoice.
+    meaning_when_missed: A debit memo from the vendor is on the item; the vendor claims a price difference, surcharge or quantity.
+    why_it_matters: Money paid on top of the invoice, a dispute with the vendor, and a sign that the order price or the invoice was wrong.
+    how_detected: A rule expecting no vendor debit memo on any flow type; 2.4 % of BPIC 2019 items carry one. In the baseline debit and credit memos are one rule.
+    usual_reasons:
+      - text: "Price difference claimed after a lower invoice was accepted"
+        where: log
+        check: "price change or invoice cancellation preceding the memo"
+      - text: "Freight, surcharges or currency differences invoiced separately"
+        where: outside
+        check: "ask accounts payable whether the vendor bills surcharges separately"
+      - text: "Quantity disputes after partial deliveries"
+        where: log
+        check: "receipt fragmentation on the memo items"
+    usual_actions:
+      - text: "Surcharge handling agreed in contracts"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+      - text: "Differences settled through dispute before payment, not by memo afterwards"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Vendor review for memo-heavy relationships"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Memo amount against the item's exposure
+      - Whether a price change or cancellation precedes the memo
+      - Vendor and spend area concentration
+    examples:
+      - kind: violating
+        text: "Invoice cleared, then a debit memo for freight a month later."
+      - kind: compliant
+        text: "Invoice equals the order; no memo."
+    kpis: []
+    owner_role: accounts_payable
+
+  - id: c_l5_credit_memo
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "No vendor credit memo", de: "Keine Gutschrift des Lieferanten"}
+    missed_label: {en: "vendor credit memo", de: "Gutschrift des Lieferanten"}
+    expectation: The vendor does not have to credit money back on the item.
+    meaning_when_missed: A credit memo from the vendor is on the item; goods were returned, prices were corrected in our favour or a rebate was settled per item.
+    why_it_matters: A credit means the invoice was too high or goods went back; both are corrections that cost effort on both sides.
+    how_detected: "A rule expecting no vendor credit memo. The label 'Vendor creates credit memo' does not occur in the BPIC 2019 CSV, so the rule never fires there; the norm check reports it."
+    usual_reasons:
+      - text: "Returns or quality claims settled by credit"
+        where: log
+        check: "receipt cancellation or return delivery before the memo"
+      - text: "Price corrections in the vendor's favour reversed"
+        where: log
+        check: "price change preceding the memo"
+      - text: "Volume rebates settled per item"
+        where: outside
+        check: "ask purchasing whether rebates are settled on items"
+    usual_actions:
+      - text: "Credit memos linked to return deliveries and claims; rebates settled at header level"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Whether the memo follows a receipt cancellation or a return
+      - Whether the activity is logged at all in this log
+    examples:
+      - kind: violating
+        text: "Goods returned to the vendor, credit memo two weeks later."
+      - kind: compliant
+        text: "No credit memo on the item."
+    kpis: []
+    owner_role: accounts_payable
+
+  # ---------------------------------------------------------------- L6 paying what was agreed
+  - id: c_l6_change_price
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_value_price_change_after_po}
+    plain_name: {en: "Price unchanged after ordering", de: "Preis nach Bestellung unverändert"}
+    missed_label: {en: "price changed after ordering", de: "Preis nach Bestellung geändert"}
+    expectation: The price on the order is not changed after the item is created.
+    meaning_when_missed: The price was edited after ordering; what will be paid is not what was ordered.
+    why_it_matters: Money paid above the agreed price, no audit trail of the negotiation, and invoice verification that passes because the order was adjusted to the invoice.
+    how_detected: A count rule on price changes (any counts, two saturate); 4.5 % of BPIC 2019 items carry one, 99.6 % of those after item creation and 29.6 % after the first receipt. The baseline counts only changes after item creation.
+    usual_reasons:
+      - text: "Quotation or info record expired before ordering; price settled afterwards"
+        where: log
+        check: "changes shortly after item creation, by vendor and spend area"
+      - text: "Order placed before the negotiation ended"
+        where: outside
+        check: "ask purchasing about order-first-agree-later practice in the spend area"
+      - text: "Vendor confirmation carries a different price and the order is aligned to it"
+        where: log
+        check: "confirmation events preceding the change"
+      - text: "Invoice price variance resolved by editing the order (changes after receipt or invoice)"
+        where: log
+        check: "price changes after the first receipt or invoice"
+      - text: "Condition or currency maintenance in the purchasing master data"
+        where: outside
+        check: "ask master data about condition changes in the period"
+    usual_actions:
+      - text: "Contract and info-record prices maintained before ordering; release blocked until the price is confirmed"
+        countermeasure: master_data
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Invoice price variances routed through tolerance keys and dispute, not through order edits"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: value_commercial
+      - text: "Vendor scorecard on confirmation price deviations"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: value_commercial
+    what_to_check_first:
+      - Timing of the price change relative to receipt and invoice
+      - Vendor and spend-area concentration; exposure of the affected items
+      - Whether a header condition change lands on every item of the order
+    examples:
+      - kind: violating
+        text: "Price changed twice, once after the confirmation and once after the invoice arrived."
+      - kind: compliant
+        text: "Price unchanged from order to payment."
+    kpis: [p2p.kpi.price_change_rate]
+    owner_role: purchasing
+
+  - id: c_l6_change_quantity
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_value_quantity_change_after_gr}
+    plain_name: {en: "Quantity unchanged after ordering", de: "Menge nach Bestellung unverändert"}
+    missed_label: {en: "quantity changed after ordering", de: "Menge nach Bestellung geändert"}
+    expectation: The quantity on the order is not changed after the item is created (the baseline counts changes after the first receipt).
+    meaning_when_missed: The quantity was edited after ordering, to match a confirmation, a changed demand or a short delivery.
+    why_it_matters: Quantity edits change the value at stake, hide short deliveries and vendor failures, and are often used to close items instead of the delivery-completed indicator.
+    how_detected: A count rule on quantity changes (any counts, two saturate); 7.0 % of BPIC 2019 items carry one, 10.9 % of those after the first receipt.
+    usual_reasons:
+      - text: "The vendor confirms a smaller quantity and the order is aligned"
+        where: log
+        check: "confirmation events preceding the change; direction of the change where logged"
+      - text: "Demand changed on the requester side after ordering"
+        where: outside
+        check: "ask the requesters of the affected spend areas"
+      - text: "The item was closed by reducing the quantity to the delivered amount"
+        where: log
+        check: "quantity changes after the last receipt; delivery-completed indicator usage"
+      - text: "Packaging units and minimum quantities missing in the master data"
+        where: outside
+        check: "ask master data about rounding profiles for the affected materials"
+    usual_actions:
+      - text: "Delivery-completed indicator used to close short deliveries"
+        countermeasure: training
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Rounding profiles and minimum quantities maintained in the info record"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: value_commercial
+      - text: "Confirmation control so that vendor confirmations are recorded, not copied into the order"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Direction of the change (decrease or increase) and its timing relative to the receipt
+      - Whether a confirmation precedes the change
+      - Delivery-completed indicator usage on the same items
+    examples:
+      - kind: violating
+        text: "Quantity reduced from 100 to 80 after the vendor delivered 80 and invoiced 80."
+      - kind: compliant
+        text: "Ordered 100, received 100, invoiced 100."
+    kpis: [p2p.kpi.quantity_change_rate]
+    owner_role: purchasing
+
+  - id: c_l6_high_exposure_memo
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "No memos on high-value items", de: "Keine Korrekturbelege auf hochwertigen Positionen"}
+    missed_label: {en: "memo on a high-value item", de: "Korrekturbeleg auf hochwertiger Position"}
+    expectation: Correction documents (vendor debit or credit memos) do not occur on items with high value at stake.
+    meaning_when_missed: A memo landed on a high-value item; the same event that would be minor on a small item is financially material here.
+    why_it_matters: Memos on the largest items carry most of the money in disputes and corrections; value weighting puts them first.
+    how_detected: A threshold rule on a derived value that is the memo indicator times the item's exposure scaled to the 95th percentile; any positive value counts, full exposure saturates.
+    usual_reasons:
+      - text: "Price differences or surcharges claimed on large invoices"
+        where: log
+        check: "price changes or invoice cancellations preceding the memo on high-exposure items"
+      - text: "Volume-based rebates or credits settled on the largest items"
+        where: outside
+        check: "ask purchasing about rebate agreements with the affected vendors"
+    usual_actions:
+      - text: "Contract review for the vendors with memos on high-value items"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: value_commercial
+      - text: "Disputes on large invoices settled before payment"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: value_commercial
+    what_to_check_first:
+      - Memo amount against the item's exposure
+      - Vendor concentration among high-exposure memos
+    examples:
+      - kind: violating
+        text: "A debit memo on an item worth more than the 95th percentile of all items."
+      - kind: compliant
+        text: "A high-value item invoiced and paid without any memo."
+    kpis: []
+    owner_role: finance_controlling
+
+  - id: c_l6_high_exposure_price_change
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "No price changes on high-value items", de: "Keine Preisänderungen auf hochwertigen Positionen"}
+    missed_label: {en: "price changed on a high-value item", de: "Preis auf hochwertiger Position geändert"}
+    expectation: Prices are not changed after ordering on items with high value at stake.
+    meaning_when_missed: A price change on a high-value item; the money moved by the edit is material.
+    why_it_matters: The commercial risk of price edits scales with the value; the largest items deserve the first look.
+    how_detected: A threshold rule on the price-change indicator times the item's exposure scaled to the 95th percentile.
+    usual_reasons:
+      - text: "Large orders placed before the price negotiation ended"
+        where: log
+        check: "price changes shortly after creation on high-exposure items"
+      - text: "Invoice variances on large invoices resolved by editing the order"
+        where: log
+        check: "price changes after invoice on high-exposure items"
+      - text: "Contract prices not loaded for the largest materials"
+        where: outside
+        check: "ask category management about price conditions for the top materials"
+    usual_actions:
+      - text: "Price confirmed before release for orders above a value limit"
+        countermeasure: policy
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Contract prices loaded for the top materials"
+        countermeasure: master_data
+        owner_role: purchasing
+        effect_area: value_commercial
+    what_to_check_first:
+      - Exposure and vendor of the affected items
+      - Timing of the change relative to the invoice
+    examples:
+      - kind: violating
+        text: "A price change on one of the largest items of the year, after the invoice."
+      - kind: compliant
+        text: "A large item ordered at the contract price and paid at it."
+    kpis: [p2p.kpi.price_change_rate]
+    owner_role: finance_controlling
+
+  - id: c_l6_networth_volatility
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "Stable value across postings", de: "Stabiler Wert über die Buchungen"}
+    missed_label: {en: "value swings across postings", de: "Wert schwankt über die Buchungen"}
+    expectation: The cumulative net worth of the item stays stable across its postings.
+    meaning_when_missed: The value moved up and down over the item's events; changes, partial postings or memos altered it repeatedly.
+    why_it_matters: A volatile value means the item's cost was uncertain until the end; it is a commercial-risk signal, not a target in itself.
+    how_detected: A threshold rule on the coefficient of variation of the cumulative net worth across the item's events (above 0.5 counts, 1.5 saturates), on invoice-bearing items.
+    usual_reasons:
+      - text: "Price and quantity changes after ordering"
+        where: log
+        check: "change events on the volatile items"
+      - text: "Partial invoices and memos moving the value"
+        where: log
+        check: "repeated invoice receipts and memos on the same items"
+      - text: "Currency changes"
+        where: log
+        check: "currency change events"
+    usual_actions:
+      - text: "Address the underlying changes (price, quantity) and memo handling rather than the indicator"
+        countermeasure: review
+        owner_role: finance_controlling
+        effect_area: value_commercial
+    what_to_check_first:
+      - Which events move the value on the affected items
+    examples:
+      - kind: violating
+        text: "The item's value goes from 10,000 to 4,000 and back to 9,500 across a partial invoice, a memo and a price change."
+      - kind: compliant
+        text: "The value is the same on every posting."
+    kpis: []
+    owner_role: finance_controlling
+
+  # ---------------------------------------------------------------- L7 touchless where possible
+  - id: c_l7_manual_touches
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_effort_manual_touches}
+    plain_name: {en: "Few manual touches", de: "Wenige manuelle Eingriffe"}
+    missed_label: {en: "many manual touches", de: "viele manuelle Eingriffe"}
+    expectation: An item needs at most a handful of manual touches by named users (more than 4 count, 10 saturate).
+    meaning_when_missed: People intervened on the item many times; it did not pass through by itself.
+    why_it_matters: Manual touches are effort, waiting time and error risk; they are the direct measure of the automation gap.
+    how_detected: A threshold rule on the count of events posted by named (non-batch) users, derived from the resource column.
+    usual_reasons:
+      - text: "Exceptions (changes, blocks, cancellations) each add a manual step"
+        where: log
+        check: "which activities carry the manual events on the affected items"
+      - text: "Header events replicated onto every item inflate the count"
+        where: log
+        check: "replication diagnostics; retype header events and compare"
+      - text: "Confirmations and invoices keyed in by hand for vendors without electronic integration"
+        where: outside
+        check: "ask purchasing which vendors are on EDI"
+      - text: "Batch or system users counted as manual"
+        where: log
+        check: "user names of the most frequent touches"
+    usual_actions:
+      - text: "EDI and e-invoicing with the largest vendors"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: effort_automation
+      - text: "Exception reduction upstream"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Batch users listed and excluded from the count"
+        countermeasure: measurement
+        owner_role: it_process_owner
+        effect_area: effort_automation
+    what_to_check_first:
+      - Replication diagnostics and the batch-user list
+      - Which activities carry the touches
+    examples:
+      - kind: violating
+        text: "Seven manual edits by three users before the item cleared."
+      - kind: compliant
+        text: "Two touches: the buyer created the item, the clerk posted the invoice; the rest ran by batch."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+  - id: c_l7_distinct_human_resources
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "Few hands on the item", de: "Wenige Beteiligte je Position"}
+    missed_label: {en: "many people touched the item", de: "viele Personen an der Position beteiligt"}
+    expectation: At most two named users work on an item (more than 2 count, 6 saturate).
+    meaning_when_missed: Several people handled the item; each hand-off is a wait and a chance for misunderstanding.
+    why_it_matters: Hand-offs are coordination cost; they show where responsibilities are split.
+    how_detected: A threshold rule on the number of distinct named users in the item's events.
+    usual_reasons:
+      - text: "Exceptions escalate the item to other people (approvers, accounts payable, warehouse)"
+        where: log
+        check: "which activities the additional users post"
+      - text: "Shared mailboxes and rotating shifts in the warehouse or accounts payable"
+        where: outside
+        check: "ask the team leads how work is distributed"
+      - text: "Header events by other users replicated onto the item"
+        where: log
+        check: "replication diagnostics"
+    usual_actions:
+      - text: "End-to-end ownership per vendor or spend area in accounts payable"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: effort_automation
+      - text: "Exception reduction upstream"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: value_commercial
+    what_to_check_first:
+      - Replication diagnostics
+      - Which activities the additional users post
+    examples:
+      - kind: violating
+        text: "Five different users on one item: buyer, two approvers, a warehouse clerk and two accounts payable clerks."
+      - kind: compliant
+        text: "Buyer and one accounts payable clerk."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+  - id: c_l7_total_events
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    aliases: {p2p_baseline: b_effort_total_events}
+    plain_name: {en: "Short event chain", de: "Kurze Ereigniskette"}
+    missed_label: {en: "long chain of events", de: "lange Ereigniskette"}
+    expectation: An item collects at most about ten events from order to payment (more than 10 count, 25 saturate).
+    meaning_when_missed: The item collected many events; changes, repeats and corrections made its history long.
+    why_it_matters: Long chains mean friction; they collect the other layers' problems in one number.
+    how_detected: A threshold rule on the total number of events per item.
+    usual_reasons:
+      - text: "Repeated receipts, invoices and changes"
+        where: log
+        check: "event counts by activity on the affected items"
+      - text: "Header events replicated onto every item"
+        where: log
+        check: "replication diagnostics"
+      - text: "Legitimate call-off or service items with many postings"
+        where: outside
+        check: "ask purchasing which document types are blanket items"
+    usual_actions:
+      - text: "Address the repeats and changes that make the chain long"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Blanket and service items separated in the rule's applicability"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: effort_automation
+    what_to_check_first:
+      - Which activities make the chain long
+      - Replication diagnostics
+    examples:
+      - kind: violating
+        text: "An item with 23 events, twelve of them receipts and invoice receipts."
+      - kind: compliant
+        text: "Five events from order to payment."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+  - id: c_l7_manual_share
+    templates: [p2p_bpic19, p2p_bpic19_v1_1]
+    plain_name: {en: "Mostly automatic", de: "Überwiegend automatisch"}
+    missed_label: {en: "mostly manual", de: "überwiegend manuell"}
+    expectation: Less than half of an item's events are manual (above 0.5 counts, 1.0 saturates).
+    meaning_when_missed: Most of the item's history was posted by hand.
+    why_it_matters: The manual share shows the straight-through rate per item independent of the chain length.
+    how_detected: A threshold rule on manual touches divided by total events.
+    usual_reasons:
+      - text: "Vendors without electronic integration"
+        where: outside
+        check: "ask purchasing which vendors are on EDI and e-invoicing"
+      - text: "Exceptions handled by hand"
+        where: log
+        check: "manual activities on the affected items"
+      - text: "Batch users counted as manual"
+        where: log
+        check: "user names of the manual events"
+    usual_actions:
+      - text: "EDI and e-invoicing with the largest vendors"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: effort_automation
+      - text: "Batch users excluded from the count"
+        countermeasure: measurement
+        owner_role: it_process_owner
+        effect_area: effort_automation
+    what_to_check_first:
+      - Batch-user list
+      - Which activities are manual on the affected items
+    examples:
+      - kind: violating
+        text: "Six of eight events posted by named users."
+      - kind: compliant
+        text: "One manual event in six."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+  # ---------------------------------------------------------------- baseline-only expectations
+  - id: b_approval_requisition_present
+    templates: [p2p_baseline]
+    plain_name: {en: "Requested before ordered", de: "Angefordert vor der Bestellung"}
+    missed_label: {en: "order without requisition", de: "Bestellung ohne Bestellanforderung"}
+    expectation: Where the document type requires it, an order item is preceded by a requisition or a shopping cart.
+    meaning_when_missed: The order was placed without the request that the policy requires; or the rule was applied to a document type that needs none.
+    why_it_matters: Spending outside the budget owner's sight; but on document types that never need a requisition the rule measures logging, not behaviour (80.9 % of BPIC 2019 items have no requisition evidence, mostly contract and planning orders).
+    how_detected: A presence rule on requisition and shopping-cart evidence; restrict its applicability to document types that require a requisition before reading it.
+    usual_reasons:
+      - text: "Direct orders from contracts, planning runs or scheduling agreements (legitimate)"
+        where: log
+        check: "document type and source of the affected orders"
+      - text: "Requests made by e-mail or phone and orders entered afterwards"
+        where: outside
+        check: "ask the buyers how requests reach them in the affected spend areas"
+      - text: "After-the-fact orders to pay an invoice already received"
+        where: log
+        check: "order item created after the vendor's invoice date"
+    usual_actions:
+      - text: "Apply the rule only to document types that require a requisition"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: approval_discipline
+      - text: "No-purchase-order-no-pay policy for the affected spend areas with catalogue buying"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Document type and source of the orders without requisition
+      - Invoice-before-order share on the same groups
+    examples:
+      - kind: violating
+        text: "A standard order for office equipment created without a requisition, invoice dated before the order."
+      - kind: compliant
+        text: "Requisition released, order item created from it."
+    kpis: [p2p.kpi.spend_under_requisition]
+    owner_role: purchasing
+
+  - id: b_approval_pr_release_days
+    templates: [p2p_baseline]
+    plain_name: {en: "Requisition released promptly", de: "Bestellanforderung zügig freigegeben"}
+    missed_label: {en: "requisition waited for release", de: "Bestellanforderung wartete auf Freigabe"}
+    expectation: A requisition is released within the agreed days (2 days, tolerance to 7 as an uncalibrated placeholder).
+    meaning_when_missed: The request waited in the release queue.
+    why_it_matters: Every day in the queue delays the order and the delivery; requesters go around the process when it is slow.
+    how_detected: A time rule from requisition creation to its release; not applicable when either is missing.
+    usual_reasons:
+      - text: "Approver absent without substitute"
+        where: log
+        check: "release lag by approver and weekday"
+      - text: "Multi-level release strategies for routine values"
+        where: outside
+        check: "ask finance for the release strategy thresholds"
+      - text: "Incomplete requisitions sent back to the requester"
+        where: log
+        check: "shopping carts held or incomplete before the release"
+    usual_actions:
+      - text: "Substitute rules and escalation after a fixed number of days"
+        countermeasure: system_setting
+        owner_role: approver
+        effect_area: approval_discipline
+      - text: "Release thresholds reviewed with finance"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: approval_discipline
+    what_to_check_first:
+      - Release lag by approver and value band
+      - Whether release events are logged at all
+    examples:
+      - kind: violating
+        text: "A requisition released nine days after creation, the approver was on leave."
+      - kind: compliant
+        text: "Released the same day."
+    kpis: [p2p.kpi.po_cycle_time]
+    owner_role: approver
+
+  - id: b_approval_po_release_days
+    templates: [p2p_baseline]
+    plain_name: {en: "Order released promptly", de: "Bestellung zügig freigegeben"}
+    missed_label: {en: "order waited for release", de: "Bestellung wartete auf Freigabe"}
+    expectation: An order is released within the agreed days after creation (2 days, tolerance to 7 as an uncalibrated placeholder).
+    meaning_when_missed: The order waited for its release before it could go to the vendor.
+    why_it_matters: Delivery dates slip while the order waits; in BPIC 2019 14.2 % of items with a logged release waited more than 5 days (median 4.7 days).
+    how_detected: A time rule from order creation to its release; not applicable when the release is not logged (0.4 % of BPIC 2019 items carry one).
+    usual_reasons:
+      - text: "Approver absent or overloaded"
+        where: log
+        check: "release lag by approver and weekday"
+      - text: "Release reset by changes after creation"
+        where: log
+        check: "change events between creation and release"
+      - text: "Release strategy thresholds set too low for routine orders"
+        where: outside
+        check: "ask finance for the thresholds"
+    usual_actions:
+      - text: "Substitute rules and escalation"
+        countermeasure: system_setting
+        owner_role: approver
+        effect_area: approval_discipline
+      - text: "Batch approvals for catalogue items"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: approval_discipline
+    what_to_check_first:
+      - Whether release events are logged for the purchasing organisation
+      - Release lag by purchasing group and value band
+    examples:
+      - kind: violating
+        text: "Order created on Monday, released the following Wednesday after a price edit."
+      - kind: compliant
+        text: "Created and released within the hour."
+    kpis: [p2p.kpi.po_release_lead_time]
+    owner_role: approver
+
+  - id: b_time_po_to_gr
+    templates: [p2p_baseline]
+    plain_name: {en: "Delivered within the lead time", de: "Innerhalb der Lieferzeit geliefert"}
+    missed_label: {en: "goods late after ordering", de: "Ware spät nach Bestellung"}
+    expectation: Goods or services arrive within the planned lead time after ordering (30 days, tolerance to 90 as an uncalibrated placeholder; days beyond the scheduled date once that date is a case attribute).
+    meaning_when_missed: The receipt came late, or the item is still waiting for it.
+    why_it_matters: Late deliveries stop production and projects; the hackathon purchase extract shows 38.5 % of received items after the scheduled date.
+    how_detected: A time rule from order creation to the first receipt; open items are scored by their age.
+    usual_reasons:
+      - text: "Vendor lead time longer than the planned lead time in the material master"
+        where: log
+        check: "order-to-receipt lag by vendor against the planned lead time"
+      - text: "Confirmed date moved by the vendor without rescheduling on our side"
+        where: log
+        check: "confirmation date changes on the late items"
+      - text: "Transport and customs delays for distant vendor countries"
+        where: log
+        check: "lag by vendor country and incoterms"
+      - text: "Receipt posted late although the goods arrived on time"
+        where: outside
+        check: "ask the warehouse about posting delays at the dock"
+    usual_actions:
+      - text: "Planned lead times aligned with confirmed lead times per vendor and country"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: timeliness_ageing
+      - text: "Confirmation control with date tolerance and expediting of overdue items"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: timeliness_ageing
+      - text: "Receipt posted on the day of arrival"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Confirmed date against scheduled date against receipt date
+      - Vendor country and incoterms
+      - Censoring at the end of the data
+    examples:
+      - kind: violating
+        text: "Ordered in January with a 30-day lead time, received in April after two confirmed-date changes."
+      - kind: compliant
+        text: "Received on the confirmed date within the lead time."
+    kpis: [p2p.kpi.order_to_receipt_days, p2p.kpi.on_time_receipt_rate]
+    owner_role: vendor_management
+
+  - id: b_rework_confirmation_churn
+    templates: [p2p_baseline]
+    plain_name: {en: "Confirmed once or twice", de: "Ein- oder zweimal bestätigt"}
+    missed_label: {en: "repeated vendor confirmations", de: "wiederholte Lieferantenbestätigungen"}
+    expectation: An item receives at most two vendor confirmations (uncalibrated placeholder; three saturate).
+    meaning_when_missed: The vendor confirmed the item again and again, splitting or moving the commitment.
+    why_it_matters: Unstable commitments make planning impossible; in the hackathon purchase extract 42.9 % of items carry more than one confirmation, 27.6 % more than three.
+    how_detected: A count rule on confirmation and confirmation-update events.
+    usual_reasons:
+      - text: "The vendor splits the delivery into several confirmed schedule lines (legitimate for large quantities)"
+        where: log
+        check: "whether repeats carry different quantities"
+      - text: "Vendor capacity or upstream supply moves the confirmed date repeatedly"
+        where: log
+        check: "repeats with the same quantity and different dates"
+      - text: "Every EDI update posted as a new confirmation"
+        where: outside
+        check: "ask the interface owner how confirmations are posted"
+    usual_actions:
+      - text: "Confirmation control with date tolerance and an alert on the third confirmation"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Vendor performance review on confirmation stability"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: rework_instability
+    what_to_check_first:
+      - Splits (different quantities) against date moves (same quantity)
+      - Vendor country and planned lead time
+    examples:
+      - kind: violating
+        text: "Five confirmations for the same quantity, each with a later date."
+      - kind: compliant
+        text: "One confirmation, delivered on its date."
+    kpis: [p2p.kpi.confirmation_churn]
+    owner_role: vendor_management
+
+  - id: b_rework_confirmation_date_changes
+    templates: [p2p_baseline]
+    plain_name: {en: "Delivery date holds", de: "Liefertermin hält"}
+    missed_label: {en: "delivery date changed after ordering", de: "Liefertermin nach Bestellung geändert"}
+    expectation: The confirmed or scheduled delivery date is not changed after ordering.
+    meaning_when_missed: The date moved, on the vendor's side or ours.
+    why_it_matters: Every date move ripples into production and customer promises; 7.7 % of hackathon purchase items carry a changed confirmed date.
+    how_detected: A count rule on confirmed-date and schedule-line date changes (any counts).
+    usual_reasons:
+      - text: "The vendor moves the confirmed date"
+        where: log
+        check: "confirmation date changes by vendor"
+      - text: "Our planning reschedules the requested date after material planning changes"
+        where: log
+        check: "schedule-line date changes by purchasing group"
+      - text: "Freeze windows not agreed"
+        where: outside
+        check: "ask purchasing whether requested dates are frozen close to delivery"
+    usual_actions:
+      - text: "Freeze windows for requested-date changes close to delivery"
+        countermeasure: policy
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Lead times agreed per vendor country"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: rework_instability
+    what_to_check_first:
+      - Who moved the date (vendor confirmation or schedule line)
+      - Relation to late receipts on the same items
+    examples:
+      - kind: violating
+        text: "Confirmed date moved three times, final delivery six weeks late."
+      - kind: compliant
+        text: "Date confirmed once and kept."
+    kpis: [p2p.kpi.confirmation_churn]
+    owner_role: vendor_management
+
+  - id: b_exc_item_block
+    templates: [p2p_baseline]
+    plain_name: {en: "Item not blocked", de: "Position nicht gesperrt"}
+    missed_label: {en: "order item blocked", de: "Bestellposition gesperrt"}
+    expectation: Order items are not blocked once execution is under way.
+    meaning_when_missed: The item was blocked, for a quality issue, a dispute or a pending change.
+    why_it_matters: Blocked items stop receipts and payments without a documented reason; 0.2 % of BPIC 2019 items carry a block.
+    how_detected: A rule expecting no item block.
+    usual_reasons:
+      - text: "Quality or vendor issue while the item stays open"
+        where: outside
+        check: "ask the buyer for the blocking reason"
+      - text: "Budget hold or dispute on the order"
+        where: outside
+        check: "ask the approver about holds on the affected orders"
+      - text: "Temporary stop pending a change or re-approval"
+        where: log
+        check: "change or approval events between block and reactivation"
+    usual_actions:
+      - text: "Blocking reason recorded and blocks time-boxed with an owner review"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between block and reactivation
+      - Receipts or invoices attempted in between
+    examples:
+      - kind: violating
+        text: "Item blocked for three months, then reactivated and received."
+      - kind: compliant
+        text: "Never blocked."
+    kpis: []
+    owner_role: purchasing
+
+  - id: b_exc_payment_block
+    templates: [p2p_baseline]
+    plain_name: {en: "No manual payment block", de: "Keine manuelle Zahlsperre"}
+    missed_label: {en: "manual payment block set", de: "manuelle Zahlsperre gesetzt"}
+    expectation: Outside invoice-first flows, invoices are not blocked for payment by hand.
+    meaning_when_missed: Someone set a payment block on the invoice; a variance, a dispute or a missing approval.
+    why_it_matters: Manual blocks delay payment and need a manual release; only manual blocks are logged as events, automatic blocks show up as a release only.
+    how_detected: A rule expecting no set-payment-block event on GR-based, two-way and service items.
+    usual_reasons:
+      - text: "Price or quantity variance above the tolerance"
+        where: log
+        check: "price and quantity changes around the block"
+      - text: "Dispute or missing approval"
+        where: outside
+        check: "ask accounts payable for the blocking reasons"
+      - text: "Receipt missing at invoice posting"
+        where: log
+        check: "receipt status at the time of the block"
+    usual_actions:
+      - text: "Ownership and release cadence per blocking reason"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Tolerance keys reviewed with finance"
+        countermeasure: system_setting
+        owner_role: finance_controlling
+        effect_area: value_commercial
+    what_to_check_first:
+      - Blocking reason from the source system
+      - Receipt-to-release lag
+    examples:
+      - kind: violating
+        text: "A GR-based invoice blocked by hand for a price variance and released three weeks later."
+      - kind: compliant
+        text: "Invoice matched and paid without a block."
+    kpis: [p2p.kpi.payment_block_rate]
+    owner_role: accounts_payable
+
+  - id: b_exc_transfer_failed
+    templates: [p2p_baseline]
+    plain_name: {en: "Cart transferred cleanly", de: "Einkaufswagen sauber übertragen"}
+    missed_label: {en: "interface transfer failed", de: "Schnittstellenübertragung fehlgeschlagen"}
+    expectation: The transfer of a shopping cart to the execution system does not fail.
+    meaning_when_missed: The interface rejected the cart; the order was delayed or created by hand.
+    why_it_matters: Failed transfers are pure waste and a master-data symptom; 45 events in BPIC 2019.
+    how_detected: A rule expecting no transfer-failed event.
+    usual_reasons:
+      - text: "Master data missing in the execution system (vendor, material, account assignment)"
+        where: outside
+        check: "ask the interface owner for the error texts of the failed transfers"
+      - text: "Interface outage or mapping error"
+        where: log
+        check: "failures clustered in time"
+      - text: "Cart changed while the transfer was in progress"
+        where: log
+        check: "cart changes right before the failure"
+    usual_actions:
+      - text: "Interface monitoring with automatic re-transfer"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: exceptions_corrections
+      - text: "Master-data completeness check before ordering in the cart"
+        countermeasure: system_setting
+        owner_role: master_data
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Error text in the application log
+      - Time to recovery and whether the item was re-created by hand
+    examples:
+      - kind: violating
+        text: "Cart ordered, transfer failed, order created by hand two days later."
+      - kind: compliant
+        text: "Cart ordered and transferred within minutes."
+    kpis: []
+    owner_role: it_process_owner
+
+  - id: b_value_invoice_before_order
+    templates: [p2p_baseline]
+    plain_name: {en: "Order before invoice", de: "Bestellung vor der Rechnung"}
+    missed_label: {en: "invoice dated before the order", de: "Rechnung vor der Bestellung datiert"}
+    expectation: No invoice, posted or dated by the vendor, precedes the order item.
+    meaning_when_missed: The invoice existed before the order; the order was created after the fact to pay it.
+    why_it_matters: The clearest sign of maverick buying; no approval, no leverage, no three-way match.
+    how_detected: An order rule comparing order creation with the first invoice evidence; 1.8 % of BPIC 2019 items with a vendor invoice show the invoice first, 0.0 % by posting date.
+    usual_reasons:
+      - text: "After-the-fact orders to pay an invoice already received"
+        where: log
+        check: "order created after the vendor invoice date, by requester, spend area and document type"
+      - text: "The vendor's document date is earlier than our order for a framework agreement (legitimate)"
+        where: outside
+        check: "ask purchasing whether the invoice references a framework or limit order"
+      - text: "Requisition made outside the system"
+        where: outside
+        check: "ask the requesters how the purchase was initiated"
+    usual_actions:
+      - text: "No-purchase-order-no-pay policy; invoices without order reference returned"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+      - text: "Invoice receipt date recorded separately from the vendor's document date"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: value_commercial
+    what_to_check_first:
+      - Which evidence precedes the order (vendor document or posting)
+      - Document type and spend area
+      - Requisition evidence on the same items
+    examples:
+      - kind: violating
+        text: "Vendor invoice dated the 3rd, order item created on the 10th, invoice posted on the 12th."
+      - kind: compliant
+        text: "Order in March, invoice in April."
+    kpis: [p2p.kpi.spend_under_requisition]
+    owner_role: purchasing
+
+# =============================================================================
+# Failure modes
+# =============================================================================
+failure_modes:
+  - id: p2p.fm.price_change_after_po
+    plain_name: {en: "Price changed after ordering", de: "Preis nach Bestellung geändert"}
+    missed_label: {en: "price changed after ordering", de: "Preis nach Bestellung geändert"}
+    expectation: The price agreed before ordering is the price on the order until payment.
+    meaning_when_missed: The order price was edited after the item was created, often after the receipt or the invoice.
+    why_it_matters: Money paid above the agreed price and invoice verification that passes because the order was changed to fit the invoice.
+    how_detected: Price changes counted per item, weighted by the item's value in the paper's norm; 4.5 % of BPIC 2019 items, 29.6 % of those after the first receipt.
+    usual_reasons:
+      - text: "Quotation or info record expired before ordering"
+        where: log
+        check: "price changes shortly after creation by vendor and spend area"
+      - text: "Invoice variance resolved by editing the order"
+        where: log
+        check: "changes after the first receipt or invoice"
+      - text: "Vendor confirmation carries a different price"
+        where: log
+        check: "confirmation preceding the change"
+      - text: "Condition maintenance in the purchasing master data"
+        where: outside
+        check: "ask master data about condition changes in the period"
+    usual_actions:
+      - text: "Contract and info-record prices maintained before ordering"
+        countermeasure: master_data
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Variances routed through tolerance keys and dispute"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: value_commercial
+      - text: "Vendor scorecard on confirmation price deviations"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: value_commercial
+    what_to_check_first:
+      - Timing of the change relative to receipt and invoice
+      - Vendor and spend-area concentration; exposure
+      - Header replication of condition changes
+    examples:
+      - kind: violating
+        text: "Price changed after the invoice arrived, on a high-value item."
+      - kind: compliant
+        text: "Price unchanged from order to payment."
+    kpis: [p2p.kpi.price_change_rate]
+    owner_role: purchasing
+
+  - id: p2p.fm.quantity_change_after_po
+    plain_name: {en: "Quantity changed after ordering", de: "Menge nach Bestellung geändert"}
+    missed_label: {en: "quantity changed after ordering", de: "Menge nach Bestellung geändert"}
+    expectation: The ordered quantity stays until the goods arrive; short deliveries are closed with the delivery-completed indicator.
+    meaning_when_missed: The quantity was edited, usually reduced, after ordering or after the receipt.
+    why_it_matters: Hidden short deliveries and vendor failures, and a changed value at stake.
+    how_detected: Quantity changes counted per item; 7.0 % of BPIC 2019 items, 10.9 % of those after the first receipt; in the hackathon purchase extract 10.5 % decreases and 0.8 % increases.
+    usual_reasons:
+      - text: "Vendor confirms a smaller quantity and the order is aligned"
+        where: log
+        check: "confirmation before the change; direction of the change"
+      - text: "Demand changed after ordering"
+        where: outside
+        check: "ask the requesters"
+      - text: "Item closed by reducing the quantity to the delivered amount"
+        where: log
+        check: "changes after the last receipt"
+      - text: "Rounding profiles missing in the master data"
+        where: outside
+        check: "ask master data"
+    usual_actions:
+      - text: "Delivery-completed indicator for short deliveries"
+        countermeasure: training
+        owner_role: purchasing
+        effect_area: value_commercial
+      - text: "Rounding profiles and minimum quantities maintained"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: value_commercial
+      - text: "Confirmation control instead of copying confirmations into the order"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Direction and timing of the change
+      - Preceding confirmations
+      - Delivery-completed indicator usage
+    examples:
+      - kind: violating
+        text: "Quantity reduced to the delivered amount after the receipt."
+      - kind: compliant
+        text: "Ordered, received and invoiced the same quantity."
+    kpis: [p2p.kpi.quantity_change_rate]
+    owner_role: purchasing
+
+  - id: p2p.fm.deleted_item
+    plain_name: {en: "Order item deleted", de: "Bestellposition gelöscht"}
+    missed_label: {en: "order item deleted", de: "Bestellposition gelöscht"}
+    expectation: Items are changed or completed, not deleted.
+    meaning_when_missed: The item was deleted after creation, before or after execution started.
+    why_it_matters: Deleted items hide withdrawn demand, vendor failures and delete-and-recreate habits; 3.5 % of BPIC 2019 items.
+    how_detected: Deletion events on the item; reactivations on 0.2 %.
+    usual_reasons:
+      - text: "Duplicate orders or withdrawn demand"
+        where: log
+        check: "deletion before any receipt"
+      - text: "Vendor cannot deliver; re-ordered elsewhere"
+        where: log
+        check: "replacement item on the same order"
+      - text: "Delete-and-recreate instead of a change"
+        where: log
+        check: "new item numbers right after the deletion"
+      - text: "Period-end cleanup"
+        where: outside
+        check: "ask purchasing about bulk deletions"
+    usual_actions:
+      - text: "Change instead of delete-and-recreate"
+        countermeasure: training
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+      - text: "Vendor availability check before ordering"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+      - text: "Open-item review with owners"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Deletion timing relative to receipts and invoices
+      - Replacement items on the same order
+      - Document type and vendor concentration
+    examples:
+      - kind: violating
+        text: "Deleted six weeks after creation, replaced by a new item the same day."
+      - kind: compliant
+        text: "Never deleted."
+    kpis: [p2p.kpi.item_deletion_rate]
+    owner_role: purchasing
+
+  - id: p2p.fm.blocked_item
+    plain_name: {en: "Order item blocked", de: "Bestellposition gesperrt"}
+    missed_label: {en: "order item blocked", de: "Bestellposition gesperrt"}
+    expectation: Items are not blocked while open.
+    meaning_when_missed: The item was blocked for a quality issue, a dispute or a pending change.
+    why_it_matters: Receipts and payments stop without a documented reason; 0.2 % of BPIC 2019 items.
+    how_detected: Block events on the item.
+    usual_reasons:
+      - text: "Quality or vendor issue"
+        where: outside
+        check: "ask the buyer for the reason"
+      - text: "Budget hold or dispute"
+        where: outside
+        check: "ask the approver"
+      - text: "Stop pending a change or re-approval"
+        where: log
+        check: "change or approval events between block and reactivation"
+    usual_actions:
+      - text: "Blocking reason recorded, blocks time-boxed and reviewed"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: exceptions_corrections
+      - text: "Disputes routed through vendor management"
+        countermeasure: standard_work
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time from block to reactivation
+      - Receipts or invoices attempted in between
+    examples:
+      - kind: violating
+        text: "Blocked for three months, then received."
+      - kind: compliant
+        text: "Never blocked."
+    kpis: []
+    owner_role: purchasing
+
+  - id: p2p.fm.vendor_confirmation_churn
+    plain_name: {en: "Repeated or changed vendor confirmations", de: "Wiederholte oder geänderte Lieferantenbestätigungen"}
+    missed_label: {en: "unstable vendor confirmations", de: "instabile Lieferantenbestätigungen"}
+    expectation: The vendor confirms an item once, and the confirmed date holds.
+    meaning_when_missed: Several confirmations or changed confirmed dates on the item.
+    why_it_matters: Unstable commitments make planning impossible; 42.9 % of hackathon purchase items carry more than one confirmation.
+    how_detected: Counts of confirmations and confirmed-date changes per item (baseline).
+    usual_reasons:
+      - text: "Splits into several schedule lines (legitimate)"
+        where: log
+        check: "different quantities across repeats"
+      - text: "Vendor capacity moves the date"
+        where: log
+        check: "same quantity, later dates"
+      - text: "Our planning reschedules requested dates"
+        where: log
+        check: "schedule-line date changes"
+      - text: "Every EDI update posted as a confirmation"
+        where: outside
+        check: "ask the interface owner"
+    usual_actions:
+      - text: "Confirmation control with tolerance and an alert on the third confirmation"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Vendor review on confirmation stability"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: rework_instability
+      - text: "Freeze windows for requested-date changes"
+        countermeasure: policy
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Splits against date moves
+      - Vendor country and lead time
+      - Relation to late receipts
+    examples:
+      - kind: violating
+        text: "Five confirmations, each with a later date."
+      - kind: compliant
+        text: "One confirmation, delivered on its date."
+    kpis: [p2p.kpi.confirmation_churn]
+    owner_role: vendor_management
+
+  - id: p2p.fm.payment_terms_churn
+    plain_name: {en: "Payment terms changed on the order", de: "Zahlungsbedingungen der Bestellung geändert"}
+    missed_label: {en: "payment terms changed", de: "Zahlungsbedingungen geändert"}
+    expectation: Payment terms come from the vendor master and the contract, not from edits on the order.
+    meaning_when_missed: The terms were changed on the order after ordering.
+    why_it_matters: Due dates and discounts become unpredictable; 7 events in BPIC 2019, replicated from the header.
+    how_detected: Payment-term change events per item; the paper's norm names a spelling the CSV does not use, norm draft v1.1 corrects it.
+    usual_reasons:
+      - text: "Vendor master terms changed and copied into open orders"
+        where: log
+        check: "every open item of the vendor changed at once"
+      - text: "Discount negotiated after the fact"
+        where: outside
+        check: "ask purchasing"
+      - text: "Wrong default terms corrected by hand"
+        where: outside
+        check: "ask master data"
+    usual_actions:
+      - text: "Terms maintained in the vendor master and contracts; manual changes above a value limit forbidden"
+        countermeasure: policy
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Header replication
+      - Vendor concentration
+    examples:
+      - kind: violating
+        text: "Terms changed from 30 to 60 days on every item of an order."
+      - kind: compliant
+        text: "Terms unchanged."
+    kpis: []
+    owner_role: purchasing
+
+  - id: p2p.fm.srm_transfer_failed
+    plain_name: {en: "Cart transfer to the execution system failed", de: "Übertragung des Einkaufswagens fehlgeschlagen"}
+    missed_label: {en: "interface transfer failed", de: "Schnittstellenübertragung fehlgeschlagen"}
+    expectation: Ordered carts transfer to the execution system without failure.
+    meaning_when_missed: The interface rejected the cart.
+    why_it_matters: Delay and manual re-creation; a master-data symptom; 45 events in BPIC 2019.
+    how_detected: Transfer-failed events between cart ordered and order item created.
+    usual_reasons:
+      - text: "Master data missing in the execution system"
+        where: outside
+        check: "ask the interface owner for the error texts"
+      - text: "Interface outage or mapping error"
+        where: log
+        check: "failures clustered in time"
+      - text: "Cart changed during the transfer"
+        where: log
+        check: "cart changes right before the failure"
+    usual_actions:
+      - text: "Interface monitoring with re-transfer"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: exceptions_corrections
+      - text: "Master-data completeness check before ordering"
+        countermeasure: system_setting
+        owner_role: master_data
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Error text in the application log
+      - Time to recovery
+    examples:
+      - kind: violating
+        text: "Transfer failed, order created by hand two days later."
+      - kind: compliant
+        text: "Transferred within minutes."
+    kpis: []
+    owner_role: it_process_owner
+
+  - id: p2p.fm.late_or_repeated_approval
+    plain_name: {en: "Late or repeated approval", de: "Späte oder wiederholte Genehmigung"}
+    missed_label: {en: "waiting for or repeating approval", de: "wartet auf oder wiederholt Genehmigung"}
+    expectation: Requisitions and orders are released within days and approved once.
+    meaning_when_missed: The release took long or the order was re-approved after changes.
+    why_it_matters: Deliveries wait in the queue and approvers re-read the same order; 1.7 % of BPIC 2019 items carry an approval change, 14.2 % of items with a logged release waited more than 5 days.
+    how_detected: Approval-change counts (paper's norm) and release lags (baseline); release events are logged for 0.4 % of BPIC 2019 items only, so absence is not evidence of missing approval.
+    usual_reasons:
+      - text: "Approver absent without substitute"
+        where: log
+        check: "release lag by approver and weekday"
+      - text: "Changes reset the release"
+        where: log
+        check: "change events before each re-approval"
+      - text: "Carts held or incomplete"
+        where: log
+        check: "held and incomplete cart events"
+      - text: "Release thresholds too low for routine orders"
+        where: outside
+        check: "ask finance"
+    usual_actions:
+      - text: "Substitute rules and escalation"
+        countermeasure: system_setting
+        owner_role: approver
+        effect_area: approval_discipline
+      - text: "Release thresholds reviewed; batch approvals for catalogue items"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: approval_discipline
+      - text: "Commercial fields locked after release"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Whether release events are logged at all
+      - Release lag by purchasing group and value band
+      - Which change precedes each re-approval
+    examples:
+      - kind: violating
+        text: "Released after nine days and re-approved twice after price edits."
+      - kind: compliant
+        text: "Released the same day, never re-approved."
+    kpis: [p2p.kpi.po_release_lead_time]
+    owner_role: approver
+
+  - id: p2p.fm.order_without_requisition
+    plain_name: {en: "Order without requisition or shopping cart", de: "Bestellung ohne Bestellanforderung oder Einkaufswagen"}
+    missed_label: {en: "order without requisition", de: "Bestellung ohne Bestellanforderung"}
+    expectation: Orders that need a request have one.
+    meaning_when_missed: No requisition or cart precedes the order; legitimate for contract and planning orders, maverick buying otherwise.
+    why_it_matters: Spending outside the budget owner's sight; but 80.9 % of BPIC 2019 items have no requisition evidence, so the rule measures logging unless restricted to document types that require one.
+    how_detected: Presence of requisition or cart evidence (baseline), restricted by document type.
+    usual_reasons:
+      - text: "Direct orders from contracts or planning (legitimate)"
+        where: log
+        check: "document type and source"
+      - text: "Requests outside the system"
+        where: outside
+        check: "ask the buyers"
+      - text: "After-the-fact orders to pay an invoice"
+        where: log
+        check: "order after the vendor's invoice date"
+    usual_actions:
+      - text: "Rule applied only to document types that require a requisition"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: approval_discipline
+      - text: "No-purchase-order-no-pay policy and catalogue buying"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Document type and source of the orders
+      - Invoice-before-order share on the same groups
+    examples:
+      - kind: violating
+        text: "A standard order without requisition, invoice dated before the order."
+      - kind: compliant
+        text: "Requisition released, order created from it."
+    kpis: [p2p.kpi.spend_under_requisition]
+    owner_role: purchasing
+
+  - id: p2p.fm.missing_goods_receipt
+    plain_name: {en: "Receipt missing on a three-way item", de: "Wareneingang fehlt auf Dreiwege-Position"}
+    missed_label: {en: "no receipt", de: "kein Wareneingang"}
+    expectation: Three-way items show a goods or service receipt.
+    meaning_when_missed: No receipt on an item that needs one; open, deleted, mis-posted or wrongly typed.
+    why_it_matters: Invoices cannot be matched, stock and cost are understated; 6.4 % of BPIC 2019 three-way items, including open and deleted ones.
+    how_detected: Presence of receipt or service entry on three-way items.
+    usual_reasons:
+      - text: "Still open at the end of the data"
+        where: log
+        check: "censored share per group"
+      - text: "Deleted or blocked before delivery"
+        where: log
+        check: "deletion and block events"
+      - text: "Receipt posted on another item"
+        where: log
+        check: "sibling items with receipts"
+      - text: "Wrong item category"
+        where: outside
+        check: "ask the buyer"
+    usual_actions:
+      - text: "Censored and deleted items excluded before reading"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+      - text: "Receipt monitoring for overdue items"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: closure_completeness
+      - text: "Item category maintained per vendor and material"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Censored share and deletions
+      - Invoice without receipt
+      - Sibling items
+    examples:
+      - kind: violating
+        text: "Invoice and block, no receipt ever posted."
+      - kind: compliant
+        text: "Receipt on the delivery date."
+    kpis: [p2p.kpi.open_receipt_share]
+    owner_role: warehouse
+
+  - id: p2p.fm.cancelled_goods_receipt
+    plain_name: {en: "Goods receipt cancelled", de: "Wareneingang storniert"}
+    missed_label: {en: "goods receipt cancelled", de: "Wareneingang storniert"}
+    expectation: Receipts are posted correctly the first time.
+    meaning_when_missed: A receipt was reversed after posting.
+    why_it_matters: Stock and cost swing, the match is delayed; 1.0 % of BPIC 2019 items.
+    how_detected: Receipt cancellation events.
+    usual_reasons:
+      - text: "Wrong quantity, material or storage location"
+        where: log
+        check: "corrected receipt shortly after"
+      - text: "Posted against the wrong item"
+        where: log
+        check: "sibling items"
+      - text: "Quality rejection as reversal"
+        where: outside
+        check: "ask the warehouse"
+      - text: "Delivery note posted twice"
+        where: log
+        check: "two receipts within minutes"
+    usual_actions:
+      - text: "Scan-based receipt with delivery-note reference"
+        countermeasure: automation
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+      - text: "Return-delivery movement types for rejections"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+      - text: "Training on posting against the right item"
+        countermeasure: training
+        owner_role: warehouse
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between receipt and cancellation
+      - Plant and vendor concentration
+      - Receipt fragmentation
+    examples:
+      - kind: violating
+        text: "Cancelled within the hour and re-posted on the sibling item."
+      - kind: compliant
+        text: "One receipt, never reversed."
+    kpis: [p2p.kpi.gr_cancellation_rate]
+    owner_role: warehouse
+
+  - id: p2p.fm.goods_receipt_fragmentation
+    plain_name: {en: "Fragmented goods receipts", de: "Fragmentierte Wareneingänge"}
+    missed_label: {en: "many receipt postings", de: "viele Wareneingangsbuchungen"}
+    expectation: An item is received in one or two postings.
+    meaning_when_missed: Three or more receipts on the item.
+    why_it_matters: Handling and matching effort, partial invoices; 2.5 % of BPIC 2019 items, 28.1 % of hackathon purchase items with more than one receipt.
+    how_detected: Receipt and service-entry counts per item.
+    usual_reasons:
+      - text: "Partial shipments"
+        where: log
+        check: "quantities per receipt"
+      - text: "Call-offs on blanket items (legitimate)"
+        where: log
+        check: "document and item type"
+      - text: "Service sheets per period (legitimate)"
+        where: log
+        check: "service items"
+      - text: "Receipts per pallet"
+        where: outside
+        check: "ask the warehouse"
+    usual_actions:
+      - text: "Lot sizes and tolerances agreed with the vendor"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: rework_instability
+      - text: "Blanket and service items separated in applicability"
+        countermeasure: measurement
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Quantities per receipt
+      - Service or blanket item
+    examples:
+      - kind: violating
+        text: "Five receipts over three weeks."
+      - kind: compliant
+        text: "One receipt for the full quantity."
+    kpis: []
+    owner_role: warehouse
+
+  - id: p2p.fm.late_goods_receipt
+    plain_name: {en: "Goods late after the scheduled date", de: "Ware nach dem geplanten Termin"}
+    missed_label: {en: "goods late", de: "Ware verspätet"}
+    expectation: Goods arrive on the scheduled date.
+    meaning_when_missed: The first receipt is after the scheduled date, or the item still waits.
+    why_it_matters: Production and projects stop; 38.5 % of received hackathon purchase items are late, median order-to-receipt 31 days.
+    how_detected: Order-to-receipt lag (baseline) and days late once the scheduled date is a case attribute.
+    usual_reasons:
+      - text: "Vendor lead time longer than planned"
+        where: log
+        check: "lag by vendor against the planned lead time"
+      - text: "Confirmed date moved"
+        where: log
+        check: "confirmation changes on late items"
+      - text: "Transport and customs"
+        where: log
+        check: "vendor country and incoterms"
+      - text: "Late posting at the dock"
+        where: outside
+        check: "ask the warehouse"
+    usual_actions:
+      - text: "Planned lead times aligned per vendor and country"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: timeliness_ageing
+      - text: "Confirmation control and expediting"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: timeliness_ageing
+      - text: "Dock posting on the day of arrival"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Confirmed against scheduled against receipt date
+      - Vendor country and incoterms
+      - Censoring at the end of the data
+    examples:
+      - kind: violating
+        text: "Received in April on a January order with a 30-day lead time."
+      - kind: compliant
+        text: "Received on the confirmed date."
+    kpis: [p2p.kpi.on_time_receipt_rate, p2p.kpi.order_to_receipt_days]
+    owner_role: vendor_management
+
+  - id: p2p.fm.missing_invoice
+    plain_name: {en: "Invoice missing", de: "Rechnung fehlt"}
+    missed_label: {en: "no invoice", de: "keine Rechnung"}
+    expectation: Invoice-bearing items show an invoice.
+    meaning_when_missed: No invoice evidence on the item.
+    why_it_matters: Unrecorded liabilities and unpaid vendors; 10.9 % of BPIC 2019 invoice-bearing items, including open and deleted ones.
+    how_detected: Presence of invoice evidence on invoice-bearing items.
+    usual_reasons:
+      - text: "Still open at the end of the data"
+        where: log
+        check: "age at the window end"
+      - text: "Deleted or delivery not completed"
+        where: log
+        check: "deletion events, missing receipts"
+      - text: "Invoice posted without order reference"
+        where: outside
+        check: "ask accounts payable for FI invoices of the vendor"
+      - text: "Consignment or framework items typed as invoice-bearing"
+        where: outside
+        check: "ask the buyer"
+    usual_actions:
+      - text: "Censoring gate before reading"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: closure_completeness
+      - text: "Mandatory order reference at invoice capture and vendor communication on missing invoices"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: closure_completeness
+    what_to_check_first:
+      - Receipt present without invoice or nothing at all
+      - Age at the window end
+      - FI invoices without order reference
+    examples:
+      - kind: violating
+        text: "Received in March, no invoice by August."
+      - kind: compliant
+        text: "Invoice a week after the receipt."
+    kpis: [p2p.kpi.open_invoice_share]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.duplicate_invoice
+    plain_name: {en: "Repeated invoice receipts", de: "Wiederholte Rechnungseingänge"}
+    missed_label: {en: "several invoice postings", de: "mehrere Rechnungsbuchungen"}
+    expectation: One invoice per item.
+    meaning_when_missed: Two or more invoice receipts on the item; partial invoices and duplicates both count.
+    why_it_matters: Duplicate payment risk and matching effort; 4.1 % of BPIC 2019 invoice-bearing items.
+    how_detected: Invoice receipt counts per item.
+    usual_reasons:
+      - text: "Partial invoices per partial delivery (legitimate)"
+        where: log
+        check: "receipt count against invoice count"
+      - text: "Invoice sent twice"
+        where: log
+        check: "repeat with cancellation; vendor concentration"
+      - text: "Cancelled and re-posted"
+        where: log
+        check: "cancellation between repeats"
+      - text: "Freight invoiced separately"
+        where: outside
+        check: "ask accounts payable"
+    usual_actions:
+      - text: "Duplicate-invoice check at capture"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: rework_instability
+      - text: "One invoice channel per vendor"
+        countermeasure: policy
+        owner_role: accounts_payable
+        effect_area: rework_instability
+      - text: "Consolidated invoicing with fragmenting vendors"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: rework_instability
+    what_to_check_first:
+      - Cancellation with the repeat
+      - Receipt count against invoice count
+      - Invoiced sum against the order value
+    examples:
+      - kind: violating
+        text: "Two invoice receipts for the same amount, one cancelled later."
+      - kind: compliant
+        text: "One invoice."
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.cancelled_invoice
+    plain_name: {en: "Invoice receipt cancelled", de: "Rechnungseingang storniert"}
+    missed_label: {en: "invoice cancelled", de: "Rechnung storniert"}
+    expectation: Invoices are posted correctly the first time.
+    meaning_when_missed: An invoice posting was reversed.
+    why_it_matters: Rework and delayed payment; 2.6 % of BPIC 2019 items.
+    how_detected: Invoice cancellation events (and subsequent-invoice cancellations in the baseline).
+    usual_reasons:
+      - text: "Wrong item or amount, re-posted"
+        where: log
+        check: "time to cancellation and re-posting"
+      - text: "Duplicate detected after posting"
+        where: log
+        check: "repeated invoice receipts"
+      - text: "Vendor re-issued the invoice with corrected data"
+        where: outside
+        check: "ask accounts payable for cancellation reasons"
+      - text: "Dispute settled by cancellation"
+        where: outside
+        check: "ask accounts payable"
+    usual_actions:
+      - text: "Validation at capture"
+        countermeasure: automation
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Credit memo procedure and vendor master quality"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Time between posting and cancellation
+      - Vendor and company code concentration
+    examples:
+      - kind: violating
+        text: "Posted Monday, cancelled Tuesday, re-posted Wednesday."
+      - kind: compliant
+        text: "One posting, never cancelled."
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.vendor_debit_memo
+    plain_name: {en: "Vendor debit memo", de: "Lastschrift des Lieferanten"}
+    missed_label: {en: "vendor debit memo", de: "Lastschrift des Lieferanten"}
+    expectation: The vendor does not claim more after the invoice.
+    meaning_when_missed: A debit memo on the item, weighted by value in the paper's norm.
+    why_it_matters: Money on top of the invoice and a dispute; 2.4 % of BPIC 2019 items.
+    how_detected: Debit memo events; value-weighted on high-exposure items.
+    usual_reasons:
+      - text: "Price difference claimed after a lower invoice"
+        where: log
+        check: "price change or cancellation before the memo"
+      - text: "Freight and surcharges billed separately"
+        where: outside
+        check: "ask accounts payable"
+      - text: "Quantity disputes after partial deliveries"
+        where: log
+        check: "receipt fragmentation"
+    usual_actions:
+      - text: "Surcharge handling in contracts"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+      - text: "Dispute before payment instead of memo afterwards"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+      - text: "Vendor review for memo-heavy relationships"
+        countermeasure: review
+        owner_role: vendor_management
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Memo amount against exposure
+      - Preceding price change or cancellation
+    examples:
+      - kind: violating
+        text: "Debit memo for freight a month after clearing."
+      - kind: compliant
+        text: "No memo."
+    kpis: []
+    owner_role: accounts_payable
+
+  - id: p2p.fm.vendor_credit_memo
+    plain_name: {en: "Vendor credit memo", de: "Gutschrift des Lieferanten"}
+    missed_label: {en: "vendor credit memo", de: "Gutschrift des Lieferanten"}
+    expectation: The vendor does not have to credit money back.
+    meaning_when_missed: A credit memo on the item after returns, price corrections or rebates.
+    why_it_matters: The invoice was too high or goods went back; the label does not occur in the BPIC 2019 CSV.
+    how_detected: Credit memo events; vocabulary entry kept because the paper's norm references it.
+    usual_reasons:
+      - text: "Returns or quality claims"
+        where: log
+        check: "receipt cancellation before the memo"
+      - text: "Price corrections reversed"
+        where: log
+        check: "price change before the memo"
+      - text: "Rebates settled per item"
+        where: outside
+        check: "ask purchasing"
+    usual_actions:
+      - text: "Credit memos linked to returns and claims; rebates at header level"
+        countermeasure: standard_work
+        owner_role: accounts_payable
+        effect_area: exceptions_corrections
+    what_to_check_first:
+      - Preceding cancellation or return
+      - Whether the activity is logged at all
+    examples:
+      - kind: violating
+        text: "Goods returned, credit two weeks later."
+      - kind: compliant
+        text: "No credit memo."
+    kpis: []
+    owner_role: accounts_payable
+
+  - id: p2p.fm.invoice_before_order
+    plain_name: {en: "Invoice before the order", de: "Rechnung vor der Bestellung"}
+    missed_label: {en: "invoice dated before the order", de: "Rechnung vor der Bestellung datiert"}
+    expectation: The order exists before the invoice.
+    meaning_when_missed: The invoice was dated or posted before the order item was created.
+    why_it_matters: The clearest sign of maverick buying; 1.8 % of BPIC 2019 items with a vendor invoice, 0.0 % by posting.
+    how_detected: Order rule comparing order creation with the first invoice evidence (baseline).
+    usual_reasons:
+      - text: "After-the-fact orders"
+        where: log
+        check: "order after the vendor invoice date by requester and spend area"
+      - text: "Vendor document date earlier for framework agreements"
+        where: outside
+        check: "ask purchasing"
+      - text: "Requisition outside the system"
+        where: outside
+        check: "ask the requesters"
+    usual_actions:
+      - text: "No-purchase-order-no-pay policy"
+        countermeasure: policy
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+      - text: "Invoice receipt date recorded separately from the vendor's document date"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: value_commercial
+    what_to_check_first:
+      - Which evidence precedes the order
+      - Document type and spend area
+    examples:
+      - kind: violating
+        text: "Vendor invoice on the 3rd, order on the 10th."
+      - kind: compliant
+        text: "Order in March, invoice in April."
+    kpis: [p2p.kpi.spend_under_requisition]
+    owner_role: purchasing
+
+  - id: p2p.fm.invoice_before_goods_receipt
+    plain_name: {en: "Invoice before goods receipt in a GR-based flow", de: "Rechnung vor Wareneingang im WE-bezogenen Fluss"}
+    missed_label: {en: "invoice before goods receipt", de: "Rechnung vor Wareneingang"}
+    expectation: In GR-based flows the invoice follows the receipt, and soon.
+    meaning_when_missed: Invoice evidence before the first receipt, or a long gap after it.
+    why_it_matters: The three-way match cannot be completed at posting; 51.7 % of BPIC 2019 GR-based items by the merged rule, 53.6 % by the vendor's invoice date, 0.0 % by posting date.
+    how_detected: Order rule and time rule from receipt to invoice on GR-based items; split into vendor date and posting in norm draft v1.1.
+    usual_reasons:
+      - text: "Vendor invoices at dispatch"
+        where: log
+        check: "share early by vendor invoice date against share by posting"
+      - text: "Late posting at the dock"
+        where: log
+        check: "posting delay; lags near zero or negative"
+      - text: "Wrong item category"
+        where: log
+        check: "vendors whose GR-based items are mostly invoice-first"
+      - text: "Drop shipments and services with a formal receipt later"
+        where: outside
+        check: "ask the buyer"
+    usual_actions:
+      - text: "Split the expectation into vendor date and posting"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: flow_discipline
+      - text: "GR-based verification flag corrected per vendor and material"
+        countermeasure: master_data
+        owner_role: master_data
+        effect_area: flow_discipline
+      - text: "Dock posting on the day of arrival; invoices parked until the receipt"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+      - text: "Evaluated receipt settlement for stable-price vendors"
+        countermeasure: automation
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Vendor document or posting as the early evidence
+      - Posting delay against delivery-note dates
+      - Item category on the vendor's other items
+    examples:
+      - kind: violating
+        text: "Vendor invoice ten days before the receipt, posted after it."
+      - kind: compliant
+        text: "Receipt first, invoice two days later."
+    kpis: [p2p.kpi.three_way_match_first_time_rate, p2p.kpi.gr_to_invoice_days]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.payment_block
+    plain_name: {en: "Invoice blocked for payment", de: "Rechnung zahlungsgesperrt"}
+    missed_label: {en: "payment block", de: "Zahlsperre"}
+    expectation: Invoices match and pay without a block; in invoice-first flows the block releases right after the receipt.
+    meaning_when_missed: A block was set or released on the item; in invoice-first flows a release before or long after the receipt.
+    why_it_matters: Blocks delay payment and need manual work; 22.2 % of BPIC 2019 items carry a release (24.3 % of invoice-first items), only 0.05 % a logged set.
+    how_detected: Order and time rules around the block release in invoice-first flows; a rule against manual blocks elsewhere (baseline). Automatic blocks are not logged as events, only their release.
+    usual_reasons:
+      - text: "Invoice posted before the receipt (block by design)"
+        where: log
+        check: "flow type and receipt status at posting"
+      - text: "Price or quantity variance above tolerance"
+        where: log
+        check: "price and quantity changes on the same items"
+      - text: "Receipt missing or on another item"
+        where: log
+        check: "receipt status and sibling items"
+      - text: "Manual block for a dispute or missing approval"
+        where: outside
+        check: "ask accounts payable for the blocking reasons"
+    usual_actions:
+      - text: "Tolerance keys reviewed with finance; prices aligned before invoicing"
+        countermeasure: system_setting
+        owner_role: finance_controlling
+        effect_area: value_commercial
+      - text: "Release cadence and ownership per blocking reason"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Receipt discipline so that blocks release automatically"
+        countermeasure: standard_work
+        owner_role: warehouse
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Blocking reason from the source system
+      - Receipt-to-release and release-to-clearing lags
+      - Flow type (blocks expected or exceptions)
+    examples:
+      - kind: violating
+        text: "Blocked for a price variance, released three weeks after the receipt."
+      - kind: compliant
+        text: "Released by the run the day after the receipt."
+    kpis: [p2p.kpi.payment_block_rate, p2p.kpi.three_way_match_first_time_rate]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.goods_receipt_in_two_way
+    plain_name: {en: "Receipt on a two-way item", de: "Wareneingang auf Zweiwege-Position"}
+    missed_label: {en: "receipt where none is expected", de: "Wareneingang, wo keiner erwartet wird"}
+    expectation: Two-way items are not received.
+    meaning_when_missed: A receipt on an item whose category says none is expected.
+    why_it_matters: Wrong categories distort every other rule; 0.0 % of the 1,044 two-way items in BPIC 2019.
+    how_detected: Receipt events on two-way items.
+    usual_reasons:
+      - text: "Category set to two-way for goods that are received"
+        where: log
+        check: "material and item type"
+      - text: "Receipt posted by habit"
+        where: outside
+        check: "ask the warehouse"
+    usual_actions:
+      - text: "Category maintenance; receipt posting disabled for two-way categories"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Item type and material
+      - The vendor's other items
+    examples:
+      - kind: violating
+        text: "A two-way item with a dock receipt."
+      - kind: compliant
+        text: "Invoiced and cleared, no receipt."
+    kpis: []
+    owner_role: purchasing
+
+  - id: p2p.fm.unpaid_or_late_invoice
+    plain_name: {en: "Invoice unpaid or paid late", de: "Rechnung unbezahlt oder spät bezahlt"}
+    missed_label: {en: "unpaid or paid late", de: "unbezahlt oder spät bezahlt"}
+    expectation: Invoices are cleared within terms.
+    meaning_when_missed: No clearing, or clearing long after the invoice.
+    why_it_matters: Discounts, escalations and working capital; 22.6 % of BPIC 2019 invoice-bearing items have no clearing, the median lag is 63.6 days and 88.9 % of cleared items exceed 30 days; payment terms are not in the log.
+    how_detected: Presence of the clearing and the invoice-to-clearing time rule; the baseline scores open invoices by age.
+    usual_reasons:
+      - text: "Long contractual terms"
+        where: log
+        check: "medians per vendor near 60 or 90 days"
+      - text: "Block for a variance or missing receipt"
+        where: log
+        check: "releases on the same items"
+      - text: "Cash holds at period end"
+        where: outside
+        check: "ask accounts payable"
+      - text: "Still open at the end of the data"
+        where: log
+        check: "censored share"
+    usual_actions:
+      - text: "Payment terms per vendor as a case attribute; days beyond terms scored"
+        countermeasure: measurement
+        owner_role: finance_controlling
+        effect_area: timeliness_ageing
+      - text: "Blocked-invoice review cadence"
+        countermeasure: review
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+      - text: "Early-payment discounts where cash allows"
+        countermeasure: contract
+        owner_role: vendor_management
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Payment terms from the vendor master
+      - Blocking share on the same items
+      - Censoring at the window end
+    examples:
+      - kind: violating
+        text: "Cleared 106 days after the invoice on 30-day terms."
+      - kind: compliant
+        text: "Cleared on the next run, 28 days."
+    kpis: [p2p.kpi.invoice_to_clear_days, p2p.kpi.open_invoice_share]
+    owner_role: accounts_payable
+
+  - id: p2p.fm.consignment_cleared_per_item
+    plain_name: {en: "Consignment item cleared per item", de: "Konsignationsposition einzeln ausgeglichen"}
+    missed_label: {en: "consignment cleared per item", de: "Konsignation einzeln ausgeglichen"}
+    expectation: Consignment is settled periodically.
+    meaning_when_missed: An item-level clearing on a consignment item.
+    why_it_matters: Double settlement risk; 0.0 % of the 14,498 consignment items in BPIC 2019.
+    how_detected: Clearing events on consignment items.
+    usual_reasons:
+      - text: "Wrong item category"
+        where: log
+        check: "material and vendor against their other categories"
+      - text: "Vendor invoices withdrawals directly"
+        where: outside
+        check: "ask accounts payable"
+    usual_actions:
+      - text: "Settlement run as the only path; category maintained"
+        countermeasure: system_setting
+        owner_role: accounts_payable
+        effect_area: flow_discipline
+    what_to_check_first:
+      - Settlement documents in the source system
+    examples:
+      - kind: violating
+        text: "Consignment item with an invoice and a clearing."
+      - kind: compliant
+        text: "Settled monthly from withdrawals."
+    kpis: []
+    owner_role: accounts_payable
+
+  - id: p2p.fm.manual_touch_load
+    plain_name: {en: "Many manual touches and hand-offs", de: "Viele manuelle Eingriffe und Übergaben"}
+    missed_label: {en: "too many manual touches", de: "zu viele manuelle Eingriffe"}
+    expectation: Items pass with few touches, few hands and a short chain.
+    meaning_when_missed: Manual touches, distinct users, total events or the manual share exceed their thresholds.
+    why_it_matters: Effort, waiting and error risk; the automation gap in one number.
+    how_detected: Threshold rules on derived counts from the resource column; batch users excluded by name.
+    usual_reasons:
+      - text: "Exceptions add manual steps"
+        where: log
+        check: "activities carrying the touches"
+      - text: "No electronic vendor integration"
+        where: outside
+        check: "ask purchasing which vendors are on EDI"
+      - text: "Header events counted on every item"
+        where: log
+        check: "replication diagnostics"
+    usual_actions:
+      - text: "Touchless targets per spend area"
+        countermeasure: review
+        owner_role: purchasing
+        effect_area: effort_automation
+      - text: "EDI and e-invoicing with the largest vendors"
+        countermeasure: automation
+        owner_role: it_process_owner
+        effect_area: effort_automation
+      - text: "Exception reduction upstream"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: value_commercial
+    what_to_check_first:
+      - Replication diagnostics and batch users
+      - Activities carrying the touches
+    examples:
+      - kind: violating
+        text: "14 events, six manual edits by four users."
+      - kind: compliant
+        text: "Five events, one buyer."
+    kpis: [p2p.kpi.touchless_rate]
+    owner_role: purchasing
+
+  - id: p2p.fm.networth_volatility
+    plain_name: {en: "Value swings across postings", de: "Wert schwankt über die Buchungen"}
+    missed_label: {en: "value swings", de: "Wertschwankungen"}
+    expectation: The item's value is stable across its postings.
+    meaning_when_missed: The cumulative net worth moved up and down.
+    why_it_matters: The cost was uncertain until the end; a risk signal, not a target.
+    how_detected: Coefficient of variation of the cumulative net worth (paper's norm).
+    usual_reasons:
+      - text: "Price and quantity changes"
+        where: log
+        check: "change events on the volatile items"
+      - text: "Partial invoices and memos"
+        where: log
+        check: "repeats and memos"
+      - text: "Currency changes"
+        where: log
+        check: "currency change events"
+    usual_actions:
+      - text: "Address the underlying changes and memo handling"
+        countermeasure: review
+        owner_role: finance_controlling
+        effect_area: value_commercial
+    what_to_check_first:
+      - Which events move the value
+    examples:
+      - kind: violating
+        text: "Value from 10,000 to 4,000 and back to 9,500."
+      - kind: compliant
+        text: "Same value on every posting."
+    kpis: []
+    owner_role: finance_controlling
+
+  - id: p2p.fm.delivery_indicator_reopened
+    plain_name: {en: "Item closed and reopened", de: "Position geschlossen und wieder geöffnet"}
+    missed_label: {en: "closed and reopened", de: "geschlossen und wieder geöffnet"}
+    expectation: The delivery-completed indicator is set once.
+    meaning_when_missed: The indicator was changed twice or more; the item was reopened.
+    why_it_matters: Reopened items mean the closing decision was premature; 1.2 % of BPIC 2019 items carry an indicator change.
+    how_detected: Indicator change counts per item; no template constraint yet.
+    usual_reasons:
+      - text: "Closed and reopened when a further delivery arrived"
+        where: log
+        check: "receipts between the two changes"
+      - text: "Indicator used to close short deliveries and reset for corrections"
+        where: outside
+        check: "ask purchasing how short deliveries are closed"
+    usual_actions:
+      - text: "Close only after the vendor confirms the final quantity; under-delivery tolerance"
+        countermeasure: standard_work
+        owner_role: purchasing
+        effect_area: rework_instability
+    what_to_check_first:
+      - Receipts between the indicator changes
+      - Vendor concentration
+    examples:
+      - kind: violating
+        text: "Closed in May, reopened in June for a late partial delivery."
+      - kind: compliant
+        text: "Closed once after the last receipt."
+    kpis: []
+    owner_role: warehouse
+
+  - id: p2p.fm.block_release_logging_asymmetry
+    plain_name: {en: "Block releases without a logged block", de: "Sperraufhebungen ohne protokollierte Sperre"}
+    missed_label: {en: "blocks not logged", de: "Sperren nicht protokolliert"}
+    expectation: "A data-quality expectation, not a process one: every block release has a logged block, so that block counts can be read."
+    meaning_when_missed: Releases are logged but the blocks are not; in BPIC 2019 57,136 release events stand against 124 set events, and 55,812 of the 55,839 items with a release (99.95 %) have no logged block. Block shares therefore measure releases, and the blocking reason is not in the log.
+    why_it_matters: Reading the release count as a block count is right in size but blind to the reason; any expectation on setting a block measures logging, not behaviour.
+    how_detected: A readiness check comparing the frequency of the release activity with its setting activity; the pattern is not a scored expectation.
+    usual_reasons:
+      - text: "Blocks set automatically at invoice posting are not written as events, only their release is"
+        where: log
+        check: "ratio of release to set events; releases without a preceding set"
+      - text: "Manual blocks logged, automatic ones not"
+        where: outside
+        check: "ask the source-system owner which block reasons write a change document"
+    usual_actions:
+      - text: "Readiness warning on the asymmetry printed with every block share"
+        countermeasure: measurement
+        owner_role: it_process_owner
+        effect_area: exceptions_corrections
+      - text: "Blocking reason joined from the invoice document as a case attribute"
+        countermeasure: measurement
+        owner_role: accounts_payable
+        effect_area: timeliness_ageing
+    what_to_check_first:
+      - Ratio of release events to set events
+      - Whether the blocking reason can be joined from the source system
+    examples:
+      - kind: violating
+        text: "A log with 57,136 releases and 124 sets; 99.95 % of the items with a release show no block being set."
+      - kind: compliant
+        text: "Every release preceded by a logged set with a reason."
+    kpis: [p2p.kpi.payment_block_rate]
+    owner_role: it_process_owner
+
+  - id: p2p.fm.missing_order_confirmation
+    plain_name: {en: "Order confirmation not recorded", de: "Auftragsbestätigung nicht erfasst"}
+    missed_label: {en: "no confirmation recorded", de: "keine Bestätigung erfasst"}
+    expectation: "A data-quality expectation: vendor confirmations are recorded on the item, so that confirmation behaviour can be read."
+    meaning_when_missed: No confirmation event on the item; in BPIC 2019 12.7 % of items carry one, 97 of 1,975 vendors have any, and 37 of the 1,374 invoice-first vendors confirm in more than 70 % of their items (the RWTH report counted 43), so absence measures recording practice, not the vendor.
+    why_it_matters: Without recorded confirmations neither confirmation churn nor late confirmations can be judged; a presence rule on it would penalise vendors for our recording, which is why it is not a scored expectation.
+    how_detected: A presence check on confirmation events, reported as a readiness finding per vendor and purchasing organisation.
+    usual_reasons:
+      - text: "Confirmations arrive by e-mail and are not entered"
+        where: outside
+        check: "ask purchasing how confirmations are handled per purchasing organisation"
+      - text: "Confirmation control not activated for the vendor"
+        where: outside
+        check: "ask master data which vendors have confirmation control"
+      - text: "EDI confirmations only for some vendors"
+        where: log
+        check: "confirmation share per vendor"
+    usual_actions:
+      - text: "Confirmation control activated for the vendors that matter"
+        countermeasure: system_setting
+        owner_role: purchasing
+        effect_area: rework_instability
+      - text: "Confirmation share reported as a readiness finding, not as a shortfall"
+        countermeasure: measurement
+        owner_role: it_process_owner
+        effect_area: rework_instability
+    what_to_check_first:
+      - Confirmation share per vendor and purchasing organisation
+      - Whether confirmation control is active
+    examples:
+      - kind: violating
+        text: "A vendor with 3,000 items and no confirmation event; confirmations arrive by e-mail."
+      - kind: compliant
+        text: "EDI confirmation recorded on every item of the vendor."
+    kpis: [p2p.kpi.confirmation_churn]
+    owner_role: purchasing

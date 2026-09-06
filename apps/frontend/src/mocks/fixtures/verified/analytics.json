@@ -1,0 +1,108 @@
+{
+"runId": "run_0mtoq44vd14f208ur",
+"status": "done",
+"package": {
+"available": true,
+"version": "0.2.0",
+"reason": null
+},
+"jobId": null,
+"windowEnd": "2019-01-17T15:44:00",
+"manifest": {
+"status": "done",
+"startedAt": "2026-09-06T12:30:53.801866+00:00",
+"finishedAt": "2026-09-06T12:34:21.899847+00:00",
+"runtimeS": 208.099,
+"package": {
+"available": true,
+"version": "0.2.0",
+"reason": null
+},
+"windowEnd": "2019-01-17T15:44:00",
+"windowEndSource": "robust observation window (EventLog.observation_window, q = 0.001)",
+"readinessStatus": "fail",
+"cluster": null,
+"replicatedShare": 0.017173,
+"settings": {
+"B": 200,
+"comparisonTop": 25,
+"clusterShare": 0.2,
+"seed": 0
+},
+"records": {
+"readiness": {
+"paramsHash": "0350fe8ad205129f25631dc9",
+"recordId": "87241d733bcab31c550f7c80e97dbadcc34c29c17d8bf4654808f5499a7acb1c",
+"status": "fail"
+},
+"caveats:case Company+case Spend area text": {
+"paramsHash": "54cd9375408337a038bc5c99",
+"recordId": "87241d733bcab31c550f7c80e97dbadcc34c29c17d8bf4654808f5499a7acb1c"
+},
+"problem_kinds:case Company+case Spend area text": {
+"paramsHash": "a80f9336ed5fed10fd003fa7",
+"recordId": null
+},
+"bootstrap_backlog:case Company+case Spend area text:Finance": {
+"paramsHash": "97ab9ac1f389837b9bf5175d",
+"recordId": "a4b148d6513984dea9c7d33fc90294f8eee2d2fd93ef32c3529ca59a55db4dbd",
+"cluster": null,
+"badges": {
+"stable": 22,
+"fragile": 2,
+"insufficient_support": 6
+}
+},
+"comparisons:case Company+case Spend area text:Finance": {
+"paramsHash": "da0f2270cb9ac0dc4fdb5af3",
+"recordId": null,
+"groups": 19
+},
+"bootstrap_backlog:case Company+case Spend area text:Logistics": {
+"paramsHash": "d8f390cf24f2ff98c1368835",
+"recordId": "bd07ef48e0299d0d2f640fde32ba747051b96608fe8d8966c6789e1a378362f3",
+"cluster": null,
+"badges": {
+"stable": 21,
+"fragile": 3,
+"insufficient_support": 6
+}
+},
+"comparisons:case Company+case Spend area text:Logistics": {
+"paramsHash": "2d6e30d90a328f232a3ca6d7",
+"recordId": null,
+"groups": 18
+},
+"bootstrap_backlog:case Company+case Spend area text:Compliance": {
+"paramsHash": "8ce0dacd1190eb736592d6db",
+"recordId": "53fcfbc0b39eb84e41a6c22ee0d54c742c33672619add07fd85ab7263d7a0ead",
+"cluster": null,
+"badges": {
+"stable": 23,
+"fragile": 1,
+"insufficient_support": 6
+}
+},
+"comparisons:case Company+case Spend area text:Compliance": {
+"paramsHash": "2f1c7f84460d00ee6f5fbeeb",
+"recordId": null,
+"groups": 19
+},
+"bootstrap_backlog:case Company+case Spend area text:Automation": {
+"paramsHash": "08a5de1c619c74035598a547",
+"recordId": "619233fe052060559323b2a1e57c65fea25c2e93ce9361b40b193ad2fe0e0789",
+"cluster": null,
+"badges": {
+"stable": 24,
+"fragile": 0,
+"insufficient_support": 6
+}
+},
+"comparisons:case Company+case Spend area text:Automation": {
+"paramsHash": "a699a01d3dc3510120a6a8b4",
+"recordId": null,
+"groups": 23
+}
+}
+}
+}

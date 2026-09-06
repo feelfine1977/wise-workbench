@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/presets.schema.json",
+  "title": "Public-log preset: a known log with its column mapping, prepared attributes, starting norm and slicings",
+  "type": "object",
+  "required": ["id", "pack", "name", "description", "dataset", "file", "case_noun", "mapping", "norm", "slicings", "review_status"],
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "dataset": { "type": "string", "minLength": 1, "description": "Dataset id in datasets.yaml." },
+    "file": { "type": "string", "minLength": 1, "description": "File name of the log; the directory comes from the application settings, never from the repository." },
+    "local_only": { "type": "boolean" },
+    "case_noun": { "$ref": "common.schema.json#/$defs/text", "description": "The business name of the case notion, plural ('purchase order items')." },
+    "mapping": {
+      "type": "object",
+      "required": ["case_id", "activity", "timestamp"],
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "activity": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": "string", "minLength": 1 },
+        "timestamp_format": { "type": "string" },
+        "dayfirst": { "type": "boolean" },
+        "resource": { "type": "string" },
+        "order": { "type": "string" },
+        "event_id": { "type": "string" },
+        "lifecycle": { "type": "string" },
+        "case_attributes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "event_attributes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "exposure": { "type": "string" },
+        "exposure_agg": { "type": "string", "enum": ["max", "first", "last", "sum", "mean"] },
+        "exposure_abs": { "type": "boolean" },
+        "header_events": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Log labels replicated from the document header onto every item (replication diagnostic)." },
+        "closure_activities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "activity_mapping": { "type": "string", "description": "Id of the curated label mapping in mappings/ (log label -> canonical id)." },
+        "attribute_aliases": {
+          "type": "object",
+          "description": "Attribute names used by the pack's templates -> log column (or prepared attribute) names.",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "flow_typing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "rule"],
+            "properties": { "name": { "type": "string", "minLength": 1 }, "rule": { "type": "object" }, "note": { "type": "string" } },
+            "additionalProperties": false
+          }
+        },
+        "flow_type_default": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "derived_case_attributes": {
+      "type": "array",
+      "description": "Attributes prepared at case-table build, before scoring; kinds beyond the library's recipes are described for the backend.",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "description"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "unit": { "type": "string" },
+          "spec": { "type": "object" },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "norm": {
+      "type": "object",
+      "required": ["template"],
+      "properties": {
+        "template": { "$ref": "common.schema.json#/$defs/id", "description": "Template id in templates/index.yaml loaded as norm v1." },
+        "note": { "type": "string" },
+        "calibration_visible": { "type": "boolean", "description": "Show the uncalibrated flags of metadata.meta on the norm screen." }
+      },
+      "additionalProperties": false
+    },
+    "slicings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "columns"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id", "description": "Slice key id of slicing.yaml where one exists." },
+          "columns": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "default": { "type": "boolean" },
+          "min_cases": { "type": "integer", "minimum": 1 },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "view": { "type": "string" },
+    "gamma": { "type": "number", "minimum": 0 },
+    "min_cases": { "type": "integer", "minimum": 1 },
+    "pitfalls": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

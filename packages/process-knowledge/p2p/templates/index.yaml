@@ -14,6 +14,7 @@ templates:
     activity_labels: log_labels
     evidence: [bpic2019]
     dataset: bpic2019
+    verbatim: true
     flow_type_attribute: flow_type
     flow_types: {DF1: "3-way match, invoice after GR", DF2: "3-way match, invoice before GR", 2-way: 2-way match, Consignment: Consignment}
     sources: [Jessen, Fahland, Zerbato, WISE, examples/bpic19_norm.json]
@@ -23,6 +24,24 @@ templates:
       for BPIC 2019 only. Two activity labels of the norm do not occur in the
       CSV ('Vendor creates credit memo', 'Change Payment Terms' vs the log's
       'Change payment term'); Norm.check(log) reports them.
+  - id: p2p_bpic19_v1_1
+    file: p2p_bpic19_v1_1.json
+    name: WISE BPIC'19 norm draft v1.1 (split invoice-before-goods)
+    description: Draft derived from the paper's norm for cycle 2 (R1-10). The merged invoice-before-goods expectation is split into a commercial expectation on the vendor's invoice date and a compliance expectation on the invoice posting, a cleared-before-goods expectation is added for both three-way flows, and the payment-term activity uses the log's spelling; 31 constraints, seven layers, four views, metadata.guidance filled from guidance.yaml. Every other threshold is the paper's.
+    calibration: mixed
+    activity_labels: log_labels
+    evidence: [bpic2019]
+    dataset: bpic2019
+    derived_from: p2p_bpic19
+    flow_type_attribute: flow_type
+    flow_types: {DF1: "3-way match, invoice after GR", DF2: "3-way match, invoice before GR", 2-way: 2-way match, Consignment: Consignment}
+    sources: [cycle 1 review §3 and §5 row 8 (posting vs vendor-date shares), BPI Challenge 2019 HPI report rules 4 and 6, guidance.yaml of this pack]
+    review_status: draft
+    notes: >
+      The paper's norm stays byte-identical in p2p_bpic19.json; this file is the
+      draft the norm builder starts from. The three new expectations carry
+      placeholder weights (listed in metadata.meta.uncalibrated_parameters);
+      metadata.meta.changes records every difference with its rationale.
   - id: p2p_baseline
     file: p2p_baseline.json
     name: P2P baseline (canonical ids, uncalibrated)

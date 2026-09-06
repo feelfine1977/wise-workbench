@@ -56,9 +56,19 @@ const FOLLOWS: [string, string, number, number][] = [
 const ID_BY_LABEL = Object.fromEntries(ACTIVITIES.map((a) => [a.label, a.id]));
 
 /** A FlowGraph in the backend's shape (library metric names, stage groups, constraint overlays). */
-export function buildFlow(opts: { sliceKey?: string; slicing?: string; abstraction?: number } = {}): FlowGraph {
+export interface BuildFlowOptions {
+  sliceKey?: string;
+  slicing?: string;
+  abstraction?: number;
+  /** Share of the whole log the scene covers (a flow type, a filtered log); derived from the slice key when absent. */
+  scale?: number;
+  /** Activity id whose incoming and outgoing paths are returned in `paths` (CONTRACT_CYCLE2.md, flow additions). */
+  focus?: string;
+}
+
+export function buildFlow(opts: BuildFlowOptions = {}): FlowGraph {
   const r = rng(`flow:${opts.slicing ?? ""}:${opts.sliceKey ?? "all"}`);
-  const scale = opts.sliceKey ? r.range(0.002, 0.05) : 1;
+  const scale = opts.scale ?? (opts.sliceKey ? r.range(0.002, 0.05) : 1);
   const shift = opts.sliceKey ? r.range(1.1, 1.8) : 1;
   const abstraction = opts.abstraction ?? 0.05;
   const totalCases = Math.round(251734 * scale);
@@ -145,11 +155,18 @@ export function buildFlow(opts: { sliceKey?: string; slicing?: string; abstracti
     constraintsMeta.push({ description, stats: { cases: totalCases, evaluated: share.casesEvaluated, violationShare: share.shareViolated, coverage: payload.coverage, meanViolation: share.meanViolation } });
   }
   const groups: FlowGraph["groups"] = STAGES.filter((s) => kept.some((a) => a.stage === s.id)).map((s) => ({ id: s.id, kind: "stage" as const, label: s.label }));
+  const paths = opts.focus
+    ? {
+        incoming: FOLLOWS.filter(([, t]) => t === opts.focus && keptIds.has(t)).map(([s, , n, hours]) => ({ from: s, count: Math.round(n * scale * 1.05), cases: Math.round(n * scale), median_lag: hours ? round(hours / 24, 2) : null, violation_share: round(violationOf[ACTIVITIES.find((a) => a.id === s)?.label ?? ""] ?? 0, 4) })),
+        outgoing: FOLLOWS.filter(([s]) => s === opts.focus && keptIds.has(s)).map(([, t, n, hours]) => ({ to: t, count: Math.round(n * scale * 1.05), cases: Math.round(n * scale), median_lag: hours ? round(hours / 24, 2) : null, violation_share: round(violationOf[ACTIVITIES.find((a) => a.id === t)?.label ?? ""] ?? 0, 4) })),
+      }
+    : undefined;
   return {
     nodes,
     edges,
     groups,
     overlays,
+    ...(opts.focus ? { focus: opts.focus, paths } : {}),
     meta: {
       runId: "run_41",
       slicing: opts.slicing ? opts.slicing.split("+") : null,

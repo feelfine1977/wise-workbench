@@ -5,6 +5,10 @@ import { useWorkbench } from "@/app/context";
 import { normRoute } from "@/app/router";
 import { LayerChip } from "@/components/badges";
 import { DistributionLens } from "@/components/DistributionLens";
+import { BackControl } from "@/components/guide/BackControl";
+import { FreezeButton } from "@/components/guide/Freeze";
+import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
+import { NextStep } from "@/components/guide/NextStep";
 import { JsonView } from "@/components/JsonView";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
@@ -119,15 +123,19 @@ export default function NormPage() {
   }, [constraints]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <QueryState query={norm} rows={6}>
         {(nv) => (
           <>
             <header className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-text-subtle">S3–S4 · Norm</p>
-                <h1 className="text-2xl font-semibold">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
+                  <BackControl className="normal-case tracking-normal" />
+                  <span>Norm · expectations and perspectives</span>
+                </div>
+                <h1 className="flex items-center gap-2 text-2xl font-semibold">
                   {json?.name ?? nv.id} · v{nv.version}
+                  <HowToReadToggle id="norm" />
                 </h1>
                 <p className="text-sm text-text-muted">
                   <Badge variant={nv.status === "approved" ? "success" : nv.status === "reviewed" ? "info" : "warning"} className="mr-2">
@@ -136,10 +144,22 @@ export default function NormPage() {
                   <span className="font-mono text-xs">{nv.fingerprint}</span> · {json?.scoring_mode} · {json?.layers?.length ?? 0} layers · {constraints.length} constraints · {json?.views?.length ?? 0} views
                 </p>
               </div>
-              <Link className="text-sm text-accent-text underline" to="/p/$projectId/norms" params={{ projectId: ctx.projectId }}>
-                all versions
-              </Link>
+              <div className="flex flex-wrap items-center gap-3" data-no-capture>
+                <FreezeButton projectId={ctx.projectId} screen="norm" context={{ run_id: runId }} data={{ constraint: selected?.id, threshold: selected ? thresholdOf(selected) : undefined }} defaultTitle={`Norm v${nv.version}${selected ? ` · ${selected.id}` : ""}`} />
+                <Link className="text-sm text-accent-text underline" to="/p/$projectId/norms" params={{ projectId: ctx.projectId }}>
+                  all versions
+                </Link>
+              </div>
             </header>
+            <HowToRead id="norm">
+              The catalogue lists the expectations by area; the calibration lens shows how the cases are spread around the threshold of the selected expectation, with the threshold ϑ and the tolerance W draggable. Committing a threshold creates the next version and asks for a note.
+              The JSON tab is the library's own document; version notes keep the lineage. Use the back control above to return to where you came from.
+            </HowToRead>
+            {runId ? (
+              <NextStep label="Open the ranked list" because="the norm is scored; calibrate a threshold here only when a distribution tells you to" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId }} search={{ slicing: ctx.slicing, view: ctx.view }} />
+            ) : (
+              <NextStep label="Start a run" because="the lens reads the empirical distribution from a finished run" to="/p/$projectId/runs" params={{ projectId: ctx.projectId }} />
+            )}
 
             <Tabs value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
               <TabsList aria-label="Norm sections">

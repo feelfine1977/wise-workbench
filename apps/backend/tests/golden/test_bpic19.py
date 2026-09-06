@@ -103,6 +103,88 @@ def test_table_xi(pipeline: dict) -> None:
     assert rows[("companyID_0000", "Packaging")]["hotspot_type"] == "reservoir"
 
 
+def test_cycle2_analytics_censoring_histogram_and_flow_types(pipeline: dict) -> None:
+    """R1-01, R1-02, R1-09, R2-O10 on the full log: Packaging is stable at rank 1, 14 % of its items are still
+    open at the window end 2019-01-17 (the same share in the caveat, the validation table and the library), the
+    lens shows 97 % beyond 30 days over informative bins, and the four flow types are detected with their maps."""
+    import json
+
+    pytest.importorskip("wise_analytics")
+    c, project, run, table = pipeline["c"], pipeline["project"], pipeline["run"], pipeline["table"]
+    job = c.runs.request_analytics(project.id, run.id)
+    Worker(c, worker_id="test").drain()
+    assert str(c.jobs.get(job.id).status) == "done", c.jobs.get(job.id).error
+    status = c.runs.analytics(project.id, run.id)
+    assert status["status"] == "done" and status["windowEnd"].startswith("2019-01-17")
+    assert table.readiness.window_end.startswith("2019-01-17") and table.readiness.case_noun == "purchase order items"
+    page = c.runs.backlog(
+        project.id,
+        run.id,
+        slicing="company+spend",
+        view="Automation",
+        gamma=None,
+        min_cases=1,
+        sort="rank",
+        hotspot_type=None,
+        layer=None,
+        q=None,
+        page=1,
+        page_size=5,
+    )
+    assert (
+        page["params"]["window_end"].startswith("2019-01-17") and page["params"]["case_noun"] == "purchase order items"
+    )
+    packaging = page["rows"][0]
+    assert packaging["keys"]["case Spend area text"] == "Packaging" and packaging["stability"] == "stable"
+    assert packaging["kind"] == "widespread" and packaging["plain_layer"] == "On time"
+    assert packaging["points_below"].startswith("0.9 points below the overall score of 84.4")
+    assert packaging["comparison"].startswith("Paid within terms: 83 days here against 55 elsewhere (+25 days)")
+    censoring = next(x for x in packaging["caveats"] if x["id"] == "censoring")
+    assert censoring["share"] == pytest.approx(0.1437, abs=5e-4)
+    assert censoring["text"].startswith("14 % of purchase order items still open at the end of the data (2019-01-17)")
+    real_estate = page["rows"][4]
+    assert real_estate["keys"]["case Spend area text"] == "Real Estate"
+    assert next(x for x in real_estate["caveats"] if x["id"] == "censoring")["text"].startswith(
+        "44 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged"
+    )
+    key = json.dumps(["companyID_0000", "Packaging"])
+    detail = c.runs.slice_detail(
+        project.id, run.id, slicing="company+spend", slice_key=key, view="Automation", drilldown=None
+    )
+    assert detail["validation"]["censored_share"] == pytest.approx(censoring["share"], abs=1e-9)
+    cols = detail["contrast"]["columns"]
+    top = dict(zip(cols, detail["contrast"]["rows"][0]))
+    assert top["constraint"] == "c_l3_invoice_to_clear_days" and top["plain"] == "Paid within terms"
+    assert top["median_group"] == pytest.approx(83.4, abs=0.1) and top["median_elsewhere"] == pytest.approx(
+        54.7, abs=0.1
+    )
+    assert detail["guidance_refs"][0] == {
+        "kind": "layer",
+        "id": "L3_timeliness_ageing",
+        "plain_name": "On time",
+        "missed_label": "waiting too long between steps",
+        "hub_node": "layer:timeliness_ageing",
+    }
+    signal = c.runs.signals(
+        project.id, run.id, constraint_id="c_l3_invoice_to_clear_days", slicing="company+spend", slice_key=key
+    )
+    assert len(signal["bins"]) >= 20 and sum(1 for b in signal["bins"] if b["n"] > 0) >= 20
+    assert signal["stats"]["shareBeyondThresholdText"] == "97 % beyond 30 days"
+    assert [m["x"] for m in signal["markers"]] == [30.0, 90.0] and signal["beyond"]["n"] > 0
+    flow_types = c.mappings.flow_types(project.id, table.id, attribute=None)
+    counts = {t["name"]: t["cases"] for t in flow_types["types"]}
+    assert counts == {"DF2": 221_010, "DF1": 15_182, "Consignment": 14_498, "2-way": 1_044}
+    assert all(
+        t["map"]["groups"] and t["readiness"]["headline"].endswith("(2019-01-17).")
+        for t in flow_types["types"]
+        if t["readiness"]["replicatedShare"] < 0.05
+    )
+    warnings = c.norms.refresh_warnings(pipeline["norm"], table.id).validation
+    assert any("Vendor creates credit memo" in w for w in warnings) and any(
+        "Change Payment Terms" in w for w in warnings
+    )
+
+
 def test_summary_means(pipeline: dict) -> None:
     c, project, run = pipeline["c"], pipeline["project"], pipeline["run"]
     summary = c.runs.summary(project.id, run.id)

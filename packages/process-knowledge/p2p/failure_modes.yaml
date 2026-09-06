@@ -19,29 +19,29 @@ sources:
 layers:
   - id: closure_completeness
     name: {en: Expected completion and closure, de: Erwartete Vollständigkeit und Abschluss}
-    template_layers: {p2p_bpic19: L1_closure_completeness, p2p_baseline: closure}
+    template_layers: {p2p_bpic19: L1_closure_completeness, p2p_bpic19_v1_1: L1_closure_completeness, p2p_baseline: closure}
   - id: flow_discipline
     name: {en: Flow-conditioned control discipline, de: Flussabhängige Kontrolldisziplin}
-    template_layers: {p2p_bpic19: L2_flow_discipline, p2p_baseline: flow_discipline}
+    template_layers: {p2p_bpic19: L2_flow_discipline, p2p_bpic19_v1_1: L2_flow_discipline, p2p_baseline: flow_discipline}
   - id: approval_discipline
     name: {en: Approval discipline, de: Genehmigungsdisziplin}
     template_layers: {p2p_baseline: approval}
   - id: timeliness_ageing
     name: {en: Handovers and ageing, de: Übergaben und Alterung}
-    template_layers: {p2p_bpic19: L3_timeliness_ageing, p2p_baseline: timeliness}
+    template_layers: {p2p_bpic19: L3_timeliness_ageing, p2p_bpic19_v1_1: L3_timeliness_ageing, p2p_baseline: timeliness}
   - id: rework_instability
     name: {en: Rework and instability, de: Nacharbeit und Instabilität}
-    template_layers: {p2p_bpic19: L4_rework_instability, p2p_baseline: rework}
+    template_layers: {p2p_bpic19: L4_rework_instability, p2p_bpic19_v1_1: L4_rework_instability, p2p_baseline: rework}
   - id: exceptions_corrections
     name: {en: Exceptions and corrections, de: Ausnahmen und Korrekturen}
-    template_layers: {p2p_bpic19: L5_exceptions_corrections, p2p_baseline: exceptions}
+    template_layers: {p2p_bpic19: L5_exceptions_corrections, p2p_bpic19_v1_1: L5_exceptions_corrections, p2p_baseline: exceptions}
   - id: value_commercial
     name: {en: Value and commercial integrity, de: Wert und kaufmännische Integrität}
     description: Commercial-risk indicators, not audit findings.
-    template_layers: {p2p_bpic19: L6_value_commercial, p2p_baseline: value}
+    template_layers: {p2p_bpic19: L6_value_commercial, p2p_bpic19_v1_1: L6_value_commercial, p2p_baseline: value}
   - id: effort_automation
     name: {en: Effort and automation friction, de: Aufwand und Automatisierungsreibung}
-    template_layers: {p2p_bpic19: L7_effort_automation, p2p_baseline: effort}
+    template_layers: {p2p_bpic19: L7_effort_automation, p2p_bpic19_v1_1: L7_effort_automation, p2p_baseline: effort}
 
 failure_modes:
   # ------------------------------------------------------------- order stage
@@ -52,8 +52,8 @@ failure_modes:
     signature: p2p.po_change_price after p2p.po_item_create (99.6 % of price changes are after item creation; 29.6 % after the first goods receipt)
     signature_activities: [p2p.po_change_price, p2p.po_item_create, p2p.gr]
     wise_patterns:
-      - {type: singularity, activities: [p2p.po_change_price], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_change_price, calibration: calibrated, applicability: all flow types}
-      - {type: metric, attribute: c_l6_high_exposure_price_change__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_high_exposure_price_change, calibration: calibrated, note: price change weighted by quantile-scaled exposure (derived attribute)}
+      - {type: singularity, activities: [p2p.po_change_price], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l6_change_price, calibration: calibrated, applicability: all flow types}
+      - {type: metric, attribute: c_l6_high_exposure_price_change__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l6_high_exposure_price_change, calibration: calibrated, note: price change weighted by quantile-scaled exposure (derived attribute)}
       - {type: singularity, activities: [p2p.po_change_price], after: [p2p.po_item_create], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_baseline, constraint_ref: b_value_price_change_after_po, calibration: uncalibrated}
     observed_share:
       - {value: 0.0446, of: PO items with at least one price change, source: bpic2019, date: "2026-09-05"}
@@ -87,7 +87,7 @@ failure_modes:
     signature: p2p.po_change_quantity after p2p.po_item_create; 10.9 % of quantity-changed items change after the first goods receipt
     signature_activities: [p2p.po_change_quantity, p2p.po_item_create, p2p.gr]
     wise_patterns:
-      - {type: singularity, activities: [p2p.po_change_quantity], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_change_quantity, calibration: calibrated}
+      - {type: singularity, activities: [p2p.po_change_quantity], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l6_change_quantity, calibration: calibrated}
       - {type: singularity, activities: [p2p.po_change_quantity], after: [p2p.gr], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_baseline, constraint_ref: b_value_quantity_change_after_gr, calibration: uncalibrated, note: changes after receipt are the commercial-risk part; earlier changes belong to commitment discipline}
     observed_share:
       - {value: 0.0699, of: PO items with at least one quantity change, source: bpic2019, date: "2026-09-05"}
@@ -120,7 +120,7 @@ failure_modes:
     signature: p2p.po_item_delete on the item (3.5 % of items in BPIC 2019); reactivations on 0.2 %
     signature_activities: [p2p.po_item_delete, p2p.po_item_reactivate]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.po_item_delete], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_delete_item, calibration: calibrated}
+      - {type: exclusion, activities: [p2p.po_item_delete], layer: exceptions_corrections, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l5_delete_item, calibration: calibrated}
       - {type: exclusion, activities: [p2p.po_item_delete], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_delete_item, calibration: uncalibrated}
     observed_share:
       - {value: 0.0351, of: PO items with a deletion, source: bpic2019, date: "2026-09-05"}
@@ -211,7 +211,7 @@ failure_modes:
     signature: p2p.po_change_payment_terms (a header change replicated onto items); 7 events in BPIC 2019
     signature_activities: [p2p.po_change_payment_terms]
     wise_patterns:
-      - {type: singularity, activities: [p2p.po_change_payment_terms], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_change_payment_terms_repeats, calibration: calibrated, note: "the norm names the activity 'Change Payment Terms'; the CSV label is 'Change payment term', so on the raw CSV the constraint never fires unless labels are mapped"}
+      - {type: singularity, activities: [p2p.po_change_payment_terms], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l4_change_payment_terms_repeats, calibration: calibrated, note: "the norm names the activity 'Change Payment Terms'; the CSV label is 'Change payment term', so on the raw CSV the constraint never fires unless labels are mapped"}
       - {type: singularity, activities: [p2p.po_change_payment_terms], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_payment_terms_changes, calibration: uncalibrated}
     observed_share:
       - {value: 0.00003, of: PO items with a payment-term change (7 events), source: bpic2019, date: "2026-09-05"}
@@ -259,7 +259,7 @@ failure_modes:
     signature: long lag p2p.po_item_create -> p2p.po_release or p2p.pr_item_create -> p2p.pr_release; repeated p2p.po_change_approval
     signature_activities: [p2p.po_release, p2p.pr_release, p2p.po_change_approval, p2p.srm_awaiting_approval, p2p.srm_held, p2p.srm_incomplete]
     wise_patterns:
-      - {type: singularity, activities: [p2p.po_change_approval], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_change_approval_repeats, calibration: calibrated}
+      - {type: singularity, activities: [p2p.po_change_approval], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l4_change_approval_repeats, calibration: calibrated}
       - {type: lag, a: [p2p.pr_item_create, p2p.pr_create], b: [p2p.pr_release], params: {delta: 2, width: 5, unit: D, missing_a: skip, missing_b: skip}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_pr_release_days, calibration: uncalibrated}
       - {type: lag, a: [p2p.po_item_create, p2p.po_create], b: [p2p.po_release], params: {delta: 2, width: 5, unit: D, missing_a: skip, missing_b: skip}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_po_release_days, calibration: uncalibrated}
       - {type: singularity, activities: [p2p.po_change_approval], params: {k: 0, K: 2}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_change_repeats, calibration: uncalibrated}
@@ -321,7 +321,7 @@ failure_modes:
     signature: neither p2p.gr nor p2p.ses on a three-way item
     signature_activities: [p2p.gr, p2p.ses]
     wise_patterns:
-      - {type: presence, activities: [p2p.gr, p2p.ses], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_goods_or_ses_present, calibration: calibrated, applicability: "DF1, DF2"}
+      - {type: presence, activities: [p2p.gr, p2p.ses], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l1_goods_or_ses_present, calibration: calibrated, applicability: "DF1, DF2"}
       - {type: presence, activities: [p2p.gr, p2p.ses], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_goods_present, calibration: uncalibrated, applicability: "three_way_gr_first, three_way_invoice_first, service"}
     observed_share:
       - {value: 0.0643, of: three-way PO items without goods or service receipt, source: bpic2019, date: "2026-09-05", note: includes open items at the window end and deleted items}
@@ -350,7 +350,7 @@ failure_modes:
     signature: p2p.gr_cancel after p2p.gr
     signature_activities: [p2p.gr_cancel, p2p.gr]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.gr_cancel], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_cancel_goods_receipt, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
+      - {type: exclusion, activities: [p2p.gr_cancel], layer: exceptions_corrections, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l5_cancel_goods_receipt, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
       - {type: exclusion, activities: [p2p.gr_cancel], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_cancel_gr, calibration: uncalibrated}
     observed_share:
       - {value: 0.0098, of: PO items with a cancelled goods receipt, source: bpic2019, date: "2026-09-05"}
@@ -379,7 +379,7 @@ failure_modes:
     signature: more than two p2p.gr or p2p.ses events on one item
     signature_activities: [p2p.gr, p2p.ses]
     wise_patterns:
-      - {type: singularity, activities: [p2p.gr, p2p.ses], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_goods_fragmentation, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
+      - {type: singularity, activities: [p2p.gr, p2p.ses], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l4_goods_fragmentation, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
       - {type: singularity, activities: [p2p.gr, p2p.ses], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_gr_fragmentation, calibration: uncalibrated}
     observed_share:
       - {value: 0.0252, of: PO items (three-way and consignment) with more than two receipt events, source: bpic2019, date: "2026-09-05"}
@@ -438,7 +438,7 @@ failure_modes:
     signature: neither p2p.ir nor p2p.vendor_invoice on a three-way or two-way item
     signature_activities: [p2p.ir, p2p.vendor_invoice]
     wise_patterns:
-      - {type: presence, activities: [p2p.ir, p2p.vendor_invoice], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: presence, activities: [p2p.ir, p2p.vendor_invoice], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l1_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
       - {type: presence, activities: [p2p.ir, p2p.vendor_invoice], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_invoice_present, calibration: uncalibrated}
     observed_share:
       - {value: 0.1089, of: invoice-bearing PO items without invoice evidence, source: bpic2019, date: "2026-09-05", note: includes open items at the window end and deleted items}
@@ -467,7 +467,7 @@ failure_modes:
     signature: two or more p2p.ir on the item (partial invoices and duplicates both count)
     signature_activities: [p2p.ir, p2p.ir_cancel]
     wise_patterns:
-      - {type: singularity, activities: [p2p.ir], params: {k: 1, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_repeated_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: singularity, activities: [p2p.ir], params: {k: 1, K: 2}, layer: rework_instability, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l4_repeated_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
       - {type: singularity, activities: [p2p.ir], params: {k: 1, K: 2}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_repeated_ir, calibration: uncalibrated}
     observed_share:
       - {value: 0.0407, of: invoice-bearing PO items with two or more invoice receipts, source: bpic2019, date: "2026-09-05"}
@@ -495,7 +495,7 @@ failure_modes:
     signature: p2p.ir_cancel or p2p.subsequent_invoice_cancel after an invoice posting
     signature_activities: [p2p.ir_cancel, p2p.subsequent_invoice_cancel, p2p.ir, p2p.subsequent_invoice]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.ir_cancel], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_cancel_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: exclusion, activities: [p2p.ir_cancel], layer: exceptions_corrections, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l5_cancel_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
       - {type: exclusion, activities: [p2p.ir_cancel, p2p.subsequent_invoice_cancel], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_cancel_ir, calibration: uncalibrated}
     observed_share:
       - {value: 0.0257, of: PO items with a cancelled invoice receipt, source: bpic2019, date: "2026-09-05"}
@@ -525,8 +525,8 @@ failure_modes:
     signature: p2p.vendor_debit_memo on the item, weighted by exposure in the paper's norm
     signature_activities: [p2p.vendor_debit_memo]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.vendor_debit_memo], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_debit_memo, calibration: calibrated}
-      - {type: metric, attribute: c_l6_high_exposure_memo__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_high_exposure_memo, calibration: calibrated, note: memo indicator times quantile-scaled exposure}
+      - {type: exclusion, activities: [p2p.vendor_debit_memo], layer: exceptions_corrections, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l5_debit_memo, calibration: calibrated}
+      - {type: metric, attribute: c_l6_high_exposure_memo__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l6_high_exposure_memo, calibration: calibrated, note: memo indicator times quantile-scaled exposure}
       - {type: exclusion, activities: [p2p.vendor_debit_memo, p2p.vendor_credit_memo], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_debit_credit_memo, calibration: uncalibrated}
     observed_share:
       - {value: 0.0238, of: PO items with a vendor debit memo, source: bpic2019, date: "2026-09-05"}
@@ -552,7 +552,7 @@ failure_modes:
     signature: p2p.vendor_credit_memo on the item
     signature_activities: [p2p.vendor_credit_memo]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.vendor_credit_memo], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_credit_memo, calibration: calibrated, note: "the label 'Vendor creates credit memo' does not occur in the BPIC 2019 CSV; the constraint never fires there"}
+      - {type: exclusion, activities: [p2p.vendor_credit_memo], layer: exceptions_corrections, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l5_credit_memo, calibration: calibrated, note: "the label 'Vendor creates credit memo' does not occur in the BPIC 2019 CSV; the constraint never fires there"}
     evidence: none
     typical_causes:
       - Returns or quality claims settled by credit
@@ -602,7 +602,10 @@ failure_modes:
     signature_activities: [p2p.ir, p2p.vendor_invoice, p2p.gr, p2p.ses]
     wise_patterns:
       - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_df1_invoice_after_goods, calibration: calibrated, applicability: DF1}
-      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {delta: 10, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df1_goods_to_invoice_days, calibration: calibrated, applicability: DF1}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.vendor_invoice], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19_v1_1, constraint_ref: c_l2_df1_vendor_invoice_after_goods, calibration: uncalibrated, applicability: DF1, note: "norm draft v1.1, the commercial half of the split: the vendor's invoice date against the first receipt (53.6 % of DF1 items with both dates, measured 2026-09-06)"}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.ir], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19_v1_1, constraint_ref: c_l2_df1_invoice_posting_after_goods, calibration: uncalibrated, applicability: DF1, note: "norm draft v1.1, the compliance half of the split: the invoice posting against the first receipt (0.0 % of DF1 items with both postings, measured 2026-09-06)"}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.invoice_clear], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19_v1_1, constraint_ref: c_l2_clear_after_goods, calibration: uncalibrated, applicability: "DF1, DF2", note: "norm draft v1.1, the challenge reports' cleared-before-goods rule (HPI rule 4, 4.58 % of DF1 cases); by posting timestamps 0.0 % of DF1 and 0.05 % of DF2 items with both events, measured 2026-09-06"}
+      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {delta: 10, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l3_df1_goods_to_invoice_days, calibration: calibrated, applicability: DF1}
       - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_invoice_after_goods, calibration: uncalibrated, applicability: "three_way_gr_first, service"}
       - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {delta: 10, width: 20, unit: D, missing_a: skip, missing_b: skip}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_goods_to_invoice, calibration: uncalibrated, applicability: "three_way_gr_first, service"}
     observed_share:
@@ -635,9 +638,9 @@ failure_modes:
     signature: p2p.payment_block_set or an implicit block released by p2p.payment_block_remove; in DF2 the release must follow the receipt
     signature_activities: [p2p.payment_block_set, p2p.payment_block_remove, p2p.gr, p2p.ses, p2p.invoice_clear]
     wise_patterns:
-      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_df2_release_after_goods, calibration: calibrated, applicability: DF2}
-      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {delta: 2, width: 10, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df2_goods_to_rpb_days, calibration: calibrated, applicability: DF2}
-      - {type: lag, a: [p2p.payment_block_remove], b: [p2p.invoice_clear], params: {delta: 5, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df2_rpb_to_clear_days, calibration: calibrated, applicability: DF2}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l2_df2_release_after_goods, calibration: calibrated, applicability: DF2}
+      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {delta: 2, width: 10, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l3_df2_goods_to_rpb_days, calibration: calibrated, applicability: DF2}
+      - {type: lag, a: [p2p.payment_block_remove], b: [p2p.invoice_clear], params: {delta: 5, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l3_df2_rpb_to_clear_days, calibration: calibrated, applicability: DF2}
       - {type: exclusion, activities: [p2p.payment_block_set], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_payment_block, calibration: uncalibrated, note: only manual blocks are logged as events; automatic blocks show up as a release only}
       - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_release_after_goods, calibration: uncalibrated, applicability: three_way_invoice_first}
       - {type: lag, a: [p2p.payment_block_remove], b: [p2p.invoice_clear], params: {delta: 5, width: 20, unit: D, missing_a: skip, missing_b: censor}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_release_to_clear, calibration: uncalibrated}
@@ -671,7 +674,7 @@ failure_modes:
     signature: p2p.gr or p2p.ses on a two_way item
     signature_activities: [p2p.gr, p2p.ses]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.gr, p2p.ses], layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_2way_no_goods_expected, calibration: calibrated, applicability: 2-way}
+      - {type: exclusion, activities: [p2p.gr, p2p.ses], layer: flow_discipline, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l2_2way_no_goods_expected, calibration: calibrated, applicability: 2-way}
       - {type: exclusion, activities: [p2p.gr, p2p.ses], layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_no_goods_in_two_way, calibration: uncalibrated, applicability: two_way}
     observed_share:
       - {value: 0.0, of: "two-way PO items with a receipt (n = 1,044)", source: bpic2019, date: "2026-09-05"}
@@ -695,8 +698,8 @@ failure_modes:
     signature: no p2p.invoice_clear on an invoice-bearing item, or a long lag p2p.ir -> p2p.invoice_clear
     signature_activities: [p2p.invoice_clear, p2p.ir, p2p.vendor_invoice]
     wise_patterns:
-      - {type: presence, activities: [p2p.invoice_clear], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_clear_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
-      - {type: lag, a: [p2p.ir, p2p.vendor_invoice], b: [p2p.invoice_clear], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_invoice_to_clear_days, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: presence, activities: [p2p.invoice_clear], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l1_clear_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: lag, a: [p2p.ir, p2p.vendor_invoice], b: [p2p.invoice_clear], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l3_invoice_to_clear_days, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
       - {type: presence, activities: [p2p.invoice_clear], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_clear_present, calibration: uncalibrated}
       - {type: lag, a: [p2p.ir, p2p.vendor_invoice], b: [p2p.invoice_clear], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: censor}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_invoice_to_clear, calibration: uncalibrated, note: open invoices are scored by their age (censor) instead of as full violations}
     observed_share:
@@ -728,7 +731,7 @@ failure_modes:
     signature: p2p.invoice_clear on a consignment item (consignment is settled periodically, not per item)
     signature_activities: [p2p.invoice_clear]
     wise_patterns:
-      - {type: exclusion, activities: [p2p.invoice_clear], layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_consignment_no_clear_invoice, calibration: calibrated, applicability: Consignment}
+      - {type: exclusion, activities: [p2p.invoice_clear], layer: flow_discipline, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l2_consignment_no_clear_invoice, calibration: calibrated, applicability: Consignment}
       - {type: exclusion, activities: [p2p.invoice_clear], layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_consignment_no_clear, calibration: uncalibrated, applicability: consignment}
     observed_share:
       - {value: 0.0, of: "consignment PO items with an invoice clearing (n = 14,498)", source: bpic2019, date: "2026-09-05"}
@@ -752,10 +755,10 @@ failure_modes:
     signature: derived attributes manual_touch_count, distinct_human_resources, total_events, manual_share above their thresholds
     signature_activities: []
     wise_patterns:
-      - {type: metric, attribute: manual_touch_count, params: {threshold: 4.0, width: 6.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_manual_touches, calibration: calibrated}
-      - {type: metric, attribute: distinct_human_resources, params: {threshold: 2.0, width: 4.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_distinct_human_resources, calibration: calibrated}
-      - {type: metric, attribute: total_events, params: {threshold: 10.0, width: 15.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_total_events, calibration: calibrated}
-      - {type: metric, attribute: manual_share, params: {threshold: 0.5, width: 0.5, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_manual_share, calibration: calibrated}
+      - {type: metric, attribute: manual_touch_count, params: {threshold: 4.0, width: 6.0, direction: high}, layer: effort_automation, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l7_manual_touches, calibration: calibrated}
+      - {type: metric, attribute: distinct_human_resources, params: {threshold: 2.0, width: 4.0, direction: high}, layer: effort_automation, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l7_distinct_human_resources, calibration: calibrated}
+      - {type: metric, attribute: total_events, params: {threshold: 10.0, width: 15.0, direction: high}, layer: effort_automation, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l7_total_events, calibration: calibrated}
+      - {type: metric, attribute: manual_share, params: {threshold: 0.5, width: 0.5, direction: high}, layer: effort_automation, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l7_manual_share, calibration: calibrated}
       - {type: metric, attribute: manual_touch_count, params: {threshold: 4.0, width: 6.0, direction: high}, layer: effort_automation, template: p2p_baseline, constraint_ref: b_effort_manual_touches, calibration: uncalibrated, note: needs a resource column; batch users are excluded by the derived attribute's regex}
       - {type: metric, attribute: total_events, params: {threshold: 10.0, width: 15.0, direction: high}, layer: effort_automation, template: p2p_baseline, constraint_ref: b_effort_total_events, calibration: uncalibrated}
     evidence: [bpic2019]
@@ -781,7 +784,7 @@ failure_modes:
     signature: high coefficient of variation of the cumulative net worth over the item's events (derived attribute networth_cv)
     signature_activities: []
     wise_patterns:
-      - {type: metric, attribute: networth_cv, params: {threshold: 0.5, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_networth_volatility, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: metric, attribute: networth_cv, params: {threshold: 0.5, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, also_templates: [p2p_bpic19_v1_1], constraint_ref: c_l6_networth_volatility, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
     evidence: [bpic2019]
     typical_causes:
       - Price and quantity changes after ordering
@@ -816,3 +819,61 @@ failure_modes:
     owner_role: warehouse
     sources: [BPI Challenge 2019 measurement 2026-09-05, SAP MM documentation delivery completed indicator]
     review_status: draft
+
+  # ------------------------------------------------------------- data-quality patterns (readiness checks, never scored expectations)
+  - id: p2p.fm.block_release_logging_asymmetry
+    version: 1
+    name: {en: Payment-block releases without a logged block, de: Zahlsperren-Aufhebungen ohne protokollierte Sperre}
+    stage: match
+    kind: data_quality
+    signature: "p2p.payment_block_remove on the item without a preceding p2p.payment_block_set; BPIC 2019 has 57,136 release events against 124 set events, and 55,812 of the 55,839 items with a release carry no logged block (measured 2026-09-06)"
+    signature_activities: [p2p.payment_block_remove, p2p.payment_block_set]
+    wise_patterns:
+      - {type: precedence, a: [p2p.payment_block_set], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: violate, missing_b: skip}, layer: exceptions_corrections, calibration: uncalibrated, note: "readiness check, not a scored expectation: the share of releases without a logged block measures how blocks are recorded, not how often invoices are blocked; no template carries it"}
+    observed_share:
+      - {value: 0.9995, of: "PO items with a payment-block release that have no logged block set (55,812 of 55,839)", source: bpic2019, date: "2026-09-06"}
+      - {value: 0.2218, of: "PO items with at least one payment-block release (DF2 24.3 %, DF1 14.7 %, 2-way 0.1 %, consignment 0.0 %)", source: bpic2019, date: "2026-09-06"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Blocks set automatically at invoice posting (price or quantity variance through the tolerance keys) are not written as events; only the manual release is
+      - Manual blocks write a change document, automatic ones do not
+    typical_remedies:
+      - Readiness warning on the asymmetry printed with every block share; read release counts as block counts, never as block reasons
+      - Join the blocking reason from the invoice document as a case attribute before any expectation on setting a block
+    evidence_to_check:
+      - Ratio of release events to set events per purchasing organisation and period
+      - Whether the source system writes a change document for automatic blocks
+    owner_role: it_process_owner
+    kpis: [p2p.kpi.payment_block_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-06 (log primitives), BPI Challenge 2019 HPI report (Set Payment Block almost never logged), cycle 1 review §5 row 9]
+    review_status: draft
+    notes: Data-quality pattern (R1-24); an expectation on p2p.payment_block_set would measure logging, not behaviour.
+
+  - id: p2p.fm.missing_order_confirmation
+    version: 1
+    name: {en: Vendor order confirmation not recorded, de: Auftragsbestätigung des Lieferanten nicht erfasst}
+    stage: order
+    kind: data_quality
+    signature: "no p2p.po_confirmation_receive on the item; BPIC 2019 records one on 12.7 % of items, 97 of 1,975 vendors have any, and 37 of the 1,374 invoice-first vendors confirm in more than 70 % of their items (measured 2026-09-06)"
+    signature_activities: [p2p.po_confirmation_receive]
+    wise_patterns:
+      - {type: presence, activities: [p2p.po_confirmation_receive], params: {m: 1}, layer: rework_instability, calibration: uncalibrated, note: "readiness check, not a scored expectation: absence measures whether confirmations are recorded (confirmation control, EDI), not whether the vendor confirmed; reported per vendor and purchasing organisation"}
+    observed_share:
+      - {value: 0.1274, of: "PO items with a recorded order confirmation (DF2 14.2 %, DF1 0.3 %, consignment 5.1 %, 2-way 0.0 %)", source: bpic2019, date: "2026-09-06"}
+      - {value: 37, unit: vendors, of: "invoice-first (DF2) vendors, of 1,374, that confirm in more than 70 % of their items (the RWTH report counted 43)", source: bpic2019, date: "2026-09-06"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Confirmations arrive by e-mail or phone and are not entered on the order
+      - Confirmation control not activated for the vendor in the purchasing master data
+      - EDI confirmations only for a few vendors
+    typical_remedies:
+      - Activate confirmation control for the vendors whose delivery dates matter; EDI confirmations for the largest vendors
+      - Report the confirmation share as a readiness finding per vendor, never as a shortfall of the vendor
+    evidence_to_check:
+      - Confirmation share per vendor and purchasing organisation
+      - Whether the vendors without confirmations are the same across periods (recording practice) or change (vendor behaviour)
+    owner_role: purchasing
+    kpis: [p2p.kpi.confirmation_churn]
+    sources: [BPI Challenge 2019 measurement 2026-09-06 (log primitives), BPI Challenge 2019 RWTH report (43 of 1,374 DF2 vendors confirm in more than 70 % of items), cycle 1 review §5 row 14]
+    review_status: draft
+    notes: Data-quality pattern (R1-24); a presence expectation on confirmations would penalise vendors for the buyer's recording practice.

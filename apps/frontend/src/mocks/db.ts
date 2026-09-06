@@ -1,10 +1,13 @@
 import type { BacklogRow, CaseTable, DatasetVersion, Job, NormVersion, Run, RunSummary, Table } from "@wise/api-schema";
+import type { Decision, Notebook, RunC2, RunScope, Snapshot } from "@/lib/api/cycle2";
+import { VERIFIED_CASE_NOUN, VERIFIED_WINDOW_END } from "./fixtures/verified";
 import { buildBacklog, globalMeans } from "./fixtures/backlog";
 import { activities, bpic19Columns, caseTableAttributes, caseTables as caseTableFixtures, datasets as datasetFixtures, readinessWarn } from "./fixtures/datasets";
 import { bpic19Norm, normVersions } from "./fixtures/norm";
 import { projects as projectFixtures } from "./fixtures/project";
 import { runs as runFixtures, slicings, views } from "./fixtures/runs";
 import { rng, round } from "./fixtures/seed";
+import { VERIFIED_GAMMA, isVerifiedSlicing, verifiedBacklog } from "./fixtures/verified";
 
 export interface MockJob extends Job {
   /** Side effect applied when the job finishes. */
@@ -13,17 +16,26 @@ export interface MockJob extends Job {
   step: number;
 }
 
+export interface MockSnapshot extends Snapshot {
+  /** The PNG the client sent; served from `GET /notebook/snapshots/{id}/image`. */
+  image?: Blob;
+}
+
 export interface MockDb {
   projects: typeof projectFixtures;
   datasets: DatasetVersion[];
   caseTables: CaseTable[];
   norms: NormVersion[];
-  runs: Run[];
+  runs: RunC2[];
   jobs: Map<string, MockJob>;
-  counters: { dataset: number; caseTable: number; norm: number; run: number; job: number };
+  notebook: Omit<Notebook, "snapshots"> & { snapshots: MockSnapshot[] };
+  decisions: Decision[];
+  counters: { dataset: number; caseTable: number; norm: number; run: number; job: number; snapshot: number; decision: number };
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+const emptyNotebook = (): MockDb["notebook"] => ({ projectId: "p2p2018", snapshots: [], exportFormats: ["markdown"] });
 
 export const db: MockDb = {
   projects: [],
@@ -32,8 +44,12 @@ export const db: MockDb = {
   norms: [],
   runs: [],
   jobs: new Map(),
-  counters: { dataset: 1, caseTable: 1, norm: 8, run: 41, job: 41 },
+  notebook: emptyNotebook(),
+  decisions: [],
+  counters: { dataset: 1, caseTable: 1, norm: 8, run: 41, job: 41, snapshot: 0, decision: 0 },
 };
+
+const backlogCache = new Map<string, BacklogSource>();
 
 export function resetDb() {
   db.projects = clone(projectFixtures);
@@ -42,7 +58,10 @@ export function resetDb() {
   db.norms = clone(normVersions);
   db.runs = clone(runFixtures);
   db.jobs = new Map();
-  db.counters = { dataset: 1, caseTable: 1, norm: 8, run: 41, job: 41 };
+  db.notebook = emptyNotebook();
+  db.decisions = [];
+  db.counters = { dataset: 1, caseTable: 1, norm: 8, run: 41, job: 41, snapshot: 0, decision: 0 };
+  backlogCache.clear();
   for (const run of db.runs) {
     if (run.jobId) {
       db.jobs.set(run.jobId, {
@@ -63,7 +82,6 @@ export function resetDb() {
     }
   }
 }
-resetDb();
 
 export const nextId = (kind: keyof MockDb["counters"], prefix: string) => `${prefix}_${++db.counters[kind]}`;
 
@@ -80,6 +98,7 @@ const messages: Record<string, string[]> = {
   build_cases: ["reading events", "building the event log", "data-readiness report", "writing the case table", "writing typed events"],
   score_run: ["loading the event log", "scoring cases", "writing per-case frames", "backlog case Vendor × Finance", "writing summary"],
   load_preset: ["hashing the log file", "ingest: reading the source file", "case table: building the event log", "norm version", "scoring: scoring cases"],
+  apply_decision: ["reading the decision", "rebuilding the case table", "data-readiness report"],
 };
 
 /** Advances a job one step on observation; applies the side effect when it reaches 1. */
@@ -117,7 +136,7 @@ function applyEffect(job: MockJob) {
       run.status = "done";
       run.manifest = { ...run.manifest, finishedAt: new Date().toISOString() };
       const project = db.projects[0];
-      if (project) project.latestRunId = run.id;
+      if (project && !run.scope?.flow_type) project.latestRunId = run.id;
     }
     job.resultRef = `run:${e.id}`;
   }
@@ -148,29 +167,91 @@ export function newCaseTable(datasetId: string, mappingId: string, headerEvents:
     readiness.items = (readiness.items ?? []).filter((i) => i.id !== "header_event_replication");
     readiness.items.push({ id: "header_event_replication", level: "info", message: `Header events typed away: ${headerEvents.join(", ")} are attached to the purchasing document, not replicated per item.`, evidence: { headerEvents, replicatedShare: 0, casesFlagged: 0, ratioFlag: 2 } });
   }
-  const ct: CaseTable = { id, datasetId, mappingId, cases: 251734, events: 1595923, status: "building", readiness, activities: clone(activities), attributes: caseTableAttributes, createdAt: new Date().toISOString() };
+  const ct: CaseTable = { id, datasetId, mappingId, cases: 251734, events: 1595923, status: "building", readiness: { ...readiness, windowEnd: VERIFIED_WINDOW_END, caseNoun: VERIFIED_CASE_NOUN }, activities: clone(activities), attributes: caseTableAttributes, createdAt: new Date().toISOString() };
   db.caseTables.push(ct);
   return ct;
 }
 
-const backlogCache = new Map<string, { rows: BacklogRow[]; globalMean: number }>();
-export function backlogFor(runId: string, slicing: string, view: string, gamma: number, minCases: number) {
+export const FLOW_TYPE_SHARE: Record<string, number> = { DF2: 221010 / 251734, DF1: 15182 / 251734, Consignment: 14498 / 251734, "2-way": 1044 / 251734 };
+
+/** Re-derives the shrinkage columns for another γ (the verified rows were computed with γ = 20). */
+function withGamma(rows: BacklogRow[], gamma: number): BacklogRow[] {
+  if (gamma === VERIFIED_GAMMA) return rows;
+  const out = rows.map((row) => {
+    const n = row.n_cases;
+    const shrink = gamma > 0 ? n / (n + gamma) : 1;
+    const stableGap = round(row.gap * shrink, 8);
+    const se = row.se ?? 0;
+    return { ...row, stable_gap: stableGap, stable_PI: round(n * stableGap, 4), PI_lower: round(n * Math.max(0, stableGap - 1.96 * se), 4), stable_mean: round((row.global_mean ?? 0) - stableGap, 6) };
+  });
+  out.sort((a, b) => b.stable_PI - a.stable_PI || b.n_cases - a.n_cases);
+  out.forEach((r, i) => (r.rank = i + 1));
+  return out;
+}
+
+/** Scopes rows to one flow type: illustrative scaling of the counts (the backend restricts the case table). */
+function withScope(rows: BacklogRow[], scope: RunScope | null | undefined, gamma: number, seed: string): BacklogRow[] {
+  const ft = scope?.flow_type;
+  if (!ft) return rows;
+  const share = FLOW_TYPE_SHARE[ft] ?? 0.1;
+  const r = rng(`scope:${ft}:${seed}`);
+  const out = rows
+    .map((row) => {
+      const n = Math.max(1, Math.round(row.n_cases * share * r.range(0.7, 1.3)));
+      const gap = round(Math.max(0, row.gap * r.range(0.6, 1.5)), 8);
+      const shrink = gamma > 0 ? n / (n + gamma) : 1;
+      return { ...row, n_cases: n, volume: n, gap, PI: round(n * gap, 4), stable_gap: round(gap * shrink, 8), stable_PI: round(n * gap * shrink, 4), PI_lower: round(n * Math.max(0, gap * shrink - 1.96 * (row.se ?? 0)), 4), stability: "unknown" as const };
+    })
+    .sort((a, b) => b.stable_PI - a.stable_PI);
+  out.forEach((row, i) => {
+    row.rank = i + 1;
+    row.n_ranked = out.length;
+  });
+  return out;
+}
+
+export interface BacklogSource {
+  rows: BacklogRow[];
+  globalMean: number;
+  /** The backend's total for the slicing; larger than `rows.length` for the verified vendor page (top 50 of 1,975). */
+  total?: number;
+  illustrative: boolean;
+}
+
+/**
+ * The backlog of a run: the verified run's rows for the company × spend area and vendor slicings (γ re-derived
+ * when the run's differs), illustrative rows otherwise; other periods perturb the rows; scoped runs scale them.
+ */
+export function backlogFor(runId: string, slicing: string, view: string, gamma: number, minCases: number): BacklogSource {
   const run = db.runs.find((r) => r.id === runId);
   const seedSuffix = run?.note && run.note !== "2018" ? `:${run.note}` : "";
-  const k = `${slicing}|${view}|${gamma}|${minCases}${seedSuffix}`;
+  const scopeSuffix = run?.scope?.flow_type ? `:scope=${run.scope.flow_type}` : "";
+  void FLOW_TYPE_SHARE;
+  const k = `${slicing}|${view}|${gamma}|${minCases}${seedSuffix}${scopeSuffix}`;
   let hit = backlogCache.get(k);
   if (!hit) {
-    hit = buildBacklog(slicing, view, gamma, minCases);
+    const verified = verifiedBacklog(slicing, view);
+    if (verified && isVerifiedSlicing(slicing)) {
+      const rows = withGamma(clone(verified.rows), gamma).filter((r) => r.n_cases >= minCases);
+      hit = { rows, globalMean: verified.globalMean, total: rows.length === verified.rows.length ? verified.total : rows.length, illustrative: false };
+    } else {
+      const built = buildBacklog(slicing, view, gamma, minCases);
+      hit = { rows: built.rows, globalMean: built.globalMean, illustrative: true };
+    }
     if (seedSuffix) {
       // other periods: perturb gaps deterministically so comparisons are not trivial
       const r = rng(k);
-      hit.rows = hit.rows.map((row) => {
-        const f = 1 + r.normal(0, 0.12);
-        const gap = round(Math.max(0, row.gap * f), 8);
-        const shrink = gamma > 0 ? row.n_cases / (row.n_cases + gamma) : 1;
-        return { ...row, gap, PI: round(row.n_cases * gap, 4), stable_gap: round(gap * shrink, 8), stable_PI: round(row.n_cases * gap * shrink, 4) };
-      });
+      hit = {
+        ...hit,
+        rows: hit.rows.map((row) => {
+          const f = 1 + r.normal(0, 0.12);
+          const gap = round(Math.max(0, row.gap * f), 8);
+          const shrink = gamma > 0 ? row.n_cases / (row.n_cases + gamma) : 1;
+          return { ...row, gap, PI: round(row.n_cases * gap, 4), stable_gap: round(gap * shrink, 8), stable_PI: round(row.n_cases * gap * shrink, 4) };
+        }),
+      };
     }
+    if (run?.scope?.flow_type) hit = { ...hit, rows: withScope(hit.rows, run.scope, gamma, k), total: undefined, illustrative: true };
     backlogCache.set(k, hit);
   }
   return hit;
@@ -178,8 +259,8 @@ export function backlogFor(runId: string, slicing: string, view: string, gamma: 
 
 export function summaryFor(runId: string): RunSummary {
   const run = db.runs.find((r) => r.id === runId);
-  const gamma = run?.gamma ?? 50;
-  const minCases = run?.minCases ?? 20;
+  const gamma = run?.gamma ?? 20;
+  const minCases = run?.minCases ?? 1;
   const viewList = run?.views ?? views;
   const slicingList = run?.slicings ?? slicings;
   const means = Object.fromEntries(viewList.map((v) => [v, globalMeans[v] ?? 0.84]));
@@ -216,5 +297,37 @@ export function summaryFor(runId: string): RunSummary {
     columns: ["view", ...layerIds],
     rows: viewList.map((v) => [v, ...layerIds.map(() => round(r.range(0.001, 0.11), 6))]),
   };
-  return { means, scored: Object.fromEntries(viewList.map((v) => [v, 251734])), density: { evaluated: 0.762, inScope: 0.841 }, layers, concentration, agreement, cases: 251734, views: viewList };
+  const cases = run?.scope?.flow_type ? Math.round(251734 * (FLOW_TYPE_SHARE[run.scope.flow_type] ?? 0.1)) : 251734;
+  return { means, scored: Object.fromEntries(viewList.map((v) => [v, cases])), density: { evaluated: 0.762, inScope: 0.841 }, layers, concentration, agreement, cases, views: viewList };
 }
+
+/** Creates a run (queued) with its scoring job; `scope` restricts it to one flow type (R2-O10). */
+export function newRun(body: { caseTableId: string; normVersionId: string; views?: string[]; slicings?: Run["slicings"]; gamma?: number; minCases?: number; note?: string | null; baselineRunId?: string | null; scope?: RunScope }, parentRunId?: string): RunC2 {
+  const id = nextId("run", "run");
+  const job = createJob("score_run", body.scope?.flow_type ? `loading the ${body.scope.flow_type} items` : "loading the event log", { kind: "run", id }, 0.2);
+  const norm = db.norms.find((n) => n.id === body.normVersionId);
+  const runSlicings = (body.slicings?.length ? body.slicings : [{ attributes: ["case Vendor"] }]).map((s) => ({ ...s, id: s.id || s.attributes.join("+"), attributes: s.attributes }));
+  const run: RunC2 = {
+    caseTableId: body.caseTableId,
+    normVersionId: body.normVersionId,
+    baselineRunId: body.baselineRunId ?? undefined,
+    note: body.note ?? undefined,
+    views: body.views?.length ? body.views : (norm?.views ?? ["Finance", "Logistics", "Compliance", "Automation"]),
+    slicings: runSlicings,
+    gamma: body.gamma ?? 20,
+    minCases: body.minCases ?? 1,
+    id,
+    status: "queued",
+    jobId: job.id,
+    paramsHash: ((Math.random() * 0xffffffff) >>> 0).toString(16).padStart(64, "0"),
+    createdAt: new Date().toISOString(),
+    manifest: { normFingerprint: norm?.fingerprint, contentHash: "51ab9d7c3e0f2b6451ab9d7c3e0f2b6451ab9d7c3e0f2b6451ab9d7c3e0f2b64", mappingId: "map_2", wiseVersion: "0.1.0", startedAt: new Date().toISOString(), views: body.views ?? [], slicings: runSlicings },
+    links: { self: `/api/v1/projects/p2p2018/runs/${id}`, summary: `/api/v1/projects/p2p2018/runs/${id}/summary` },
+    scope: body.scope?.flow_type || body.scope?.value ? { flow_type: body.scope.flow_type ?? body.scope.value, attribute: body.scope.attribute ?? "flow_type", value: body.scope.value ?? body.scope.flow_type } : null,
+  };
+  void parentRunId;
+  db.runs.push(run);
+  return run;
+}
+
+resetDb();

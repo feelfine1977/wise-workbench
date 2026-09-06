@@ -8,8 +8,10 @@ edge tables, and matches log activity labels to canonical activities.
 
 from __future__ import annotations
 
+from .flow import stage_lanes
 from .graph import KnowledgeGraph, build_graph
-from .loaders import load_datasets, load_mapping, load_pack
+from .guidance import Hub, build_hub, embed_guidance, render_page, template_guidance
+from .loaders import load_datasets, load_mapping, load_pack, load_preset
 from .matching import Candidate, Matcher, MatchKey, ObservedActivity, normalise_label
 from .models import (
     Activity,
@@ -17,11 +19,13 @@ from .models import (
     DatasetRegistry,
     FailureMode,
     GlossaryTerm,
+    Guidance,
     Kpi,
     LabelEntry,
     LabelPack,
     Pack,
     Playbook,
+    Preset,
     Role,
     SliceKey,
     SlicingGuide,
@@ -43,6 +47,8 @@ __all__ = [
     "DatasetRegistry",
     "FailureMode",
     "GlossaryTerm",
+    "Guidance",
+    "Hub",
     "KnowledgeGraph",
     "Kpi",
     "LabelEntry",
@@ -52,6 +58,7 @@ __all__ = [
     "ObservedActivity",
     "Pack",
     "Playbook",
+    "Preset",
     "Role",
     "SliceKey",
     "SlicingGuide",
@@ -64,12 +71,18 @@ __all__ = [
     "__version__",
     "available_packs",
     "build_graph",
+    "build_hub",
+    "embed_guidance",
     "knowledge_root",
     "load_datasets",
     "load_mapping",
     "load_pack",
+    "load_preset",
     "normalise_label",
     "pack_dir",
+    "render_page",
+    "stage_lanes",
+    "template_guidance",
     "validate_datasets",
     "validate_pack",
 ]

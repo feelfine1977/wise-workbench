@@ -52,6 +52,25 @@ def test_artefacts_are_recorded(synthetic_artefacts):
     assert art["vocabulary_drift"]["new_label"] in log.activity_labels
     assert art["censoring"]["n_events_dropped"] > 0 and len(art["censoring"]["case_ids_truncated"]) > 0
     assert art["unit_mixing"]["company"] == "C3"
+    assert art["logging_asymmetry"]["n_release_cases"] > 10 * art["logging_asymmetry"]["n_set_cases"]
+    assert "Remove Payment Block" in log.activity_labels and art["frequency_drift"]["n_events"] > 0
+    assert art["frequency_drift"]["activity"] in log.activity_labels
+
+
+def test_late_artefacts_leave_the_rest_of_the_log_unchanged():
+    base = {k: v for k, v in DEFAULT_ARTEFACTS.items() if k not in ("logging_asymmetry", "frequency_drift")}
+    a, ta = wa.generate(n_cases=800, seed=4, artefacts=base)
+    b, tb = wa.generate(n_cases=800, seed=4, artefacts=DEFAULT_ARTEFACTS)
+    extra = {"Set Payment Block", "Remove Payment Block", "Create Purchase Requisition Item"}
+    kept = b.events[~b.events["activity"].isin(extra)]
+    cols = ["case", "activity", "time", "amount", "resource"]
+    left = a.events[cols].sort_values(cols, kind="mergesort").reset_index(drop=True)
+    right = kept[cols].sort_values(cols, kind="mergesort").reset_index(drop=True)
+    assert left.equals(right)
+    assert ta.hotspots == tb.hotspots
+    ra, rb = wise.score(a, ta.norm), wise.score(b, tb.norm)
+    # the same scores up to the summation order of the shuffled amounts
+    assert np.allclose(ra.scores["Finance"].to_numpy(), rb.scores["Finance"].to_numpy(), atol=1e-12, equal_nan=True)
 
 
 def test_mechanisms_load_their_constraints():

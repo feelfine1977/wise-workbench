@@ -1,0 +1,2593 @@
+{
+"nodes": [
+{
+"id": "__start__",
+"kind": "event",
+"label": "start",
+"group": null,
+"metrics": {
+"cases": 251734.0,
+"share": 1.0
+},
+"tags": [
+"start"
+]
+},
+{
+"id": "__end__",
+"kind": "event",
+"label": "end",
+"group": null,
+"metrics": {
+"cases": 251734.0,
+"share": 1.0
+},
+"tags": [
+"end"
+]
+},
+{
+"id": "a_record_goods_receipt",
+"kind": "activity",
+"label": "Record Goods Receipt",
+"group": "receive",
+"metrics": {
+"events": 314097.0,
+"cases": 234479.0,
+"share": 0.931455,
+"caseShare": 0.931455,
+"eventsPerCase": 1.339553,
+"violationShare": 0.735971
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_order_item",
+"kind": "activity",
+"label": "Create Purchase Order Item",
+"group": "order",
+"metrics": {
+"events": 251734.0,
+"cases": 251734.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_record_invoice_receipt",
+"kind": "activity",
+"label": "Record Invoice Receipt",
+"group": "invoice",
+"metrics": {
+"events": 228760.0,
+"cases": 211379.0,
+"share": 0.839692,
+"caseShare": 0.839692,
+"eventsPerCase": 1.082227,
+"violationShare": 0.889199
+},
+"tags": []
+},
+{
+"id": "a_vendor_creates_invoice",
+"kind": "activity",
+"label": "Vendor creates invoice",
+"group": "invoice",
+"metrics": {
+"events": 219919.0,
+"cases": 209946.0,
+"share": 0.833999,
+"caseShare": 0.833999,
+"eventsPerCase": 1.047503,
+"violationShare": 0.889199
+},
+"tags": []
+},
+{
+"id": "a_clear_invoice",
+"kind": "activity",
+"label": "Clear Invoice",
+"group": "pay",
+"metrics": {
+"events": 194393.0,
+"cases": 183677.0,
+"share": 0.729647,
+"caseShare": 0.729647,
+"eventsPerCase": 1.058342,
+"violationShare": 0.889199
+},
+"tags": []
+},
+{
+"id": "a_remove_payment_block",
+"kind": "activity",
+"label": "Remove Payment Block",
+"group": "match",
+"metrics": {
+"events": 57136.0,
+"cases": 55839.0,
+"share": 0.221817,
+"caseShare": 0.221817,
+"eventsPerCase": 1.023227,
+"violationShare": 0.838932
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_requisition_item",
+"kind": "activity",
+"label": "Create Purchase Requisition Item",
+"group": "request",
+"metrics": {
+"events": 46592.0,
+"cases": 46592.0,
+"share": 0.185084,
+"caseShare": 0.185084,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_receive_order_confirmation",
+"kind": "activity",
+"label": "Receive Order Confirmation",
+"group": "order",
+"metrics": {
+"events": 32065.0,
+"cases": 32061.0,
+"share": 0.127361,
+"caseShare": 0.127361,
+"eventsPerCase": 1.000125,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_change_quantity",
+"kind": "activity",
+"label": "Change Quantity",
+"group": "order",
+"metrics": {
+"events": 21449.0,
+"cases": 17590.0,
+"share": 0.069875,
+"caseShare": 0.069875,
+"eventsPerCase": 1.219386,
+"violationShare": 0.069875
+},
+"tags": []
+}
+],
+"edges": [
+{
+"id": "f_a_record_invoice_receipt__a_clear_invoice",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 134955.0,
+"cases": 132743.0,
+"share": 0.527315,
+"caseShare": 0.527315,
+"medianLagHours": 865.4,
+"medianHours": 865.4
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_requisition_item__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_create_purchase_requisition_item",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 46125.0,
+"cases": 46125.0,
+"share": 0.183229,
+"caseShare": 0.183229,
+"medianLagHours": 10.866667,
+"medianHours": 10.866667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 110215.0,
+"cases": 107787.0,
+"share": 0.428178,
+"caseShare": 0.428178,
+"medianLagHours": 34.333333,
+"medianHours": 34.333333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 112182.0,
+"cases": 111603.0,
+"share": 0.443337,
+"caseShare": 0.443337,
+"medianLagHours": 307.133333,
+"medianHours": 307.133333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_remove_payment_block__a_clear_invoice",
+"kind": "follows",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 49424.0,
+"cases": 49111.0,
+"share": 0.195091,
+"caseShare": 0.195091,
+"medianLagHours": 601.858333,
+"medianHours": 601.858333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 15580.0,
+"cases": 15061.0,
+"share": 0.059829,
+"caseShare": 0.059829,
+"medianLagHours": 27.766667,
+"medianHours": 27.766667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_remove_payment_block",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"count": 15370.0,
+"cases": 15349.0,
+"share": 0.060973,
+"caseShare": 0.060973,
+"medianLagHours": 9.283333,
+"medianHours": 9.283333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_receive_order_confirmation__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_receive_order_confirmation",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 20398.0,
+"cases": 20398.0,
+"share": 0.08103,
+"caseShare": 0.08103,
+"medianLagHours": 121.716667,
+"medianHours": 121.716667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 103150.0,
+"cases": 103150.0,
+"share": 0.409758,
+"caseShare": 0.409758,
+"medianLagHours": 155.758333,
+"medianHours": 155.758333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 77206.0,
+"cases": 77206.0,
+"share": 0.306697,
+"caseShare": 0.306697,
+"medianLagHours": 306.3,
+"medianHours": 306.3
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 80616.0,
+"cases": 79710.0,
+"share": 0.316644,
+"caseShare": 0.316644,
+"medianLagHours": 14.825,
+"medianHours": 14.825
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 95218.0,
+"cases": 94105.0,
+"share": 0.373827,
+"caseShare": 0.373827,
+"medianLagHours": 112.033333,
+"medianHours": 112.033333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_remove_payment_block",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"count": 37621.0,
+"cases": 37148.0,
+"share": 0.147568,
+"caseShare": 0.147568,
+"medianLagHours": 192.983333,
+"medianHours": 192.983333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_receive_order_confirmation",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_receive_order_confirmation",
+"metrics": {
+"count": 30837.0,
+"cases": 30837.0,
+"share": 0.122498,
+"caseShare": 0.122498,
+"medianLagHours": 1.566667,
+"medianHours": 1.566667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_requisition_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_requisition_item",
+"metrics": {
+"count": 46526.0,
+"cases": 46526.0,
+"share": 0.184822,
+"caseShare": 0.184822
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_order_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 199867.0,
+"cases": 199867.0,
+"share": 0.793961,
+"caseShare": 0.793961
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__end",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "__end__",
+"metrics": {
+"count": 23091.0,
+"cases": 23091.0,
+"share": 0.091728,
+"caseShare": 0.091728
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_clear_invoice__end",
+"kind": "follows",
+"source": "a_clear_invoice",
+"target": "__end__",
+"metrics": {
+"count": 181328.0,
+"cases": 181328.0,
+"share": 0.720316,
+"caseShare": 0.720316
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__end",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "__end__",
+"metrics": {
+"count": 22776.0,
+"cases": 22776.0,
+"share": 0.090476,
+"caseShare": 0.090476
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "c_c_l2_df1_invoice_after_goods__a_record_goods_receipt__a_record_invoice_receipt",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129.0
+},
+"tags": [
+"precedence"
+],
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df1_invoice_after_goods",
+"description": "In DF1, invoice evidence should not precede the first goods/service event.",
+"value": 0.516668,
+"coverage": 0.044209,
+"text": "In DF1, invoice evidence should not precede the first goods/service event — missed in 52 % of 11,129 evaluated cases",
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt"
+}
+},
+{
+"id": "c_c_l2_df1_invoice_after_goods__a_record_goods_receipt__a_vendor_creates_invoice",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129.0
+},
+"tags": [
+"precedence"
+],
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df1_invoice_after_goods",
+"description": "In DF1, invoice evidence should not precede the first goods/service event.",
+"value": 0.516668,
+"coverage": 0.044209,
+"text": "In DF1, invoice evidence should not precede the first goods/service event — missed in 52 % of 11,129 evaluated cases",
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice"
+}
+},
+{
+"id": "c_c_l2_df2_release_after_goods__a_record_goods_receipt__a_remove_payment_block",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"shareViolated": 0.006536,
+"meanViolation": 0.006536,
+"casesEvaluated": 53400.0
+},
+"tags": [
+"precedence"
+],
+"payload": {
+"constraintId": "c_l2_df2_release_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df2_release_after_goods",
+"description": "In DF2, payment-block release should happen after the first goods/service event.",
+"value": 0.006536,
+"coverage": 0.212129,
+"text": "In DF2, payment-block release should happen after the first goods/service event — missed in 0.7 % of 53,400 evaluated cases",
+"shareViolated": 0.006536,
+"meanViolation": 0.006536,
+"casesEvaluated": 53400,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block"
+}
+},
+{
+"id": "c_c_l3_df1_goods_to_invoice_days__a_record_goods_receipt__a_record_invoice_receipt",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df1_goods_to_invoice_days",
+"description": "In DF1, invoice should follow goods/service within a target time.",
+"value": 0.383714,
+"coverage": 0.021368,
+"text": "In DF1, invoice should follow goods/service within a target time — missed in 38 % of 5,379 evaluated cases",
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379,
+"glyph": "⇒",
+"threshold": 10.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt"
+}
+},
+{
+"id": "c_c_l3_df1_goods_to_invoice_days__a_record_goods_receipt__a_vendor_creates_invoice",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df1_goods_to_invoice_days",
+"description": "In DF1, invoice should follow goods/service within a target time.",
+"value": 0.383714,
+"coverage": 0.021368,
+"text": "In DF1, invoice should follow goods/service within a target time — missed in 38 % of 5,379 evaluated cases",
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379,
+"glyph": "⇒",
+"threshold": 10.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice"
+}
+},
+{
+"id": "c_c_l3_invoice_to_clear_days__a_record_invoice_receipt__a_clear_invoice",
+"kind": "constraint",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice",
+"metrics": {
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_invoice_to_clear_days",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"value": 0.889199,
+"coverage": 0.728122,
+"text": "Invoice-bearing flows should clear in a reasonable time — missed in 89 % of 183,293 evaluated cases",
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293,
+"glyph": "⇒",
+"threshold": 30.0,
+"width": 60.0,
+"unit": "D",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice"
+}
+},
+{
+"id": "c_c_l3_invoice_to_clear_days__a_vendor_creates_invoice__a_clear_invoice",
+"kind": "constraint",
+"source": "a_vendor_creates_invoice",
+"target": "a_clear_invoice",
+"metrics": {
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_invoice_to_clear_days",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"value": 0.889199,
+"coverage": 0.728122,
+"text": "Invoice-bearing flows should clear in a reasonable time — missed in 89 % of 183,293 evaluated cases",
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293,
+"glyph": "⇒",
+"threshold": 30.0,
+"width": 60.0,
+"unit": "D",
+"source": "a_vendor_creates_invoice",
+"target": "a_clear_invoice"
+}
+},
+{
+"id": "c_c_l3_df2_goods_to_rpb_days__a_record_goods_receipt__a_remove_payment_block",
+"kind": "constraint",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"shareViolated": 0.735971,
+"meanViolation": 0.658027,
+"casesEvaluated": 53051.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_df2_goods_to_rpb_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df2_goods_to_rpb_days",
+"description": "In DF2, goods/service to Remove Payment Block should be timely.",
+"value": 0.735971,
+"coverage": 0.210742,
+"text": "In DF2, goods/service to Remove Payment Block should be timely — missed in 74 % of 53,051 evaluated cases",
+"shareViolated": 0.735971,
+"meanViolation": 0.658027,
+"casesEvaluated": 53051,
+"glyph": "⇒",
+"threshold": 2.0,
+"width": 10.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block"
+}
+},
+{
+"id": "c_c_l3_df2_rpb_to_clear_days__a_remove_payment_block__a_clear_invoice",
+"kind": "constraint",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice",
+"metrics": {
+"shareViolated": 0.838932,
+"meanViolation": 0.670801,
+"casesEvaluated": 47365.0
+},
+"tags": [
+"lag"
+],
+"payload": {
+"constraintId": "c_l3_df2_rpb_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df2_rpb_to_clear_days",
+"description": "In DF2, released items should clear quickly.",
+"value": 0.838932,
+"coverage": 0.188155,
+"text": "In DF2, released items should clear quickly — missed in 84 % of 47,365 evaluated cases",
+"shareViolated": 0.838932,
+"meanViolation": 0.670801,
+"casesEvaluated": 47365,
+"glyph": "⇒",
+"threshold": 5.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice"
+}
+}
+],
+"groups": [
+{
+"id": "request",
+"kind": "stage",
+"label": "Request",
+"parent": null
+},
+{
+"id": "order",
+"kind": "stage",
+"label": "Order",
+"parent": null
+},
+{
+"id": "receive",
+"kind": "stage",
+"label": "Receive",
+"parent": null
+},
+{
+"id": "invoice",
+"kind": "stage",
+"label": "Invoice",
+"parent": null
+},
+{
+"id": "match",
+"kind": "stage",
+"label": "Match",
+"parent": null
+},
+{
+"id": "pay",
+"kind": "stage",
+"label": "Pay",
+"parent": null
+}
+],
+"overlays": [
+{
+"kind": "badge",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l1_invoice_present",
+"constraintType": "presence",
+"type": "presence",
+"layer": "L1_closure_completeness",
+"label": "c_l1_invoice_present",
+"description": "Invoice evidence should exist for invoice-bearing flows.",
+"value": 0.108942,
+"coverage": 0.942407,
+"text": "Invoice evidence should exist for invoice-bearing flows — missed in 11 % of 237,236 evaluated cases",
+"shareViolated": 0.108942,
+"meanViolation": 0.108942,
+"casesEvaluated": 237236,
+"glyph": "≥1",
+"threshold": 1.0
+}
+},
+{
+"kind": "badge",
+"target": "a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l1_invoice_present",
+"constraintType": "presence",
+"type": "presence",
+"layer": "L1_closure_completeness",
+"label": "c_l1_invoice_present",
+"description": "Invoice evidence should exist for invoice-bearing flows.",
+"value": 0.108942,
+"coverage": 0.942407,
+"text": "Invoice evidence should exist for invoice-bearing flows — missed in 11 % of 237,236 evaluated cases",
+"shareViolated": 0.108942,
+"meanViolation": 0.108942,
+"casesEvaluated": 237236,
+"glyph": "≥1",
+"threshold": 1.0
+}
+},
+{
+"kind": "tint",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l1_invoice_present",
+"label": "c_l1_invoice_present",
+"value": 0.108942,
+"shareViolated": 0.108942
+}
+},
+{
+"kind": "tint",
+"target": "a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l1_invoice_present",
+"label": "c_l1_invoice_present",
+"value": 0.108942,
+"shareViolated": 0.108942
+}
+},
+{
+"kind": "badge",
+"target": "a_clear_invoice",
+"payload": {
+"constraintId": "c_l1_clear_invoice_present",
+"constraintType": "presence",
+"type": "presence",
+"layer": "L1_closure_completeness",
+"label": "c_l1_clear_invoice_present",
+"description": "Invoice-bearing flows should eventually be cleared.",
+"value": 0.225763,
+"coverage": 0.942407,
+"text": "Invoice-bearing flows should eventually be cleared — missed in 23 % of 237,236 evaluated cases",
+"shareViolated": 0.225763,
+"meanViolation": 0.225763,
+"casesEvaluated": 237236,
+"glyph": "≥1",
+"threshold": 1.0
+}
+},
+{
+"kind": "tint",
+"target": "a_clear_invoice",
+"payload": {
+"constraintId": "c_l1_clear_invoice_present",
+"label": "c_l1_clear_invoice_present",
+"value": 0.225763,
+"shareViolated": 0.225763
+}
+},
+{
+"kind": "badge",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l1_goods_or_ses_present",
+"constraintType": "presence",
+"type": "presence",
+"layer": "L1_closure_completeness",
+"label": "c_l1_goods_or_ses_present",
+"description": "3-way flows should contain goods or service receipt evidence.",
+"value": 0.064261,
+"coverage": 0.93826,
+"text": "3-way flows should contain goods or service receipt evidence — missed in 6.4 % of 236,192 evaluated cases",
+"shareViolated": 0.064261,
+"meanViolation": 0.064261,
+"casesEvaluated": 236192,
+"glyph": "≥1",
+"threshold": 1.0
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l1_goods_or_ses_present",
+"label": "c_l1_goods_or_ses_present",
+"value": 0.064261,
+"shareViolated": 0.064261
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l2_df1_invoice_after_goods__a_record_goods_receipt__a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df1_invoice_after_goods",
+"description": "In DF1, invoice evidence should not precede the first goods/service event.",
+"value": 0.516668,
+"coverage": 0.044209,
+"text": "In DF1, invoice evidence should not precede the first goods/service event — missed in 52 % of 11,129 evaluated cases",
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt"
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l2_df1_invoice_after_goods__a_record_goods_receipt__a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df1_invoice_after_goods",
+"description": "In DF1, invoice evidence should not precede the first goods/service event.",
+"value": 0.516668,
+"coverage": 0.044209,
+"text": "In DF1, invoice evidence should not precede the first goods/service event — missed in 52 % of 11,129 evaluated cases",
+"shareViolated": 0.516668,
+"meanViolation": 0.516668,
+"casesEvaluated": 11129,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice"
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"label": "c_l2_df1_invoice_after_goods",
+"value": 0.516668,
+"shareViolated": 0.516668
+}
+},
+{
+"kind": "tint",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"label": "c_l2_df1_invoice_after_goods",
+"value": 0.516668,
+"shareViolated": 0.516668
+}
+},
+{
+"kind": "tint",
+"target": "a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l2_df1_invoice_after_goods",
+"label": "c_l2_df1_invoice_after_goods",
+"value": 0.516668,
+"shareViolated": 0.516668
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l2_df2_release_after_goods__a_record_goods_receipt__a_remove_payment_block",
+"payload": {
+"constraintId": "c_l2_df2_release_after_goods",
+"constraintType": "precedence",
+"type": "precedence",
+"layer": "L2_flow_discipline",
+"label": "c_l2_df2_release_after_goods",
+"description": "In DF2, payment-block release should happen after the first goods/service event.",
+"value": 0.006536,
+"coverage": 0.212129,
+"text": "In DF2, payment-block release should happen after the first goods/service event — missed in 0.7 % of 53,400 evaluated cases",
+"shareViolated": 0.006536,
+"meanViolation": 0.006536,
+"casesEvaluated": 53400,
+"glyph": "⇒",
+"threshold": 0.0,
+"width": 1.0,
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block"
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l2_df2_release_after_goods",
+"label": "c_l2_df2_release_after_goods",
+"value": 0.006536,
+"shareViolated": 0.006536
+}
+},
+{
+"kind": "tint",
+"target": "a_remove_payment_block",
+"payload": {
+"constraintId": "c_l2_df2_release_after_goods",
+"label": "c_l2_df2_release_after_goods",
+"value": 0.006536,
+"shareViolated": 0.006536
+}
+},
+{
+"kind": "hatch",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l2_2way_no_goods_expected",
+"constraintType": "exclusion",
+"type": "exclusion",
+"layer": "L2_flow_discipline",
+"label": "c_l2_2way_no_goods_expected",
+"description": "2-way match should not show goods/service receipt postings.",
+"value": 0.0,
+"coverage": 0.004147,
+"text": "2-way match should not show goods/service receipt postings — missed in 0.0 % of 1,044 evaluated cases",
+"shareViolated": 0.0,
+"meanViolation": 0.0,
+"casesEvaluated": 1044,
+"glyph": "∅",
+"threshold": 0.0
+}
+},
+{
+"kind": "hatch",
+"target": "a_clear_invoice",
+"payload": {
+"constraintId": "c_l2_consignment_no_clear_invoice",
+"constraintType": "exclusion",
+"type": "exclusion",
+"layer": "L2_flow_discipline",
+"label": "c_l2_consignment_no_clear_invoice",
+"description": "Consignment items are not expected to be settled through Clear Invoice.",
+"value": 0.0,
+"coverage": 0.057593,
+"text": "Consignment items are not expected to be settled through Clear Invoice — missed in 0.0 % of 14,498 evaluated cases",
+"shareViolated": 0.0,
+"meanViolation": 0.0,
+"casesEvaluated": 14498,
+"glyph": "∅",
+"threshold": 0.0
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_df1_goods_to_invoice_days__a_record_goods_receipt__a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df1_goods_to_invoice_days",
+"description": "In DF1, invoice should follow goods/service within a target time.",
+"value": 0.383714,
+"coverage": 0.021368,
+"text": "In DF1, invoice should follow goods/service within a target time — missed in 38 % of 5,379 evaluated cases",
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379,
+"glyph": "⇒",
+"threshold": 10.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt"
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_df1_goods_to_invoice_days__a_record_goods_receipt__a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df1_goods_to_invoice_days",
+"description": "In DF1, invoice should follow goods/service within a target time.",
+"value": 0.383714,
+"coverage": 0.021368,
+"text": "In DF1, invoice should follow goods/service within a target time — missed in 38 % of 5,379 evaluated cases",
+"shareViolated": 0.383714,
+"meanViolation": 0.22836,
+"casesEvaluated": 5379,
+"glyph": "⇒",
+"threshold": 10.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice"
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"label": "c_l3_df1_goods_to_invoice_days",
+"value": 0.383714,
+"shareViolated": 0.383714
+}
+},
+{
+"kind": "tint",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"label": "c_l3_df1_goods_to_invoice_days",
+"value": 0.383714,
+"shareViolated": 0.383714
+}
+},
+{
+"kind": "tint",
+"target": "a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l3_df1_goods_to_invoice_days",
+"label": "c_l3_df1_goods_to_invoice_days",
+"value": 0.383714,
+"shareViolated": 0.383714
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_invoice_to_clear_days__a_record_invoice_receipt__a_clear_invoice",
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_invoice_to_clear_days",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"value": 0.889199,
+"coverage": 0.728122,
+"text": "Invoice-bearing flows should clear in a reasonable time — missed in 89 % of 183,293 evaluated cases",
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293,
+"glyph": "⇒",
+"threshold": 30.0,
+"width": 60.0,
+"unit": "D",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice"
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_invoice_to_clear_days__a_vendor_creates_invoice__a_clear_invoice",
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_invoice_to_clear_days",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"value": 0.889199,
+"coverage": 0.728122,
+"text": "Invoice-bearing flows should clear in a reasonable time — missed in 89 % of 183,293 evaluated cases",
+"shareViolated": 0.889199,
+"meanViolation": 0.558596,
+"casesEvaluated": 183293,
+"glyph": "⇒",
+"threshold": 30.0,
+"width": 60.0,
+"unit": "D",
+"source": "a_vendor_creates_invoice",
+"target": "a_clear_invoice"
+}
+},
+{
+"kind": "tint",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"label": "c_l3_invoice_to_clear_days",
+"value": 0.889199,
+"shareViolated": 0.889199
+}
+},
+{
+"kind": "tint",
+"target": "a_vendor_creates_invoice",
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"label": "c_l3_invoice_to_clear_days",
+"value": 0.889199,
+"shareViolated": 0.889199
+}
+},
+{
+"kind": "tint",
+"target": "a_clear_invoice",
+"payload": {
+"constraintId": "c_l3_invoice_to_clear_days",
+"label": "c_l3_invoice_to_clear_days",
+"value": 0.889199,
+"shareViolated": 0.889199
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_df2_goods_to_rpb_days__a_record_goods_receipt__a_remove_payment_block",
+"payload": {
+"constraintId": "c_l3_df2_goods_to_rpb_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df2_goods_to_rpb_days",
+"description": "In DF2, goods/service to Remove Payment Block should be timely.",
+"value": 0.735971,
+"coverage": 0.210742,
+"text": "In DF2, goods/service to Remove Payment Block should be timely — missed in 74 % of 53,051 evaluated cases",
+"shareViolated": 0.735971,
+"meanViolation": 0.658027,
+"casesEvaluated": 53051,
+"glyph": "⇒",
+"threshold": 2.0,
+"width": 10.0,
+"unit": "D",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block"
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l3_df2_goods_to_rpb_days",
+"label": "c_l3_df2_goods_to_rpb_days",
+"value": 0.735971,
+"shareViolated": 0.735971
+}
+},
+{
+"kind": "tint",
+"target": "a_remove_payment_block",
+"payload": {
+"constraintId": "c_l3_df2_goods_to_rpb_days",
+"label": "c_l3_df2_goods_to_rpb_days",
+"value": 0.735971,
+"shareViolated": 0.735971
+}
+},
+{
+"kind": "arc",
+"target": "c_c_l3_df2_rpb_to_clear_days__a_remove_payment_block__a_clear_invoice",
+"payload": {
+"constraintId": "c_l3_df2_rpb_to_clear_days",
+"constraintType": "lag",
+"type": "lag",
+"layer": "L3_timeliness_ageing",
+"label": "c_l3_df2_rpb_to_clear_days",
+"description": "In DF2, released items should clear quickly.",
+"value": 0.838932,
+"coverage": 0.188155,
+"text": "In DF2, released items should clear quickly — missed in 84 % of 47,365 evaluated cases",
+"shareViolated": 0.838932,
+"meanViolation": 0.670801,
+"casesEvaluated": 47365,
+"glyph": "⇒",
+"threshold": 5.0,
+"width": 20.0,
+"unit": "D",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice"
+}
+},
+{
+"kind": "tint",
+"target": "a_remove_payment_block",
+"payload": {
+"constraintId": "c_l3_df2_rpb_to_clear_days",
+"label": "c_l3_df2_rpb_to_clear_days",
+"value": 0.838932,
+"shareViolated": 0.838932
+}
+},
+{
+"kind": "tint",
+"target": "a_clear_invoice",
+"payload": {
+"constraintId": "c_l3_df2_rpb_to_clear_days",
+"label": "c_l3_df2_rpb_to_clear_days",
+"value": 0.838932,
+"shareViolated": 0.838932
+}
+},
+{
+"kind": "badge",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l4_goods_fragmentation",
+"constraintType": "singularity",
+"type": "singularity",
+"layer": "L4_rework_instability",
+"label": "c_l4_goods_fragmentation",
+"description": "Too many goods/service receipt events indicate fragmentation.",
+"value": 0.025238,
+"coverage": 0.995853,
+"text": "Too many goods/service receipt events indicate fragmentation — missed in 2.5 % of 250,690 evaluated cases",
+"shareViolated": 0.025238,
+"meanViolation": 0.0214,
+"casesEvaluated": 250690,
+"glyph": "≤2",
+"threshold": 2.0,
+"width": 3.0
+}
+},
+{
+"kind": "tint",
+"target": "a_record_goods_receipt",
+"payload": {
+"constraintId": "c_l4_goods_fragmentation",
+"label": "c_l4_goods_fragmentation",
+"value": 0.025238,
+"shareViolated": 0.025238
+}
+},
+{
+"kind": "badge",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l4_repeated_invoice_receipt",
+"constraintType": "singularity",
+"type": "singularity",
+"layer": "L4_rework_instability",
+"label": "c_l4_repeated_invoice_receipt",
+"description": "Repeated invoice receipt events indicate invoice handling churn.",
+"value": 0.040652,
+"coverage": 0.942407,
+"text": "Repeated invoice receipt events indicate invoice handling churn — missed in 4.1 % of 237,236 evaluated cases",
+"shareViolated": 0.040652,
+"meanViolation": 0.023321,
+"casesEvaluated": 237236,
+"glyph": "≤1",
+"threshold": 1.0,
+"width": 2.0
+}
+},
+{
+"kind": "tint",
+"target": "a_record_invoice_receipt",
+"payload": {
+"constraintId": "c_l4_repeated_invoice_receipt",
+"label": "c_l4_repeated_invoice_receipt",
+"value": 0.040652,
+"shareViolated": 0.040652
+}
+},
+{
+"kind": "badge",
+"target": "a_change_quantity",
+"payload": {
+"constraintId": "c_l6_change_quantity",
+"constraintType": "singularity",
+"type": "singularity",
+"layer": "L6_value_commercial",
+"label": "c_l6_change_quantity",
+"description": "Quantity changes after ordering indicate commercial inconsistency risk.",
+"value": 0.069875,
+"coverage": 1.0,
+"text": "Quantity changes after ordering indicate commercial inconsistency risk — missed in 7.0 % of 251,734 evaluated cases",
+"shareViolated": 0.069875,
+"meanViolation": 0.039848,
+"casesEvaluated": 251734,
+"glyph": "≤0",
+"threshold": 0.0,
+"width": 2.0
+}
+},
+{
+"kind": "tint",
+"target": "a_change_quantity",
+"payload": {
+"constraintId": "c_l6_change_quantity",
+"label": "c_l6_change_quantity",
+"value": 0.069875,
+"shareViolated": 0.069875
+}
+}
+],
+"meta": {
+"runId": "run_0mtoq44vd14f208ur",
+"slicing": null,
+"sliceKey": null,
+"normFingerprint": "e17ca18ed3c1a30114694c29455b86def27480bb34000e797e1e06a82dc644b0",
+"process": "p2p",
+"scope": null,
+"filter": null,
+"filterCases": null,
+"focus": {
+"id": "a_record_goods_receipt",
+"label": "Record Goods Receipt",
+"cases": 234479,
+"events": 314097
+},
+"caseNoun": "purchase order items",
+"abstraction": 0.05,
+"cases": 251734,
+"events": 1595923,
+"nodesTotal": 42,
+"edgesTotal": 498,
+"constraintsWithoutNodes": [
+"c_l6_high_exposure_memo",
+"c_l6_high_exposure_price_change",
+"c_l7_manual_touches",
+"c_l7_distinct_human_resources",
+"c_l7_total_events",
+"c_l7_manual_share",
+"c_l6_networth_volatility"
+],
+"stages": [
+{
+"id": "request",
+"label": "Request",
+"order": 1
+},
+{
+"id": "approve",
+"label": "Approve",
+"order": 2
+},
+{
+"id": "order",
+"label": "Order",
+"order": 3
+},
+{
+"id": "receive",
+"label": "Receive",
+"order": 4
+},
+{
+"id": "invoice",
+"label": "Invoice",
+"order": 5
+},
+{
+"id": "match",
+"label": "Match",
+"order": 6
+},
+{
+"id": "pay",
+"label": "Pay",
+"order": 7
+}
+],
+"stagedActivities": 9,
+"constraints": [
+{
+"description": {
+"id": "c_l1_invoice_present",
+"type": "presence",
+"label": "c_l1_invoice_present",
+"layer": "L1_closure_completeness",
+"description": "Invoice evidence should exist for invoice-bearing flows.",
+"activities": [
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+],
+"params": {
+"threshold": 1.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 237236,
+"violationShare": 0.108942,
+"coverage": 0.942407,
+"meanViolation": 0.108942
+}
+},
+{
+"description": {
+"id": "c_l1_clear_invoice_present",
+"type": "presence",
+"label": "c_l1_clear_invoice_present",
+"layer": "L1_closure_completeness",
+"description": "Invoice-bearing flows should eventually be cleared.",
+"activities": [
+"a_clear_invoice"
+],
+"params": {
+"threshold": 1.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 237236,
+"violationShare": 0.225763,
+"coverage": 0.942407,
+"meanViolation": 0.225763
+}
+},
+{
+"description": {
+"id": "c_l1_goods_or_ses_present",
+"type": "presence",
+"label": "c_l1_goods_or_ses_present",
+"layer": "L1_closure_completeness",
+"description": "3-way flows should contain goods or service receipt evidence.",
+"activities": [
+"a_record_goods_receipt"
+],
+"params": {
+"threshold": 1.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 236192,
+"violationShare": 0.064261,
+"coverage": 0.93826,
+"meanViolation": 0.064261
+}
+},
+{
+"description": {
+"id": "c_l2_df1_invoice_after_goods",
+"type": "precedence",
+"label": "c_l2_df1_invoice_after_goods",
+"layer": "L2_flow_discipline",
+"description": "In DF1, invoice evidence should not precede the first goods/service event.",
+"activities": [
+"a_record_goods_receipt",
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+],
+"params": {
+"threshold": 0.0,
+"width": 1.0
+},
+"a": [
+"a_record_goods_receipt"
+],
+"b": [
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 11129,
+"violationShare": 0.516668,
+"coverage": 0.044209,
+"meanViolation": 0.516668
+}
+},
+{
+"description": {
+"id": "c_l2_df2_release_after_goods",
+"type": "precedence",
+"label": "c_l2_df2_release_after_goods",
+"layer": "L2_flow_discipline",
+"description": "In DF2, payment-block release should happen after the first goods/service event.",
+"activities": [
+"a_record_goods_receipt",
+"a_remove_payment_block"
+],
+"params": {
+"threshold": 0.0,
+"width": 1.0
+},
+"a": [
+"a_record_goods_receipt"
+],
+"b": [
+"a_remove_payment_block"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 53400,
+"violationShare": 0.006536,
+"coverage": 0.212129,
+"meanViolation": 0.006536
+}
+},
+{
+"description": {
+"id": "c_l2_2way_no_goods_expected",
+"type": "exclusion",
+"label": "c_l2_2way_no_goods_expected",
+"layer": "L2_flow_discipline",
+"description": "2-way match should not show goods/service receipt postings.",
+"activities": [
+"a_record_goods_receipt"
+],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 1044,
+"violationShare": 0.0,
+"coverage": 0.004147,
+"meanViolation": 0.0
+}
+},
+{
+"description": {
+"id": "c_l2_consignment_no_clear_invoice",
+"type": "exclusion",
+"label": "c_l2_consignment_no_clear_invoice",
+"layer": "L2_flow_discipline",
+"description": "Consignment items are not expected to be settled through Clear Invoice.",
+"activities": [
+"a_clear_invoice"
+],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 14498,
+"violationShare": 0.0,
+"coverage": 0.057593,
+"meanViolation": 0.0
+}
+},
+{
+"description": {
+"id": "c_l3_df1_goods_to_invoice_days",
+"type": "lag",
+"label": "c_l3_df1_goods_to_invoice_days",
+"layer": "L3_timeliness_ageing",
+"description": "In DF1, invoice should follow goods/service within a target time.",
+"activities": [
+"a_record_goods_receipt",
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+],
+"params": {
+"threshold": 10.0,
+"width": 20.0,
+"unit": "D"
+},
+"a": [
+"a_record_goods_receipt"
+],
+"b": [
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 5379,
+"violationShare": 0.383714,
+"coverage": 0.021368,
+"meanViolation": 0.22836
+}
+},
+{
+"description": {
+"id": "c_l3_invoice_to_clear_days",
+"type": "lag",
+"label": "c_l3_invoice_to_clear_days",
+"layer": "L3_timeliness_ageing",
+"description": "Invoice-bearing flows should clear in a reasonable time.",
+"activities": [
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice",
+"a_clear_invoice"
+],
+"params": {
+"threshold": 30.0,
+"width": 60.0,
+"unit": "D"
+},
+"a": [
+"a_record_invoice_receipt",
+"a_vendor_creates_invoice"
+],
+"b": [
+"a_clear_invoice"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 183293,
+"violationShare": 0.889199,
+"coverage": 0.728122,
+"meanViolation": 0.558596
+}
+},
+{
+"description": {
+"id": "c_l3_df2_goods_to_rpb_days",
+"type": "lag",
+"label": "c_l3_df2_goods_to_rpb_days",
+"layer": "L3_timeliness_ageing",
+"description": "In DF2, goods/service to Remove Payment Block should be timely.",
+"activities": [
+"a_record_goods_receipt",
+"a_remove_payment_block"
+],
+"params": {
+"threshold": 2.0,
+"width": 10.0,
+"unit": "D"
+},
+"a": [
+"a_record_goods_receipt"
+],
+"b": [
+"a_remove_payment_block"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 53051,
+"violationShare": 0.735971,
+"coverage": 0.210742,
+"meanViolation": 0.658027
+}
+},
+{
+"description": {
+"id": "c_l3_df2_rpb_to_clear_days",
+"type": "lag",
+"label": "c_l3_df2_rpb_to_clear_days",
+"layer": "L3_timeliness_ageing",
+"description": "In DF2, released items should clear quickly.",
+"activities": [
+"a_remove_payment_block",
+"a_clear_invoice"
+],
+"params": {
+"threshold": 5.0,
+"width": 20.0,
+"unit": "D"
+},
+"a": [
+"a_remove_payment_block"
+],
+"b": [
+"a_clear_invoice"
+]
+},
+"stats": {
+"cases": 251734,
+"evaluated": 47365,
+"violationShare": 0.838932,
+"coverage": 0.188155,
+"meanViolation": 0.670801
+}
+},
+{
+"description": {
+"id": "c_l4_goods_fragmentation",
+"type": "singularity",
+"label": "c_l4_goods_fragmentation",
+"layer": "L4_rework_instability",
+"description": "Too many goods/service receipt events indicate fragmentation.",
+"activities": [
+"a_record_goods_receipt"
+],
+"params": {
+"threshold": 2.0,
+"width": 3.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 250690,
+"violationShare": 0.025238,
+"coverage": 0.995853,
+"meanViolation": 0.0214
+}
+},
+{
+"description": {
+"id": "c_l4_change_approval_repeats",
+"type": "singularity",
+"label": "c_l4_change_approval_repeats",
+"layer": "L4_rework_instability",
+"description": "Approval changes should be rare.",
+"activities": [],
+"params": {
+"threshold": 0.0,
+"width": 2.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.017387,
+"coverage": 1.0,
+"meanViolation": 0.01042
+}
+},
+{
+"description": {
+"id": "c_l4_repeated_invoice_receipt",
+"type": "singularity",
+"label": "c_l4_repeated_invoice_receipt",
+"layer": "L4_rework_instability",
+"description": "Repeated invoice receipt events indicate invoice handling churn.",
+"activities": [
+"a_record_invoice_receipt"
+],
+"params": {
+"threshold": 1.0,
+"width": 2.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 237236,
+"violationShare": 0.040652,
+"coverage": 0.942407,
+"meanViolation": 0.023321
+}
+},
+{
+"description": {
+"id": "c_l4_change_payment_terms_repeats",
+"type": "singularity",
+"label": "c_l4_change_payment_terms_repeats",
+"layer": "L4_rework_instability",
+"description": "Repeated payment-term changes indicate unstable commercial handling.",
+"activities": [],
+"params": {
+"threshold": 0.0,
+"width": 2.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.0,
+"coverage": 1.0,
+"meanViolation": 0.0
+}
+},
+{
+"description": {
+"id": "c_l5_cancel_invoice_receipt",
+"type": "exclusion",
+"label": "c_l5_cancel_invoice_receipt",
+"layer": "L5_exceptions_corrections",
+"description": "Invoice receipt cancellations should be exceptional.",
+"activities": [],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 237236,
+"violationShare": 0.027277,
+"coverage": 0.942407,
+"meanViolation": 0.027277
+}
+},
+{
+"description": {
+"id": "c_l5_cancel_goods_receipt",
+"type": "exclusion",
+"label": "c_l5_cancel_goods_receipt",
+"layer": "L5_exceptions_corrections",
+"description": "Goods receipt cancellations should be exceptional.",
+"activities": [],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 250690,
+"violationShare": 0.009853,
+"coverage": 0.995853,
+"meanViolation": 0.009853
+}
+},
+{
+"description": {
+"id": "c_l5_delete_item",
+"type": "exclusion",
+"label": "c_l5_delete_item",
+"layer": "L5_exceptions_corrections",
+"description": "PO item deletion should be exceptional once execution is underway.",
+"activities": [],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.035112,
+"coverage": 1.0,
+"meanViolation": 0.035112
+}
+},
+{
+"description": {
+"id": "c_l5_debit_memo",
+"type": "exclusion",
+"label": "c_l5_debit_memo",
+"layer": "L5_exceptions_corrections",
+"description": "Vendor debit memos should be rare.",
+"activities": [],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.023787,
+"coverage": 1.0,
+"meanViolation": 0.023787
+}
+},
+{
+"description": {
+"id": "c_l5_credit_memo",
+"type": "exclusion",
+"label": "c_l5_credit_memo",
+"layer": "L5_exceptions_corrections",
+"description": "Vendor credit memos should be rare.",
+"activities": [],
+"params": {
+"threshold": 0.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.0,
+"coverage": 1.0,
+"meanViolation": 0.0
+}
+},
+{
+"description": {
+"id": "c_l6_change_price",
+"type": "singularity",
+"label": "c_l6_change_price",
+"layer": "L6_value_commercial",
+"description": "Price changes after ordering indicate commercial inconsistency risk.",
+"activities": [],
+"params": {
+"threshold": 0.0,
+"width": 2.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.044587,
+"coverage": 1.0,
+"meanViolation": 0.024021
+}
+},
+{
+"description": {
+"id": "c_l6_change_quantity",
+"type": "singularity",
+"label": "c_l6_change_quantity",
+"layer": "L6_value_commercial",
+"description": "Quantity changes after ordering indicate commercial inconsistency risk.",
+"activities": [
+"a_change_quantity"
+],
+"params": {
+"threshold": 0.0,
+"width": 2.0
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.069875,
+"coverage": 1.0,
+"meanViolation": 0.039848
+}
+},
+{
+"description": {
+"id": "c_l6_high_exposure_memo",
+"type": "metric",
+"label": "c_l6_high_exposure_memo",
+"layer": "L6_value_commercial",
+"description": "Correction documents on high-exposure cases matter more financially.",
+"activities": [],
+"params": {
+"threshold": 0.0,
+"width": 1.0,
+"unit": "c_l6_high_exposure_memo__indicator_x_exposure_norm",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.023779,
+"coverage": 1.0,
+"meanViolation": 0.004186
+}
+},
+{
+"description": {
+"id": "c_l6_high_exposure_price_change",
+"type": "metric",
+"label": "c_l6_high_exposure_price_change",
+"layer": "L6_value_commercial",
+"description": "Price changes on high-exposure cases are financially more critical.",
+"activities": [],
+"params": {
+"threshold": 0.0,
+"width": 1.0,
+"unit": "c_l6_high_exposure_price_change__indicator_x_exposure_norm",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.044265,
+"coverage": 1.0,
+"meanViolation": 0.009907
+}
+},
+{
+"description": {
+"id": "c_l7_manual_touches",
+"type": "metric",
+"label": "c_l7_manual_touches",
+"layer": "L7_effort_automation",
+"description": "Too many manual touches reduce touchless processing potential.",
+"activities": [],
+"params": {
+"threshold": 4.0,
+"width": 6.0,
+"unit": "manual_touch_count",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.295248,
+"coverage": 1.0,
+"meanViolation": 0.08359
+}
+},
+{
+"description": {
+"id": "c_l7_distinct_human_resources",
+"type": "metric",
+"label": "c_l7_distinct_human_resources",
+"layer": "L7_effort_automation",
+"description": "Too many human handoffs indicate coordination cost.",
+"activities": [],
+"params": {
+"threshold": 2.0,
+"width": 4.0,
+"unit": "distinct_human_resources",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.831822,
+"coverage": 1.0,
+"meanViolation": 0.442374
+}
+},
+{
+"description": {
+"id": "c_l7_total_events",
+"type": "metric",
+"label": "c_l7_total_events",
+"layer": "L7_effort_automation",
+"description": "Very long event chains indicate execution friction.",
+"activities": [],
+"params": {
+"threshold": 10.0,
+"width": 15.0,
+"unit": "total_events",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.03578,
+"coverage": 1.0,
+"meanViolation": 0.016382
+}
+},
+{
+"description": {
+"id": "c_l7_manual_share",
+"type": "metric",
+"label": "c_l7_manual_share",
+"layer": "L7_effort_automation",
+"description": "High manual share indicates low straight-through processing.",
+"activities": [],
+"params": {
+"threshold": 0.5,
+"width": 0.5,
+"unit": "manual_share",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 251734,
+"violationShare": 0.920893,
+"coverage": 1.0,
+"meanViolation": 0.535561
+}
+},
+{
+"description": {
+"id": "c_l6_networth_volatility",
+"type": "metric",
+"label": "c_l6_networth_volatility",
+"layer": "L6_value_commercial",
+"description": "Net-worth volatility across the item's postings should stay within tolerance.",
+"activities": [],
+"params": {
+"threshold": 0.5,
+"width": 1.0,
+"unit": "networth_cv",
+"direction": "high"
+}
+},
+"stats": {
+"cases": 251734,
+"evaluated": 237236,
+"violationShare": 0.015702,
+"coverage": 0.942407,
+"meanViolation": 0.014293
+}
+}
+]
+},
+"paths": {
+"incoming": [
+{
+"node": "a_vendor_creates_invoice",
+"count": 110215,
+"cases": 107787,
+"median_lag": 34.333333,
+"violation_share": 0.99987,
+"from": "Vendor creates invoice"
+},
+{
+"node": "a_create_purchase_order_item",
+"count": 77206,
+"cases": 77206,
+"median_lag": 306.3,
+"violation_share": 0.999573,
+"from": "Create Purchase Order Item"
+},
+{
+"node": "a_record_goods_receipt",
+"count": 54277,
+"cases": 7662,
+"median_lag": 0.0,
+"violation_share": 1.0,
+"from": "Record Goods Receipt"
+},
+{
+"node": "a_receive_order_confirmation",
+"count": 20398,
+"cases": 20398,
+"median_lag": 121.716667,
+"violation_share": 0.999755,
+"from": "Receive Order Confirmation"
+},
+{
+"node": "a_record_service_entry_sheet",
+"count": 19183,
+"cases": 3615,
+"median_lag": 0.0,
+"violation_share": 1.0,
+"from": "Record Service Entry Sheet"
+},
+{
+"node": "a_record_invoice_receipt",
+"count": 15580,
+"cases": 15061,
+"median_lag": 27.766667,
+"violation_share": 1.0,
+"from": "Record Invoice Receipt"
+},
+{
+"node": "a_change_quantity",
+"count": 9206,
+"cases": 8997,
+"median_lag": 24.575,
+"violation_share": 1.0,
+"from": "Change Quantity"
+},
+{
+"node": "a_change_price",
+"count": 3102,
+"cases": 3040,
+"median_lag": 150.875,
+"violation_share": 1.0,
+"from": "Change Price"
+},
+{
+"node": "a_vendor_creates_debit_memo",
+"count": 1144,
+"cases": 1121,
+"median_lag": 56.85,
+"violation_share": 1.0,
+"from": "Vendor creates debit memo"
+},
+{
+"node": "a_cancel_goods_receipt",
+"count": 896,
+"cases": 684,
+"median_lag": 0.033333,
+"violation_share": 1.0,
+"from": "Cancel Goods Receipt"
+},
+{
+"node": "a_clear_invoice",
+"count": 759,
+"cases": 304,
+"median_lag": 119.583333,
+"violation_share": 1.0,
+"from": "Clear Invoice"
+},
+{
+"node": "a_change_delivery_indicator",
+"count": 706,
+"cases": 692,
+"median_lag": 1.825,
+"violation_share": 1.0,
+"from": "Change Delivery Indicator"
+},
+{
+"node": "a_remove_payment_block",
+"count": 432,
+"cases": 419,
+"median_lag": 31.458333,
+"violation_share": 1.0,
+"from": "Remove Payment Block"
+},
+{
+"node": "a_reactivate_purchase_order_item",
+"count": 260,
+"cases": 260,
+"median_lag": 1.816667,
+"violation_share": 1.0,
+"from": "Reactivate Purchase Order Item"
+},
+{
+"node": "a_change_approval_for_purchase_order",
+"count": 251,
+"cases": 247,
+"median_lag": 375.783333,
+"violation_share": 1.0,
+"from": "Change Approval for Purchase Order"
+},
+{
+"node": "a_change_storage_location",
+"count": 195,
+"cases": 195,
+"median_lag": 19.183333,
+"violation_share": 1.0,
+"from": "Change Storage Location"
+},
+{
+"node": "a_srm_change_was_transmitted",
+"count": 110,
+"cases": 110,
+"median_lag": 192.058333,
+"violation_share": 1.0,
+"from": "SRM: Change was Transmitted"
+},
+{
+"node": "a_update_order_confirmation",
+"count": 105,
+"cases": 105,
+"median_lag": 176.016667,
+"violation_share": 1.0,
+"from": "Update Order Confirmation"
+},
+{
+"node": "a_srm_deleted",
+"count": 20,
+"cases": 19,
+"median_lag": 66.416667,
+"violation_share": 1.0,
+"from": "SRM: Deleted"
+},
+{
+"node": "a_srm_in_transfer_to_execution_syst",
+"count": 19,
+"cases": 19,
+"median_lag": 75.366667,
+"violation_share": 1.0,
+"from": "SRM: In Transfer to Execution Syst."
+},
+{
+"node": "a_cancel_invoice_receipt",
+"count": 15,
+"cases": 13,
+"median_lag": 88.383333,
+"violation_share": 1.0,
+"from": "Cancel Invoice Receipt"
+},
+{
+"node": "a_srm_created",
+"count": 6,
+"cases": 6,
+"median_lag": 1.641667,
+"violation_share": 1.0,
+"from": "SRM: Created"
+},
+{
+"node": "a_cancel_subsequent_invoice",
+"count": 4,
+"cases": 4,
+"median_lag": 35.816667,
+"violation_share": 1.0,
+"from": "Cancel Subsequent Invoice"
+},
+{
+"node": "a_change_payment_term",
+"count": 4,
+"cases": 4,
+"median_lag": 595.35,
+"violation_share": 1.0,
+"from": "Change payment term"
+},
+{
+"node": "a_change_currency",
+"count": 2,
+"cases": 2,
+"median_lag": 259.833333,
+"violation_share": 1.0,
+"from": "Change Currency"
+},
+{
+"node": "a_record_subsequent_invoice",
+"count": 1,
+"cases": 1,
+"median_lag": 4.566667,
+"violation_share": 1.0,
+"from": "Record Subsequent Invoice"
+},
+{
+"node": "a_change_final_invoice_indicator",
+"count": 1,
+"cases": 1,
+"median_lag": 31.183333,
+"violation_share": 1.0,
+"from": "Change Final Invoice Indicator"
+}
+],
+"outgoing": [
+{
+"node": "a_record_invoice_receipt",
+"count": 112182,
+"cases": 111603,
+"median_lag": 307.133333,
+"violation_share": 0.999848,
+"to": "Record Invoice Receipt"
+},
+{
+"node": "a_vendor_creates_invoice",
+"count": 80616,
+"cases": 79710,
+"median_lag": 14.825,
+"violation_share": 0.999699,
+"to": "Vendor creates invoice"
+},
+{
+"node": "a_record_goods_receipt",
+"count": 54277,
+"cases": 7662,
+"median_lag": 0.0,
+"violation_share": 1.0,
+"to": "Record Goods Receipt"
+},
+{
+"node": "a_record_service_entry_sheet",
+"count": 23151,
+"cases": 5105,
+"median_lag": 0.0,
+"violation_share": 1.0,
+"to": "Record Service Entry Sheet"
+},
+{
+"node": "a_remove_payment_block",
+"count": 15370,
+"cases": 15349,
+"median_lag": 9.283333,
+"violation_share": 1.0,
+"to": "Remove Payment Block"
+},
+{
+"node": "a_change_quantity",
+"count": 1472,
+"cases": 1404,
+"median_lag": 27.508333,
+"violation_share": 1.0,
+"to": "Change Quantity"
+},
+{
+"node": "a_cancel_goods_receipt",
+"count": 1063,
+"cases": 929,
+"median_lag": 0.333333,
+"violation_share": 1.0,
+"to": "Cancel Goods Receipt"
+},
+{
+"node": "a_change_price",
+"count": 761,
+"cases": 757,
+"median_lag": 169.55,
+"violation_share": 1.0,
+"to": "Change Price"
+},
+{
+"node": "a_change_delivery_indicator",
+"count": 733,
+"cases": 727,
+"median_lag": 32.383333,
+"violation_share": 1.0,
+"to": "Change Delivery Indicator"
+},
+{
+"node": "a_vendor_creates_debit_memo",
+"count": 636,
+"cases": 632,
+"median_lag": 36.483333,
+"violation_share": 1.0,
+"to": "Vendor creates debit memo"
+},
+{
+"node": "a_clear_invoice",
+"count": 556,
+"cases": 535,
+"median_lag": 721.891667,
+"violation_share": 1.0,
+"to": "Clear Invoice"
+},
+{
+"node": "a_cancel_invoice_receipt",
+"count": 356,
+"cases": 356,
+"median_lag": 1006.8,
+"violation_share": 1.0,
+"to": "Cancel Invoice Receipt"
+},
+{
+"node": "a_receive_order_confirmation",
+"count": 38,
+"cases": 38,
+"median_lag": 36.208333,
+"violation_share": 1.0,
+"to": "Receive Order Confirmation"
+},
+{
+"node": "a_change_approval_for_purchase_order",
+"count": 33,
+"cases": 32,
+"median_lag": 98.266667,
+"violation_share": 1.0,
+"to": "Change Approval for Purchase Order"
+},
+{
+"node": "a_release_purchase_order",
+"count": 29,
+"cases": 29,
+"median_lag": 98.183333,
+"violation_share": 1.0,
+"to": "Release Purchase Order"
+},
+{
+"node": "a_block_purchase_order_item",
+"count": 15,
+"cases": 15,
+"median_lag": 143.983333,
+"violation_share": 1.0,
+"to": "Block Purchase Order Item"
+},
+{
+"node": "a_delete_purchase_order_item",
+"count": 8,
+"cases": 8,
+"median_lag": 108.108333,
+"violation_share": 1.0,
+"to": "Delete Purchase Order Item"
+},
+{
+"node": "a_change_storage_location",
+"count": 7,
+"cases": 7,
+"median_lag": 4.75,
+"violation_share": 1.0,
+"to": "Change Storage Location"
+},
+{
+"node": "a_update_order_confirmation",
+"count": 6,
+"cases": 6,
+"median_lag": 3.125,
+"violation_share": 1.0,
+"to": "Update Order Confirmation"
+},
+{
+"node": "a_srm_complete",
+"count": 5,
+"cases": 5,
+"median_lag": 0.5,
+"violation_share": 1.0,
+"to": "SRM: Complete"
+},
+{
+"node": "a_cancel_subsequent_invoice",
+"count": 5,
+"cases": 5,
+"median_lag": 75.683333,
+"violation_share": 1.0,
+"to": "Cancel Subsequent Invoice"
+},
+{
+"node": "a_srm_created",
+"count": 2,
+"cases": 2,
+"median_lag": 40.891667,
+"violation_share": 1.0,
+"to": "SRM: Created"
+}
+]
+}
+}

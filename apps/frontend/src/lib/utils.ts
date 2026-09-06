@@ -42,6 +42,13 @@ export function parseResultRef(ref: string | undefined): { kind: string; id: str
   return { kind: ref.slice(0, i), id: ref.slice(i + 1) };
 }
 
+/** The finer attribute a group is drilled into (the backend's default drill-down keys for the BPIC 2019 mapping; vendor otherwise). */
+export function drillAttributeFor(slicing: string): string {
+  const attributes = slicing.split("+");
+  const order = ["case Vendor", "case Spend area text", "case Company", "case Item Type", "case Document Type", "flow_type"];
+  return order.find((a) => !attributes.includes(a)) ?? "case Vendor";
+}
+
 /** The group's display label: the key values joined by ×, from `keys` or the JSON-array key. */
 export function sliceLabel(row: { key: string; keys?: Record<string, string> | null } | undefined): string {
   if (!row) return "";

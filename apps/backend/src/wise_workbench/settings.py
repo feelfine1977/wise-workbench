@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     bpic19_norm: Path = Field(
         default_factory=lambda: Path.home() / "code" / "PhD" / "WISE" / "wise-lib" / "examples" / "bpic19_norm.json"
     )
+    # The built single-page application (``index.html`` and ``assets/``) served at ``/`` with history fallback.
+    # ``WISE_STATIC_DIR`` names it explicitly; otherwise the package's own ``static`` directory is used, then
+    # ``apps/frontend/dist`` of a source checkout. Without any of them only the API and ``/docs`` are served.
+    static_dir: Path | None = None
     log_format: str = "json"
     log_level: str = "INFO"
     job_lease_seconds: float = 60.0
@@ -48,6 +52,14 @@ class Settings(BaseSettings):
     score_cache_size: int = 4
     mapping_sample_events: int = 200_000
     max_upload_bytes: int = 4 * 1024**3
+    # Analytics (packages/wise-analytics): queued after every scoring job unless ``WISE_ANALYTICS_AUTO=0``;
+    # ``B`` bootstrap replicates; comparison sentences for the top groups of every backlog; the replicated share
+    # from which the bootstrap resamples by document instead of by case.
+    analytics_auto: bool = True
+    analytics_bootstrap_b: int = 200
+    analytics_comparison_top: int = 12
+    analytics_cluster_share: float = 0.20
+    analytics_seed: int = 0
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -59,6 +71,19 @@ class Settings(BaseSettings):
     @property
     def workspace_path(self) -> Path:
         return Path(self.workspace).expanduser().resolve()
+
+    @property
+    def resolved_static_dir(self) -> Path | None:
+        """The directory holding ``index.html``, or ``None`` when no built frontend is available."""
+        if self.static_dir is not None:
+            candidates = [Path(self.static_dir).expanduser()]
+        else:
+            here = Path(__file__).resolve().parent
+            candidates = [here / "static", here.parents[2] / "frontend" / "dist"]
+        for candidate in candidates:
+            if (candidate / "index.html").is_file():
+                return candidate.resolve()
+        return None
 
     @property
     def resolved_database_url(self) -> str:

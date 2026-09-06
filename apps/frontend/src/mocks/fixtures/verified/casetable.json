@@ -1,0 +1,781 @@
+{
+"readiness": {
+"status": "warn",
+"items": [
+{
+"id": "volume",
+"level": "info",
+"message": "1,595,923 events in 251,734 cases over 42 activities.",
+"evidence": {
+"events": 1595923,
+"cases": 251734,
+"activities": 42,
+"attributes": [
+"case Company",
+"case Spend area text",
+"case Vendor",
+"case Item Type",
+"case Purchasing Document",
+"case Document Type",
+"case Item Category",
+"flow_type",
+"header_event_count"
+]
+},
+"decision": null
+},
+{
+"id": "window",
+"level": "info",
+"message": "Observation window 2017-12-31 23:59:00 to 2019-01-17 15:44:00 (robust quantiles); raw timestamps span 1948-01-26 23:59:00 to 2020-04-09 23:59:00.",
+"evidence": {
+"start": "2017-12-31T23:59:00",
+"end": "2019-01-17T15:44:00",
+"rawMin": "1948-01-26T23:59:00",
+"rawMax": "2020-04-09T23:59:00"
+},
+"decision": null
+},
+{
+"id": "timestamp_outliers",
+"level": "warn",
+"message": "578 events lie outside the observation window (earliest 1948-01-26 23:59:00, latest 2020-04-09 23:59:00); lags touching them are unreliable.",
+"evidence": {
+"events": 578,
+"earliest": "1948-01-26T23:59:00",
+"latest": "2020-04-09T23:59:00",
+"share": 0.00036217286172327863
+},
+"decision": null
+},
+{
+"id": "sentinel_dates",
+"level": "warn",
+"message": "11 timestamp value(s) look like placeholders (identical stamp on many events or a known sentinel date); most frequent: 2017-12-04T23:59:00 on 74 events.",
+"evidence": {
+"values": [
+{
+"timestamp": "2017-12-04T23:59:00",
+"events": 74,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2008-06-19T23:59:00",
+"events": 45,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2019-01-17T16:09:00",
+"events": 27,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2019-01-17T17:52:00",
+"events": 19,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2019-01-17T16:48:00",
+"events": 15,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2019-01-17T15:45:00",
+"events": 13,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2019-01-17T17:02:00",
+"events": 12,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2017-12-29T23:59:00",
+"events": 11,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2017-01-05T23:59:00",
+"events": 11,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "1948-01-26T23:59:00",
+"events": 10,
+"outsideWindow": true,
+"reason": "repeated stamp outside the window"
+},
+{
+"timestamp": "2020-04-09T23:59:00",
+"events": 1,
+"outsideWindow": true,
+"reason": "latest raw timestamp"
+}
+]
+},
+"decision": null
+},
+{
+"id": "timestamp_precision",
+"level": "warn",
+"message": "Timestamp precision per activity (minute: 41, day: 1). Day-level activities: Create Purchase Requisition Item; sub-day lags on them are not meaningful.",
+"evidence": {
+"activities": [
+{
+"activity": "Record Goods Receipt",
+"events": 314097,
+"precision": "minute",
+"dayShare": 0.0008118511160565048,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Create Purchase Order Item",
+"events": 251734,
+"precision": "minute",
+"dayShare": 0.00032176821565620855,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Record Invoice Receipt",
+"events": 228760,
+"precision": "minute",
+"dayShare": 4.371393600279769e-06,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Vendor creates invoice",
+"events": 219919,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Clear Invoice",
+"events": 194393,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Record Service Entry Sheet",
+"events": 164975,
+"precision": "minute",
+"dayShare": 0.0049462039702985305,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Remove Payment Block",
+"events": 57136,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Create Purchase Requisition Item",
+"events": 46592,
+"precision": "day",
+"dayShare": 0.9999356112637363,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Receive Order Confirmation",
+"events": 32065,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Quantity",
+"events": 21449,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Price",
+"events": 12423,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Delete Purchase Order Item",
+"events": 8875,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Approval for Purchase Order",
+"events": 7541,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Cancel Invoice Receipt",
+"events": 7096,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Vendor creates debit memo",
+"events": 6255,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Delivery Indicator",
+"events": 3289,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Cancel Goods Receipt",
+"events": 3096,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: In Transfer to Execution Syst.",
+"events": 1765,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Awaiting Approval",
+"events": 1628,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Complete",
+"events": 1628,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Created",
+"events": 1628,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Document Completed",
+"events": 1628,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Ordered",
+"events": 1628,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Release Purchase Order",
+"events": 1610,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Change was Transmitted",
+"events": 1440,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Reactivate Purchase Order Item",
+"events": 543,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Block Purchase Order Item",
+"events": 514,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Cancel Subsequent Invoice",
+"events": 491,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Release Purchase Requisition",
+"events": 467,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Storage Location",
+"events": 415,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Update Order Confirmation",
+"events": 244,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Deleted",
+"events": 188,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Record Subsequent Invoice",
+"events": 167,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Set Payment Block",
+"events": 124,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Transfer Failed (E.Sys.)",
+"events": 45,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Currency",
+"events": 35,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Final Invoice Indicator",
+"events": 11,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Transaction Completed",
+"events": 8,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change payment term",
+"events": 7,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Held",
+"events": 6,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "SRM: Incomplete",
+"events": 6,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+},
+{
+"activity": "Change Rejection Indicator",
+"events": 2,
+"precision": "minute",
+"dayShare": 0.0,
+"minuteShare": 1.0,
+"secondShare": 1.0
+}
+]
+},
+"decision": null
+},
+{
+"id": "duplicate_events",
+"level": "warn",
+"message": "180,913 events are exact duplicates (same case, activity and timestamp); counts and singularity constraints are inflated.",
+"evidence": {
+"events": 180913,
+"share": 0.11335947912273964
+},
+"decision": null
+},
+{
+"id": "tied_timestamps",
+"level": "info",
+"message": "17.4% of events share their timestamp with another event of the same case; order between them is undefined.",
+"evidence": {
+"share": 0.17423710291787262,
+"casesShare": 0.07692643822447504
+},
+"decision": null
+},
+{
+"id": "zero_exposure",
+"level": "info",
+"message": "16,378 cases have exposure 0; exposure-weighted priorities ignore them.",
+"evidence": {
+"cases": 16378
+},
+"decision": null
+},
+{
+"id": "header_event_replication",
+"level": "warn",
+"message": "Header events (Create Purchase Order Item, Vendor creates invoice, Record Invoice Receipt, Clear Invoice, Remove Payment Block) are replicated onto items: 93.1% of their events share activity and timestamp with another case. 4,323 cases (1.7%) have more than 2 events per distinct timestamp.",
+"evidence": {
+"headerEvents": [
+"Create Purchase Order Item",
+"Vendor creates invoice",
+"Record Invoice Receipt",
+"Clear Invoice",
+"Remove Payment Block"
+],
+"replicatedShare": 0.9310304619399081,
+"casesFlagged": 4323,
+"ratioFlag": 2.0
+},
+"decision": null
+},
+{
+"id": "right_censored",
+"level": "warn",
+"message": "34,947 cases (13.9%) are still open within 60 days of the window end; their missing closure is a window artefact until proven otherwise.",
+"evidence": {
+"cases": 34947,
+"closure": [
+"Clear Invoice"
+],
+"window": "60D"
+},
+"decision": null
+},
+{
+"id": "flow_types",
+"level": "info",
+"message": "Flow types: DF2: 221,010, DF1: 15,182, Consignment: 14,498, 2-way: 1,044.",
+"evidence": {
+"counts": {
+"DF2": 221010,
+"DF1": 15182,
+"Consignment": 14498,
+"2-way": 1044
+},
+"untyped": 0
+},
+"decision": null
+}
+],
+"windowEnd": null,
+"caseNoun": null
+},
+"activities": [
+{
+"label": "Record Goods Receipt",
+"events": 314097,
+"cases": 234479
+},
+{
+"label": "Create Purchase Order Item",
+"events": 251734,
+"cases": 251734
+},
+{
+"label": "Record Invoice Receipt",
+"events": 228760,
+"cases": 211379
+},
+{
+"label": "Vendor creates invoice",
+"events": 219919,
+"cases": 209946
+},
+{
+"label": "Clear Invoice",
+"events": 194393,
+"cases": 183677
+},
+{
+"label": "Record Service Entry Sheet",
+"events": 164975,
+"cases": 5604
+},
+{
+"label": "Remove Payment Block",
+"events": 57136,
+"cases": 55839
+},
+{
+"label": "Create Purchase Requisition Item",
+"events": 46592,
+"cases": 46592
+},
+{
+"label": "Receive Order Confirmation",
+"events": 32065,
+"cases": 32061
+},
+{
+"label": "Change Quantity",
+"events": 21449,
+"cases": 17590
+},
+{
+"label": "Change Price",
+"events": 12423,
+"cases": 11224
+},
+{
+"label": "Delete Purchase Order Item",
+"events": 8875,
+"cases": 8839
+},
+{
+"label": "Change Approval for Purchase Order",
+"events": 7541,
+"cases": 4377
+},
+{
+"label": "Cancel Invoice Receipt",
+"events": 7096,
+"cases": 6471
+},
+{
+"label": "Vendor creates debit memo",
+"events": 6255,
+"cases": 5988
+},
+{
+"label": "Change Delivery Indicator",
+"events": 3289,
+"cases": 2975
+},
+{
+"label": "Cancel Goods Receipt",
+"events": 3096,
+"cases": 2470
+},
+{
+"label": "SRM: In Transfer to Execution Syst.",
+"events": 1765,
+"cases": 1440
+},
+{
+"label": "SRM: Created",
+"events": 1628,
+"cases": 1440
+},
+{
+"label": "SRM: Complete",
+"events": 1628,
+"cases": 1440
+},
+{
+"label": "SRM: Awaiting Approval",
+"events": 1628,
+"cases": 1440
+},
+{
+"label": "SRM: Document Completed",
+"events": 1628,
+"cases": 1440
+},
+{
+"label": "SRM: Ordered",
+"events": 1628,
+"cases": 1440
+},
+{
+"label": "Release Purchase Order",
+"events": 1610,
+"cases": 961
+},
+{
+"label": "SRM: Change was Transmitted",
+"events": 1440,
+"cases": 1440
+},
+{
+"label": "Reactivate Purchase Order Item",
+"events": 543,
+"cases": 529
+},
+{
+"label": "Block Purchase Order Item",
+"events": 514,
+"cases": 499
+},
+{
+"label": "Cancel Subsequent Invoice",
+"events": 491,
+"cases": 476
+},
+{
+"label": "Release Purchase Requisition",
+"events": 467,
+"cases": 467
+},
+{
+"label": "Change Storage Location",
+"events": 415,
+"cases": 364
+},
+{
+"label": "Update Order Confirmation",
+"events": 244,
+"cases": 227
+},
+{
+"label": "SRM: Deleted",
+"events": 188,
+"cases": 143
+},
+{
+"label": "Record Subsequent Invoice",
+"events": 167,
+"cases": 159
+},
+{
+"label": "Set Payment Block",
+"events": 124,
+"cases": 122
+},
+{
+"label": "SRM: Transfer Failed (E.Sys.)",
+"events": 45,
+"cases": 45
+},
+{
+"label": "Change Currency",
+"events": 35,
+"cases": 35
+},
+{
+"label": "Change Final Invoice Indicator",
+"events": 11,
+"cases": 11
+},
+{
+"label": "SRM: Transaction Completed",
+"events": 8,
+"cases": 8
+},
+{
+"label": "Change payment term",
+"events": 7,
+"cases": 7
+},
+{
+"label": "SRM: Incomplete",
+"events": 6,
+"cases": 6
+},
+{
+"label": "SRM: Held",
+"events": 6,
+"cases": 6
+},
+{
+"label": "Change Rejection Indicator",
+"events": 2,
+"cases": 1
+}
+],
+"attributes": [
+"n_events",
+"first_ts",
+"last_ts",
+"case Company",
+"case Spend area text",
+"case Vendor",
+"case Item Type",
+"case Purchasing Document",
+"case Document Type",
+"case Item Category",
+"exposure",
+"flow_type",
+"header_event_count"
+],
+"cases": 251734,
+"events": 1595923
+}

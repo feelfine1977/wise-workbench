@@ -8,7 +8,7 @@ free of dataframes.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
@@ -17,10 +17,12 @@ from wise_workbench.domain import (
     CaseTable,
     ColumnMapping,
     DatasetVersion,
+    Decision,
     Job,
     NormVersion,
     Project,
     Run,
+    Snapshot,
 )
 
 Table = dict[str, Any]  # {"columns": [...], "rows": [[...], ...]}
@@ -48,6 +50,16 @@ class Repository(Protocol):
     def list_norm_versions(self, project_id: str) -> list[NormVersion]: ...
     def next_norm_number(self, norm_id: str) -> int: ...
     def update_norm_status(self, n: NormVersion) -> NormVersion: ...
+    def update_norm_validation(self, n: NormVersion) -> NormVersion: ...
+    def add_decision(self, d: Decision) -> Decision: ...
+    def get_decision(self, decision_id: str) -> Decision: ...
+    def list_decisions(self, project_id: str, case_table_id: str | None = None) -> list[Decision]: ...
+    def add_snapshot(self, snap: Snapshot) -> Snapshot: ...
+    def update_snapshot(self, snap: Snapshot) -> Snapshot: ...
+    def get_snapshot(self, snapshot_id: str) -> Snapshot: ...
+    def list_snapshots(self, project_id: str) -> list[Snapshot]: ...
+    def delete_snapshot(self, snapshot_id: str) -> None: ...
+    def set_snapshot_order(self, project_id: str, ordered_ids: list[str]) -> None: ...
     def add_run(self, r: Run) -> Run: ...
     def update_run(self, r: Run) -> Run: ...
     def get_run(self, run_id: str) -> Run: ...
@@ -79,6 +91,7 @@ class Storage(Protocol):
     def case_table_dir(self, project_id: str, case_table_id: str) -> Path: ...
     def norm_version_path(self, project_id: str, norm_id: str, version: int) -> Path: ...
     def run_dir(self, project_id: str, run_id: str) -> Path: ...
+    def notebook_dir(self, project_id: str) -> Path: ...
     def write_json(self, path: Path, data: Any) -> Path: ...
     def write_text(self, path: Path, text: str) -> Path: ...
     def read_json(self, path: Path) -> Any: ...
@@ -136,8 +149,30 @@ class Engine(Protocol):
         abstraction: float,
         *,
         process: str | None = None,
+        filter_obj: dict[str, Any] | None = None,
+        focus: str | None = None,
     ) -> dict[str, Any]: ...
     def read_events(self, dataset_dir: Path, mapping: ColumnMapping) -> Any: ...
+    def norm_warnings(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> list[str]: ...
+    def preview_decision(
+        self, case_table_dir: Path, mapping: ColumnMapping, kind: str, params: dict[str, Any]
+    ) -> Any: ...
+    def flow_types(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        *,
+        attribute: str | None,
+        process: str | None,
+        abstraction: float,
+    ) -> dict[str, Any]: ...
+    def compare_flow_types(self, run: Run, ctx: RunContext, *, attribute: str | None) -> dict[str, Any]: ...
+    def run_analytics(self, run: Run, ctx: RunContext, progress: ProgressFn) -> dict[str, Any]: ...
+    def analytics_status(self, run: Run, ctx: RunContext) -> dict[str, Any]: ...
+    def filter_preview(self, run: Run, ctx: RunContext, filter_obj: dict[str, Any] | None) -> dict[str, Any]: ...
+    def slicing_preview(
+        self, run: Run, ctx: RunContext, attributes: list[str], bands: list[dict[str, Any]], min_cases: int
+    ) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -152,6 +187,16 @@ class RunContext:
     gamma: float
     min_cases: int
     slicings: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    bands: dict[str, tuple[dict[str, Any], ...]] = field(default_factory=dict)  # slicing id → band specs
+    scope: dict[str, Any] | None = None  # the run's sub-log scope (flow type)
+    window_end: str | None = None  # the one window end of the case table's readiness report
+    case_noun: str = "cases"
+    closure_label: str = "closure"
+    process: str | None = None
+    project_id: str | None = None
+    run_id: str | None = None
+    norm_warnings: tuple[str, ...] = ()
+    analytics: dict[str, Any] = field(default_factory=dict)  # bootstrap B, comparison top, cluster share, seed
 
     def slicing_attributes(self, slicing: str) -> list[str]:
         """Resolve a slicing id or comma-separated attribute list."""
@@ -160,8 +205,13 @@ class RunContext:
                 return list(attrs)
         return [a.strip() for a in slicing.split(",") if a.strip()]
 
-    def slicing_id(self, attributes: list[str]) -> str | None:
+    def slicing_bands(self, slicing: str) -> list[dict[str, Any]]:
+        """The band specs of a run slicing named by id (none for ad-hoc attribute lists)."""
+        return [dict(b) for b in self.bands.get(slicing, ())]
+
+    def slicing_id(self, attributes: list[str], bands: list[dict[str, Any]] | None = None) -> str | None:
+        wanted_bands = [dict(b) for b in bands or []]
         for sid, attrs in self.slicings:
-            if list(attrs) == list(attributes):
+            if list(attrs) == list(attributes) and [dict(b) for b in self.bands.get(sid, ())] == wanted_bands:
                 return sid
         return None

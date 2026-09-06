@@ -47,9 +47,12 @@ vi.mock("@/components/charts/EChart", async () => {
 // The process map (React Flow, ELK in a worker) has no place in jsdom: a labelled placeholder stands in.
 vi.mock("@/components/flow/FlowMap", async () => {
   const React = await import("react");
-  const FlowMap = (props: { title: string; graph: { nodes: unknown[] } }) => React.createElement("div", { role: "img", "aria-label": props.title, "data-testid": "flow-map" }, `${props.graph.nodes.length} nodes`);
-  return { FlowMap, default: FlowMap };
+  const FlowMap = (props: { title: string; graph: { nodes: unknown[] }; compact?: boolean }) => React.createElement("div", { role: "img", "aria-label": props.title, "data-testid": props.compact ? "mini-map" : "flow-map" }, `${props.graph.nodes.length} nodes`);
+  const MiniMap = (props: { title: string; graph: { nodes: unknown[] } }) => FlowMap({ ...props, compact: true });
+  return { FlowMap, MiniMap, default: FlowMap, toLibraryGraph: (g: unknown) => g };
 });
+// html-to-image needs a real canvas; the capture returns nothing and the snapshot is sent without an image.
+vi.mock("html-to-image", () => ({ toBlob: async () => null }));
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {

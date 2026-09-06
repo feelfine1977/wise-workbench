@@ -52,12 +52,16 @@ def test_determinism_and_badges(synthetic_clean):
     assert set(t["stability"]) <= {"stable", "fragile", "insufficient_support"}
     for k in (5, 10):
         assert t[f"p_top{k}"].between(0, 1).all() and t[f"p_top{k}"].sum() <= k + 1e-9
-    assert u1.summary["badges"]["stable"] + u1.summary["badges"]["fragile"] + u1.summary["badges"]["insufficient_support"] == len(t)
+    assert u1.summary["badges"]["stable"] + u1.summary["badges"]["fragile"] + u1.summary["badges"]["insufficient_support"] == len(
+        t
+    )
 
 
 def test_insufficient_support_and_k_handling(p2p_result):
     u = wa.bootstrap_backlog(p2p_result, "company", "Finance", gamma=2.0, B=50, min_support=10, k=3)
-    assert (u.table["stability"] == "insufficient_support").all() and u.table["stability_reason"].str.contains("insufficient support").all()
+    assert (u.table["stability"] == "insufficient_support").all() and u.table["stability_reason"].str.contains(
+        "insufficient support"
+    ).all()
     assert "p_top3" in u.table.columns and u.summary["k_badge"] == 3
     with pytest.raises(NormError):
         wa.bootstrap_backlog(p2p_result, "company", "Finance", k=0)

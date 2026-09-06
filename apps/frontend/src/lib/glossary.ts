@@ -12,6 +12,8 @@ export interface GlossaryEntry {
   method: string;
   definition: string;
   formula?: string;
+  /** The panel's better plain wording from the comprehension test. */
+  reworded?: string;
 }
 
 const HELP_ONLY: TermEntry[] = [
@@ -24,6 +26,7 @@ export const glossary: GlossaryEntry[] = [...TERMS, ...HELP_ONLY.filter((h) => !
   method: t.method,
   definition: t.definition,
   formula: t.formula,
+  reworded: t.reworded,
 }));
 
 export const glossaryById: Record<string, GlossaryEntry> = Object.fromEntries(glossary.map((g) => [g.id, g]));

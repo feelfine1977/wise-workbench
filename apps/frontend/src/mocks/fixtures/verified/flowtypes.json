@@ -1,0 +1,2011 @@
+{
+"caseTableId": "ct_0mtoq3xcgajce13jv",
+"attribute": "flow_type",
+"source": "mapping",
+"cases": 251734,
+"windowEnd": "2019-01-17T15:44:00",
+"caseNoun": "purchase order items",
+"types": [
+{
+"name": "DF2",
+"cases": 221010,
+"share": 0.877951,
+"events": 1234708,
+"activities": 39,
+"map": {
+"nodes": [
+{
+"id": "__start__",
+"kind": "event",
+"label": "start",
+"group": null,
+"metrics": {
+"cases": 221010.0,
+"share": 1.0
+},
+"tags": [
+"start"
+]
+},
+{
+"id": "__end__",
+"kind": "event",
+"label": "end",
+"group": null,
+"metrics": {
+"cases": 221010.0,
+"share": 1.0
+},
+"tags": [
+"end"
+]
+},
+{
+"id": "a_record_goods_receipt",
+"kind": "activity",
+"label": "Record Goods Receipt",
+"group": "receive",
+"metrics": {
+"events": 222738.0,
+"cases": 206474.0,
+"share": 0.934229,
+"caseShare": 0.934229,
+"eventsPerCase": 1.07877,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_order_item",
+"kind": "activity",
+"label": "Create Purchase Order Item",
+"group": "order",
+"metrics": {
+"events": 221010.0,
+"cases": 221010.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_record_invoice_receipt",
+"kind": "activity",
+"label": "Record Invoice Receipt",
+"group": "invoice",
+"metrics": {
+"events": 209128.0,
+"cases": 199564.0,
+"share": 0.902964,
+"caseShare": 0.902964,
+"eventsPerCase": 1.047924,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_vendor_creates_invoice",
+"kind": "activity",
+"label": "Vendor creates invoice",
+"group": "invoice",
+"metrics": {
+"events": 203368.0,
+"cases": 198537.0,
+"share": 0.898317,
+"caseShare": 0.898317,
+"eventsPerCase": 1.024333,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_clear_invoice",
+"kind": "activity",
+"label": "Clear Invoice",
+"group": "pay",
+"metrics": {
+"events": 180391.0,
+"cases": 173698.0,
+"share": 0.785928,
+"caseShare": 0.785928,
+"eventsPerCase": 1.038532,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_remove_payment_block",
+"kind": "activity",
+"label": "Remove Payment Block",
+"group": "match",
+"metrics": {
+"events": 54644.0,
+"cases": 53608.0,
+"share": 0.242559,
+"caseShare": 0.242559,
+"eventsPerCase": 1.019325,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_requisition_item",
+"kind": "activity",
+"label": "Create Purchase Requisition Item",
+"group": "request",
+"metrics": {
+"events": 42572.0,
+"cases": 42572.0,
+"share": 0.192625,
+"caseShare": 0.192625,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_receive_order_confirmation",
+"kind": "activity",
+"label": "Receive Order Confirmation",
+"group": "order",
+"metrics": {
+"events": 31273.0,
+"cases": 31269.0,
+"share": 0.141482,
+"caseShare": 0.141482,
+"eventsPerCase": 1.000128,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_change_quantity",
+"kind": "activity",
+"label": "Change Quantity",
+"group": "order",
+"metrics": {
+"events": 19114.0,
+"cases": 15596.0,
+"share": 0.070567,
+"caseShare": 0.070567,
+"eventsPerCase": 1.225571,
+"violationShare": 0.0
+},
+"tags": []
+}
+],
+"edges": [
+{
+"id": "f_a_record_invoice_receipt__a_clear_invoice",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 125258.0,
+"cases": 124621.0,
+"share": 0.56387,
+"caseShare": 0.56387,
+"medianLagHours": 892.2,
+"medianHours": 892.2
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_requisition_item__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_create_purchase_requisition_item",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 42115.0,
+"cases": 42115.0,
+"share": 0.190557,
+"caseShare": 0.190557,
+"medianLagHours": 10.616667,
+"medianHours": 10.616667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 103438.0,
+"cases": 102431.0,
+"share": 0.463468,
+"caseShare": 0.463468,
+"medianLagHours": 34.183333,
+"medianHours": 34.183333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 106525.0,
+"cases": 106211.0,
+"share": 0.480571,
+"caseShare": 0.480571,
+"medianLagHours": 294.15,
+"medianHours": 294.15
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_remove_payment_block__a_clear_invoice",
+"kind": "follows",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 47448.0,
+"cases": 47199.0,
+"share": 0.21356,
+"caseShare": 0.21356,
+"medianLagHours": 659.683333,
+"medianHours": 659.683333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_receive_order_confirmation__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_receive_order_confirmation",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 19761.0,
+"cases": 19761.0,
+"share": 0.089412,
+"caseShare": 0.089412,
+"medianLagHours": 120.883333,
+"medianHours": 120.883333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 14873.0,
+"cases": 14829.0,
+"share": 0.067097,
+"caseShare": 0.067097,
+"medianLagHours": 27.35,
+"medianHours": 27.35
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_remove_payment_block",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"count": 15347.0,
+"cases": 15326.0,
+"share": 0.069345,
+"caseShare": 0.069345,
+"medianLagHours": 9.283333,
+"medianHours": 9.283333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 98700.0,
+"cases": 98700.0,
+"share": 0.446586,
+"caseShare": 0.446586,
+"medianLagHours": 152.683333,
+"medianHours": 152.683333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 58869.0,
+"cases": 58869.0,
+"share": 0.266364,
+"caseShare": 0.266364,
+"medianLagHours": 287.066667,
+"medianHours": 287.066667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 77049.0,
+"cases": 76310.0,
+"share": 0.345278,
+"caseShare": 0.345278,
+"medianLagHours": 14.6,
+"medianHours": 14.6
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 89499.0,
+"cases": 89094.0,
+"share": 0.403122,
+"caseShare": 0.403122,
+"medianLagHours": 109.15,
+"medianHours": 109.15
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_remove_payment_block",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"count": 35441.0,
+"cases": 35113.0,
+"share": 0.158875,
+"caseShare": 0.158875,
+"medianLagHours": 199.716667,
+"medianHours": 199.716667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_receive_order_confirmation",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_receive_order_confirmation",
+"metrics": {
+"count": 30068.0,
+"cases": 30068.0,
+"share": 0.136048,
+"caseShare": 0.136048,
+"medianLagHours": 1.466667,
+"medianHours": 1.466667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_requisition_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_requisition_item",
+"metrics": {
+"count": 42507.0,
+"cases": 42507.0,
+"share": 0.192331,
+"caseShare": 0.192331
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_order_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 174845.0,
+"cases": 174845.0,
+"share": 0.791118,
+"caseShare": 0.791118
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__end",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "__end__",
+"metrics": {
+"count": 21458.0,
+"cases": 21458.0,
+"share": 0.097091,
+"caseShare": 0.097091
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_clear_invoice__end",
+"kind": "follows",
+"source": "a_clear_invoice",
+"target": "__end__",
+"metrics": {
+"count": 171904.0,
+"cases": 171904.0,
+"share": 0.777811,
+"caseShare": 0.777811
+},
+"tags": [
+"end"
+],
+"payload": null
+}
+],
+"groups": [
+{
+"id": "request",
+"kind": "stage",
+"label": "Request",
+"parent": null
+},
+{
+"id": "order",
+"kind": "stage",
+"label": "Order",
+"parent": null
+},
+{
+"id": "receive",
+"kind": "stage",
+"label": "Receive",
+"parent": null
+},
+{
+"id": "invoice",
+"kind": "stage",
+"label": "Invoice",
+"parent": null
+},
+{
+"id": "match",
+"kind": "stage",
+"label": "Match",
+"parent": null
+},
+{
+"id": "pay",
+"kind": "stage",
+"label": "Pay",
+"parent": null
+}
+],
+"overlays": [],
+"meta": {
+"flowType": "DF2",
+"attribute": "flow_type",
+"process": "p2p",
+"caseNoun": "purchase order items",
+"abstraction": 0.05,
+"cases": 221010,
+"events": 1234708,
+"nodesTotal": 39,
+"edgesTotal": 414,
+"constraintsWithoutNodes": [],
+"stages": [
+{
+"id": "request",
+"label": "Request",
+"order": 1
+},
+{
+"id": "approve",
+"label": "Approve",
+"order": 2
+},
+{
+"id": "order",
+"label": "Order",
+"order": 3
+},
+{
+"id": "receive",
+"label": "Receive",
+"order": 4
+},
+{
+"id": "invoice",
+"label": "Invoice",
+"order": 5
+},
+{
+"id": "match",
+"label": "Match",
+"order": 6
+},
+{
+"id": "pay",
+"label": "Pay",
+"order": 7
+}
+],
+"stagedActivities": 9,
+"constraints": []
+},
+"paths": null
+},
+"readiness": {
+"censoredShare": 0.135926,
+"replicatedShare": 0.000715,
+"medianDurationDays": 66.346528,
+"windowEnd": "2019-01-17T15:44:00",
+"headline": "221,010 purchase order items (88%), 1,234,708 events, 39 activities, median 66 days from first to last event; 14% still open at the end of the data (2019-01-17)."
+},
+"scope": {
+"flow_type": "DF2",
+"attribute": "flow_type"
+}
+},
+{
+"name": "DF1",
+"cases": 15182,
+"share": 0.06031,
+"events": 319233,
+"activities": 38,
+"map": {
+"nodes": [
+{
+"id": "__start__",
+"kind": "event",
+"label": "start",
+"group": null,
+"metrics": {
+"cases": 15182.0,
+"share": 1.0
+},
+"tags": [
+"start"
+]
+},
+{
+"id": "__end__",
+"kind": "event",
+"label": "end",
+"group": null,
+"metrics": {
+"cases": 15182.0,
+"share": 1.0
+},
+"tags": [
+"end"
+]
+},
+{
+"id": "a_record_service_entry_sheet",
+"kind": "activity",
+"label": "Record Service Entry Sheet",
+"group": "receive",
+"metrics": {
+"events": 164975.0,
+"cases": 5604.0,
+"share": 0.369121,
+"caseShare": 0.369121,
+"eventsPerCase": 29.438794,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_record_goods_receipt",
+"kind": "activity",
+"label": "Record Goods Receipt",
+"group": "receive",
+"metrics": {
+"events": 75900.0,
+"cases": 14539.0,
+"share": 0.957647,
+"caseShare": 0.957647,
+"eventsPerCase": 5.220442,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_record_invoice_receipt",
+"kind": "activity",
+"label": "Record Invoice Receipt",
+"group": "invoice",
+"metrics": {
+"events": 18937.0,
+"cases": 11128.0,
+"share": 0.732973,
+"caseShare": 0.732973,
+"eventsPerCase": 1.701743,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_vendor_creates_invoice",
+"kind": "activity",
+"label": "Vendor creates invoice",
+"group": "invoice",
+"metrics": {
+"events": 15862.0,
+"cases": 10722.0,
+"share": 0.706231,
+"caseShare": 0.706231,
+"eventsPerCase": 1.479388,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_order_item",
+"kind": "activity",
+"label": "Create Purchase Order Item",
+"group": "order",
+"metrics": {
+"events": 15182.0,
+"cases": 15182.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_clear_invoice",
+"kind": "activity",
+"label": "Clear Invoice",
+"group": "pay",
+"metrics": {
+"events": 13695.0,
+"cases": 9676.0,
+"share": 0.637334,
+"caseShare": 0.637334,
+"eventsPerCase": 1.415358,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_remove_payment_block",
+"kind": "activity",
+"label": "Remove Payment Block",
+"group": "match",
+"metrics": {
+"events": 2491.0,
+"cases": 2230.0,
+"share": 0.146884,
+"caseShare": 0.146884,
+"eventsPerCase": 1.11704,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_change_price",
+"kind": "activity",
+"label": "Change Price",
+"group": "order",
+"metrics": {
+"events": 1231.0,
+"cases": 1093.0,
+"share": 0.071993,
+"caseShare": 0.071993,
+"eventsPerCase": 1.126258,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_requisition_item",
+"kind": "activity",
+"label": "Create Purchase Requisition Item",
+"group": "request",
+"metrics": {
+"events": 1220.0,
+"cases": 1220.0,
+"share": 0.080358,
+"caseShare": 0.080358,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_change_quantity",
+"kind": "activity",
+"label": "Change Quantity",
+"group": "order",
+"metrics": {
+"events": 992.0,
+"cases": 858.0,
+"share": 0.056514,
+"caseShare": 0.056514,
+"eventsPerCase": 1.156177,
+"violationShare": 0.0
+},
+"tags": []
+}
+],
+"edges": [
+{
+"id": "f_a_record_invoice_receipt__a_clear_invoice",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 9427.0,
+"cases": 7852.0,
+"share": 0.517191,
+"caseShare": 0.517191,
+"medianLagHours": 504.933333,
+"medianHours": 504.933333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_requisition_item__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_create_purchase_requisition_item",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 1220.0,
+"cases": 1220.0,
+"share": 0.080358,
+"caseShare": 0.080358,
+"medianLagHours": 13.075,
+"medianHours": 13.075
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_service_entry_sheet__a_record_service_entry_sheet",
+"kind": "follows",
+"source": "a_record_service_entry_sheet",
+"target": "a_record_service_entry_sheet",
+"metrics": {
+"count": 139107.0,
+"cases": 3770.0,
+"share": 0.24832,
+"caseShare": 0.24832,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [
+"selfLoop"
+],
+"payload": null
+},
+{
+"id": "f_a_record_service_entry_sheet__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_record_service_entry_sheet",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 19183.0,
+"cases": 3615.0,
+"share": 0.238111,
+"caseShare": 0.238111,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_service_entry_sheet__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_record_service_entry_sheet",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 2823.0,
+"cases": 1791.0,
+"share": 0.117969,
+"caseShare": 0.117969,
+"medianLagHours": 105.333333,
+"medianHours": 105.333333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 6777.0,
+"cases": 5356.0,
+"share": 0.352786,
+"caseShare": 0.352786,
+"medianLagHours": 37.1,
+"medianHours": 37.1
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 5657.0,
+"cases": 5392.0,
+"share": 0.355157,
+"caseShare": 0.355157,
+"medianLagHours": 455.333333,
+"medianHours": 455.333333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_remove_payment_block__a_clear_invoice",
+"kind": "follows",
+"source": "a_remove_payment_block",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 1976.0,
+"cases": 1912.0,
+"share": 0.125939,
+"caseShare": 0.125939,
+"medianLagHours": 317.6,
+"medianHours": 317.6
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_service_entry_sheet",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_service_entry_sheet",
+"metrics": {
+"count": 23151.0,
+"cases": 5105.0,
+"share": 0.336253,
+"caseShare": 0.336253,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 6399.0,
+"cases": 6399.0,
+"share": 0.421486,
+"caseShare": 0.421486,
+"medianLagHours": 1.566667,
+"medianHours": 1.566667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 40624.0,
+"cases": 2806.0,
+"share": 0.184824,
+"caseShare": 0.184824,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [
+"selfLoop"
+],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 5670.0,
+"cases": 4962.0,
+"share": 0.326834,
+"caseShare": 0.326834,
+"medianLagHours": 392.166667,
+"medianHours": 392.166667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 4442.0,
+"cases": 4442.0,
+"share": 0.292583,
+"caseShare": 0.292583,
+"medianLagHours": 226.375,
+"medianHours": 226.375
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 3567.0,
+"cases": 3400.0,
+"share": 0.223949,
+"caseShare": 0.223949,
+"medianLagHours": 36.566667,
+"medianHours": 36.566667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_record_service_entry_sheet",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_record_service_entry_sheet",
+"metrics": {
+"count": 2072.0,
+"cases": 2072.0,
+"share": 0.136477,
+"caseShare": 0.136477,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_remove_payment_block",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_remove_payment_block",
+"metrics": {
+"count": 2179.0,
+"cases": 2034.0,
+"share": 0.133974,
+"caseShare": 0.133974,
+"medianLagHours": 147.083333,
+"medianHours": 147.083333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_requisition_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_requisition_item",
+"metrics": {
+"count": 1219.0,
+"cases": 1219.0,
+"share": 0.080292,
+"caseShare": 0.080292
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_order_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 13035.0,
+"cases": 13035.0,
+"share": 0.858583,
+"caseShare": 0.858583
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__end",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "__end__",
+"metrics": {
+"count": 2319.0,
+"cases": 2319.0,
+"share": 0.152747,
+"caseShare": 0.152747
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_record_service_entry_sheet__end",
+"kind": "follows",
+"source": "a_record_service_entry_sheet",
+"target": "__end__",
+"metrics": {
+"count": 921.0,
+"cases": 921.0,
+"share": 0.060664,
+"caseShare": 0.060664
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__end",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "__end__",
+"metrics": {
+"count": 1330.0,
+"cases": 1330.0,
+"share": 0.087604,
+"caseShare": 0.087604
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_clear_invoice__end",
+"kind": "follows",
+"source": "a_clear_invoice",
+"target": "__end__",
+"metrics": {
+"count": 9258.0,
+"cases": 9258.0,
+"share": 0.609801,
+"caseShare": 0.609801
+},
+"tags": [
+"end"
+],
+"payload": null
+}
+],
+"groups": [
+{
+"id": "request",
+"kind": "stage",
+"label": "Request",
+"parent": null
+},
+{
+"id": "order",
+"kind": "stage",
+"label": "Order",
+"parent": null
+},
+{
+"id": "receive",
+"kind": "stage",
+"label": "Receive",
+"parent": null
+},
+{
+"id": "invoice",
+"kind": "stage",
+"label": "Invoice",
+"parent": null
+},
+{
+"id": "match",
+"kind": "stage",
+"label": "Match",
+"parent": null
+},
+{
+"id": "pay",
+"kind": "stage",
+"label": "Pay",
+"parent": null
+}
+],
+"overlays": [],
+"meta": {
+"flowType": "DF1",
+"attribute": "flow_type",
+"process": "p2p",
+"caseNoun": "purchase order items",
+"abstraction": 0.05,
+"cases": 15182,
+"events": 319233,
+"nodesTotal": 38,
+"edgesTotal": 303,
+"constraintsWithoutNodes": [],
+"stages": [
+{
+"id": "request",
+"label": "Request",
+"order": 1
+},
+{
+"id": "approve",
+"label": "Approve",
+"order": 2
+},
+{
+"id": "order",
+"label": "Order",
+"order": 3
+},
+{
+"id": "receive",
+"label": "Receive",
+"order": 4
+},
+{
+"id": "invoice",
+"label": "Invoice",
+"order": 5
+},
+{
+"id": "match",
+"label": "Match",
+"order": 6
+},
+{
+"id": "pay",
+"label": "Pay",
+"order": 7
+}
+],
+"stagedActivities": 10,
+"constraints": []
+},
+"paths": null
+},
+"readiness": {
+"censoredShare": 0.142076,
+"replicatedShare": 0.274338,
+"medianDurationDays": 63.380556,
+"windowEnd": "2019-01-17T15:44:00",
+"headline": "15,182 purchase order items (6%), 319,233 events, 38 activities, median 63 days from first to last event; 14% still open at the end of the data (2019-01-17); 27% carry copied postings."
+},
+"scope": {
+"flow_type": "DF1",
+"attribute": "flow_type"
+}
+},
+{
+"name": "Consignment",
+"cases": 14498,
+"share": 0.057593,
+"events": 36084,
+"activities": 15,
+"map": {
+"nodes": [
+{
+"id": "__start__",
+"kind": "event",
+"label": "start",
+"group": null,
+"metrics": {
+"cases": 14498.0,
+"share": 1.0
+},
+"tags": [
+"start"
+]
+},
+{
+"id": "__end__",
+"kind": "event",
+"label": "end",
+"group": null,
+"metrics": {
+"cases": 14498.0,
+"share": 1.0
+},
+"tags": [
+"end"
+]
+},
+{
+"id": "a_record_goods_receipt",
+"kind": "activity",
+"label": "Record Goods Receipt",
+"group": "receive",
+"metrics": {
+"events": 15459.0,
+"cases": 13466.0,
+"share": 0.928818,
+"caseShare": 0.928818,
+"eventsPerCase": 1.148002,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_order_item",
+"kind": "activity",
+"label": "Create Purchase Order Item",
+"group": "order",
+"metrics": {
+"events": 14498.0,
+"cases": 14498.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_requisition_item",
+"kind": "activity",
+"label": "Create Purchase Requisition Item",
+"group": "request",
+"metrics": {
+"events": 2800.0,
+"cases": 2800.0,
+"share": 0.19313,
+"caseShare": 0.19313,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_change_quantity",
+"kind": "activity",
+"label": "Change Quantity",
+"group": "order",
+"metrics": {
+"events": 1343.0,
+"cases": 1136.0,
+"share": 0.078356,
+"caseShare": 0.078356,
+"eventsPerCase": 1.182218,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_receive_order_confirmation",
+"kind": "activity",
+"label": "Receive Order Confirmation",
+"group": "order",
+"metrics": {
+"events": 741.0,
+"cases": 741.0,
+"share": 0.05111,
+"caseShare": 0.05111,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+}
+],
+"edges": [
+{
+"id": "f_a_create_purchase_requisition_item__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_create_purchase_requisition_item",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 2790.0,
+"cases": 2790.0,
+"share": 0.19244,
+"caseShare": 0.19244,
+"medianLagHours": 14.783333,
+"medianHours": 14.783333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_change_quantity__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_change_quantity",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 881.0,
+"cases": 872.0,
+"share": 0.060146,
+"caseShare": 0.060146,
+"medianLagHours": 138.7,
+"medianHours": 138.7
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 11938.0,
+"cases": 11938.0,
+"share": 0.823424,
+"caseShare": 0.823424,
+"medianLagHours": 478.15,
+"medianHours": 478.15
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_change_quantity",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_change_quantity",
+"metrics": {
+"count": 855.0,
+"cases": 855.0,
+"share": 0.058974,
+"caseShare": 0.058974,
+"medianLagHours": 189.566667,
+"medianHours": 189.566667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__a_record_goods_receipt",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "a_record_goods_receipt",
+"metrics": {
+"count": 1674.0,
+"cases": 1101.0,
+"share": 0.075942,
+"caseShare": 0.075942,
+"medianLagHours": 49.883333,
+"medianHours": 49.883333
+},
+"tags": [
+"selfLoop"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_requisition_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_requisition_item",
+"metrics": {
+"count": 2800.0,
+"cases": 2800.0,
+"share": 0.19313,
+"caseShare": 0.19313
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_order_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 11698.0,
+"cases": 11698.0,
+"share": 0.80687,
+"caseShare": 0.80687
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_a_record_goods_receipt__end",
+"kind": "follows",
+"source": "a_record_goods_receipt",
+"target": "__end__",
+"metrics": {
+"count": 13130.0,
+"cases": 13130.0,
+"share": 0.905642,
+"caseShare": 0.905642
+},
+"tags": [
+"end"
+],
+"payload": null
+}
+],
+"groups": [
+{
+"id": "request",
+"kind": "stage",
+"label": "Request",
+"parent": null
+},
+{
+"id": "order",
+"kind": "stage",
+"label": "Order",
+"parent": null
+},
+{
+"id": "receive",
+"kind": "stage",
+"label": "Receive",
+"parent": null
+}
+],
+"overlays": [],
+"meta": {
+"flowType": "Consignment",
+"attribute": "flow_type",
+"process": "p2p",
+"caseNoun": "purchase order items",
+"abstraction": 0.05,
+"cases": 14498,
+"events": 36084,
+"nodesTotal": 15,
+"edgesTotal": 55,
+"constraintsWithoutNodes": [],
+"stages": [
+{
+"id": "request",
+"label": "Request",
+"order": 1
+},
+{
+"id": "approve",
+"label": "Approve",
+"order": 2
+},
+{
+"id": "order",
+"label": "Order",
+"order": 3
+},
+{
+"id": "receive",
+"label": "Receive",
+"order": 4
+},
+{
+"id": "invoice",
+"label": "Invoice",
+"order": 5
+},
+{
+"id": "match",
+"label": "Match",
+"order": 6
+},
+{
+"id": "pay",
+"label": "Pay",
+"order": 7
+}
+],
+"stagedActivities": 5,
+"constraints": []
+},
+"paths": null
+},
+"readiness": {
+"censoredShare": 0.161402,
+"replicatedShare": 0.0,
+"medianDurationDays": 19.93125,
+"windowEnd": "2019-01-17T15:44:00",
+"headline": "14,498 purchase order items (6%), 36,084 events, 15 activities, median 20 days from first to last event; 16% still open at the end of the data (2019-01-17)."
+},
+"scope": {
+"flow_type": "Consignment",
+"attribute": "flow_type"
+}
+},
+{
+"name": "2-way",
+"cases": 1044,
+"share": 0.004147,
+"events": 5898,
+"activities": 11,
+"map": {
+"nodes": [
+{
+"id": "__start__",
+"kind": "event",
+"label": "start",
+"group": null,
+"metrics": {
+"cases": 1044.0,
+"share": 1.0
+},
+"tags": [
+"start"
+]
+},
+{
+"id": "__end__",
+"kind": "event",
+"label": "end",
+"group": null,
+"metrics": {
+"cases": 1044.0,
+"share": 1.0
+},
+"tags": [
+"end"
+]
+},
+{
+"id": "a_change_approval_for_purchase_order",
+"kind": "activity",
+"label": "Change Approval for Purchase Order",
+"group": "approve",
+"metrics": {
+"events": 3111.0,
+"cases": 1044.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 2.979885,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_create_purchase_order_item",
+"kind": "activity",
+"label": "Create Purchase Order Item",
+"group": "order",
+"metrics": {
+"events": 1044.0,
+"cases": 1044.0,
+"share": 1.0,
+"caseShare": 1.0,
+"eventsPerCase": 1.0,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_record_invoice_receipt",
+"kind": "activity",
+"label": "Record Invoice Receipt",
+"group": "invoice",
+"metrics": {
+"events": 695.0,
+"cases": 687.0,
+"share": 0.658046,
+"caseShare": 0.658046,
+"eventsPerCase": 1.011645,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_vendor_creates_invoice",
+"kind": "activity",
+"label": "Vendor creates invoice",
+"group": "invoice",
+"metrics": {
+"events": 689.0,
+"cases": 687.0,
+"share": 0.658046,
+"caseShare": 0.658046,
+"eventsPerCase": 1.002911,
+"violationShare": 0.0
+},
+"tags": []
+},
+{
+"id": "a_clear_invoice",
+"kind": "activity",
+"label": "Clear Invoice",
+"group": "pay",
+"metrics": {
+"events": 307.0,
+"cases": 303.0,
+"share": 0.29023,
+"caseShare": 0.29023,
+"eventsPerCase": 1.013201,
+"violationShare": 0.0
+},
+"tags": []
+}
+],
+"edges": [
+{
+"id": "f_a_clear_invoice__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "a_clear_invoice",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 126.0,
+"cases": 126.0,
+"share": 0.12069,
+"caseShare": 0.12069,
+"medianLagHours": 849.266667,
+"medianHours": 849.266667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_change_approval_for_purchase_order__a_record_invoice_receipt",
+"kind": "follows",
+"source": "a_change_approval_for_purchase_order",
+"target": "a_record_invoice_receipt",
+"metrics": {
+"count": 595.0,
+"cases": 595.0,
+"share": 0.569923,
+"caseShare": 0.569923,
+"medianLagHours": 26.2,
+"medianHours": 26.2
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_create_purchase_order_item__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "a_create_purchase_order_item",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 982.0,
+"cases": 982.0,
+"share": 0.940613,
+"caseShare": 0.940613,
+"medianLagHours": 0.9,
+"medianHours": 0.9
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_change_approval_for_purchase_order__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "a_change_approval_for_purchase_order",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 208.0,
+"cases": 208.0,
+"share": 0.199234,
+"caseShare": 0.199234,
+"medianLagHours": 703.066667,
+"medianHours": 703.066667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_clear_invoice",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_clear_invoice",
+"metrics": {
+"count": 270.0,
+"cases": 270.0,
+"share": 0.258621,
+"caseShare": 0.258621,
+"medianLagHours": 120.283333,
+"medianHours": 120.283333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_change_approval_for_purchase_order__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "a_change_approval_for_purchase_order",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 1407.0,
+"cases": 409.0,
+"share": 0.391762,
+"caseShare": 0.391762,
+"medianLagHours": 70.45,
+"medianHours": 70.45
+},
+"tags": [
+"selfLoop"
+],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 426.0,
+"cases": 426.0,
+"share": 0.408046,
+"caseShare": 0.408046,
+"medianLagHours": 275.708333,
+"medianHours": 275.708333
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_vendor_creates_invoice__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "a_vendor_creates_invoice",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 183.0,
+"cases": 183.0,
+"share": 0.175287,
+"caseShare": 0.175287,
+"medianLagHours": 157.016667,
+"medianHours": 157.016667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_change_approval_for_purchase_order__a_create_purchase_order_item",
+"kind": "follows",
+"source": "a_change_approval_for_purchase_order",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 325.0,
+"cases": 325.0,
+"share": 0.311303,
+"caseShare": 0.311303,
+"medianLagHours": 0.0,
+"medianHours": 0.0
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 79.0,
+"cases": 79.0,
+"share": 0.07567,
+"caseShare": 0.07567,
+"medianLagHours": 527.916667,
+"medianHours": 527.916667
+},
+"tags": [],
+"payload": null
+},
+{
+"id": "f_start__a_change_approval_for_purchase_order",
+"kind": "follows",
+"source": "__start__",
+"target": "a_change_approval_for_purchase_order",
+"metrics": {
+"count": 314.0,
+"cases": 314.0,
+"share": 0.300766,
+"caseShare": 0.300766
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_vendor_creates_invoice",
+"kind": "follows",
+"source": "__start__",
+"target": "a_vendor_creates_invoice",
+"metrics": {
+"count": 438.0,
+"cases": 438.0,
+"share": 0.41954,
+"caseShare": 0.41954
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_start__a_create_purchase_order_item",
+"kind": "follows",
+"source": "__start__",
+"target": "a_create_purchase_order_item",
+"metrics": {
+"count": 289.0,
+"cases": 289.0,
+"share": 0.27682,
+"caseShare": 0.27682
+},
+"tags": [
+"start"
+],
+"payload": null
+},
+{
+"id": "f_a_change_approval_for_purchase_order__end",
+"kind": "follows",
+"source": "a_change_approval_for_purchase_order",
+"target": "__end__",
+"metrics": {
+"count": 543.0,
+"cases": 543.0,
+"share": 0.520115,
+"caseShare": 0.520115
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_clear_invoice__end",
+"kind": "follows",
+"source": "a_clear_invoice",
+"target": "__end__",
+"metrics": {
+"count": 166.0,
+"cases": 166.0,
+"share": 0.159004,
+"caseShare": 0.159004
+},
+"tags": [
+"end"
+],
+"payload": null
+},
+{
+"id": "f_a_record_invoice_receipt__end",
+"kind": "follows",
+"source": "a_record_invoice_receipt",
+"target": "__end__",
+"metrics": {
+"count": 303.0,
+"cases": 303.0,
+"share": 0.29023,
+"caseShare": 0.29023
+},
+"tags": [
+"end"
+],
+"payload": null
+}
+],
+"groups": [
+{
+"id": "approve",
+"kind": "stage",
+"label": "Approve",
+"parent": null
+},
+{
+"id": "order",
+"kind": "stage",
+"label": "Order",
+"parent": null
+},
+{
+"id": "invoice",
+"kind": "stage",
+"label": "Invoice",
+"parent": null
+},
+{
+"id": "pay",
+"kind": "stage",
+"label": "Pay",
+"parent": null
+}
+],
+"overlays": [],
+"meta": {
+"flowType": "2-way",
+"attribute": "flow_type",
+"process": "p2p",
+"caseNoun": "purchase order items",
+"abstraction": 0.05,
+"cases": 1044,
+"events": 5898,
+"nodesTotal": 11,
+"edgesTotal": 40,
+"constraintsWithoutNodes": [],
+"stages": [
+{
+"id": "request",
+"label": "Request",
+"order": 1
+},
+{
+"id": "approve",
+"label": "Approve",
+"order": 2
+},
+{
+"id": "order",
+"label": "Order",
+"order": 3
+},
+{
+"id": "receive",
+"label": "Receive",
+"order": 4
+},
+{
+"id": "invoice",
+"label": "Invoice",
+"order": 5
+},
+{
+"id": "match",
+"label": "Match",
+"order": 6
+},
+{
+"id": "pay",
+"label": "Pay",
+"order": 7
+}
+],
+"stagedActivities": 5,
+"constraints": []
+},
+"paths": null
+},
+"readiness": {
+"censoredShare": 0.391762,
+"replicatedShare": 0.0,
+"medianDurationDays": 23.703125,
+"windowEnd": "2019-01-17T15:44:00",
+"headline": "1,044 purchase order items (0%), 5,898 events, 11 activities, median 24 days from first to last event; 39% still open at the end of the data (2019-01-17)."
+},
+"scope": {
+"flow_type": "2-way",
+"attribute": "flow_type"
+}
+}
+]
+}

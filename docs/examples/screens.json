@@ -1,0 +1,206 @@
+[
+  {
+    "name": "01_dashboard",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j",
+    "waitFor": {
+      "role": "link",
+      "name": "Open the ranked list"
+    },
+    "settle": 800
+  },
+  {
+    "name": "02_data",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/data",
+    "waitForText": "Load public log preset",
+    "settle": 600
+  },
+  {
+    "name": "03_dataset_mapping",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/data/ds_0mtoq2k50b40fq628?caseTable=ct_0mtoq3xcgajce13jv",
+    "waitForText": "Column mapping",
+    "settle": 800,
+    "fullPage": true
+  },
+  {
+    "name": "04_norms",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/norms",
+    "waitForText": "Versions",
+    "settle": 600
+  },
+  {
+    "name": "05_norm_constraints",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/norms/nv_0mtoq44v68e19ia7e?tab=constraints&constraint=c_l3_invoice_to_clear_days",
+    "waitForText": "Calibration lens",
+    "settle": 1500
+  },
+  {
+    "name": "06_norm_json",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/norms/nv_0mtoq44v68e19ia7e?tab=json",
+    "waitFor": {
+      "role": "tab",
+      "name": "JSON"
+    },
+    "settle": 800
+  },
+  {
+    "name": "07_runs",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs",
+    "waitForText": "All runs",
+    "settle": 600
+  },
+  {
+    "name": "08_run_monitor",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur?tab=monitor",
+    "waitForText": "Manifest and provenance",
+    "settle": 600
+  },
+  {
+    "name": "09_run_flow",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur?tab=flow",
+    "waitForText": "placed in stages",
+    "settle": 4000
+  },
+  {
+    "name": "10_signals_list",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1",
+    "waitForText": "945.7",
+    "settle": 800
+  },
+  {
+    "name": "11_signals_table",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1&tab=table",
+    "waitFor": {
+      "role": "grid",
+      "name": "Backlog"
+    },
+    "settle": 800
+  },
+  {
+    "name": "12_signals_all_groups",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1&tab=scatter",
+    "waitForText": "drawn with the current filters",
+    "settle": 1500
+  },
+  {
+    "name": "13_why_drivers",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=drivers",
+    "waitFor": {
+      "testid": "drivers-table"
+    },
+    "settle": 1500,
+    "fullPage": true
+  },
+  {
+    "name": "14_why_distributions",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=distributions",
+    "waitForText": "Table alternative",
+    "settle": 1500
+  },
+  {
+    "name": "15_why_cases_trace",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=cases&case=4507037358_00030",
+    "waitFor": {
+      "role": "img",
+      "name": "Timeline of case 4507037358_00030",
+      "exact": false
+    },
+    "settle": 800,
+    "fullPage": true
+  },
+  {
+    "name": "16_why_validation",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=validation",
+    "waitForText": "Checks before acting",
+    "settle": 600
+  },
+  {
+    "name": "17_why_flow",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=flow",
+    "waitForText": "placed in stages",
+    "settle": 4000
+  },
+  {
+    "name": "18_why_flow_compare",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=flow",
+    "clicks": [
+      {
+        "role": "button",
+        "name": "compare with everyone else",
+        "settle": 1500
+      }
+    ],
+    "waitForText": "showing the difference to everyone else",
+    "settle": 1500
+  },
+  {
+    "name": "19_why_headroom",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/slices/%5B%22companyID_0000%22%2C%22Packaging%22%5D?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&tab=headroom",
+    "waitForText": "Possible gain",
+    "settle": 600
+  },
+  {
+    "name": "20_help_glossary",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1",
+    "clicks": [
+      {
+        "role": "button",
+        "name": "Help and glossary"
+      }
+    ],
+    "waitFor": {
+      "role": "dialog",
+      "name": "Help"
+    },
+    "settle": 600
+  },
+  {
+    "name": "21_command_palette",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1",
+    "clicks": [
+      {
+        "press": "Control+k"
+      }
+    ],
+    "waitFor": {
+      "role": "combobox",
+      "name": "Command palette"
+    },
+    "settle": 500
+  },
+  {
+    "name": "22_signals_method_words",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1",
+    "clicks": [
+      {
+        "role": "combobox",
+        "name": "Switch words"
+      },
+      {
+        "role": "option",
+        "name": "method",
+        "exact": false,
+        "nth": 1
+      }
+    ],
+    "waitForText": "stable PI",
+    "settle": 800
+  },
+  {
+    "name": "23_signals_plain_words",
+    "route": "/p/prj_0mtoq2jvx8mcfcg6j/runs/run_0mtoq44vd14f208ur/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1",
+    "clicks": [
+      {
+        "role": "combobox",
+        "name": "Switch words"
+      },
+      {
+        "role": "option",
+        "name": "plain",
+        "exact": false,
+        "nth": 0
+      }
+    ],
+    "waitForText": "945.7",
+    "settle": 800
+  }
+]

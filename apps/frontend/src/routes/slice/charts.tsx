@@ -3,6 +3,7 @@ import type { Table } from "@wise/api-schema";
 import { EChart } from "@/components/charts/EChart";
 import { chartTokens, type EChartsOption } from "@/components/charts/echarts";
 import { layerDecal } from "@/components/badges";
+import { useVocabulary } from "@/components/Term";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { useUiStore, resolveTheme } from "@/lib/stores/ui";
 import { hashIndex, tableRecords } from "@/lib/utils";
@@ -27,6 +28,7 @@ const decalFor = (kind: string) => {
 /** Gap waterfall by constraint: positive and negative contributions that sum to the gap. */
 export function GapWaterfall({ drivers, gap, onSelect, height = 320, maxBars = 14 }: { drivers: Table | undefined; gap: number; onSelect?: (constraintId: string) => void; height?: number; maxBars?: number }) {
   const tk = chartTokens[resolveTheme(useUiStore((s) => s.theme))];
+  const { t } = useVocabulary();
   const { option, rows } = useMemo(() => {
     const all = tableRecords<Driver>(drivers).filter((d) => Number.isFinite(d.delta_gap));
     const sorted = [...all].sort((a, b) => Math.abs(b.delta_gap) - Math.abs(a.delta_gap));
@@ -50,33 +52,33 @@ export function GapWaterfall({ drivers, gap, onSelect, height = 320, maxBars = 1
         neg.push(-it.v);
       }
     }
-    const cats = [...items.map((i) => i.id), "gap"];
+    const cats = [...items.map((i) => i.id), t("gap")];
     base.push(0);
     pos.push(gap);
     neg.push(0);
     const opt: EChartsOption = {
       animation: false,
       grid: { left: 56, right: 16, top: 16, bottom: 90 },
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p: unknown) => { const arr = p as { axisValue: string; dataIndex: number }[]; const a = arr[0]; if (!a) return ""; const i = a.dataIndex; const v = i < items.length ? items[i]!.v : gap; return `<strong>${a.axisValue}</strong><br/>Δ gap ${fmtNum(v, 4)}`; } },
+      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p: unknown) => { const arr = p as { axisValue: string; dataIndex: number }[]; const a = arr[0]; if (!a) return ""; const i = a.dataIndex; const v = i < items.length ? items[i]!.v : gap; return `<strong>${a.axisValue}</strong><br/>Δ ${t("gap")} ${fmtNum(v, 4)}`; } },
       xAxis: { type: "category", data: cats, axisLabel: { rotate: 40, fontSize: 10, interval: 0 } },
-      yAxis: { type: "value", name: "Δ gap", axisLabel: { formatter: (v: number) => fmtNum(v, 2) } },
+      yAxis: { type: "value", name: `Δ ${t("gap")}`, axisLabel: { formatter: (v: number) => fmtNum(v, 2) } },
       series: [
         { type: "bar", stack: "w", data: base, itemStyle: { color: "transparent" }, emphasis: { itemStyle: { color: "transparent" } }, silent: true, tooltip: { show: false } },
         {
           type: "bar",
           stack: "w",
-          name: "increases the gap",
+          name: `increases the ${t("gap")}`,
           data: pos.map((v, i) => ({ value: v, itemStyle: i === cats.length - 1 ? { color: tk.reference } : { color: tk.layers[hashIndex(items[i]?.layer ?? "")] ?? tk.violation[5], decal: decalFor(layerDecal(items[i]?.layer ?? "")) } })),
         },
-        { type: "bar", stack: "w", name: "reduces the gap", data: neg, itemStyle: { color: tk.score[4] } },
+        { type: "bar", stack: "w", name: `reduces the ${t("gap")}`, data: neg, itemStyle: { color: tk.score[4] } },
       ],
     };
     return { option: opt, rows: items };
-  }, [drivers, gap, tk, maxBars]);
+  }, [drivers, gap, tk, maxBars, t]);
 
   return (
     <div>
-      <EChart option={option} height={height} ariaLabel={`Gap waterfall by constraint; the bars sum to the gap ${fmtNum(gap, 3)}`} onEvents={{ click: (p) => { const name = (p as { name?: string }).name; if (name && onSelect && rows.some((r) => r.id === name)) onSelect(name); } }} />
+      <EChart option={option} height={height} ariaLabel={`${t("gap")} waterfall by ${t("constraint")}; the bars sum to the ${t("gap")} ${fmtNum(gap, 3)}`} onEvents={{ click: (p) => { const name = (p as { name?: string }).name; if (name && onSelect && rows.some((r) => r.id === name)) onSelect(name); } }} />
       <details className="mt-1 text-xs text-text-muted">
         <summary className="cursor-pointer">Table alternative</summary>
         <table className="tnum mt-1 w-full text-xs">
@@ -158,6 +160,7 @@ export function LayerBars({ layers, layerNames = {}, height = 260 }: { layers: T
 /** Penalty-mass Pareto by a sub-key (bars = mass, line = cumulative share). */
 export function PenaltyPareto({ penaltyMass, height = 260 }: { penaltyMass: Table | undefined; height?: number }) {
   const tk = chartTokens[resolveTheme(useUiStore((s) => s.theme))];
+  const { t } = useVocabulary();
   const rows = useMemo(() => tableRecords<Mass>(penaltyMass), [penaltyMass]);
   const option = useMemo<EChartsOption>(
     () => ({
@@ -167,19 +170,19 @@ export function PenaltyPareto({ penaltyMass, height = 260 }: { penaltyMass: Tabl
       tooltip: { trigger: "axis" },
       xAxis: { type: "category", data: rows.map((r) => r.key), axisLabel: { rotate: 30, fontSize: 10, interval: 0 } },
       yAxis: [
-        { type: "value", name: "penalty mass" },
+        { type: "value", name: t("penalty_mass") },
         { type: "value", name: "cumulative", min: 0, max: 1, axisLabel: { formatter: (v: number) => fmtPct(v) }, splitLine: { show: false } },
       ],
       series: [
-        { name: "penalty mass", type: "bar", data: rows.map((r) => r.penalty_mass), itemStyle: { color: tk.violation[4] } },
+        { name: t("penalty_mass"), type: "bar", data: rows.map((r) => r.penalty_mass), itemStyle: { color: tk.violation[4] } },
         { name: "cumulative share", type: "line", yAxisIndex: 1, data: rows.map((r) => r.cum_share), lineStyle: { color: tk.accent }, itemStyle: { color: tk.accent } },
       ],
     }),
-    [rows, tk],
+    [rows, tk, t],
   );
   return (
     <div>
-      <EChart option={option} height={height} ariaLabel="Penalty-mass Pareto by sub-key" />
+      <EChart option={option} height={height} ariaLabel={`${t("penalty_mass")}: Pareto by sub-key`} />
       <details className="mt-1 text-xs text-text-muted">
         <summary className="cursor-pointer">Table alternative</summary>
         <table className="tnum mt-1 w-full text-xs">

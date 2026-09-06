@@ -16,9 +16,9 @@ export function VolumeGapScatter({ rows, activeKey, onSelect, height = 300 }: { 
   const { t } = useVocabulary();
   const ref = useRef<EChartHandle>(null);
   const maxPI = Math.max(1, ...rows.map((r) => r.stable_PI));
-  const kindColor = (k: Kind | undefined) => (k ? tk.kind[k] : tk.muted);
 
   const option = useMemo<EChartsOption>(() => {
+    const kindColor = (k: Kind | undefined) => (k ? tk.kind[k] : tk.muted);
     const data = rows.map((r) => [r.n_cases, r.gap, r.stable_PI, sliceLabel(r), kindOf(r) ?? "", r.PI_lower !== undefined && r.PI_lower !== null ? r.PI_lower / Math.max(1, r.n_cases) : r.gap, r.key]);
     return {
       animation: false,

@@ -45,7 +45,7 @@ wise-pm = { path = "../../../wise-lib", editable = true }
 where = ["src"]
 
 [tool.setuptools.package-data]
-wise_workbench = ["py.typed", "migrations/*.py", "migrations/*.mako", "migrations/versions/*.py"]
+wise_workbench = ["py.typed", "migrations/*.py", "migrations/*.mako", "migrations/versions/*.py", "static/*", "static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

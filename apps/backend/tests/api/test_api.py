@@ -297,7 +297,7 @@ def test_run_lifecycle_idempotency_and_reads(client: TestClient) -> None:
     )
     assert detail["worstCases"][0]["caseId"] == "E" and detail["worstCases"][0]["violated"] == ["c1", "c2", "c3"]
     assert detail["validation"]["n_cases"] == 3 and "reading" in detail["validation"]
-    assert detail["headroom"]["columns"][0] == "layer" and "priority" in detail["reading"]
+    assert detail["headroom"]["columns"][:2] == ["constraint", "plain"] and "priority" in detail["reading"]
     assert (
         client.get(f"/api/v1/projects/{pid}/runs/{run['id']}/slices/B", params={"slicing": "company"}).status_code
         == 200

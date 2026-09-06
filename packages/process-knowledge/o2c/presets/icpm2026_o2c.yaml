@@ -1,0 +1,137 @@
+# Public-log preset for the ICPM 2026 hackathon sales extract (order-to-cash side).
+# The raw file stays local (use permitted by the owner on 2026-09-05); the
+# application reads it from its configured data directory. Column names are
+# those of Sales_Eventlog.csv (header checked 2026-09-06); counts are the
+# measurements of o2c/README.md and cycle-02/GOAL.md.
+id: icpm2026_o2c
+pack: o2c
+name: ICPM 2026 hackathon sales extract (order-to-cash)
+description: >
+  The sales event log of the ICPM 2026 hackathon (SAP SD/MM, January 2023 to
+  January 2026): 267,071 events over 16 activities on 51,164 sales order items
+  of 68 customers and 71 SKUs. Ingested with the sales order item as case
+  notion, Create Order typed as a header event, days_late prepared at
+  case-table build, and o2c_baseline.json loaded as norm v1 with its
+  uncalibrated flags visible.
+dataset: icpm2026_hackathon
+file: Sales_Eventlog.csv
+local_only: true
+case_noun: {en: sales order items, de: Kundenauftragspositionen}
+mapping:
+  case_id: case_id
+  activity: activity
+  timestamp: timestamp
+  timestamp_format: "%Y-%m-%d %H:%M:%S"
+  case_attributes:
+    - SKU ID
+    - Material ID
+    - Customer ID
+    - Order Quantity
+    - Confirmed Quantity
+    - Requested delivery date
+    - Scheduled delivery date
+    - Order Item Created On
+    - Incoterms (Part 1)
+    - Returns Item
+    - Rejection/Cancellation Status
+  event_attributes:
+    - activity_id
+    - changed_from
+    - changed_to
+  exposure: Order Quantity
+  exposure_agg: max
+  header_events: [Create Order]
+  closure_activities: [Goods issue]
+  activity_mapping: hackathon_sales
+  attribute_aliases:
+    return_item: Returns Item
+    confirmed_quantity: Confirmed Quantity
+    order_quantity: Order Quantity
+    days_late: days_late
+    flow_type: flow_type
+  flow_typing:
+    - name: returns
+      rule: {kind: attribute, field: Returns Item, in: [X]}
+      note: 20 return items in the extract; excluded from the delivery-performance expectations by the template's applicability rules
+    - name: rejected
+      rule:
+        and:
+          - {kind: activity, op: contains, activity: Changed RejectionReason}
+          - {kind: activity, op: never, activity: Create Delivery Item}
+      note: "items rejected before any delivery (1,647 rejection events; 1,425 items with reason 80, cancelled according to customer)"
+    - name: partial_delivery
+      rule: {kind: count, activity: Create Delivery Item, min: 2}
+      note: items served by more than one delivery; the no-split expectation applies to standard and make-to-order items only
+    - name: make_to_order
+      rule: {kind: attribute, field: planning_type, in: [make_to_order]}
+      note: planning type comes from the material master join, which the extract does not carry; no item is typed make_to_order until the join is made
+  flow_type_default: standard
+derived_case_attributes:
+  - name: days_late
+    kind: date_difference
+    unit: days
+    description: >
+      Goods issue date minus the requested delivery date, in whole days; positive
+      when the goods left after the requested date. Prepared at case-table build
+      because the library's recipes have no date-difference kind; items without a
+      goods issue get no value, so the lateness expectation skips them and the
+      order-to-issue expectation with censoring scores their age instead.
+    spec:
+      minuend: {activity: Goods issue, which: first, part: date}
+      subtrahend: {attribute: Requested delivery date}
+      unit: D
+    note: "3.2 % of shipped items are late by this definition (measured 2026-09-05)"
+  - name: flow_type
+    kind: recipe
+    description: One of standard, make_to_order, partial_delivery, order_related_billing, returns, rejected from the flow_typing rules above; first matching rule wins, default standard.
+    spec: {from: mapping.flow_typing, default: standard}
+  - name: order_month
+    kind: period
+    description: Month of Order Item Created On, for the period slicing and the frozen-baseline comparison.
+    spec: {attribute: Order Item Created On, granularity: month}
+norm:
+  template: o2c_baseline
+  calibration_visible: true
+  note: >
+    Starting norm; every threshold is a placeholder listed in
+    metadata.meta.uncalibrated_parameters and is calibrated on the distribution
+    lens before the run is called approved. The confirmed-equals-ordered
+    expectation is always met on this extract (confirmed quantity equals order
+    quantity for every item).
+slicings:
+  - id: customer
+    columns: [Customer ID]
+    default: true
+    min_cases: 30
+    note: 68 customers; the reference backlog of the hackathon is by customer
+  - id: sku
+    columns: [SKU ID]
+    min_cases: 30
+    note: 71 SKUs; explains availability and planning patterns
+  - id: incoterms
+    columns: [Incoterms (Part 1)]
+    min_cases: 100
+    note: "DAP 74 %, CPT 26 %, FCA 0.4 %; FCA falls below min_cases and is shown as insufficient support"
+  - id: period
+    columns: [order_month]
+    note: order month from the prepared attribute; the last months are right-censored
+view: Logistics
+gamma: 20
+min_cases: 20
+pitfalls:
+  - Create Order is a header event replicated onto every item of the order; it is typed as a header event so that it is not counted as a touch and does not distort the flow map.
+  - "4.8 % of items have no goods issue at the extract end (open or cancelled); read presence and lag shortfalls with the censoring diagnostics."
+  - "Send Order Confirmation is logged for 4 % of items only; a presence rule on it measures logging, not behaviour, and the template has none."
+  - Confirmed quantity equals the order quantity for every item, so quantity shortfalls at confirmation are invisible in this extract.
+  - Change events carry changed_from and changed_to; the postponement scenario re-derives the scheduled date from them.
+  - No value column; exposure is the order quantity, value joins are a customer-side decision.
+sources:
+  - cycle-02/GOAL.md (dataset section, activity counts of 2026-09-06)
+  - o2c/README.md §1, §3 and §4 (stage coverage, slice keys, pitfalls)
+  - Sales_Eventlog.csv header, checked 2026-09-06
+  - packages/api-schema/CONTRACT_CYCLE2.md (presets and filter clause shapes)
+review_status: draft
+notes: >
+  The purchase side of the same extract (Purchase_Eventlog.csv, 1,412 purchase
+  order items) is matched by the p2p pack's hackathon label pack; a P2P preset
+  for it is not part of this cycle.

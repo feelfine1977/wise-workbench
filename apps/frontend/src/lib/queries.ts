@@ -146,13 +146,13 @@ export const backlogQuery = (projectId: string, runId: string, query: BacklogQue
     placeholderData: (prev) => prev,
   });
 
-export const sliceQuery = (projectId: string, runId: string, sliceKey: string, slicing: string, view?: string) =>
+export const sliceQuery = (projectId: string, runId: string, sliceKey: string, slicing: string, view?: string, drilldown?: string) =>
   queryOptions({
-    queryKey: keys.slice(projectId, runId, sliceKey, slicing, view),
+    queryKey: [...keys.slice(projectId, runId, sliceKey, slicing, view), drilldown ?? ""] as const,
     queryFn: async () =>
       unwrap(
         await api.GET("/projects/{projectId}/runs/{runId}/slices/{sliceKey}", {
-          params: { path: { projectId, runId, sliceKey }, query: { slicing, ...(view ? { view } : {}) } },
+          params: { path: { projectId, runId, sliceKey }, query: { slicing, ...(view ? { view } : {}), ...(drilldown ? { drilldown } : {}) } },
         }),
       ),
     staleTime: IMMUTABLE,
@@ -189,11 +189,13 @@ export interface FlowParams {
   slicing?: string;
   sliceKey?: string;
   abstraction?: number;
+  /** The filter model (CONTRACT_CYCLE2.md, flow additions). */
+  filter?: string;
 }
 
 export const flowQuery = (projectId: string, runId: string, params: FlowParams = {}) =>
   queryOptions({
-    queryKey: keys.flow(projectId, runId, params.slicing, params.sliceKey, params.abstraction),
+    queryKey: [...keys.flow(projectId, runId, params.slicing, params.sliceKey, params.abstraction), params.filter ?? ""] as const,
     queryFn: async () =>
       unwrap(
         await api.GET("/projects/{projectId}/runs/{runId}/flow", {
@@ -202,6 +204,7 @@ export const flowQuery = (projectId: string, runId: string, params: FlowParams =
             query: {
               ...(params.slicing ? { slicing: params.slicing } : {}),
               ...(params.sliceKey ? { sliceKey: params.sliceKey } : {}),
+              ...(params.filter ? { filter: params.filter } : {}),
               abstraction: params.abstraction ?? 0.05,
             },
           },

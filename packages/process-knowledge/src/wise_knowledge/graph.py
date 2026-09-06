@@ -1,14 +1,17 @@
 """Knowledge graph as node and edge tables (a data model, not a database).
 
-Node types: ``activity``, ``stage``, ``constraint_pattern``, ``failure_mode``,
-``cause_candidate``, ``remedy``, ``kpi``, ``role``. Edge types: ``in_stage``
-(activity -> stage), ``precedes`` (stage -> stage from the stage order and
-activity -> activity from the expected orderings), ``detected_by`` (failure
-mode -> constraint pattern), ``typical_cause`` (failure mode -> cause
-candidate), ``typical_remedy`` (failure mode -> remedy), ``owned_by``
-(failure mode -> role; slice key owners are not nodes), plus two supporting
-edges: ``involves`` (constraint pattern -> activity) and ``measures`` (kpi
--> failure mode). Every curated edge carries the pack and its sources.
+Node types: ``activity``, ``stage``, ``layer``, ``constraint_pattern``,
+``failure_mode``, ``cause_candidate``, ``remedy``, ``kpi``, ``role``,
+``guidance``. Edge types: ``in_stage`` (activity -> stage), ``precedes``
+(stage -> stage from the stage order and activity -> activity from the
+expected orderings), ``in_layer`` (constraint pattern -> layer),
+``detected_by`` (failure mode -> constraint pattern), ``typical_cause``
+(failure mode -> cause candidate), ``typical_remedy`` (failure mode ->
+remedy), ``owned_by`` (failure mode -> role; slice key owners are not
+nodes), ``explained_by`` (layer, constraint pattern or failure mode ->
+guidance entry), plus two supporting edges: ``involves`` (constraint
+pattern -> activity) and ``measures`` (kpi -> failure mode). Every curated
+edge carries the pack and its sources.
 """
 
 from __future__ import annotations
@@ -23,16 +26,29 @@ from typing import Any
 
 from .models import Pack
 
-NODE_TYPES = ("activity", "stage", "constraint_pattern", "failure_mode", "cause_candidate", "remedy", "kpi", "role")
+NODE_TYPES = (
+    "activity",
+    "stage",
+    "layer",
+    "constraint_pattern",
+    "failure_mode",
+    "cause_candidate",
+    "remedy",
+    "kpi",
+    "role",
+    "guidance",
+)
 EDGE_TYPES = (
     "in_stage",
     "precedes",
+    "in_layer",
     "detected_by",
     "typical_cause",
     "typical_remedy",
     "owned_by",
     "involves",
     "measures",
+    "explained_by",
 )
 
 
@@ -150,22 +166,30 @@ class KnowledgeGraph:
         for pattern in self.nodes_of_type("constraint_pattern"):
             if pattern.attrs.get("constraint_ref") != constraint_ref:
                 continue
-            if template and pattern.attrs.get("template") != template:
+            if template and template not in pattern.attrs.get("templates", []):
                 continue
+            guidance = self.neighbors(pattern.id, "explained_by")
             for fm in self.neighbors(pattern.id, "detected_by", direction="in"):
+                fm_guidance = self.neighbors(fm.id, "explained_by")
                 out.append(
                     {
                         "constraint": constraint_ref,
-                        "template": pattern.attrs.get("template"),
+                        "template": template or pattern.attrs.get("template"),
+                        "templates": list(pattern.attrs.get("templates", [])),
                         "pattern": pattern.id,
                         "failure_mode": fm.id,
                         "failure_mode_name": fm.label,
+                        "kind": fm.attrs.get("kind", "process_behaviour"),
                         "stage": fm.stage,
                         "causes": [n.label for n in self.neighbors(fm.id, "typical_cause")],
                         "remedies": [n.label for n in self.neighbors(fm.id, "typical_remedy")],
                         "evidence_to_check": list(fm.attrs.get("evidence_to_check", [])),
                         "owner_role": [n.label for n in self.neighbors(fm.id, "owned_by")],
                         "sources": list(fm.attrs.get("sources", [])),
+                        "guidance": {
+                            "constraint": guidance[0].attrs if guidance else None,
+                            "failure_mode": fm_guidance[0].attrs if fm_guidance else None,
+                        },
                     }
                 )
         return out
@@ -209,6 +233,41 @@ def build_graph(pack: Pack) -> KnowledgeGraph:
         )
     for prev, nxt in pairwise(ordered):
         edges.append(Edge(source=prev.id, target=nxt.id, type="precedes", pack=pid, attrs={"level": "stage"}))
+
+    # layers (expectation areas) and guidance entries
+    for layer in pack.layers:
+        add_node(
+            Node(
+                id=f"layer:{layer.id}",
+                type="layer",
+                label=layer.name.get("en", layer.id),
+                pack=pid,
+                attrs={"template_layers": dict(layer.template_layers), "description": layer.description},
+            )
+        )
+    for g in pack.guidance:
+        add_node(
+            Node(
+                id=f"guidance:{g.kind}:{g.id}",
+                type="guidance",
+                label=g.plain_name_en,
+                pack=pid,
+                attrs={
+                    "kind": g.kind,
+                    "subject": g.id,
+                    "plain_name": g.plain_name_en,
+                    "missed_label": g.missed_label_en,
+                    "templates": list(g.templates),
+                    "aliases": dict(g.aliases),
+                    "owner_role": g.owner_role,
+                    "review_status": g.review_status,
+                    "version": g.version,
+                    "sources": list(_src(g.sources)),
+                },
+            )
+        )
+        if g.kind == "layer":
+            edges.append(Edge(source=f"layer:{g.id}", target=f"guidance:layer:{g.id}", type="explained_by", pack=pid))
 
     # activities
     for a in pack.activities:
@@ -275,6 +334,7 @@ def build_graph(pack: Pack) -> KnowledgeGraph:
                 stage=fm.stage,
                 attrs={
                     "signature": fm.signature,
+                    "kind": fm.kind,
                     "evidence": fm.evidence,
                     "observed_share": list(fm.observed_share),
                     "evidence_to_check": list(fm.evidence_to_check),
@@ -298,6 +358,7 @@ def build_graph(pack: Pack) -> KnowledgeGraph:
                         "layer": p.layer,
                         "params": p.params,
                         "template": p.template,
+                        "templates": list(p.templates),
                         "constraint_ref": p.constraint_ref,
                         "calibration": p.calibration,
                         "applicability": p.applicability,
@@ -305,8 +366,16 @@ def build_graph(pack: Pack) -> KnowledgeGraph:
                 )
             )
             edges.append(Edge(source=fm.id, target=pid_node, type="detected_by", pack=pid, sources=srcs))
+            if f"layer:{p.layer}" in seen:
+                edges.append(Edge(source=pid_node, target=f"layer:{p.layer}", type="in_layer", pack=pid))
             for act in p.referenced_activities():
                 edges.append(Edge(source=pid_node, target=act, type="involves", pack=pid))
+            if p.constraint_ref:
+                cg = pack.guidance_for("constraint", p.constraint_ref, template=p.template)
+                if cg is not None:
+                    edges.append(
+                        Edge(source=pid_node, target=f"guidance:constraint:{cg.id}", type="explained_by", pack=pid)
+                    )
         for c in fm.typical_causes:
             cid = _text_id("cause", c)
             add_node(Node(id=cid, type="cause_candidate", label=c, pack=pid))
@@ -334,6 +403,8 @@ def build_graph(pack: Pack) -> KnowledgeGraph:
                 )
             )
         edges.append(Edge(source=fm.id, target=f"role:{fm.owner_role}", type="owned_by", pack=pid, sources=srcs))
+        if f"guidance:failure_mode:{fm.id}" in seen:
+            edges.append(Edge(source=fm.id, target=f"guidance:failure_mode:{fm.id}", type="explained_by", pack=pid))
         for k in fm.kpis:
             edges.append(Edge(source=k, target=fm.id, type="measures", pack=pid))
     for k in pack.kpis:

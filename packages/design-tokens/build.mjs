@@ -85,6 +85,7 @@ function sharedVars() {
   for (const [mode, d] of Object.entries(tokens.density)) {
     for (const [k, v] of Object.entries(d)) lines.push(`  --density-${mode}-${kebab(k)}: ${v}px;`);
   }
+  for (const [k, v] of Object.entries(tokens.typography.measure ?? {})) lines.push(`  --measure-${k}: ${v};`);
   tokens.semantic.sequential.score.steps.forEach((c, i) => lines.push(`  --scale-score-${i}: ${c};`));
   tokens.semantic.sequential.violation.steps.forEach((c, i) => lines.push(`  --scale-violation-${i}: ${c};`));
   tokens.semantic.diverging.delta.steps.forEach((c, i) => lines.push(`  --scale-delta-${i}: ${c};`));
@@ -109,11 +110,15 @@ ${paletteVars("dark")}
   --row-height: var(--density-compact-row-height);
   --control-height: var(--density-compact-control-height);
   --cell-padding-x: var(--density-compact-cell-padding-x);
+  --card-padding: var(--density-compact-card-padding);
+  --card-gap: var(--density-compact-card-gap);
 }
 :root {
   --row-height: var(--density-comfortable-row-height);
   --control-height: var(--density-comfortable-control-height);
   --cell-padding-x: var(--density-comfortable-cell-padding-x);
+  --card-padding: var(--density-comfortable-card-padding);
+  --card-gap: var(--density-comfortable-card-gap);
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }

@@ -2,35 +2,56 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import path from "node:path";
 import { mockApiPlugin } from "./src/mocks/vitePlugin";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../..");
-// `@wise/flow` is a file: link to the sibling checkout; its React and React Flow must be the app's copies.
+// `@wise/flow` is an optional file: link to the sibling checkout; its React and React Flow must be the app's copies.
+// When the checkout or its `dist` is absent (a fresh clone, CI) the stub in `stubs/wise-flow` takes its place and the
+// process map shows a notice instead of a map. `WISE_FLOW_STUB=1` forces the stub for testing that path.
 const flowRoot = path.resolve(repoRoot, "../wise-flow");
+const flowStub = path.resolve(here, "stubs/wise-flow");
+const flowLinked = fs.existsSync(path.join(here, "node_modules/@wise/flow/dist/react/index.js"));
+const useFlowStub = process.env.WISE_FLOW_STUB === "1" || !flowLinked;
+const flowAlias = useFlowStub
+  ? [
+      { find: /^@wise\/flow$/, replacement: path.join(flowStub, "index.js") },
+      { find: /^@wise\/flow\/react$/, replacement: path.join(flowStub, "react.js") },
+      { find: /^@wise\/flow\/tokens\.css$/, replacement: path.join(flowStub, "tokens.css") },
+      { find: /^@wise\/flow\/style\.css$/, replacement: path.join(flowStub, "style.css") },
+    ]
+  : [];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, here, "VITE_");
   const backend = env.VITE_API_URL || "http://127.0.0.1:8000";
-  const mocks = env.VITE_USE_MOCKS === "1" || !env.VITE_API_URL;
+  // Mocks unless a backend URL is given; `VITE_USE_MOCKS=1` forces them, `VITE_USE_MOCKS=0` selects the same origin.
+  const mocks = env.VITE_USE_MOCKS === "1" || (env.VITE_USE_MOCKS !== "0" && !env.VITE_API_URL);
   return {
     plugins: [react(), mockApiPlugin(mocks)],
     resolve: {
-      alias: {
-        "@": path.resolve(here, "src"),
-        "@wise/api-schema": path.resolve(repoRoot, "packages/api-schema/generated"),
-        "@wise/design-tokens": path.resolve(repoRoot, "packages/design-tokens"),
-      },
+      alias: [
+        ...flowAlias,
+        { find: "@", replacement: path.resolve(here, "src") },
+        { find: "@wise/api-schema", replacement: path.resolve(repoRoot, "packages/api-schema/generated") },
+        { find: "@wise/design-tokens", replacement: path.resolve(repoRoot, "packages/design-tokens") },
+      ],
       dedupe: ["react", "react-dom", "@xyflow/react"],
     },
     optimizeDeps: {
-      include: ["@xyflow/react", "elkjs", "@wise/flow > @dagrejs/dagre", "@wise/flow > d3-scale", "@wise/flow > rbush"],
+      // elkjs itself is not pre-bundled: its entry requires the Node-only `web-worker`; the flow library imports the two browser files.
+      include: useFlowStub
+        ? ["@xyflow/react"]
+        : ["@xyflow/react", "@wise/flow > @dagrejs/dagre", "@wise/flow > d3-scale", "@wise/flow > rbush", "@wise/flow > elkjs/lib/elk-api.js", "@wise/flow > elkjs/lib/elk.bundled.js"],
+      exclude: ["elkjs"],
     },
     server: {
+      host: "127.0.0.1",
       port: 5173,
       strictPort: false,
-      fs: { allow: [repoRoot, flowRoot] },
+      fs: { allow: fs.existsSync(flowRoot) ? [repoRoot, flowRoot] : [repoRoot] },
       // Dev proxy so the SPA can call /api/v1 on the same origin; the backend is reached without CORS.
       // With mocks on, the mock middleware answers /api/v1 before the proxy sees the request.
       proxy: { "/api": { target: backend, changeOrigin: true } },

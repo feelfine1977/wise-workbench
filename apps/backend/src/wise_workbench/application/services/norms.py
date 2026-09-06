@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+from wise_workbench.adapters.knowledge import guidance_complete
 from wise_workbench.domain import CaseTableStatus, NormStatus, NormVersion, NotFoundError, ValidationError
 from wise_workbench.ids import new_id
 
@@ -49,7 +51,25 @@ class NormService:
         )
         path = self.c.workspace.norm_version_path(project_id, norm_id, number)
         self.c.workspace.write_text(path, self.c.engine.norm_text(document))
-        return self.c.repos.add_norm_version(version)
+        saved = self.c.repos.add_norm_version(version)
+        # R1-08: warnings from Norm.check against the project's latest ready case table, when there is one
+        tables = [t for t in self.c.repos.list_case_tables(project_id) if t.status == CaseTableStatus.READY]
+        if tables:
+            saved = self.refresh_warnings(saved, tables[-1].id)
+        return saved
+
+    def refresh_warnings(self, n: NormVersion, case_table_id: str) -> NormVersion:
+        table = self.c.repos.get_case_table(case_table_id)
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        warnings = self.c.engine.norm_warnings(
+            self.c.workspace.case_table_dir(n.project_id, table.id), mapping, n.document
+        )
+        updated = replace(n, validation=tuple(warnings))
+        return self.c.repos.update_norm_validation(updated)
+
+    def guidance_complete(self, n: NormVersion) -> bool:
+        process = self.c.repos.get_project(n.project_id).process
+        return guidance_complete(process, n.document)
 
     def get(self, project_id: str, norm_version_id: str) -> NormVersion:
         n = self.c.repos.get_norm_version(norm_version_id)
@@ -73,4 +93,7 @@ class NormService:
         if table.status != CaseTableStatus.READY:
             raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
         mapping = self.c.repos.get_mapping(table.mapping_id)
-        return self.c.engine.check_norm(self.c.workspace.case_table_dir(project_id, case_table_id), mapping, n.document)
+        out = self.c.engine.check_norm(self.c.workspace.case_table_dir(project_id, case_table_id), mapping, n.document)
+        self.c.repos.update_norm_validation(replace(n, validation=tuple(str(i) for i in out.get("issues", []))))
+        out["warnings"] = list(out.get("issues", []))
+        return out

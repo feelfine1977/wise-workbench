@@ -64,6 +64,18 @@ class Container:
         return PresetService(self)
 
     @cached_property
+    def notebook(self):  # type: ignore[no-untyped-def]
+        from wise_workbench.application.services.notebook import NotebookService
+
+        return NotebookService(self)
+
+    @cached_property
+    def decisions(self):  # type: ignore[no-untyped-def]
+        from wise_workbench.application.services.decisions import DecisionService
+
+        return DecisionService(self)
+
+    @cached_property
     def jobs(self):  # type: ignore[no-untyped-def]
         from wise_workbench.application.services.jobs import JobService
 

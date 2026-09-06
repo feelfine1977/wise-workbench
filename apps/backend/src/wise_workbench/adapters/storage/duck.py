@@ -262,3 +262,75 @@ def directly_follows(
         "starts": {str(r[0]): int(r[1]) for r in starts},
         "ends": {str(r[0]): int(r[1]) for r in ends},
     }
+
+
+# -------------------------------------------------------------------- focus: incoming and outgoing paths
+def focus_paths(
+    ws: Workspace,
+    events_parquet: Path,
+    *,
+    case_col: str,
+    activity_col: str,
+    timestamp_col: str,
+    focus: str,
+    order_col: str | None = None,
+    case_ids: pa.Table | None = None,
+    violated: pa.Table | None = None,
+) -> dict[str, Any]:
+    """Incoming and outgoing directly-follows paths of one activity: count, cases, median lag (hours) and the share of
+    the cases on the path that violate at least one expectation (``violated``: an Arrow table ``case_id, violated``)."""
+    con = connect(ws)
+    src = f"read_parquet({_lit(events_parquet)})"
+    join = ""
+    if case_ids is not None:
+        con.register("slice_cases", case_ids)
+        join = f" WHERE CAST(e.{q(case_col)} AS VARCHAR) IN (SELECT CAST(case_id AS VARCHAR) FROM slice_cases)"
+    order_by = f"e.{q(timestamp_col)}" + (f", e.{q(order_col)}" if order_col else "")
+    con.execute(
+        f"CREATE TEMP TABLE seq AS SELECT CAST(e.{q(case_col)} AS VARCHAR) AS c, e.{q(activity_col)} AS a, e.{q(timestamp_col)} AS ts, "
+        f"lead(e.{q(activity_col)}) OVER (PARTITION BY e.{q(case_col)} ORDER BY {order_by}) AS nxt, "
+        f"lead(e.{q(timestamp_col)}) OVER (PARTITION BY e.{q(case_col)} ORDER BY {order_by}) AS nxt_ts "
+        f"FROM {src} e{join}"
+    )
+    if violated is not None:
+        con.register("viol", violated)
+        con.execute("CREATE TEMP TABLE v AS SELECT CAST(case_id AS VARCHAR) AS c, violated FROM viol")
+    else:
+        con.execute("CREATE TEMP TABLE v AS SELECT c, false AS violated FROM seq WHERE false")
+    incoming = con.execute(
+        "SELECT s.a, count(*) AS n, count(DISTINCT s.c) AS cases, "
+        "quantile_cont(epoch(s.nxt_ts) - epoch(s.ts), 0.5) / 3600.0 AS median_hours, "
+        "count(DISTINCT s.c) FILTER (WHERE v.violated) AS violated_cases "
+        "FROM seq s LEFT JOIN v ON v.c = s.c WHERE s.nxt = ? AND s.a IS NOT NULL GROUP BY s.a ORDER BY n DESC",
+        [focus],
+    ).fetchall()
+    outgoing = con.execute(
+        "SELECT s.nxt, count(*) AS n, count(DISTINCT s.c) AS cases, "
+        "quantile_cont(epoch(s.nxt_ts) - epoch(s.ts), 0.5) / 3600.0 AS median_hours, "
+        "count(DISTINCT s.c) FILTER (WHERE v.violated) AS violated_cases "
+        "FROM seq s LEFT JOIN v ON v.c = s.c WHERE s.a = ? AND s.nxt IS NOT NULL GROUP BY s.nxt ORDER BY n DESC",
+        [focus],
+    ).fetchall()
+    total = con.execute("SELECT count(DISTINCT c), count(*) FROM seq WHERE a = ?", [focus]).fetchone()
+    con.execute("DROP TABLE seq")
+    con.execute("DROP TABLE v")
+
+    def rows(data: list[Any], key: str) -> list[dict[str, Any]]:
+        return [
+            {
+                key: str(r[0]),
+                "count": int(r[1]),
+                "cases": int(r[2]),
+                "median_lag": float(r[3]) if r[3] is not None else None,
+                "violation_share": (int(r[4]) / int(r[2])) if r[2] else None,
+            }
+            for r in data
+        ]
+
+    return {
+        "activity": focus,
+        "cases": int(total[0]) if total else 0,
+        "events": int(total[1]) if total else 0,
+        "incoming": rows(incoming, "from"),
+        "outgoing": rows(outgoing, "to"),
+    }

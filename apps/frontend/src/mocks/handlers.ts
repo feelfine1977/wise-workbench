@@ -1,12 +1,16 @@
 import { http, HttpResponse, delay } from "msw";
-import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate } from "@wise/api-schema";
+import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
+import type { DecisionRequest, Snapshot, SnapshotContext, Within } from "@/lib/api/cycle2";
+import { parseFilter } from "@/lib/filter";
 import { pageBacklog } from "./fixtures/backlog";
+import { applyFilter, backlogParamsC2, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";
 import { buildDistribution } from "./fixtures/distribution";
 import { buildFlow } from "./fixtures/flow";
 import { bpic19Norm } from "./fixtures/norm";
 import { buildSlice } from "./fixtures/slice";
 import { buildTrace } from "./fixtures/trace";
-import { advanceJob, backlogFor, cancelJob, createJob, db, newCaseTable, nextId, summaryFor } from "./db";
+import { VERIFIED_CASE_NOUN, VERIFIED_PACKAGING_KEY, verifiedAnalytics, verifiedDistributionPackaging, verifiedFlowAll, verifiedFlowFocusedOnGoodsReceipt, verifiedFlowPackaging, verifiedSlice } from "./fixtures/verified";
+import { advanceJob, backlogFor, cancelJob, createJob, db, newCaseTable, newRun, nextId, summaryFor, type MockSnapshot } from "./db";
 
 const API = "*/api/v1";
 
@@ -25,6 +29,15 @@ const num = (v: string | null, fallback: number) => (v === null || v === "" || N
 function runOr404(runId: string) {
   return db.runs.find((r) => r.id === runId);
 }
+
+/** JSON-array slice keys compare by value, not by spacing. */
+const canonical = (k: string) => {
+  try {
+    return JSON.stringify(JSON.parse(k));
+  } catch {
+    return k;
+  }
+};
 
 /** The BPIC 2019 preset as the backend describes it (`GET /datasets/presets`). */
 const BPIC_MAPPING: ColumnMapping = {
@@ -49,6 +62,7 @@ const BPIC_MAPPING: ColumnMapping = {
     { name: "Consignment", rule: { attr: "case Item Category", eq: "Consignment" } },
   ],
   flowTypeDefault: "other",
+  caseNoun: VERIFIED_CASE_NOUN,
   note: "BPI Challenge 2019 preset",
 };
 
@@ -99,6 +113,11 @@ function suggestMapping(columns: string[]): { mapping: ColumnMapping; source: "b
 }
 
 const KIND_FILTER = (v: string | null): Kind | undefined => (v === "acute" || v === "systematic" || v === "widespread" ? v : undefined);
+const STABILITIES: Stability[] = ["stable", "fragile", "insufficient_support", "unknown"];
+
+const snapshotDto = ({ image: _i, ...s }: MockSnapshot): Snapshot => s;
+/** Form parts are files from the runtime's own FormData (undici in Node, the browser's in the app); duck-typed, not `instanceof Blob`. */
+const isBlob = (v: unknown): v is Blob => !!v && typeof v === "object" && typeof (v as Blob).arrayBuffer === "function";
 
 export const handlers = [
   http.get(`${API}/system/health`, () => HttpResponse.json({ status: "ok", workspace: "mock", inprocessWorker: true })),
@@ -194,6 +213,51 @@ export const handlers = [
     return HttpResponse.json({ ...BPIC_MAPPING, id: ct.mappingId ?? "map_2", datasetId: ct.datasetId, createdAt: ct.createdAt });
   }),
 
+  // ---------------------------------------------------------------- flow types of a case table (R2-O10)
+  http.get(`${API}/projects/:projectId/case-tables/:caseTableId/flow-types`, async ({ params }) => {
+    await delay(latency);
+    const ct = db.caseTables.find((c) => c.id === params.caseTableId);
+    if (!ct) return problem(404, "Not Found", "case table not found", "case_table.not_found");
+    return HttpResponse.json(flowTypesFor(ct.id));
+  }),
+
+  // ---------------------------------------------------------------- readiness decisions (R2-O1)
+  http.get(`${API}/projects/:projectId/decisions/kinds`, async () => {
+    await delay(latency);
+    return HttpResponse.json(decisionKinds());
+  }),
+  http.get(`${API}/projects/:projectId/decisions`, async ({ request }) => {
+    await delay(latency);
+    const ct = new URL(request.url).searchParams.get("caseTableId");
+    return HttpResponse.json(db.decisions.filter((d) => !ct || d.caseTableId === ct || d.resultCaseTableId === ct));
+  }),
+  http.post(`${API}/projects/:projectId/case-tables/:caseTableId/decisions/preview`, async ({ params, request }) => {
+    await delay(latency);
+    const ct = db.caseTables.find((c) => c.id === params.caseTableId);
+    if (!ct) return problem(404, "Not Found", "case table not found", "case_table.not_found");
+    const body = (await request.json()) as DecisionRequest;
+    const preview = decisionPreviewFor(body.kind, body.params ?? {}, ct.readiness, ct.id, db.decisions.filter((d) => d.caseTableId === ct.id).length + 1);
+    if (!preview) return problem(422, "Unprocessable Content", `unknown decision kind ${String(body.kind)}`, "decision.kind");
+    return HttpResponse.json(preview);
+  }),
+  http.post(`${API}/projects/:projectId/case-tables/:caseTableId/decisions`, async ({ params, request }) => {
+    const ct = db.caseTables.find((c) => c.id === params.caseTableId);
+    if (!ct) return problem(404, "Not Found", "case table not found", "case_table.not_found");
+    const body = (await request.json()) as DecisionRequest;
+    const preview = decisionPreviewFor(body.kind, body.params ?? {}, ct.readiness, ct.id, db.decisions.filter((d) => d.caseTableId === ct.id).length + 1);
+    if (!preview) return problem(422, "Unprocessable Content", `unknown decision kind ${String(body.kind)}`, "decision.kind");
+    // the decision is a versioned mapping decision: a child mapping, a new case table built from it (job)
+    const next = newCaseTable(ct.datasetId, `${ct.mappingId ?? "map_2"}.${preview.version}`, []);
+    next.readiness = readinessAfterDecision(ct.readiness ?? { status: "warn", items: [] }, body.kind, preview);
+    const numbers = preview.preview as { cases: number; events: number };
+    next.cases = body.kind === "open_cases" && body.params?.handling === "exclude" ? ct.cases - numbers.cases : ct.cases;
+    next.events = (ct.events ?? 0) - (body.kind === "drop_outside_window" || body.kind === "collapse_duplicates" ? numbers.events : 0);
+    const job = createJob("apply_decision", `applying ${preview.label.toLowerCase()}`, { kind: "caseTable", id: next.id }, 0.34);
+    const decision = decisionRecord(nextId("decision", "dec"), ct, next, preview, body);
+    db.decisions.push(decision);
+    return HttpResponse.json({ decision, caseTable: next, job }, { status: 202 });
+  }),
+
   http.get(`${API}/projects/:projectId/norms`, async () => {
     await delay(latency);
     return HttpResponse.json(db.norms);
@@ -253,25 +317,7 @@ export const handlers = [
   http.post(`${API}/projects/:projectId/runs`, async ({ request }) => {
     const body = (await request.json()) as RunCreate;
     if (!body.caseTableId || !body.normVersionId) return problem(422, "Unprocessable Content", "caseTableId and normVersionId are required.", "run.incomplete");
-    const id = nextId("run", "run");
-    const job = createJob("score_run", "loading the event log", { kind: "run", id }, 0.2);
-    const norm = db.norms.find((n) => n.id === body.normVersionId);
-    const slicings = (body.slicings?.length ? body.slicings : [{ attributes: ["case Vendor"] }]).map((s) => ({ id: s.id || s.attributes.join("+"), attributes: s.attributes }));
-    const run = {
-      ...body,
-      views: body.views?.length ? body.views : norm?.views ?? ["Finance", "Logistics", "Compliance", "Automation"],
-      slicings,
-      gamma: body.gamma ?? 50,
-      minCases: body.minCases ?? 20,
-      id,
-      status: "queued" as const,
-      jobId: job.id,
-      paramsHash: (Math.random() * 0xffffffff >>> 0).toString(16).padStart(64, "0"),
-      createdAt: new Date().toISOString(),
-      manifest: { normFingerprint: norm?.fingerprint, contentHash: "51ab9d7c3e0f2b6451ab9d7c3e0f2b6451ab9d7c3e0f2b6451ab9d7c3e0f2b64", mappingId: "map_2", wiseVersion: "0.1.0", startedAt: new Date().toISOString(), views: body.views ?? [], slicings },
-      links: { self: `/api/v1/projects/p2p2018/runs/${id}`, summary: `/api/v1/projects/p2p2018/runs/${id}/summary` },
-    };
-    db.runs.push(run);
+    const run = newRun({ ...body, scope: body.scope ?? undefined });
     return HttpResponse.json(run, { status: 202 });
   }),
   http.get(`${API}/projects/:projectId/runs/:runId`, async ({ params }) => {
@@ -301,14 +347,40 @@ export const handlers = [
     const u = new URL(request.url);
     const slicing = u.searchParams.get("slicing");
     if (!slicing) return problem(422, "Unprocessable Content", "slicing must name at least one case attribute", "backlog.slicing");
-    const known = run.slicings?.some((s) => s.id === slicing) || slicing.split(",").every((a) => a.trim().length > 0);
+    const known = run.slicings?.some((s) => s.id === slicing) || slicing.split(/[+,]/).every((a) => a.trim().length > 0);
     if (!known) return problem(422, "Unprocessable Content", `unknown slice attributes ${slicing}`, "backlog.attribute");
     const view = u.searchParams.get("view") || run.views?.[0] || "Finance";
     if (!run.views?.includes(view)) return problem(422, "Unprocessable Content", `view ${view} is not part of this run; available: ${run.views?.join(", ")}`, "backlog.view");
-    const gamma = num(u.searchParams.get("gamma"), run.gamma ?? 50);
+    const gamma = num(u.searchParams.get("gamma"), run.gamma ?? 20);
     const minCases = num(u.searchParams.get("minCases"), 20);
-    const { rows, globalMean } = backlogFor(run.id, slicing, view, gamma, minCases);
-    const page = pageBacklog(rows, globalMean, {
+    const filter = parseFilter(u.searchParams.get("filter"));
+    const drillFrom = u.searchParams.get("drillFrom");
+    const drillKey = u.searchParams.get("drillKey");
+    const source = backlogFor(run.id, slicing, view, gamma, minCases);
+    let rows = source.rows;
+    let illustrative = source.illustrative;
+    let attributes: string[] | undefined;
+    let drill: { slicing: string; attributes: string[]; key: unknown[] } | null = null;
+    let cases: number | null = null;
+    if (drillFrom && drillKey) {
+      // drill into one group (R2-O2): the finer slicing restricted to the group's cases
+      const parentSource = backlogFor(run.id, drillFrom, view, gamma, 1);
+      const parent = parentSource.rows.find((r) => canonical(r.key) === canonical(drillKey));
+      if (!parent) return problem(404, "Not Found", `group ${drillKey} not found in ${drillFrom}`, "slice.not_found");
+      const detail = verifiedSlice(parent.key, view) ?? buildSlice(parent, drillFrom, view, parentSource.globalMean);
+      const within: Within = { slicing: drillFrom, key: parent.key };
+      const drilled = drillInto(parent, within, detail, gamma, view);
+      rows = drilled.rows.filter((r) => r.n_cases >= minCases);
+      attributes = drilled.attributes;
+      illustrative = drilled.illustrative;
+      drill = { slicing: drillFrom, attributes: Object.keys(parent.keys ?? {}), key: JSON.parse(parent.key) as unknown[] };
+      cases = parent.n_cases;
+    }
+    rows = applyFilter(rows, filter, gamma);
+    if (filter) cases = Math.round((cases ?? summaryFor(run.id).cases ?? 251734) * filterKeepShare(filter));
+    const stability = u.searchParams.get("stability");
+    if (stability && STABILITIES.includes(stability as Stability)) rows = rows.filter((r) => (r.stability ?? "unknown") === stability);
+    const page = pageBacklog(rows, source.globalMean, {
       slicing,
       view,
       gamma,
@@ -321,7 +393,62 @@ export const handlers = [
       page: Math.max(1, num(u.searchParams.get("page"), 1)),
       pageSize: Math.min(500, Math.max(1, num(u.searchParams.get("pageSize"), 50))),
     });
-    return HttpResponse.json(page);
+    const unfiltered = !filter && !drill && !stability && !u.searchParams.get("kind") && !u.searchParams.get("hotspotType") && !u.searchParams.get("layer") && !u.searchParams.get("q");
+    return HttpResponse.json({
+      ...page,
+      rows: page.rows.map((r) => enrichRow(r, view, illustrative)),
+      total: unfiltered && source.total ? source.total : page.total,
+      params: { ...page.params, ...(attributes ? { attributes } : {}), bands: [], ...backlogParamsC2(illustrative, { gamma, filter: filter ?? null, drill, scope: run.scope ?? null, cases }) },
+    });
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/slicings/preview`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    const slicing = u.searchParams.get("slicing") ?? "";
+    if (!slicing) return problem(422, "Unprocessable Content", "slicing is required", "backlog.slicing");
+    let bands: { attribute: string; method?: string; q?: number | null; cuts?: number[] | null }[] | undefined;
+    const raw = u.searchParams.get("bands");
+    if (raw) {
+      try {
+        bands = JSON.parse(raw) as typeof bands;
+      } catch {
+        return problem(422, "Unprocessable Content", "bands must be a JSON list", "run.bands");
+      }
+    }
+    const attributes = slicing.split(/[+,]/).map((a) => a.trim()).filter(Boolean);
+    const bad = (bands ?? []).find((b) => !attributes.includes(b.attribute));
+    if (bad) return problem(422, "Unprocessable Content", `band attribute '${bad.attribute}' is not one of the slicing's attributes ${JSON.stringify(attributes)}`, "run.band_attribute");
+    return HttpResponse.json(slicingPreviewFor(attributes, bands, num(u.searchParams.get("minCases"), 20), summaryFor(run.id).cases ?? 251734));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/filters/preview`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const filter = parseFilter(new URL(request.url).searchParams.get("filter"));
+    return HttpResponse.json(filterPreviewFor(filter, summaryFor(run.id).cases ?? 251734));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/analytics`, async ({ params }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const verified = run.note === "2018" && !run.scope?.flow_type;
+    return HttpResponse.json(verified ? { ...verifiedAnalytics, runId: run.id } : { runId: run.id, status: "not_requested", package: { available: true, version: "0.2.0", reason: null }, jobId: null, windowEnd: null, manifest: {} });
+  }),
+  http.post(`${API}/projects/:projectId/runs/:runId/analytics`, async ({ params }) => {
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const job = createJob("analytics", "resampling the backlog", undefined, 0.25);
+    return HttpResponse.json(job, { status: 202 });
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/compare-flow-types`, async ({ params }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    if (run.scope?.flow_type) return problem(409, "Conflict", `run ${run.id} is scoped to ${run.scope.flow_type}; compare from a run without scope`, "run.scoped");
+    const scoped = Object.fromEntries(db.runs.filter((r) => r.status === "done" && r.scope?.flow_type && r.caseTableId === run.caseTableId && r.normVersionId === run.normVersionId).map((r) => [r.scope!.flow_type as string, r.id]));
+    return HttpResponse.json(compareFlowTypesFor(scoped));
   }),
 
   http.get(`${API}/projects/:projectId/runs/:runId/slices/:sliceKey`, async ({ params, request }) => {
@@ -332,7 +459,7 @@ export const handlers = [
     const slicing = u.searchParams.get("slicing");
     if (!slicing) return problem(422, "Unprocessable Content", "slicing is required", "backlog.slicing");
     const view = u.searchParams.get("view") || run.views?.[0] || "Finance";
-    const { rows, globalMean } = backlogFor(run.id, slicing, view, run.gamma ?? 50, 1);
+    const source = backlogFor(run.id, slicing, view, run.gamma ?? 20, 1);
     // the key is a JSON array (URL-encoded in the path); a bare value is accepted for single-attribute slicings
     const raw = String(params.sliceKey);
     let key = raw;
@@ -342,9 +469,28 @@ export const handlers = [
       key = raw;
     }
     if (!key.startsWith("[")) key = JSON.stringify([key]);
-    const row: BacklogRow | undefined = rows.find((r) => r.key === key);
+    let row: BacklogRow | undefined = source.rows.find((r) => canonical(r.key) === canonical(key));
+    let illustrative = source.illustrative;
+    if (!row) {
+      // a drilled group (R2-O2): the vendors inside Packaging are verified, other drill-ins illustrative
+      for (const parentSlicing of ["case Company+case Spend area text", "case Vendor"]) {
+        const parentSource = backlogFor(run.id, parentSlicing, view, run.gamma ?? 20, 1);
+        for (const parent of parentSource.rows) {
+          const detail = verifiedSlice(parent.key, view) ?? buildSlice(parent, parentSlicing, view, parentSource.globalMean);
+          const drilled = drillInto(parent, { slicing: parentSlicing, key: parent.key }, detail, run.gamma ?? 20, view);
+          row = drilled.rows.find((r) => canonical(r.key) === canonical(key));
+          if (row) {
+            illustrative = drilled.illustrative;
+            break;
+          }
+        }
+        if (row) break;
+      }
+    }
     if (!row) return problem(404, "Not Found", `slice ${key} not found in slicing ${slicing}`, "slice.not_found");
-    return HttpResponse.json(buildSlice(row, slicing, view, globalMean));
+    const verified = !illustrative && !run.scope?.flow_type ? verifiedSlice(row.key, view) : undefined;
+    const detail = verified ?? buildSlice(row, slicing, view, source.globalMean);
+    return HttpResponse.json({ ...sliceC2(detail, view, !verified), params: { ...(detail.params ?? {}), scope: run.scope ?? null } });
   }),
 
   http.get(`${API}/projects/:projectId/runs/:runId/cases/:caseId/trace`, async ({ params, request }) => {
@@ -359,7 +505,7 @@ export const handlers = [
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
     const slicing = new URL(request.url).searchParams.get("slicing") || "case Vendor";
-    const { rows } = backlogFor(run.id, slicing, run.views?.[0] ?? "Finance", run.gamma ?? 50, run.minCases ?? 20);
+    const { rows } = backlogFor(run.id, slicing, run.views?.[0] ?? "Finance", run.gamma ?? 20, run.minCases ?? 1);
     const attributes = slicing.split("+");
     return HttpResponse.json({
       columns: [...attributes, "n_cases", "stable_gap", "stable_PI", "censored_share", "replicated_share", "retained", "reading"],
@@ -372,6 +518,7 @@ export const handlers = [
     const u = new URL(request.url);
     const sliceKey = u.searchParams.get("sliceKey") ?? undefined;
     if (!bpic19Norm.constraints.some((c) => c.id === params.constraintId)) return problem(404, "Not Found", "constraint not found", "constraint.not_found");
+    if (params.constraintId === verifiedDistributionPackaging.constraintId && sliceKey && canonical(sliceKey) === canonical(VERIFIED_PACKAGING_KEY)) return HttpResponse.json(verifiedDistributionPackaging);
     return HttpResponse.json(buildDistribution(String(params.constraintId), sliceKey));
   }),
 
@@ -380,7 +527,119 @@ export const handlers = [
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
     const u = new URL(request.url);
-    return HttpResponse.json(buildFlow({ slicing: u.searchParams.get("slicing") ?? undefined, sliceKey: u.searchParams.get("sliceKey") ?? undefined, abstraction: num(u.searchParams.get("abstraction"), 0.05) }));
+    const filter = parseFilter(u.searchParams.get("filter"));
+    const sliceKey = u.searchParams.get("sliceKey") ?? undefined;
+    const slicing = u.searchParams.get("slicing") ?? undefined;
+    const focus = u.searchParams.get("focus") ?? undefined;
+    const keep = filterKeepShare(filter);
+    const verified = run.note === "2018" && !run.scope?.flow_type && !filter;
+    const extra = { filter: filter ?? null, filterCases: filter ? Math.round(251734 * keep) : null, scope: run.scope ?? null, caseNoun: VERIFIED_CASE_NOUN };
+    if (verified && !sliceKey && !focus) return HttpResponse.json({ ...verifiedFlowAll, meta: { ...verifiedFlowAll.meta, runId: run.id, ...extra } });
+    if (verified && !sliceKey && focus === "a_record_goods_receipt") return HttpResponse.json({ ...verifiedFlowFocusedOnGoodsReceipt, meta: { ...verifiedFlowFocusedOnGoodsReceipt.meta, runId: run.id, ...extra } });
+    if (verified && sliceKey && canonical(sliceKey) === canonical(VERIFIED_PACKAGING_KEY) && !focus) return HttpResponse.json({ ...verifiedFlowPackaging, meta: { ...verifiedFlowPackaging.meta, runId: run.id, ...extra } });
+    const scopeShare = run.scope?.flow_type ? ({ DF2: 0.878, DF1: 0.06, Consignment: 0.058, "2-way": 0.004 } as Record<string, number>)[run.scope.flow_type] ?? 0.1 : 1;
+    const base = sliceKey ? undefined : keep * scopeShare;
+    const graph = buildFlow({ slicing, sliceKey, abstraction: num(u.searchParams.get("abstraction"), 0.05), focus, ...(base !== undefined && base < 1 ? { scale: base } : {}) });
+    return HttpResponse.json({ ...graph, meta: { ...graph.meta, runId: run.id, ...extra, illustrative: true } });
+  }),
+
+  // ---------------------------------------------------------------- analysis notebook (R2-O11)
+  http.get(`${API}/projects/:projectId/notebook`, async () => {
+    await delay(latency);
+    return HttpResponse.json({ ...db.notebook, snapshots: [...db.notebook.snapshots].sort((a, b) => a.order - b.order).map(snapshotDto) });
+  }),
+  http.post(`${API}/projects/:projectId/notebook/snapshots`, async ({ request }) => {
+    await delay(latency);
+    const form = await request.formData();
+    const payloadRaw = form.get("payload");
+    let body: { title?: string; note?: string; context?: SnapshotContext; data?: unknown; author?: string | null } = {};
+    if (typeof payloadRaw === "string" && payloadRaw) {
+      try {
+        body = JSON.parse(payloadRaw) as typeof body;
+      } catch {
+        return problem(422, "Unprocessable Content", "payload is not valid JSON", "snapshot.payload");
+      }
+    } else if (isBlob(payloadRaw)) {
+      body = JSON.parse(await payloadRaw.text()) as typeof body;
+    }
+    const title = (body.title ?? (form.get("title") as string | null) ?? "").trim();
+    if (!title) return problem(422, "Unprocessable Content", "A snapshot needs a title.", "snapshot.title");
+    const image = form.get("image");
+    const id = nextId("snapshot", "snap");
+    const now = new Date().toISOString();
+    const snapshot: MockSnapshot = {
+      id,
+      projectId: "p2p2018",
+      title,
+      note: body.note ?? (form.get("note") as string | null) ?? "",
+      context: (body.context ?? { screen: "unknown", url: "" }) as unknown as Record<string, unknown>,
+      data: body.data ?? null,
+      hasImage: isBlob(image),
+      imageUrl: isBlob(image) ? `/api/v1/projects/p2p2018/notebook/snapshots/${id}/image` : null,
+      order: db.notebook.snapshots.length,
+      author: body.author ?? "u.jessen",
+      createdAt: now,
+      updatedAt: now,
+      image: isBlob(image) ? image : undefined,
+    };
+    db.notebook.snapshots.push(snapshot);
+    return HttpResponse.json(snapshotDto(snapshot), { status: 201 });
+  }),
+  http.get(`${API}/projects/:projectId/notebook/snapshots/:id/image`, async ({ params }) => {
+    const snap = db.notebook.snapshots.find((s) => s.id === params.id);
+    if (!snap?.image) return problem(404, "Not Found", "no image for this snapshot", "snapshot.image");
+    return new HttpResponse(snap.image, { headers: { "Content-Type": "image/png" } });
+  }),
+  http.post(`${API}/projects/:projectId/notebook/snapshots/:id/image`, async ({ params, request }) => {
+    const snap = db.notebook.snapshots.find((s) => s.id === params.id);
+    if (!snap) return problem(404, "Not Found", "snapshot not found", "snapshot.not_found");
+    const form = await request.formData();
+    const image = form.get("image");
+    if (!isBlob(image)) return problem(422, "Unprocessable Content", "image is required", "snapshot.image");
+    snap.image = image;
+    snap.hasImage = true;
+    snap.imageUrl = `/api/v1/projects/p2p2018/notebook/snapshots/${snap.id}/image`;
+    snap.updatedAt = new Date().toISOString();
+    return HttpResponse.json(snapshotDto(snap));
+  }),
+  http.get(`${API}/projects/:projectId/notebook/snapshots/:id`, async ({ params }) => {
+    const snap = db.notebook.snapshots.find((s) => s.id === params.id);
+    if (!snap) return problem(404, "Not Found", "snapshot not found", "snapshot.not_found");
+    return HttpResponse.json(snapshotDto(snap));
+  }),
+  http.patch(`${API}/projects/:projectId/notebook/snapshots/:id`, async ({ params, request }) => {
+    const snap = db.notebook.snapshots.find((s) => s.id === params.id);
+    if (!snap) return problem(404, "Not Found", "snapshot not found", "snapshot.not_found");
+    const body = (await request.json()) as { title?: string | null; note?: string | null };
+    if (body.title !== undefined && body.title !== null) snap.title = body.title;
+    if (body.note !== undefined && body.note !== null) snap.note = body.note;
+    snap.updatedAt = new Date().toISOString();
+    return HttpResponse.json(snapshotDto(snap));
+  }),
+  http.delete(`${API}/projects/:projectId/notebook/snapshots/:id`, ({ params }) => {
+    const i = db.notebook.snapshots.findIndex((s) => s.id === params.id);
+    if (i < 0) return problem(404, "Not Found", "snapshot not found", "snapshot.not_found");
+    db.notebook.snapshots.splice(i, 1);
+    db.notebook.snapshots.forEach((s, j) => (s.order = j));
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(`${API}/projects/:projectId/notebook/reorder`, async ({ request }) => {
+    const body = (await request.json()) as { ids: string[] };
+    const rank = new Map((body.ids ?? []).map((id, i) => [id, i]));
+    db.notebook.snapshots.sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+    db.notebook.snapshots.forEach((s, j) => (s.order = j));
+    return HttpResponse.json({ ...db.notebook, snapshots: db.notebook.snapshots.map(snapshotDto) });
+  }),
+  http.get(`${API}/projects/:projectId/notebook/export`, ({ request }) => {
+    const format = new URL(request.url).searchParams.get("format") ?? "markdown";
+    if (format !== "markdown") return problem(422, "Unprocessable Content", `export format ${format} arrives in cycle 4`, "notebook.format");
+    const lines = ["# Analysis notebook · P2P 2018 (BPIC 2019)", ""];
+    for (const s of [...db.notebook.snapshots].sort((a, b) => a.order - b.order)) {
+      const ctx = s.context as Partial<SnapshotContext> | undefined;
+      lines.push(`## ${s.order + 1}. ${s.title}`, "", s.note ?? "", "", s.hasImage ? `![${s.title}](images/${s.id}.png)` : "_(no image)_", "", `_${ctx?.screen ?? ""} · run ${ctx?.run_id ?? "–"} · ${ctx?.slicing ?? ""} · ${ctx?.view ?? ""} · ${ctx?.url ?? ""}_`, "");
+    }
+    // the backend answers with a zip (notebook.md plus images/); the mock ships the Markdown alone under the same media type
+    return new HttpResponse(new Blob([lines.join("\n")], { type: "application/zip" }), { headers: { "Content-Type": "application/zip", "Content-Disposition": 'attachment; filename="notebook.zip"' } });
   }),
 
   http.get(`${API}/jobs`, async ({ request }) => {

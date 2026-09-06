@@ -7,6 +7,7 @@ sources:
   - ICPM 2026 hackathon sales extract, measured 2026-09-05
   - SAP SD documentation (sales, shipping, billing), APQC PCF 5.0 and 9.2
 case_notion:
+  noun: {en: sales order items, de: Kundenauftragspositionen}
   default: sales document item (Sales Document Number + Item)
   alternatives:
     - sales order header (governance roll-up; header events such as Create Order are replicated onto every item)

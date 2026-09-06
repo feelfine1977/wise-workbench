@@ -17,10 +17,10 @@ export const Separator = React.forwardRef<
 Separator.displayName = "Separator";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("surface p-4 shadow-1", className)} {...props} />;
+  return <div className={cn("surface card-pad shadow-1", className)} {...props} />;
 }
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("mb-2 text-sm font-semibold text-text", className)} {...props} />;
+  return <h3 className={cn("mb-3 text-base font-semibold text-text", className)} {...props} />;
 }
 
 export function Progress({ value, className, label }: { value: number; className?: string; label?: string }) {

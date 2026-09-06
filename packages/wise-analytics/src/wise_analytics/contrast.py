@@ -44,12 +44,13 @@ PATTERNS = ("whole distribution shifted", "tail shifted", "no material shift", "
 
 @dataclass(frozen=True)
 class SliceContrast(AnalyticResult):
-    """Waterfall by constraint (``table``), by layer (``layers``) and ECDF pairs (``ecdf``)."""
+    """Waterfall by constraint (``table``), by layer (``layers``), ECDF pairs (``ecdf``) and the norm the slice was scored with."""
 
     view: str
     slice: str
     layers: pd.DataFrame
     ecdf: Mapping[str, pd.DataFrame]
+    norm: wise.Norm | None = None
 
 
 # ----------------------------------------------------------------------------- raw signals
@@ -411,7 +412,15 @@ def contrast_slice(
         runtime_s=summary["runtime_s"],
     )
     return SliceContrast(
-        table=table, summary=summary, record=rec, readings=tuple(readings), view=view, slice=label, layers=layers, ecdf=ecdfs
+        table=table,
+        summary=summary,
+        record=rec,
+        readings=tuple(readings),
+        view=view,
+        slice=label,
+        layers=layers,
+        ecdf=ecdfs,
+        norm=result.norm,
     )
 
 

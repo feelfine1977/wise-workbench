@@ -1,0 +1,69 @@
+[
+{
+"kind": "drop_outside_window",
+"item": "timestamp_outliers",
+"params": [
+"start",
+"end"
+],
+"label": "Drop events outside the observation window"
+},
+{
+"kind": "sentinel_as_missing",
+"item": "sentinel_dates",
+"params": [
+"timestamps",
+"activities"
+],
+"label": "Treat placeholder dates as missing timestamps"
+},
+{
+"kind": "collapse_duplicates",
+"item": "duplicate_events",
+"params": [],
+"label": "Collapse exact duplicate events"
+},
+{
+"kind": "day_precision",
+"item": "timestamp_precision",
+"params": [
+"activities"
+],
+"label": "Mark day-precision activities (lag thresholds on them in days only)"
+},
+{
+"kind": "header_events",
+"item": "header_event_replication",
+"params": [
+"activities"
+],
+"label": "Type header events (replicated onto items) away"
+},
+{
+"kind": "open_cases",
+"item": "right_censored",
+"params": [
+"handling",
+"closure",
+"window"
+],
+"label": "Handle open cases: censor in lags, exclude, or keep"
+},
+{
+"kind": "zero_exposure",
+"item": "zero_exposure",
+"params": [
+"handling"
+],
+"label": "Handle cases with exposure 0"
+},
+{
+"kind": "flow_type_assignment",
+"item": "flow_types",
+"params": [
+"rules",
+"default"
+],
+"label": "Assign flow types"
+}
+]

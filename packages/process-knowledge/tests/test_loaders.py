@@ -204,7 +204,9 @@ def test_every_template_constraint_is_catalogued(p2p, o2c):
     for pack in (p2p, o2c):
         for t in pack.templates:
             ids = {c["id"] for c in json.loads(t.path.read_text(encoding="utf-8"))["constraints"]}
-            referenced = {p.constraint_ref for fm in pack.failure_modes for p in fm.wise_patterns if p.template == t.id}
+            referenced = {
+                p.constraint_ref for fm in pack.failure_modes for p in fm.wise_patterns if t.id in p.templates
+            }
             assert ids <= referenced, f"{t.id}: constraints without failure mode {sorted(ids - referenced)}"
 
 

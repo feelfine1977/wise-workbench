@@ -13,6 +13,8 @@
     "dev": "vite",
     "prebuild": "npm run tokens",
     "build": "tsc -b && vite build",
+    "prebuild:live": "npm run tokens",
+    "build:live": "tsc -b && vite build --mode live",
     "preview": "vite preview",
     "pretest": "npm run tokens",
     "test": "vitest run",
@@ -43,12 +45,12 @@
     "@tanstack/react-router": "1.161.4",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
-    "@wise/flow": "file:../../../wise-flow",
     "@xyflow/react": "^12.11.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^5.6.0",
     "elkjs": "^0.9.3",
+    "html-to-image": "^1.11.13",
     "i18next": "^25.10.10",
     "lucide-react": "^0.577.0",
     "openapi-fetch": "^0.17.0",
@@ -57,6 +59,9 @@
     "react-i18next": "^16.6.6",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.8"
+  },
+  "optionalDependencies": {
+    "@wise/flow": "file:../../../wise-flow"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

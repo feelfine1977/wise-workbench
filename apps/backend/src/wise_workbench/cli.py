@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import time
+import webbrowser
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +43,30 @@ def _settings(args: argparse.Namespace) -> Settings:
 
 
 # ----------------------------------------------------------------------------- commands
+def _display_host(host: str) -> str:
+    return "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+
+
+def open_browser_when_ready(url: str, health_url: str, timeout: float = 30.0) -> threading.Thread:
+    """Open ``url`` in the default browser once ``health_url`` answers 200 (polled from a daemon thread)."""
+    import httpx
+
+    def _wait() -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                if httpx.get(health_url, timeout=1.0).status_code == 200:
+                    webbrowser.open(url)
+                    return
+            except httpx.HTTPError:
+                pass
+            time.sleep(0.25)
+
+    thread = threading.Thread(target=_wait, name="open-browser", daemon=True)
+    thread.start()
+    return thread
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -53,11 +79,27 @@ def cmd_serve(args: argparse.Namespace) -> int:
         settings = settings.model_copy(update={"port": args.port})
     if args.no_worker:
         settings = settings.model_copy(update={"inprocess_worker": False})
+    if args.static:
+        settings = settings.model_copy(update={"static_dir": Path(args.static)})
     app = create_app(settings)
-    print(
-        f"WISE Workbench {__version__} on http://{settings.host}:{settings.port}/docs (workspace {settings.workspace_path})",
-        file=sys.stderr,
-    )
+    base = f"http://{_display_host(settings.host)}:{settings.port}"
+    static_dir = settings.resolved_static_dir
+    if static_dir is not None:
+        print(
+            f"WISE Workbench {__version__}: application at {base}/ (built frontend from {static_dir}), "
+            f"API documentation at {base}/docs, workspace {settings.workspace_path}",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"WISE Workbench {__version__}: API documentation at {base}/docs, workspace {settings.workspace_path}. "
+            "No built frontend found: build it (apps/frontend: npm run build:live) or set WISE_STATIC_DIR / --static.",
+            file=sys.stderr,
+        )
+    if args.open:
+        open_browser_when_ready(
+            f"{base}/" if static_dir is not None else f"{base}/docs", f"{base}/api/v1/system/health"
+        )
     uvicorn.run(app, host=settings.host, port=settings.port, log_level="info", access_log=False)
     return 0
 
@@ -325,10 +367,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    s = sub.add_parser("serve", help="run the API (with the in-process worker unless WISE_INPROCESS_WORKER=0)")
+    s = sub.add_parser(
+        "serve",
+        help="run the API and the built frontend (with the in-process worker unless WISE_INPROCESS_WORKER=0)",
+    )
     s.add_argument("--host")
     s.add_argument("--port", type=int)
     s.add_argument("--no-worker", action="store_true", help="do not start the in-process worker")
+    s.add_argument("--open", action="store_true", help="open the application in the default browser once it answers")
+    s.add_argument(
+        "--static", help="directory with the built frontend (default: WISE_STATIC_DIR, then apps/frontend/dist)"
+    )
     s.set_defaults(func=cmd_serve)
 
     w = sub.add_parser("worker", help="run a worker process")

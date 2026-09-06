@@ -11,7 +11,14 @@
       "calibration": "uncalibrated",
       "activity_labels": "canonical_ids",
       "flow_type_attribute": "flow_type",
-      "flow_types": ["standard", "make_to_order", "partial_delivery", "order_related_billing", "returns", "rejected"],
+      "flow_types": [
+        "standard",
+        "make_to_order",
+        "partial_delivery",
+        "order_related_billing",
+        "returns",
+        "rejected"
+      ],
       "case_attributes": {
         "return_item": "Returns Item (X for return items) in the hackathon extract",
         "confirmed_quantity": "Confirmed Quantity at item creation",
@@ -24,77 +31,3739 @@
       },
       "review_status": "draft",
       "uncalibrated_parameters": {
-        "o_capture_credit_release_days": ["delta", "width"],
-        "o_commit_confirmed_equals_ordered": ["tau", "width"],
-        "o_deliv_order_to_issue_days": ["delta", "width"],
-        "o_deliv_days_late": ["threshold", "width"],
-        "o_deliv_pick_to_issue_days": ["delta", "width"],
-        "o_deliv_no_split": ["k", "K"],
-        "o_change_churn": ["threshold", "width"],
-        "o_change_avail_date": ["k", "K"],
-        "o_change_prepone": ["k", "K"],
-        "o_change_requested_quantity": ["K"],
-        "o_commercial_no_manual_price_change": ["K"],
-        "o_invoice_days_after_issue": ["delta", "width"],
-        "o_pay_within_terms": ["delta", "width"]
+        "o_capture_credit_release_days": [
+          "delta",
+          "width"
+        ],
+        "o_commit_confirmed_equals_ordered": [
+          "tau",
+          "width"
+        ],
+        "o_deliv_order_to_issue_days": [
+          "delta",
+          "width"
+        ],
+        "o_deliv_days_late": [
+          "threshold",
+          "width"
+        ],
+        "o_deliv_pick_to_issue_days": [
+          "delta",
+          "width"
+        ],
+        "o_deliv_no_split": [
+          "k",
+          "K"
+        ],
+        "o_change_churn": [
+          "threshold",
+          "width"
+        ],
+        "o_change_avail_date": [
+          "k",
+          "K"
+        ],
+        "o_change_prepone": [
+          "k",
+          "K"
+        ],
+        "o_change_requested_quantity": [
+          "K"
+        ],
+        "o_commercial_no_manual_price_change": [
+          "K"
+        ],
+        "o_invoice_days_after_issue": [
+          "delta",
+          "width"
+        ],
+        "o_pay_within_terms": [
+          "delta",
+          "width"
+        ]
       },
       "notes": [
         "Measured shares of the hackathon extract (o2c/README.md) are seeds for the catalogue, not thresholds.",
         "Make-to-order items need their own order-to-issue threshold; restrict o_deliv_order_to_issue_days by flow_type once planning types are known.",
         "The balance constraint is always satisfied on the hackathon extract because confirmed quantity equals ordered quantity for every item."
       ],
-      "sources": ["failure_modes.yaml (o2c)", "o2c/README.md"]
+      "sources": [
+        "failure_modes.yaml (o2c)",
+        "o2c/README.md"
+      ]
+    },
+    "guidance": {
+      "version": "1",
+      "pack": "o2c",
+      "review_status": "draft",
+      "source": "guidance.yaml of the pack (generic tier); the project overlay is stored with the project",
+      "layers": {
+        "capture": {
+          "kind": "layer",
+          "id": "capture",
+          "plain_name": "Cleared to sell",
+          "plain_name_de": "Freigegeben zum Verkauf",
+          "missed_label": "credit blocks on the order",
+          "missed_label_de": "Kreditsperren auf dem Auftrag",
+          "expectation": "Orders are captured for customers whose credit is in order, so that a credit block is the exception and, when it happens, is released within a day or two.",
+          "meaning_when_missed": "The order was held at capture because the customer's credit limit or overdue receivables stopped it, or the block stayed on the order for days before someone released it.",
+          "why_it_matters": "Every blocked order waits for a decision that involves credit management, sales and the customer; confirmed dates slip while it waits, and the customer hears about it late or not at all.",
+          "how_detected": "Two expectations: no credit block on the item, and a credit block released within a target of one day with a tolerance of three; blocks still open at the end of the data are scored by their age. The hackathon extract has no credit events, so both stay vocabulary there.",
+          "usual_reasons": [
+            {
+              "text": "The customer's credit limit is exhausted by open receivables or overdue invoices",
+              "where": "log",
+              "check": "share of blocked items per customer against the customer's open receivables and dunning level at the time of the block, where the receivables log is joined"
+            },
+            {
+              "text": "Credit master data is outdated (limit, risk class) although the customer pays on time",
+              "where": "outside",
+              "check": "ask credit management which blocked customers had no overdue item at the time of the block"
+            },
+            {
+              "text": "The automatic credit check is set too strict for the order value distribution",
+              "where": "outside",
+              "check": "ask credit management for the check settings (static or dynamic, horizon) and compare them with the order value bands"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Credit limit review cadence per customer group with a rule for temporary limit increases",
+              "countermeasure": "review",
+              "owner_role": "credit_management",
+              "effect_area": "capture_completeness"
+            },
+            {
+              "text": "Dunning before the limit is reached, so that receivables and not the order desk absorb the problem",
+              "countermeasure": "standard_work",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            },
+            {
+              "text": "Credit master data (limit, risk class) maintained with finance on a fixed schedule",
+              "countermeasure": "master_data",
+              "owner_role": "master_data",
+              "effect_area": "capture_completeness"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether credit events are logged at all for this sales organisation",
+            "Customers with the most blocks and their receivables at the time",
+            "How long blocks stay open and who releases them"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An order item blocked at capture for a customer with two overdue invoices, released four days later after the customer paid.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An order item captured without a block and confirmed the same day.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.credit_block_rate"
+          ],
+          "owner_role": "credit_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "capture_completeness",
+          "template_layer_id": "capture",
+          "hub_node": "layer:capture_completeness",
+          "method_name": "Capture and credit"
+        },
+        "commitment": {
+          "kind": "layer",
+          "id": "commitment",
+          "plain_name": "Keeping the promise",
+          "plain_name_de": "Das Versprechen halten",
+          "missed_label": "commitment changed after confirmation",
+          "missed_label_de": "Zusage nach Bestätigung geändert",
+          "expectation": "Once a quantity and a date are confirmed to the customer they hold: no postponement, no withdrawn confirmation, no cancellation after confirmation, no delivery block, no stock-out, and the confirmed quantity equals the ordered one.",
+          "meaning_when_missed": "The customer was told a date or a quantity that later changed: the scheduled date was pushed out, the confirmed quantity was removed or cut, the item was cancelled after it had been confirmed, or a block or a stock-out interrupted it.",
+          "why_it_matters": "A broken promise costs more than a late one: the customer plans on the confirmation, and every change triggers calls, re-planning on both sides and, in the extract, cancellations that follow postponements.",
+          "how_detected": "Exclusion expectations on the postponement, confirmation-removal, rejection, block and stock-out events, and a balance expectation comparing the confirmed with the ordered quantity at item creation; return items and items rejected at capture are out of scope. In the extract 3.2 % of items were postponed, 1.5 % had a confirmation removed and 2.8 % were cancelled according to the customer.",
+          "usual_reasons": [
+            {
+              "text": "Material availability changed after the availability check (supply or production slipped)",
+              "where": "log",
+              "check": "share of postponed items with an availability-date change on the same item; SKU and plant concentration"
+            },
+            {
+              "text": "A supplier delay on the purchase side of the same SKU",
+              "where": "log",
+              "check": "purchase-order confirmation changes for the SKU in the same period (purchase extract)"
+            },
+            {
+              "text": "Backorder processing reallocated confirmed stock to another order",
+              "where": "log",
+              "check": "confirmation removals clustered on rescheduling run dates; a new confirmation following the removal"
+            },
+            {
+              "text": "The customer asked for a later date or cancelled (legitimate; the change is theirs)",
+              "where": "log",
+              "check": "changed_from and changed_to values and the rejection reason code (80 cancelled according to customer, 82 double order, 99 handling error)"
+            },
+            {
+              "text": "Confirmations are given from planned receipts instead of stock",
+              "where": "outside",
+              "check": "ask supply planning how the availability check is configured (stock only, planned receipts, replenishment lead time)"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Confirm from stock or from firm supplier confirmations only; date tolerance in the availability check",
+              "countermeasure": "system_setting",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Allocation rules that protect confirmed quantities; rescheduling only with sales approval",
+              "countermeasure": "policy",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Expedite purchase orders of SKUs with repeated postponements; safety stock review per planning type",
+              "countermeasure": "review",
+              "owner_role": "supply_planning",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Record the reason for every date move, so that customer-requested moves can be excluded from the reading",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Which SKUs and plants carry the postponements and whether the purchase side slipped too",
+            "Whether cancellations follow postponements on the same items",
+            "Whether the moved dates were requested by the customer (changed_from and changed_to)"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item confirmed for 3 February, postponed twice after the availability date changed, then cancelled according to the customer on 20 February.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item confirmed at capture for the requested date, delivered on that date without a change.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.postponement_rate",
+            "o2c.kpi.confirmation_withdrawal_rate",
+            "o2c.kpi.cancellation_rate",
+            "o2c.kpi.fill_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "commitment_discipline",
+          "template_layer_id": "commitment",
+          "hub_node": "layer:commitment_discipline",
+          "method_name": "Commitment discipline"
+        },
+        "delivery": {
+          "kind": "layer",
+          "id": "delivery",
+          "plain_name": "Delivered on time and complete",
+          "plain_name_de": "Pünktlich und vollständig geliefert",
+          "missed_label": "shipped late, split or not at all",
+          "missed_label_de": "zu spät, geteilt oder gar nicht geliefert",
+          "expectation": "Every deliverable item gets a delivery and a goods issue, ships within the target time and not later than the requested date, leaves within a day of picking, in one delivery unless partial deliveries are allowed, and without a failed attempt.",
+          "meaning_when_missed": "The item has no delivery or goods issue, left the warehouse late or later than the customer asked, waited after picking, was split over several deliveries, or the delivery attempt failed.",
+          "why_it_matters": "Delivery reliability is what the customer measures the company on; late or split shipments mean penalties, extra freight, repeated handling and backlog that sales has to explain.",
+          "how_detected": "Presence expectations on the delivery and the goods issue, an order-to-issue time expectation (target 14 days, tolerance to 30; open items scored by their age), a lateness expectation on the prepared days-late attribute (target 0, tolerance 7 days), a pick-to-issue time expectation (1 day, tolerance 3), a no-split expectation on standard and make-to-order items, and no failed delivery. Return items and items rejected at capture are out of scope. In the extract 3.2 % of shipped items were late, the median order-to-issue time was 1.9 days with a p90 of 67 days, and 4.8 % of items had no goods issue at the end of the data.",
+          "usual_reasons": [
+            {
+              "text": "The item was still open when the data was extracted (right-censoring)",
+              "where": "log",
+              "check": "share of items without goods issue whose creation is within the last weeks of the window; read presence shortfalls only after excluding them"
+            },
+            {
+              "text": "Make-to-order items with long production lead times sit in the same expectation as stock items",
+              "where": "outside",
+              "check": "ask master data for the planning type of the long-tail SKUs; give make-to-order items their own threshold"
+            },
+            {
+              "text": "Late availability or a postponement upstream made the requested date infeasible",
+              "where": "log",
+              "check": "postponement and availability-date events preceding the late goods issue on the same item"
+            },
+            {
+              "text": "Picking backlog or carrier cut-offs hold picked goods",
+              "where": "log",
+              "check": "pick-to-issue lag by plant, weekday and incoterm"
+            },
+            {
+              "text": "Partial availability shipped early to meet the date (split), or the customer allows partial deliveries",
+              "where": "outside",
+              "check": "ask logistics and sales which customers carry a partial-delivery indicator"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Separate make-to-order planning types with their own order-to-issue threshold",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Wave planning and carrier cut-offs aligned with the requested dates; escalation of items whose requested date is within the pick-to-issue lead time",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Open-item review per customer with an age limit; automatic rejection of dead items after an agreed age",
+              "countermeasure": "review",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Ship-complete indicator per customer and consolidation rules",
+              "countermeasure": "master_data",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "How many of the missing goods issues are items still open at the end of the data or rejected",
+            "Planning type and lead time of the SKUs in the long tail",
+            "Whether the late items were postponed upstream or waited after picking"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item created on 2 January with a requested date of 9 January, picked on 8 January and issued on 16 January: seven days late, eight days after picking.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item created on Monday, delivery created Tuesday, picked and issued Wednesday, one day before the requested date.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.on_time_delivery_rate",
+            "o2c.kpi.order_to_issue_days",
+            "o2c.kpi.open_item_share",
+            "o2c.kpi.perfect_order_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "delivery_performance",
+          "template_layer_id": "delivery",
+          "hub_node": "layer:delivery_performance",
+          "method_name": "Delivery performance"
+        },
+        "changes": {
+          "kind": "layer",
+          "id": "changes",
+          "plain_name": "Entered once, changed rarely",
+          "plain_name_de": "Einmal erfasst, selten geändert",
+          "missed_label": "repeated changes on the item",
+          "missed_label_de": "wiederholte Änderungen an der Position",
+          "expectation": "An order item is captured right the first time and then changed rarely: at most one change event, at most one availability-date move, at most one date move forward, and no requested-quantity change after capture.",
+          "meaning_when_missed": "The item was touched again and again after capture: dates oscillated, the availability date was rescheduled repeatedly, or the requested quantity was corrected.",
+          "why_it_matters": "Every change is work for the order desk and planning, a new confirmation to the customer, and a sign that either the capture or the planning parameters are unstable; in the extract 13.7 % of items carry changes, 2.3 each on average.",
+          "how_detected": "A metric expectation on the count of change events (target 1, tolerance to 3) and three repetition expectations: availability-date changes (more than one), date moves forward (more than one) and requested-quantity changes (any). Return items and items rejected at capture are out of scope of the count. In the extract 9.9 % of items had an availability-date change and 7.8 % a date moved forward.",
+          "usual_reasons": [
+            {
+              "text": "Repeated availability checks reschedule the item every time supply changes (date oscillation)",
+              "where": "log",
+              "check": "sequence of availability-date, postpone and prepone events per item; SKU and plant concentration"
+            },
+            {
+              "text": "The customer changes quantity or date after capture",
+              "where": "log",
+              "check": "requested-quantity change events and changed_from and changed_to values per customer"
+            },
+            {
+              "text": "Capture errors corrected by hand (wrong quantity, wrong date)",
+              "where": "log",
+              "check": "changes within an hour of item creation"
+            },
+            {
+              "text": "Order-level changes replicated onto every item of the order",
+              "where": "log",
+              "check": "identical change timestamps across the items of one order (replication diagnostic)"
+            },
+            {
+              "text": "Rescheduling runs during the confirmation window",
+              "where": "outside",
+              "check": "ask supply planning for the rescheduling calendar and horizon"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Freeze window for schedule-line changes close to delivery; batch rescheduling outside the confirmation window",
+              "countermeasure": "system_setting",
+              "owner_role": "supply_planning",
+              "effect_area": "change_discipline"
+            },
+            {
+              "text": "Validation of quantities and dates at order entry; templates for recurring orders",
+              "countermeasure": "standard_work",
+              "owner_role": "order_management",
+              "effect_area": "change_discipline"
+            },
+            {
+              "text": "Stable planning parameters per SKU (lead time, lot size) reviewed with the material master",
+              "countermeasure": "master_data",
+              "owner_role": "master_data",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Which change activities dominate per customer and SKU",
+            "Whether the changes are replicated header changes",
+            "Whether dates oscillate (postpone followed by prepone) on the same items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item with five change events: availability date moved twice, the scheduled date postponed and then preponed, and the requested quantity corrected.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item captured, confirmed and delivered with no change event.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.change_churn_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "change_discipline",
+          "template_layer_id": "changes",
+          "hub_node": "layer:change_discipline",
+          "method_name": "Change discipline"
+        },
+        "commercial": {
+          "kind": "layer",
+          "id": "commercial",
+          "plain_name": "Sold as agreed",
+          "plain_name_de": "Wie vereinbart verkauft",
+          "missed_label": "terms or price changed after capture",
+          "missed_label_de": "Konditionen oder Preis nach Erfassung geändert",
+          "expectation": "Delivery terms and prices are what the customer agreement says, so that neither the incoterms nor the price is changed by hand after capture.",
+          "meaning_when_missed": "The delivery terms were changed on the item after it was captured, or the price was overridden manually; either the master data was wrong or the terms were negotiated per order.",
+          "why_it_matters": "Manual prices and per-order terms are where margin leaks and where invoice corrections start; they are commercial-risk indicators to review, not audit findings.",
+          "how_detected": "Exclusion of incoterms changes and a repetition expectation on manual price changes (any). Manual price events are not in the hackathon extract; incoterms changed on 0.8 % of items there.",
+          "usual_reasons": [
+            {
+              "text": "The customer master carries outdated delivery terms, so the desk corrects them on every order",
+              "where": "log",
+              "check": "incoterms changes concentrated on a few customers with the same changed_from and changed_to pair"
+            },
+            {
+              "text": "Terms or discounts negotiated per order instead of per customer",
+              "where": "outside",
+              "check": "ask sales which customers have per-order agreements"
+            },
+            {
+              "text": "Price condition records missing for the customer and material, so the price is typed in",
+              "where": "outside",
+              "check": "ask sales operations which customer and material combinations have no condition record"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Incoterms and prices maintained in the customer master and condition records; a change on the order needs a reason",
+              "countermeasure": "master_data",
+              "owner_role": "master_data",
+              "effect_area": "commercial"
+            },
+            {
+              "text": "Approval workflow for manual discounts and term deviations above a limit",
+              "countermeasure": "policy",
+              "owner_role": "sales",
+              "effect_area": "commercial"
+            },
+            {
+              "text": "Condition maintenance cadence with the price list owner",
+              "countermeasure": "review",
+              "owner_role": "sales",
+              "effect_area": "commercial"
+            }
+          ],
+          "what_to_check_first": [
+            "Customer concentration of the changes and the from-to pairs",
+            "Whether invoice corrections follow on the same items",
+            "Whether the changed value matches the customer master"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item captured with DAP and changed to CPT by hand a day later, as on every order of that customer.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item whose incoterms and price come from the customer master and condition records and are never touched.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_correction_rate"
+          ],
+          "owner_role": "sales",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "commercial",
+          "template_layer_id": "commercial",
+          "hub_node": "layer:commercial",
+          "method_name": "Commercial integrity"
+        },
+        "returns": {
+          "kind": "layer",
+          "id": "returns",
+          "plain_name": "Shipments that stay shipped",
+          "plain_name_de": "Lieferungen, die geliefert bleiben",
+          "missed_label": "goods came back or the issue was reversed",
+          "missed_label_de": "Ware kam zurück oder Warenausgang storniert",
+          "expectation": "A posted goods issue is not reversed, and returns come back through a return order that exists before the goods arrive at the dock.",
+          "meaning_when_missed": "The goods issue was cancelled after posting, or goods came back without an authorised return order, or a return item shows no returned goods at all.",
+          "why_it_matters": "Reversals hide shipping errors and premature postings; unauthorised returns block the dock, delay credit memos and leave the customer without an answer.",
+          "how_detected": "Exclusion of goods-issue reversals on ordinary items; on return items a presence expectation on the returned goods and an order expectation that the return order precedes the return delivery (a missing return order counts as missed). The extract holds 20 return items and 397 reversal movements in the stock-movement table; the join between them was not made, so the return expectations stay vocabulary.",
+          "usual_reasons": [
+            {
+              "text": "The goods issue was posted before the truck left and the shipment was then cancelled",
+              "where": "log",
+              "check": "time between issue and reversal; whether a new goods issue follows on the same item"
+            },
+            {
+              "text": "Wrong delivery or quantity posted and corrected by reversal",
+              "where": "log",
+              "check": "reversals followed by a delivery change and a new issue"
+            },
+            {
+              "text": "Goods sent back by the customer without an authorisation",
+              "where": "log",
+              "check": "return deliveries with no return order or with the return order created after the receipt"
+            },
+            {
+              "text": "The customer refused the delivery at the dock",
+              "where": "outside",
+              "check": "ask customer service which reversals were refusals and why"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Goods issue posted at physical departure, with delivery checks before posting",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "returns_exceptions"
+            },
+            {
+              "text": "Return authorisation before acceptance at the dock; a return portal for customers",
+              "countermeasure": "policy",
+              "owner_role": "customer_service",
+              "effect_area": "returns_exceptions"
+            },
+            {
+              "text": "Join return items with the returns stock movements before reading the return expectations",
+              "countermeasure": "measurement",
+              "owner_role": "finance_controlling",
+              "effect_area": "returns_exceptions"
+            }
+          ],
+          "what_to_check_first": [
+            "Time between issue and reversal and whether a new issue follows",
+            "Plant and customer concentration of reversals",
+            "Whether return orders exist before the return deliveries"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "A goods issue posted on Friday and reversed on Monday because the pallet never left; issued again on Tuesday.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "A return order created after the customer's complaint, goods received against it three days later and put back to own stock.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.reversal_rate",
+            "o2c.kpi.return_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "returns_exceptions",
+          "template_layer_id": "returns",
+          "hub_node": "layer:returns_exceptions",
+          "method_name": "Returns and reversals"
+        },
+        "invoice_payment": {
+          "kind": "layer",
+          "id": "invoice_payment",
+          "plain_name": "Invoiced and paid on time",
+          "plain_name_de": "Pünktlich fakturiert und bezahlt",
+          "missed_label": "invoice or payment missing or late",
+          "missed_label_de": "Rechnung oder Zahlung fehlt oder verspätet",
+          "expectation": "Every shipped item is invoiced within two days of the goods issue without corrections, and every invoiced item is paid within terms without a reminder.",
+          "meaning_when_missed": "The shipped item has no invoice or a late one, the invoice was cancelled or corrected, the invoiced item is unpaid, paid after the due date or dunned.",
+          "why_it_matters": "Working capital sits in unbilled shipments and overdue receivables; corrections and reminders cost accounts receivable and the customer relationship.",
+          "how_detected": "Presence of the invoice on shipped items and of the payment on invoiced items, time expectations goods issue to invoice (2 days, tolerance to 5) and invoice to payment (30 days, tolerance to 60; open receivables scored by their age), exclusion of invoice corrections outside returns and of dunning. Billing and payment are not in the hackathon extract, so the whole area is vocabulary until a log covers it.",
+          "usual_reasons": [
+            {
+              "text": "Billing block on the item or the billing due list not processed daily",
+              "where": "log",
+              "check": "goods issue to invoice lag by billing block and by day of month"
+            },
+            {
+              "text": "Order-related billing configured although a delivery exists",
+              "where": "outside",
+              "check": "ask accounts receivable which item categories bill from the order rather than the delivery"
+            },
+            {
+              "text": "Disputes on invoice content (price, quantity) delay the payment",
+              "where": "log",
+              "check": "invoice corrections and manual price changes on the late-paid items"
+            },
+            {
+              "text": "Customer payment behaviour and lenient dunning levels",
+              "where": "log",
+              "check": "invoice to payment days per customer against the customer's payment terms; dunning level history"
+            },
+            {
+              "text": "Invoice sent to the wrong address or channel",
+              "where": "outside",
+              "check": "ask accounts receivable which customers require e-invoicing or a portal"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Daily billing due list run and billing block review",
+              "countermeasure": "standard_work",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            },
+            {
+              "text": "Dunning cadence and levels per customer group; dispute management with a clock",
+              "countermeasure": "policy",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            },
+            {
+              "text": "E-invoicing for the largest customers",
+              "countermeasure": "automation",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            },
+            {
+              "text": "Payment terms per customer as a case attribute, so that days beyond terms are scored instead of a fixed target",
+              "countermeasure": "measurement",
+              "owner_role": "finance_controlling",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether billing and payment events are in the log at all",
+            "Payment terms of the customers with the longest invoice-to-payment medians",
+            "Whether corrections precede the late payments"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item shipped in March, invoiced in April after a billing block, the invoice corrected in May and paid in July after a reminder.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item shipped on Tuesday, invoiced on Wednesday and paid on the twenty-eighth day.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_lead_time",
+            "o2c.kpi.invoice_correction_rate",
+            "o2c.kpi.dso_proxy",
+            "o2c.kpi.dunning_rate"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "pack_layer_id": "invoice_payment",
+          "template_layer_id": "invoice_payment",
+          "hub_node": "layer:invoice_payment",
+          "method_name": "Invoice and payment"
+        }
+      },
+      "constraints": {
+        "o_capture_no_credit_block": {
+          "kind": "constraint",
+          "id": "o_capture_no_credit_block",
+          "plain_name": "No credit block on the order",
+          "plain_name_de": "Keine Kreditsperre auf dem Auftrag",
+          "missed_label": "credit block set",
+          "missed_label_de": "Kreditsperre gesetzt",
+          "expectation": "The order item is not blocked by the credit check.",
+          "meaning_when_missed": "The credit check stopped the item at capture; nothing moves on it until credit management releases it.",
+          "why_it_matters": "A blocked item waits for a decision while the confirmed date runs; the customer may hear about it only when the delivery is missed.",
+          "how_detected": "An exclusion expectation on the credit-block event; any block counts as missed. Not evidenced in the hackathon extract.",
+          "usual_reasons": [
+            {
+              "text": "Credit limit exhausted by open receivables or overdue items",
+              "where": "log",
+              "check": "customers with blocks against their open receivables where the receivables log is joined"
+            },
+            {
+              "text": "Credit master data outdated",
+              "where": "outside",
+              "check": "ask credit management which blocked customers had no overdue item"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Credit limit review cadence with temporary increases for reliable customers",
+              "countermeasure": "review",
+              "owner_role": "credit_management",
+              "effect_area": "capture_completeness"
+            },
+            {
+              "text": "Dunning before the limit is reached",
+              "countermeasure": "standard_work",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether credit events are logged for this sales organisation",
+            "Customers with the most blocks and their receivables at the time"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item blocked at capture because the customer's limit was exceeded by an unpaid invoice.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item captured without a credit block.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.credit_block_rate"
+          ],
+          "owner_role": "credit_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_capture_no_credit_block",
+          "constraint_id": "o_capture_no_credit_block",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_capture_no_credit_block",
+          "method_name": "Credit blocks should be exceptional."
+        },
+        "o_capture_credit_release_days": {
+          "kind": "constraint",
+          "id": "o_capture_credit_release_days",
+          "plain_name": "Credit block released within a day",
+          "plain_name_de": "Kreditsperre innerhalb eines Tages aufgehoben",
+          "missed_label": "credit block held too long",
+          "missed_label_de": "Kreditsperre zu lange gehalten",
+          "expectation": "A credit block is released within one day, with a tolerance of three.",
+          "meaning_when_missed": "The block stayed on the item longer than a day; blocks still open at the end of the data are scored by their age.",
+          "why_it_matters": "Every day under a block is a day lost against the confirmed date.",
+          "how_detected": "A time expectation from the block to its release with a target of one day and a tolerance to three (placeholder, uncalibrated); open blocks are censored and scored by their age. Not evidenced in the hackathon extract.",
+          "usual_reasons": [
+            {
+              "text": "Credit decisions taken in a weekly meeting rather than daily",
+              "where": "log",
+              "check": "release events clustered on one weekday"
+            },
+            {
+              "text": "The customer needs to pay first",
+              "where": "outside",
+              "check": "ask credit management which releases waited for a payment"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Daily review of blocked orders with a named decider",
+              "countermeasure": "standard_work",
+              "owner_role": "credit_management",
+              "effect_area": "capture_completeness"
+            }
+          ],
+          "what_to_check_first": [
+            "Median block duration and the weekday pattern of releases",
+            "Which blocks are still open at the end of the data"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item blocked on Monday and released the next Monday after the credit meeting.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item blocked in the morning and released the same afternoon.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.credit_block_rate"
+          ],
+          "owner_role": "credit_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_capture_credit_release_days",
+          "constraint_id": "o_capture_credit_release_days",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_capture_credit_release_days",
+          "method_name": "Credit blocks should be released within a target time; open blocks are scored by their age."
+        },
+        "o_commit_no_postponement": {
+          "kind": "constraint",
+          "id": "o_commit_no_postponement",
+          "plain_name": "Delivery date not postponed",
+          "plain_name_de": "Liefertermin nicht verschoben",
+          "missed_label": "delivery date postponed",
+          "missed_label_de": "Liefertermin verschoben",
+          "expectation": "The scheduled delivery date is not moved to a later date after the item was created.",
+          "meaning_when_missed": "The customer was told a later date than the one first scheduled.",
+          "why_it_matters": "The postponement is the change the customer notices first; in the extract cancellations follow postponements on the same items.",
+          "how_detected": "An exclusion expectation on the postponement event; return items and items rejected at capture are out of scope. In the extract 3.2 % of items were postponed.",
+          "usual_reasons": [
+            {
+              "text": "Material availability changed after the availability check",
+              "where": "log",
+              "check": "availability-date change on the same item before the postponement"
+            },
+            {
+              "text": "Supplier delay on the purchase side of the SKU",
+              "where": "log",
+              "check": "purchase confirmation changes for the SKU and plant in the same period"
+            },
+            {
+              "text": "Capacity shortfall in production or the warehouse",
+              "where": "outside",
+              "check": "ask supply planning and the plant for the capacity situation in the affected weeks"
+            },
+            {
+              "text": "The customer asked for a later date (legitimate)",
+              "where": "log",
+              "check": "changed_from and changed_to values; whether a requested-quantity or date change by the customer precedes it"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Confirm from stock or firm supplier confirmations only; date tolerance in the availability check",
+              "countermeasure": "system_setting",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Expedite purchase orders of SKUs with repeated postponements; safety stock review per planning type",
+              "countermeasure": "review",
+              "owner_role": "supply_planning",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Record the reason for the date move, so that customer-requested moves can be excluded",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Availability-date changes on the same items",
+            "SKU and plant concentration; purchase-side delays for the same SKUs",
+            "Whether the move was requested by the customer"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item scheduled for 3 February, postponed to 17 February after the availability date changed.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item scheduled at capture and delivered on that date.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.postponement_rate",
+            "o2c.kpi.on_time_delivery_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_no_postponement",
+          "constraint_id": "o_commit_no_postponement",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_no_postponement",
+          "method_name": "The committed delivery date should not be postponed."
+        },
+        "o_commit_no_confirmation_removed": {
+          "kind": "constraint",
+          "id": "o_commit_no_confirmation_removed",
+          "plain_name": "Confirmed quantity not withdrawn",
+          "plain_name_de": "Bestätigte Menge nicht zurückgenommen",
+          "missed_label": "confirmation withdrawn",
+          "missed_label_de": "Bestätigung zurückgenommen",
+          "expectation": "A confirmed quantity is not removed from the schedule line afterwards.",
+          "meaning_when_missed": "The quantity the customer was promised was taken away again.",
+          "why_it_matters": "A withdrawn confirmation is worse than a late one: the customer's plan was based on it.",
+          "how_detected": "An exclusion expectation on the confirmation-removal event; return items and items rejected at capture are out of scope. In the extract 1.5 % of items had a confirmation removed.",
+          "usual_reasons": [
+            {
+              "text": "Backorder processing reallocated the stock to another order",
+              "where": "log",
+              "check": "removals clustered on rescheduling run dates; a new confirmation following the removal"
+            },
+            {
+              "text": "The supplier confirmation was withdrawn on the purchase side",
+              "where": "log",
+              "check": "purchase-side confirmation changes for the SKU in the same period"
+            },
+            {
+              "text": "The item was blocked or rejected after confirmation",
+              "where": "log",
+              "check": "block or rejection events on the same item after the removal"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Allocation rules that protect confirmed quantities; rescheduling only with sales approval",
+              "countermeasure": "policy",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Supplier confirmation stability agreed with purchasing",
+              "countermeasure": "contract",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Rescheduling runs in the same period",
+            "Whether and how much later a new confirmation follows"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item confirmed for ten pieces; the confirmation removed by the rescheduling run and re-confirmed a week later.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item confirmed once and delivered as confirmed.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.confirmation_withdrawal_rate"
+          ],
+          "owner_role": "supply_planning",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_no_confirmation_removed",
+          "constraint_id": "o_commit_no_confirmation_removed",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_no_confirmation_removed",
+          "method_name": "A confirmed quantity should not be withdrawn."
+        },
+        "o_commit_no_rejection_after_confirmation": {
+          "kind": "constraint",
+          "id": "o_commit_no_rejection_after_confirmation",
+          "plain_name": "Not cancelled after confirmation",
+          "plain_name_de": "Nach Zusage nicht storniert",
+          "missed_label": "cancelled after confirmation",
+          "missed_label_de": "nach Zusage storniert",
+          "expectation": "An item with a confirmed quantity is not rejected afterwards.",
+          "meaning_when_missed": "A rejection reason was set on an item the customer had already been given a confirmation for.",
+          "why_it_matters": "A cancellation after confirmation means planned stock, a delivery slot and often a postponement before it; the reason code says whether it was the customer or a handling error.",
+          "how_detected": "An exclusion expectation on the rejection event, applicable to items with a confirmed quantity above zero that are not return items. In the extract 2.8 % of items were cancelled according to the customer (reason 80) and 3.1 % had any rejection reason.",
+          "usual_reasons": [
+            {
+              "text": "A late confirmation or a postponed date made the customer cancel",
+              "where": "log",
+              "check": "postponements or confirmation removals preceding the rejection on the same item; time from creation to rejection"
+            },
+            {
+              "text": "Price or lead-time change after ordering",
+              "where": "outside",
+              "check": "ask sales which cancellations followed a price or lead-time discussion"
+            },
+            {
+              "text": "Duplicate orders cleaned up by cancellation (reason 82) or handling errors corrected by re-entry (reason 99)",
+              "where": "log",
+              "check": "reason code distribution per customer and period"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Confirm within a target time and give proactive notice on postponements",
+              "countermeasure": "standard_work",
+              "owner_role": "order_management",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Duplicate-order check at capture; separate handling errors from customer cancellations by reason code",
+              "countermeasure": "system_setting",
+              "owner_role": "order_management",
+              "effect_area": "change_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Reason code distribution (80, 82, 86, 99) per customer",
+            "Postponements preceding the cancellation"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item confirmed, postponed twice and then rejected with reason 80, cancelled according to the customer.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item confirmed and delivered; no rejection reason.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.cancellation_rate"
+          ],
+          "owner_role": "sales",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_no_rejection_after_confirmation",
+          "constraint_id": "o_commit_no_rejection_after_confirmation",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_no_rejection_after_confirmation",
+          "method_name": "Confirmed items should not be cancelled afterwards."
+        },
+        "o_commit_no_delivery_block": {
+          "kind": "constraint",
+          "id": "o_commit_no_delivery_block",
+          "plain_name": "No delivery block",
+          "plain_name_de": "Keine Liefersperre",
+          "missed_label": "delivery block set",
+          "missed_label_de": "Liefersperre gesetzt",
+          "expectation": "No delivery block is set or changed on the item.",
+          "meaning_when_missed": "Someone stopped the delivery of the item with a block.",
+          "why_it_matters": "A block interrupts the confirmed flow; without a reason code nobody knows whether it was credit, compliance, the customer or missing data.",
+          "how_detected": "An exclusion expectation on the delivery-block events on items that are not return items. In the extract 0.1 % of items had a delivery-block change.",
+          "usual_reasons": [
+            {
+              "text": "Credit or compliance hold placed on the order",
+              "where": "outside",
+              "check": "ask customer service and credit management which block reasons are used"
+            },
+            {
+              "text": "The customer asked to hold the delivery",
+              "where": "outside",
+              "check": "ask customer service; the block precedes a customer-requested date change"
+            },
+            {
+              "text": "Incomplete order data (texts, export documents)",
+              "where": "log",
+              "check": "time from block to release and whether a change event sits in between"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Reason code per block and a time-boxed review of blocked items with the owner",
+              "countermeasure": "standard_work",
+              "owner_role": "customer_service",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Time from block to release",
+            "Whether the block precedes a cancellation"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item blocked for missing export documents and released two days later.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item that flows from confirmation to delivery without a block.",
+              "trace": null
+            }
+          ],
+          "kpis": [],
+          "owner_role": "customer_service",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_no_delivery_block",
+          "constraint_id": "o_commit_no_delivery_block",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_no_delivery_block",
+          "method_name": "Delivery blocks should be exceptional."
+        },
+        "o_commit_no_stockout": {
+          "kind": "constraint",
+          "id": "o_commit_no_stockout",
+          "plain_name": "No stock-out after commitment",
+          "plain_name_de": "Kein Fehlbestand nach Zusage",
+          "missed_label": "out of stock after confirmation",
+          "missed_label_de": "nach Zusage nicht verfügbar",
+          "expectation": "A committed item does not run out of stock.",
+          "meaning_when_missed": "The item was confirmed and then could not be served from stock.",
+          "why_it_matters": "A stock-out after confirmation turns into a postponement, a split or a cancellation.",
+          "how_detected": "An exclusion expectation on the out-of-stock event on items that are not return items. Not evidenced in the hackathon extract, which has no stock-out events.",
+          "usual_reasons": [
+            {
+              "text": "Safety stock too low for the demand pattern",
+              "where": "log",
+              "check": "stock movements and purchase confirmations for the SKU in the period"
+            },
+            {
+              "text": "Allocation to other orders in backorder processing",
+              "where": "log",
+              "check": "confirmation removals on the same SKU in the same run"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Safety stock and reorder point review per SKU; supplier lead-time agreements",
+              "countermeasure": "review",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether stock-out events are logged",
+            "SKU concentration and the purchase side of the same SKUs"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item confirmed from planned receipts; the receipt slipped and the item ran out of stock.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item confirmed from stock on hand and picked the next day.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.fill_rate"
+          ],
+          "owner_role": "supply_planning",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_no_stockout",
+          "constraint_id": "o_commit_no_stockout",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_no_stockout",
+          "method_name": "Committed items should not run out of stock."
+        },
+        "o_commit_confirmed_equals_ordered": {
+          "kind": "constraint",
+          "id": "o_commit_confirmed_equals_ordered",
+          "plain_name": "Confirmed what was ordered",
+          "plain_name_de": "Bestätigt, was bestellt wurde",
+          "missed_label": "confirmed less than ordered",
+          "missed_label_de": "weniger bestätigt als bestellt",
+          "expectation": "The confirmed quantity equals the ordered quantity at item creation.",
+          "meaning_when_missed": "The customer got a confirmation for less than the order.",
+          "why_it_matters": "A short confirmation is a fill-rate miss before anything ships.",
+          "how_detected": "A balance expectation comparing the order quantity with the confirmed quantity at item creation (tolerance placeholder, uncalibrated); return items and items rejected at capture are out of scope. On the hackathon extract confirmed equals ordered for every item, so the expectation is always met there.",
+          "usual_reasons": [
+            {
+              "text": "Availability check confirms only the available part",
+              "where": "log",
+              "check": "confirmed quantity below order quantity per SKU where the values differ"
+            },
+            {
+              "text": "The extract copies the order quantity into the confirmed quantity",
+              "where": "outside",
+              "check": "ask the data owner whether the confirmed quantity is the schedule-line value or the order quantity"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Treat the expectation as a placeholder until a log carries real confirmed quantities",
+              "countermeasure": "measurement",
+              "owner_role": "finance_controlling",
+              "effect_area": "commitment_discipline"
+            },
+            {
+              "text": "Safety stock and lead-time review for the SKUs with short confirmations",
+              "countermeasure": "review",
+              "owner_role": "supply_planning",
+              "effect_area": "commitment_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether the confirmed quantity ever differs from the order quantity in the log"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item ordered with twelve pieces and confirmed with eight.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item ordered and confirmed with the same quantity.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.fill_rate"
+          ],
+          "owner_role": "supply_planning",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commit_confirmed_equals_ordered",
+          "constraint_id": "o_commit_confirmed_equals_ordered",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commit_confirmed_equals_ordered",
+          "method_name": "The confirmed quantity should equal the ordered quantity."
+        },
+        "o_deliv_delivery_present": {
+          "kind": "constraint",
+          "id": "o_deliv_delivery_present",
+          "plain_name": "A delivery exists",
+          "plain_name_de": "Eine Lieferung existiert",
+          "missed_label": "no delivery created",
+          "missed_label_de": "keine Lieferung angelegt",
+          "expectation": "Every deliverable item gets a delivery item.",
+          "meaning_when_missed": "The item was captured but no delivery was ever created for it.",
+          "why_it_matters": "An item without a delivery is either open, dead or served through another item; each needs a different answer.",
+          "how_detected": "A presence expectation on the delivery event; return items and items rejected at capture are out of scope. In the extract 4.7 % of items had no delivery item.",
+          "usual_reasons": [
+            {
+              "text": "The item was still open at the end of the data",
+              "where": "log",
+              "check": "age of the items without delivery at the end of the window"
+            },
+            {
+              "text": "The item was cancelled or rejected after capture",
+              "where": "log",
+              "check": "rejection reason and return flag on the item"
+            },
+            {
+              "text": "The delivery was created on another item of the order (consolidation)",
+              "where": "log",
+              "check": "delivery documents for the same order on other items"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Validation gate on censoring and rejection before reading the shortfall",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Open-order review with sales; automatic rejection of dead items after an agreed age",
+              "countermeasure": "review",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Share of the missing deliveries that are censored or rejected",
+            "Whether sibling items of the order have deliveries"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item created in October with no delivery by the end of January and no rejection reason.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item with a delivery item created the day after capture.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.open_item_share"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_delivery_present",
+          "constraint_id": "o_deliv_delivery_present",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_delivery_present",
+          "method_name": "Deliverable items should get a delivery."
+        },
+        "o_deliv_goods_issue_present": {
+          "kind": "constraint",
+          "id": "o_deliv_goods_issue_present",
+          "plain_name": "The goods left",
+          "plain_name_de": "Die Ware ist raus",
+          "missed_label": "no goods issue",
+          "missed_label_de": "kein Warenausgang",
+          "expectation": "Every deliverable item is shipped, that is, has a goods issue.",
+          "meaning_when_missed": "The item has no goods issue; it is open, cancelled or stuck after delivery creation.",
+          "why_it_matters": "Nothing is invoiced and nothing reaches the customer until the goods issue is posted.",
+          "how_detected": "A presence expectation on the goods-issue event; return items and items rejected at capture are out of scope. In the extract 4.8 % of items had no goods issue at the end of the data.",
+          "usual_reasons": [
+            {
+              "text": "The item was still open at the end of the data",
+              "where": "log",
+              "check": "age of the items without goods issue at the end of the window"
+            },
+            {
+              "text": "The item was cancelled or rejected",
+              "where": "log",
+              "check": "rejection reason on the item"
+            },
+            {
+              "text": "The delivery exists but is blocked or waiting for picking",
+              "where": "log",
+              "check": "delivery created without pick or issue; time since delivery creation"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Validation gate on censoring and rejection before reading the shortfall",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Backlog visibility of deliveries without goods issue for the warehouse",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Share of the missing issues that are censored or rejected",
+            "Deliveries created but never issued"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item with a delivery created in December and no goods issue by the end of January.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item delivered, picked and issued within three days.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.open_item_share"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_goods_issue_present",
+          "constraint_id": "o_deliv_goods_issue_present",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_goods_issue_present",
+          "method_name": "Deliverable items should be shipped."
+        },
+        "o_deliv_order_to_issue_days": {
+          "kind": "constraint",
+          "id": "o_deliv_order_to_issue_days",
+          "plain_name": "Shipped within the target time",
+          "plain_name_de": "Innerhalb der Zielzeit versandt",
+          "missed_label": "order to shipment took too long",
+          "missed_label_de": "zu lange von Auftrag bis Versand",
+          "expectation": "The goods issue follows the item creation within fourteen days, with a tolerance to thirty; open items are scored by their age.",
+          "meaning_when_missed": "The item took longer than the target from capture to shipment, or is still open and already older than the target.",
+          "why_it_matters": "The long tail of order-to-issue time is where backorders, blocked items and forgotten items hide; in the extract the median is 1.9 days but the p90 is 67 days.",
+          "how_detected": "A time expectation from item creation to the first goods issue with a target of 14 days and a tolerance to 30 (placeholders, uncalibrated); items without goods issue are censored and scored by their age at the end of the data; return items and items rejected at capture are out of scope.",
+          "usual_reasons": [
+            {
+              "text": "Make-to-order items with long production lead times",
+              "where": "outside",
+              "check": "ask master data for the planning type and lead time of the long-tail SKUs"
+            },
+            {
+              "text": "Backorders waiting for replenishment",
+              "where": "log",
+              "check": "confirmation removals and availability-date changes on the same items"
+            },
+            {
+              "text": "Blocked items (delivery or credit block)",
+              "where": "log",
+              "check": "block events on the long-tail items"
+            },
+            {
+              "text": "Forgotten items on partially delivered orders",
+              "where": "log",
+              "check": "sibling items of the order shipped long before"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Separate make-to-order planning types with their own threshold",
+              "countermeasure": "measurement",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Open-item review per customer with an age limit; backorder visibility for sales",
+              "countermeasure": "review",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Planning type and lead time of the long-tail SKUs",
+            "Open-item age at the end of the data",
+            "Blocks and confirmation removals on the same items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item created in March and issued in June after two postponements; 95 days.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item created on Monday and issued on Wednesday.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.order_to_issue_days"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_order_to_issue_days",
+          "constraint_id": "o_deliv_order_to_issue_days",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_order_to_issue_days",
+          "method_name": "Items should ship within a target time; open items are scored by their age."
+        },
+        "o_deliv_days_late": {
+          "kind": "constraint",
+          "id": "o_deliv_days_late",
+          "plain_name": "Not later than the customer asked",
+          "plain_name_de": "Nicht später als vom Kunden gewünscht",
+          "missed_label": "shipped after the requested date",
+          "missed_label_de": "nach dem Wunschtermin versandt",
+          "expectation": "The goods issue is not later than the requested delivery date.",
+          "meaning_when_missed": "The goods left after the date the customer asked for; the more days, the worse.",
+          "why_it_matters": "This is delivery reliability as the customer sees it; it is the number sales is asked about.",
+          "how_detected": "A metric expectation on the prepared days-late attribute (goods issue date minus requested date) with a target of 0 and a tolerance of 7 days (placeholders, uncalibrated); items without goods issue have no value and are skipped; return items and items rejected at capture are out of scope. In the extract 3.2 % of shipped items were late.",
+          "usual_reasons": [
+            {
+              "text": "Late availability of the material",
+              "where": "log",
+              "check": "availability-date changes and postponements preceding the issue on the same item"
+            },
+            {
+              "text": "Picking backlog in the warehouse",
+              "where": "log",
+              "check": "pick-to-issue lag on the late items"
+            },
+            {
+              "text": "Carrier scheduling and cut-off times",
+              "where": "outside",
+              "check": "ask logistics for the carrier calendar per incoterm and plant"
+            },
+            {
+              "text": "The requested date was never feasible for the planning type",
+              "where": "log",
+              "check": "requested date minus creation date against the typical order-to-issue time of the SKU"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Confirm dates against capacity; wave planning and carrier cut-offs aligned with requested dates",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            },
+            {
+              "text": "Escalate items whose requested date is within the pick-to-issue lead time",
+              "countermeasure": "standard_work",
+              "owner_role": "order_management",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Pick-to-issue lag on the same items",
+            "Postponements before the issue",
+            "Incoterms and plant"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "Requested for 9 January, issued on 16 January: seven days late.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "Requested for 9 January, issued on 8 January.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.on_time_delivery_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_days_late",
+          "constraint_id": "o_deliv_days_late",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_days_late",
+          "method_name": "Goods issue should not be later than the requested delivery date."
+        },
+        "o_deliv_pick_to_issue_days": {
+          "kind": "constraint",
+          "id": "o_deliv_pick_to_issue_days",
+          "plain_name": "Picked goods leave promptly",
+          "plain_name_de": "Kommissionierte Ware geht zügig raus",
+          "missed_label": "waited after picking",
+          "missed_label_de": "nach Kommissionierung gewartet",
+          "expectation": "The goods issue follows the picking within one day, with a tolerance to three.",
+          "meaning_when_missed": "Picked goods waited on the floor before they left.",
+          "why_it_matters": "Goods waiting after picking block space, age and miss the carrier.",
+          "how_detected": "A time expectation from picking to the goods issue with a target of one day and a tolerance to three (placeholders, uncalibrated); picked items without issue are censored and scored by their age. The activities are in the extract; the lag distribution was not measured for the catalogue.",
+          "usual_reasons": [
+            {
+              "text": "Carrier pickup schedule; consolidation waits for the full order",
+              "where": "log",
+              "check": "pick-to-issue lag by incoterm, weekday and plant"
+            },
+            {
+              "text": "Packing capacity or missing export documents",
+              "where": "log",
+              "check": "whether packing is logged (0.2 % of items in the extract) and where the wait sits"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Carrier cut-offs per incoterm; ship-complete rules reviewed per customer",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Incoterms and carrier of the waiting items",
+            "Whether the wait is a weekend or a consolidation"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "Picked on Tuesday, issued the following Monday.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "Picked in the morning, issued in the afternoon.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.on_time_delivery_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_pick_to_issue_days",
+          "constraint_id": "o_deliv_pick_to_issue_days",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_pick_to_issue_days",
+          "method_name": "Picked goods should leave within a target time."
+        },
+        "o_deliv_no_split": {
+          "kind": "constraint",
+          "id": "o_deliv_no_split",
+          "plain_name": "One delivery per item",
+          "plain_name_de": "Eine Lieferung pro Position",
+          "missed_label": "split over several deliveries",
+          "missed_label_de": "auf mehrere Lieferungen geteilt",
+          "expectation": "A standard or make-to-order item is served by one delivery.",
+          "meaning_when_missed": "The item was split over two or more deliveries although partial deliveries were not agreed.",
+          "why_it_matters": "Every extra delivery is extra freight, extra handling and a customer receiving twice.",
+          "how_detected": "A repetition expectation on the delivery event (more than one counts) applicable to the standard and make-to-order flow types only; items allowed to deliver partially are out of scope. Not evidenced in the extract's catalogue entry.",
+          "usual_reasons": [
+            {
+              "text": "Partial availability shipped early to meet the requested date",
+              "where": "log",
+              "check": "delivery quantities per delivery against the confirmed quantity"
+            },
+            {
+              "text": "Multi-warehouse allocation",
+              "where": "log",
+              "check": "plant per delivery of the same item"
+            },
+            {
+              "text": "The customer allows partial deliveries (legitimate; exclude by flow type)",
+              "where": "outside",
+              "check": "ask sales for the partial-delivery indicator per customer"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Ship-complete indicator per customer; consolidation rules",
+              "countermeasure": "master_data",
+              "owner_role": "logistics",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Partial-delivery indicator on the customer and the item",
+            "Delivery quantities per delivery"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item of twenty pieces shipped as twelve on Monday and eight on Thursday to a ship-complete customer.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item shipped in one delivery.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.perfect_order_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_no_split",
+          "constraint_id": "o_deliv_no_split",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_no_split",
+          "method_name": "Items should not be split across deliveries unless partial deliveries are allowed."
+        },
+        "o_deliv_no_failed_delivery": {
+          "kind": "constraint",
+          "id": "o_deliv_no_failed_delivery",
+          "plain_name": "Delivered at the first attempt",
+          "plain_name_de": "Beim ersten Versuch zugestellt",
+          "missed_label": "delivery attempt failed",
+          "missed_label_de": "Zustellversuch fehlgeschlagen",
+          "expectation": "No delivery attempt fails.",
+          "meaning_when_missed": "The carrier could not deliver and the goods came back or waited for a second attempt.",
+          "why_it_matters": "A failed attempt doubles the transport cost and delays the customer by days.",
+          "how_detected": "An exclusion expectation on the failed-delivery event. Not evidenced in the hackathon extract.",
+          "usual_reasons": [
+            {
+              "text": "Wrong or incomplete address; customer absent",
+              "where": "outside",
+              "check": "ask customer service which failed attempts were address errors"
+            },
+            {
+              "text": "Carrier exception",
+              "where": "log",
+              "check": "carrier and region concentration; whether a second attempt succeeds"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Address validation at capture; delivery notifications to the customer",
+              "countermeasure": "system_setting",
+              "owner_role": "customer_service",
+              "effect_area": "delivery_performance"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether failed attempts are logged at all",
+            "Carrier and region concentration"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "A delivery returned by the carrier because the address lacked the building number; delivered at the second attempt.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "A delivery accepted at the first attempt.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.perfect_order_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_deliv_no_failed_delivery",
+          "constraint_id": "o_deliv_no_failed_delivery",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_deliv_no_failed_delivery",
+          "method_name": "Delivery attempts should not fail."
+        },
+        "o_change_churn": {
+          "kind": "constraint",
+          "id": "o_change_churn",
+          "plain_name": "Few changes on the item",
+          "plain_name_de": "Wenige Änderungen an der Position",
+          "missed_label": "too many change events",
+          "missed_label_de": "zu viele Änderungsereignisse",
+          "expectation": "An item carries at most one change event after capture, with a tolerance to three.",
+          "meaning_when_missed": "The item was changed repeatedly: dates, quantities, terms or blocks.",
+          "why_it_matters": "Every change is work and a new message to the customer; repeated changes are the visible side of unstable planning or poor capture. In the extract 13.7 % of items carry changes, 2.3 each on average.",
+          "how_detected": "A metric expectation on the prepared count of change events over the nine change activities, with a target of 1 and a tolerance to 3 (placeholders, uncalibrated); return items and items rejected at capture are out of scope.",
+          "usual_reasons": [
+            {
+              "text": "Date oscillation from repeated availability checks",
+              "where": "log",
+              "check": "sequence of availability-date, postpone and prepone events per item"
+            },
+            {
+              "text": "The customer changes quantity or date after capture",
+              "where": "log",
+              "check": "requested-quantity changes and changed_from and changed_to values per customer"
+            },
+            {
+              "text": "Manual corrections of capture errors",
+              "where": "log",
+              "check": "changes within an hour of creation"
+            },
+            {
+              "text": "Header changes replicated onto every item",
+              "where": "log",
+              "check": "identical change timestamps across the items of one order"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Freeze window for schedule-line changes close to delivery; batch rescheduling",
+              "countermeasure": "system_setting",
+              "owner_role": "supply_planning",
+              "effect_area": "change_discipline"
+            },
+            {
+              "text": "Validation of quantities and dates at order entry",
+              "countermeasure": "standard_work",
+              "owner_role": "order_management",
+              "effect_area": "change_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Which change activities dominate per customer and SKU",
+            "Whether the changes are replicated header changes"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item with five change events between capture and delivery.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item with no change after capture.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.change_churn_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_change_churn",
+          "constraint_id": "o_change_churn",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_change_churn",
+          "method_name": "Items should not carry more than the tolerated number of change events."
+        },
+        "o_change_avail_date": {
+          "kind": "constraint",
+          "id": "o_change_avail_date",
+          "plain_name": "Availability date settled once",
+          "plain_name_de": "Bereitstellungsdatum einmal festgelegt",
+          "missed_label": "availability date changed repeatedly",
+          "missed_label_de": "Bereitstellungsdatum mehrfach geändert",
+          "expectation": "The material availability date is changed at most once.",
+          "meaning_when_missed": "Planning moved the availability date again and again.",
+          "why_it_matters": "Repeated availability moves are planning churn that turns into postponements; in the extract 9.9 % of items had an availability-date change.",
+          "how_detected": "A repetition expectation on the availability-date change event; more than one counts as missed (placeholder, uncalibrated).",
+          "usual_reasons": [
+            {
+              "text": "Rescheduling after supply changes; availability check rerun",
+              "where": "log",
+              "check": "co-occurrence with postponements; SKU and plant concentration"
+            },
+            {
+              "text": "The customer changed the requested date",
+              "where": "log",
+              "check": "requested-date changes preceding the availability move"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Stable planning parameters per SKU; fewer rescheduling runs during the confirmation window",
+              "countermeasure": "system_setting",
+              "owner_role": "supply_planning",
+              "effect_area": "change_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Co-occurrence with postponements",
+            "SKU and plant concentration"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item whose availability date moved three times in two weeks.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item whose availability date was set at the availability check and never moved.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.change_churn_rate"
+          ],
+          "owner_role": "supply_planning",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_change_avail_date",
+          "constraint_id": "o_change_avail_date",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_change_avail_date",
+          "method_name": "Repeated availability date changes indicate planning churn."
+        },
+        "o_change_prepone": {
+          "kind": "constraint",
+          "id": "o_change_prepone",
+          "plain_name": "Date not moved forward repeatedly",
+          "plain_name_de": "Termin nicht mehrfach vorgezogen",
+          "missed_label": "date moved forward repeatedly",
+          "missed_label_de": "Termin mehrfach vorgezogen",
+          "expectation": "The scheduled delivery date is moved forward at most once.",
+          "meaning_when_missed": "The date was preponed again and again; earlier delivery is not a shortfall for the customer, repeated moves are churn.",
+          "why_it_matters": "Oscillating dates, whichever direction, cost planning effort and trust; in the extract 7.8 % of items were preponed.",
+          "how_detected": "A repetition expectation on the prepone event; more than one counts (placeholder, uncalibrated, weighted low).",
+          "usual_reasons": [
+            {
+              "text": "Conservative first confirmation later improved by stock arrival",
+              "where": "log",
+              "check": "prepone following a postponement on the same item (oscillation)"
+            },
+            {
+              "text": "The customer asked for an earlier date",
+              "where": "log",
+              "check": "changed_from and changed_to values and requested-date changes"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Confirm realistic dates first; review the lead-time buffers of the availability check",
+              "countermeasure": "system_setting",
+              "owner_role": "order_management",
+              "effect_area": "change_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether a postponement precedes the prepone"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item postponed, then preponed twice as stock arrived earlier than planned.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item confirmed once for a realistic date.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.change_churn_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_change_prepone",
+          "constraint_id": "o_change_prepone",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_change_prepone",
+          "method_name": "Repeated date moves in either direction indicate unstable commitments."
+        },
+        "o_change_requested_quantity": {
+          "kind": "constraint",
+          "id": "o_change_requested_quantity",
+          "plain_name": "Requested quantity stays",
+          "plain_name_de": "Wunschmenge bleibt",
+          "missed_label": "requested quantity changed",
+          "missed_label_de": "Wunschmenge geändert",
+          "expectation": "The requested quantity is not changed after capture.",
+          "meaning_when_missed": "The customer's quantity was changed on the schedule line after the item existed.",
+          "why_it_matters": "A quantity change re-runs the availability check and may move the date; it also hides capture errors.",
+          "how_detected": "A repetition expectation on the requested-quantity change event; any change counts (placeholder, uncalibrated). The extract has 150 such events.",
+          "usual_reasons": [
+            {
+              "text": "The customer changed the order",
+              "where": "log",
+              "check": "changed_from and changed_to values per customer"
+            },
+            {
+              "text": "Capture error corrected",
+              "where": "log",
+              "check": "changes within an hour of creation"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Validation of quantities at order entry; order templates for recurring customers",
+              "countermeasure": "standard_work",
+              "owner_role": "order_management",
+              "effect_area": "change_discipline"
+            }
+          ],
+          "what_to_check_first": [
+            "Time from creation to the change",
+            "Customer concentration"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item captured with 30 pieces and corrected to 3 an hour later.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item whose quantity never changed.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.change_churn_rate"
+          ],
+          "owner_role": "order_management",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_change_requested_quantity",
+          "constraint_id": "o_change_requested_quantity",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_change_requested_quantity",
+          "method_name": "Requested quantity changes after capture should be rare."
+        },
+        "o_commercial_no_incoterms_change": {
+          "kind": "constraint",
+          "id": "o_commercial_no_incoterms_change",
+          "plain_name": "Delivery terms as agreed",
+          "plain_name_de": "Lieferbedingungen wie vereinbart",
+          "missed_label": "incoterms changed after capture",
+          "missed_label_de": "Incoterms nach Erfassung geändert",
+          "expectation": "The incoterms are not changed after capture.",
+          "meaning_when_missed": "The delivery terms on the item were changed by hand after it was captured.",
+          "why_it_matters": "Changed terms shift freight cost and risk; per-order terms are a commercial-risk signal, not a finding. In the extract 0.8 % of items had an incoterms change.",
+          "how_detected": "An exclusion expectation on the incoterms-change event.",
+          "usual_reasons": [
+            {
+              "text": "The customer master carries outdated delivery terms",
+              "where": "log",
+              "check": "customer concentration and the changed_from and changed_to pairs (DAP, CPT, FCA)"
+            },
+            {
+              "text": "Terms negotiated per order instead of per customer",
+              "where": "outside",
+              "check": "ask sales which customers have per-order terms"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Incoterms maintained in the customer master; approval for per-order deviations",
+              "countermeasure": "master_data",
+              "owner_role": "master_data",
+              "effect_area": "commercial"
+            }
+          ],
+          "what_to_check_first": [
+            "Customer concentration and from-to pairs"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item captured with DAP and changed to CPT the next day, as on every order of the customer.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item whose terms come from the customer master and stay.",
+              "trace": null
+            }
+          ],
+          "kpis": [],
+          "owner_role": "sales",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commercial_no_incoterms_change",
+          "constraint_id": "o_commercial_no_incoterms_change",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commercial_no_incoterms_change",
+          "method_name": "Delivery terms should not change after capture."
+        },
+        "o_commercial_no_manual_price_change": {
+          "kind": "constraint",
+          "id": "o_commercial_no_manual_price_change",
+          "plain_name": "Price from the price list",
+          "plain_name_de": "Preis aus der Preisliste",
+          "missed_label": "price changed by hand",
+          "missed_label_de": "Preis manuell geändert",
+          "expectation": "The price of the item is not changed manually.",
+          "meaning_when_missed": "Someone overrode the price on the item.",
+          "why_it_matters": "Manual prices are where margin leaks and invoice corrections begin; a commercial-risk indicator to review with sales.",
+          "how_detected": "A repetition expectation on the manual price change event; any change counts (placeholder, uncalibrated). Not evidenced in the hackathon extract.",
+          "usual_reasons": [
+            {
+              "text": "Price lists outdated; discounts negotiated per order",
+              "where": "outside",
+              "check": "ask sales which customers get per-order discounts"
+            },
+            {
+              "text": "Price condition records missing for the customer and material",
+              "where": "outside",
+              "check": "ask sales operations for the condition records of the affected combinations"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Condition maintenance; approval workflow for manual discounts above a limit",
+              "countermeasure": "policy",
+              "owner_role": "sales",
+              "effect_area": "commercial"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether manual price events are logged",
+            "Invoice corrections on the same items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item priced from the list and reduced by hand by 15 % before confirmation.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item priced from the condition record without a manual change.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_correction_rate"
+          ],
+          "owner_role": "sales",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_commercial_no_manual_price_change",
+          "constraint_id": "o_commercial_no_manual_price_change",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_commercial_no_manual_price_change",
+          "method_name": "Manual price changes indicate commercial inconsistency risk."
+        },
+        "o_return_no_reversal": {
+          "kind": "constraint",
+          "id": "o_return_no_reversal",
+          "plain_name": "Goods issue not reversed",
+          "plain_name_de": "Warenausgang nicht storniert",
+          "missed_label": "goods issue reversed",
+          "missed_label_de": "Warenausgang storniert",
+          "expectation": "A posted goods issue is not reversed.",
+          "meaning_when_missed": "The goods issue was cancelled after posting.",
+          "why_it_matters": "Reversals hide shipping errors and premature postings and undo the invoice trigger.",
+          "how_detected": "An exclusion expectation on the reversal event on items that are not return items. The stock-movement table of the extract holds 397 reversal movements; the join to items was not made.",
+          "usual_reasons": [
+            {
+              "text": "Goods issue posted before the truck left and the shipment cancelled",
+              "where": "log",
+              "check": "time between issue and reversal; whether a new issue follows"
+            },
+            {
+              "text": "Wrong delivery or quantity posted",
+              "where": "log",
+              "check": "delivery changes between reversal and new issue"
+            },
+            {
+              "text": "The customer refused the delivery at the dock",
+              "where": "outside",
+              "check": "ask customer service which reversals were refusals"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Post the goods issue at physical departure; delivery checks before posting",
+              "countermeasure": "standard_work",
+              "owner_role": "logistics",
+              "effect_area": "returns_exceptions"
+            }
+          ],
+          "what_to_check_first": [
+            "Time between issue and reversal",
+            "Plant and customer concentration"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "A goods issue posted on Friday and reversed on Monday; issued again on Tuesday.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "A goods issue posted once when the truck left.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.reversal_rate"
+          ],
+          "owner_role": "logistics",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_return_no_reversal",
+          "constraint_id": "o_return_no_reversal",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_return_no_reversal",
+          "method_name": "Goods issues should not be reversed."
+        },
+        "o_return_receipt_present": {
+          "kind": "constraint",
+          "id": "o_return_receipt_present",
+          "plain_name": "Returned goods received",
+          "plain_name_de": "Retourenware eingegangen",
+          "missed_label": "return without received goods",
+          "missed_label_de": "Retoure ohne Wareneingang",
+          "expectation": "A return item shows the returned goods coming back (return delivery or return to own stock).",
+          "meaning_when_missed": "A return item exists but no goods came back against it.",
+          "why_it_matters": "A return without goods is a credit memo waiting to happen or a return that never closed.",
+          "how_detected": "A presence expectation on the return receipt events, applicable to return items only. The extract flags 20 return items and holds 59 return-delivery and 110 return-to-own-stock movements; the join was not made, so the expectation stays vocabulary.",
+          "usual_reasons": [
+            {
+              "text": "The return order was created but the customer never sent the goods",
+              "where": "log",
+              "check": "age of return items without receipt"
+            },
+            {
+              "text": "The returned goods were booked on the original item or on stock directly",
+              "where": "outside",
+              "check": "ask logistics how returns are posted at the dock"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Return order closed or cancelled after an agreed age; receipt posted against the return order",
+              "countermeasure": "standard_work",
+              "owner_role": "customer_service",
+              "effect_area": "returns_exceptions"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether the return movements are joined to the items",
+            "Age of open return items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "A return item created in May with no goods received by the end of the data.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "A return item with the goods received against it a week later.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.return_rate"
+          ],
+          "owner_role": "customer_service",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_return_receipt_present",
+          "constraint_id": "o_return_receipt_present",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_return_receipt_present",
+          "method_name": "Return items should show the returned goods."
+        },
+        "o_return_order_before_receipt": {
+          "kind": "constraint",
+          "id": "o_return_order_before_receipt",
+          "plain_name": "Return authorised before the goods arrive",
+          "plain_name_de": "Retoure vor Wareneingang genehmigt",
+          "missed_label": "return received without a return order",
+          "missed_label_de": "Retoure ohne Retourenauftrag erhalten",
+          "expectation": "The return order exists before the returned goods are received.",
+          "meaning_when_missed": "Goods came back without an authorisation, or the return order was created after the fact.",
+          "why_it_matters": "Unauthorised returns block the dock and delay the credit memo; the customer waits for an answer.",
+          "how_detected": "An order expectation on return items: the return order precedes the return delivery; a return delivery without any return order counts as missed. Vocabulary in the extract (join not made).",
+          "usual_reasons": [
+            {
+              "text": "The customer sent the goods back without asking",
+              "where": "log",
+              "check": "return deliveries without a return order; customer concentration"
+            },
+            {
+              "text": "The return order is created at the dock when the goods arrive",
+              "where": "outside",
+              "check": "ask customer service and the dock who creates return orders and when"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Return authorisation (RMA) before acceptance at the dock; a return portal for customers",
+              "countermeasure": "policy",
+              "owner_role": "customer_service",
+              "effect_area": "returns_exceptions"
+            }
+          ],
+          "what_to_check_first": [
+            "Return order dates against return delivery dates",
+            "Customer concentration"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "Goods received at the dock on Monday; the return order created on Wednesday to book them.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "Return order created after the complaint; goods received against it three days later.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.return_rate"
+          ],
+          "owner_role": "customer_service",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_return_order_before_receipt",
+          "constraint_id": "o_return_order_before_receipt",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_return_order_before_receipt",
+          "method_name": "Returns should be authorised by a return order before the goods arrive."
+        },
+        "o_invoice_present": {
+          "kind": "constraint",
+          "id": "o_invoice_present",
+          "plain_name": "Shipped items are invoiced",
+          "plain_name_de": "Gelieferte Positionen werden fakturiert",
+          "missed_label": "shipped but not invoiced",
+          "missed_label_de": "geliefert, aber nicht fakturiert",
+          "expectation": "Every shipped item has an invoice.",
+          "meaning_when_missed": "The goods left but no billing document exists for the item.",
+          "why_it_matters": "Unbilled shipments are revenue and cash that nobody is chasing.",
+          "how_detected": "A presence expectation on the invoice event, applicable to items with a goods issue that are not return items. Billing is not in the hackathon extract.",
+          "usual_reasons": [
+            {
+              "text": "Billing block on the item",
+              "where": "log",
+              "check": "billing-block events on the unbilled items"
+            },
+            {
+              "text": "Order-related billing configured although a delivery exists",
+              "where": "outside",
+              "check": "ask accounts receivable which item categories bill from the order"
+            },
+            {
+              "text": "The item was still open at the end of the data",
+              "where": "log",
+              "check": "days since goods issue at the end of the window"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Daily billing due list run; billing block review",
+              "countermeasure": "standard_work",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether billing events are in the log",
+            "Billing blocks and item categories of the unbilled items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An item shipped in March with no invoice by June.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An item shipped on Tuesday and invoiced on Wednesday.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_lead_time"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_invoice_present",
+          "constraint_id": "o_invoice_present",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_invoice_present",
+          "method_name": "Shipped items should be invoiced."
+        },
+        "o_invoice_days_after_issue": {
+          "kind": "constraint",
+          "id": "o_invoice_days_after_issue",
+          "plain_name": "Invoiced within two days of shipping",
+          "plain_name_de": "Innerhalb von zwei Tagen nach Versand fakturiert",
+          "missed_label": "invoice late after shipping",
+          "missed_label_de": "Rechnung spät nach Versand",
+          "expectation": "The invoice follows the goods issue within two days, with a tolerance to five; unbilled items are scored by their age.",
+          "meaning_when_missed": "The billing document came days after the goods left, or has not come yet.",
+          "why_it_matters": "Every day between shipment and invoice is a day added to the cash cycle.",
+          "how_detected": "A time expectation from the goods issue to the invoice with a target of 2 days and a tolerance to 5 (placeholders, uncalibrated); unbilled items are censored and scored by their age; return items are out of scope. Vocabulary in the extract.",
+          "usual_reasons": [
+            {
+              "text": "Month-end batch billing",
+              "where": "log",
+              "check": "goods issue to invoice lag by day of month"
+            },
+            {
+              "text": "Billing block until a document is complete",
+              "where": "log",
+              "check": "billing-block events between issue and invoice"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Daily billing due list run",
+              "countermeasure": "standard_work",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Day-of-month pattern of invoicing",
+            "Billing blocks on the late items"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "Shipped on the 3rd, invoiced with the month-end run on the 30th.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "Shipped on Tuesday, invoiced on Wednesday.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_lead_time"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_invoice_days_after_issue",
+          "constraint_id": "o_invoice_days_after_issue",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_invoice_days_after_issue",
+          "method_name": "Invoices should follow the goods issue within a target time."
+        },
+        "o_invoice_no_corrections": {
+          "kind": "constraint",
+          "id": "o_invoice_no_corrections",
+          "plain_name": "Invoice right the first time",
+          "plain_name_de": "Rechnung beim ersten Mal richtig",
+          "missed_label": "invoice cancelled or corrected",
+          "missed_label_de": "Rechnung storniert oder korrigiert",
+          "expectation": "The invoice of an ordinary item is not cancelled, corrected or followed by a credit or debit memo.",
+          "meaning_when_missed": "The invoice was wrong and had to be cancelled or corrected; credit memos on return items are legitimate and out of scope.",
+          "why_it_matters": "Corrections delay payment, cost accounts receivable and point to price, quantity or master-data errors upstream.",
+          "how_detected": "An exclusion expectation on the cancellation, correction request, credit memo and debit memo events on items that are not return items. Vocabulary in the extract.",
+          "usual_reasons": [
+            {
+              "text": "Price or quantity wrong on the order (manual pricing, quantities changed after billing)",
+              "where": "log",
+              "check": "manual price changes and quantity changes before the correction on the same items"
+            },
+            {
+              "text": "Wrong bill-to or tax data in the customer master",
+              "where": "outside",
+              "check": "ask accounts receivable which corrections were master-data errors"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Price validation at capture; customer master quality; credit memos only with a return reference",
+              "countermeasure": "master_data",
+              "owner_role": "master_data",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Manual price changes before the correction",
+            "Customer master changes around the correction"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An invoice cancelled and re-issued because the price on the order had been typed in wrong.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An invoice issued once and paid.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.invoice_correction_rate"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_invoice_no_corrections",
+          "constraint_id": "o_invoice_no_corrections",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_invoice_no_corrections",
+          "method_name": "Invoice corrections should be exceptional outside returns."
+        },
+        "o_pay_present": {
+          "kind": "constraint",
+          "id": "o_pay_present",
+          "plain_name": "Invoiced items are paid",
+          "plain_name_de": "Fakturierte Positionen werden bezahlt",
+          "missed_label": "invoiced but unpaid",
+          "missed_label_de": "fakturiert, aber unbezahlt",
+          "expectation": "Every invoiced item is paid.",
+          "meaning_when_missed": "The invoice exists but no payment was received for it.",
+          "why_it_matters": "Unpaid invoices are the receivables backlog; each one needs a dunning decision.",
+          "how_detected": "A presence expectation on the payment event, applicable to items with an invoice. Vocabulary in the extract.",
+          "usual_reasons": [
+            {
+              "text": "The invoice was still open at the end of the data",
+              "where": "log",
+              "check": "days since invoice at the end of the window against the customer's terms"
+            },
+            {
+              "text": "Dispute on the invoice content",
+              "where": "log",
+              "check": "corrections on the same items"
+            },
+            {
+              "text": "Customer payment behaviour",
+              "where": "outside",
+              "check": "ask accounts receivable for the dunning history of the customer"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Dunning cadence per customer group; dispute management with a clock",
+              "countermeasure": "policy",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether payment events are in the log",
+            "Age of the unpaid invoices"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An invoice from March with no payment by the end of the data in August.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An invoice paid on the twenty-eighth day.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.dso_proxy"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_pay_present",
+          "constraint_id": "o_pay_present",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_pay_present",
+          "method_name": "Invoiced items should be paid."
+        },
+        "o_pay_within_terms": {
+          "kind": "constraint",
+          "id": "o_pay_within_terms",
+          "plain_name": "Paid within terms",
+          "plain_name_de": "Innerhalb der Zahlungsfrist bezahlt",
+          "missed_label": "paid after the due date",
+          "missed_label_de": "nach Fälligkeit bezahlt",
+          "expectation": "The payment arrives within thirty days of the invoice, with a tolerance to sixty; open receivables are scored by their age.",
+          "meaning_when_missed": "The customer paid late or has not paid yet.",
+          "why_it_matters": "Days beyond terms are working capital; the fixed target is a placeholder until payment terms per customer are a case attribute.",
+          "how_detected": "A time expectation from the invoice to the payment with a target of 30 days and a tolerance to 60 (placeholders, uncalibrated); open receivables are censored and scored by their age. Vocabulary in the extract.",
+          "usual_reasons": [
+            {
+              "text": "Long contractual payment terms make a 30-day target look missed",
+              "where": "log",
+              "check": "invoice to payment days per customer against the customer's payment terms"
+            },
+            {
+              "text": "Disputes on invoice content",
+              "where": "log",
+              "check": "corrections preceding the late payment"
+            },
+            {
+              "text": "Invoice sent to the wrong address or channel",
+              "where": "outside",
+              "check": "ask accounts receivable which customers need e-invoicing or a portal"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Payment terms per customer as a case attribute, so that days beyond terms are scored",
+              "countermeasure": "measurement",
+              "owner_role": "finance_controlling",
+              "effect_area": "invoice_payment"
+            },
+            {
+              "text": "E-invoicing for the largest customers",
+              "countermeasure": "automation",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Payment terms of the customers with the longest medians",
+            "Corrections on the late-paid invoices"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An invoice with 30-day terms paid after 95 days and one reminder.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An invoice paid on the twenty-eighth day.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.dso_proxy"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_pay_within_terms",
+          "constraint_id": "o_pay_within_terms",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_pay_within_terms",
+          "method_name": "Payment should arrive within terms; open receivables are scored by their age."
+        },
+        "o_pay_no_dunning": {
+          "kind": "constraint",
+          "id": "o_pay_no_dunning",
+          "plain_name": "No payment reminder needed",
+          "plain_name_de": "Keine Mahnung nötig",
+          "missed_label": "payment reminder sent",
+          "missed_label_de": "Mahnung verschickt",
+          "expectation": "No payment reminder is sent for the item.",
+          "meaning_when_missed": "The customer had to be reminded to pay.",
+          "why_it_matters": "Reminders are the visible cost of late payment and a strain on the relationship.",
+          "how_detected": "An exclusion expectation on the dunning event. Vocabulary in the extract.",
+          "usual_reasons": [
+            {
+              "text": "Customer payment behaviour",
+              "where": "log",
+              "check": "dunning level history per customer"
+            },
+            {
+              "text": "Dunning run too early for the customer's terms",
+              "where": "outside",
+              "check": "ask accounts receivable for the dunning calendar and grace days"
+            }
+          ],
+          "usual_actions": [
+            {
+              "text": "Dunning levels and grace days per customer group",
+              "countermeasure": "policy",
+              "owner_role": "accounts_receivable",
+              "effect_area": "invoice_payment"
+            }
+          ],
+          "what_to_check_first": [
+            "Whether dunning events are logged",
+            "Customers with repeated reminders"
+          ],
+          "examples": [
+            {
+              "kind": "violating",
+              "text": "An invoice reminded twice before the customer paid.",
+              "trace": null
+            },
+            {
+              "kind": "compliant",
+              "text": "An invoice paid within terms without a reminder.",
+              "trace": null
+            }
+          ],
+          "kpis": [
+            "o2c.kpi.dunning_rate"
+          ],
+          "owner_role": "accounts_receivable",
+          "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
+          "sources": [
+            "docs/panel/knowledge_hub_panel.md §1",
+            "failure_modes.yaml (o2c)",
+            "o2c/README.md",
+            "ICPM 2026 hackathon sales extract measured 2026-09-05"
+          ],
+          "review_status": "draft",
+          "version": "1",
+          "templates": [
+            "o2c_baseline"
+          ],
+          "guidance_id": "o_pay_no_dunning",
+          "constraint_id": "o_pay_no_dunning",
+          "template": "o2c_baseline",
+          "hub_node": "expectation:o2c_baseline:o_pay_no_dunning",
+          "method_name": "Payment reminders should be exceptional."
+        }
+      }
     }
   },
   "layers": [
-    {"id": "capture", "name": "Capture and credit", "description": ""},
-    {"id": "commitment", "name": "Commitment discipline", "description": ""},
-    {"id": "delivery", "name": "Delivery performance", "description": ""},
-    {"id": "changes", "name": "Change discipline", "description": ""},
-    {"id": "commercial", "name": "Commercial integrity", "description": "Commercial-risk indicators, not audit findings."},
-    {"id": "returns", "name": "Returns and reversals", "description": ""},
-    {"id": "invoice_payment", "name": "Invoice and payment", "description": "Vocabulary until a log covers billing and payment."}
+    {
+      "id": "capture",
+      "name": "Capture and credit",
+      "description": ""
+    },
+    {
+      "id": "commitment",
+      "name": "Commitment discipline",
+      "description": ""
+    },
+    {
+      "id": "delivery",
+      "name": "Delivery performance",
+      "description": ""
+    },
+    {
+      "id": "changes",
+      "name": "Change discipline",
+      "description": ""
+    },
+    {
+      "id": "commercial",
+      "name": "Commercial integrity",
+      "description": "Commercial-risk indicators, not audit findings."
+    },
+    {
+      "id": "returns",
+      "name": "Returns and reversals",
+      "description": ""
+    },
+    {
+      "id": "invoice_payment",
+      "name": "Invoice and payment",
+      "description": "Vocabulary until a log covers billing and payment."
+    }
   ],
   "views": [
-    {"name": "Sales", "description": "", "layer_weights": {"capture": 0.10, "commitment": 0.30, "delivery": 0.20, "changes": 0.10, "commercial": 0.15, "returns": 0.10, "invoice_payment": 0.05}},
-    {"name": "Logistics", "description": "", "layer_weights": {"capture": 0.02, "commitment": 0.15, "delivery": 0.40, "changes": 0.15, "commercial": 0.03, "returns": 0.20, "invoice_payment": 0.05}},
-    {"name": "Finance", "description": "", "layer_weights": {"capture": 0.15, "commitment": 0.10, "delivery": 0.10, "changes": 0.05, "commercial": 0.20, "returns": 0.10, "invoice_payment": 0.30}},
-    {"name": "Customer service", "description": "", "layer_weights": {"capture": 0.10, "commitment": 0.25, "delivery": 0.25, "changes": 0.15, "commercial": 0.05, "returns": 0.15, "invoice_payment": 0.05}}
+    {
+      "name": "Sales",
+      "description": "",
+      "layer_weights": {
+        "capture": 0.1,
+        "commitment": 0.3,
+        "delivery": 0.2,
+        "changes": 0.1,
+        "commercial": 0.15,
+        "returns": 0.1,
+        "invoice_payment": 0.05
+      }
+    },
+    {
+      "name": "Logistics",
+      "description": "",
+      "layer_weights": {
+        "capture": 0.02,
+        "commitment": 0.15,
+        "delivery": 0.4,
+        "changes": 0.15,
+        "commercial": 0.03,
+        "returns": 0.2,
+        "invoice_payment": 0.05
+      }
+    },
+    {
+      "name": "Finance",
+      "description": "",
+      "layer_weights": {
+        "capture": 0.15,
+        "commitment": 0.1,
+        "delivery": 0.1,
+        "changes": 0.05,
+        "commercial": 0.2,
+        "returns": 0.1,
+        "invoice_payment": 0.3
+      }
+    },
+    {
+      "name": "Customer service",
+      "description": "",
+      "layer_weights": {
+        "capture": 0.1,
+        "commitment": 0.25,
+        "delivery": 0.25,
+        "changes": 0.15,
+        "commercial": 0.05,
+        "returns": 0.15,
+        "invoice_payment": 0.05
+      }
+    }
   ],
   "derived_attributes": [
-    {"name": "change_event_count", "kind": "count", "activities": ["o2c.schedule_confirm", "o2c.schedule_confirm_remove", "o2c.schedule_request_change", "o2c.avail_date_change", "o2c.delivery_date_postpone", "o2c.delivery_date_prepone", "o2c.incoterms_change", "o2c.delivery_block_change", "o2c.rejection_change"]},
-    {"name": "order_to_issue_days", "kind": "lag", "a": ["o2c.item_create"], "b": ["o2c.goods_issue"], "unit": "D"}
+    {
+      "name": "change_event_count",
+      "kind": "count",
+      "activities": [
+        "o2c.schedule_confirm",
+        "o2c.schedule_confirm_remove",
+        "o2c.schedule_request_change",
+        "o2c.avail_date_change",
+        "o2c.delivery_date_postpone",
+        "o2c.delivery_date_prepone",
+        "o2c.incoterms_change",
+        "o2c.delivery_block_change",
+        "o2c.rejection_change"
+      ]
+    },
+    {
+      "name": "order_to_issue_days",
+      "kind": "lag",
+      "a": [
+        "o2c.item_create"
+      ],
+      "b": [
+        "o2c.goods_issue"
+      ],
+      "unit": "D"
+    }
   ],
   "constraints": [
-    {"id": "o_capture_no_credit_block", "layer": "capture", "type": "exclusion", "params": {"activity": ["o2c.credit_block_set"], "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Credit blocks should be exceptional."},
-    {"id": "o_capture_credit_release_days", "layer": "capture", "type": "lag", "params": {"a": ["o2c.credit_block_set"], "b": ["o2c.credit_block_release"], "delta": 1.0, "width": 3.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Credit blocks should be released within a target time; open blocks are scored by their age."},
-    {"id": "o_commit_no_postponement", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.delivery_date_postpone"], "after": null, "before": null}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "The committed delivery date should not be postponed."},
-    {"id": "o_commit_no_confirmation_removed", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.schedule_confirm_remove"], "after": null, "before": null}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "A confirmed quantity should not be withdrawn."},
-    {"id": "o_commit_no_rejection_after_confirmation", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.rejection_change"], "after": null, "before": null}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"attr": "confirmed_quantity", "gt": 0}]}, "description": "Confirmed items should not be cancelled afterwards."},
-    {"id": "o_commit_no_delivery_block", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.delivery_block_change", "o2c.delivery_block_set"], "after": null, "before": null}, "weight": 0.8, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Delivery blocks should be exceptional."},
-    {"id": "o_commit_no_stockout", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.item_out_of_stock"], "after": null, "before": null}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Committed items should not run out of stock."},
-    {"id": "o_commit_confirmed_equals_ordered", "layer": "commitment", "type": "balance", "params": {"attr_x": "order_quantity", "activities_x": ["o2c.item_create"], "attr_y": "confirmed_quantity", "activities_y": ["o2c.item_create"], "tau": 0.0, "width": 0.5, "eps": 1e-09, "agg": "first"}, "weight": 1.0, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "The confirmed quantity should equal the ordered quantity."},
-    {"id": "o_deliv_delivery_present", "layer": "delivery", "type": "presence", "params": {"activity": ["o2c.delivery_create"], "m": 1}, "weight": 1.0, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Deliverable items should get a delivery."},
-    {"id": "o_deliv_goods_issue_present", "layer": "delivery", "type": "presence", "params": {"activity": ["o2c.goods_issue"], "m": 1}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Deliverable items should be shipped."},
-    {"id": "o_deliv_order_to_issue_days", "layer": "delivery", "type": "lag", "params": {"a": ["o2c.item_create"], "b": ["o2c.goods_issue"], "delta": 14.0, "width": 30.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Items should ship within a target time; open items are scored by their age."},
-    {"id": "o_deliv_days_late", "layer": "delivery", "type": "metric", "params": {"attribute": "days_late", "threshold": 0.0, "width": 7.0, "direction": "high"}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Goods issue should not be later than the requested delivery date."},
-    {"id": "o_deliv_pick_to_issue_days", "layer": "delivery", "type": "lag", "params": {"a": ["o2c.pick"], "b": ["o2c.goods_issue"], "delta": 1.0, "width": 3.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Picked goods should leave within a target time."},
-    {"id": "o_deliv_no_split", "layer": "delivery", "type": "singularity", "params": {"activity": ["o2c.delivery_create"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 0.8, "applicability": {"flow_type": ["standard", "make_to_order"]}, "description": "Items should not be split across deliveries unless partial deliveries are allowed."},
-    {"id": "o_deliv_no_failed_delivery", "layer": "delivery", "type": "exclusion", "params": {"activity": ["o2c.failed_delivery"], "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Delivery attempts should not fail."},
-    {"id": "o_change_churn", "layer": "changes", "type": "metric", "params": {"attribute": "change_event_count", "threshold": 1.0, "width": 3.0, "direction": "high"}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Items should not carry more than the tolerated number of change events."},
-    {"id": "o_change_avail_date", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.avail_date_change"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Repeated availability date changes indicate planning churn."},
-    {"id": "o_change_prepone", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.delivery_date_prepone"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 0.6, "applicability": {}, "description": "Repeated date moves in either direction indicate unstable commitments."},
-    {"id": "o_change_requested_quantity", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.schedule_request_change"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Requested quantity changes after capture should be rare."},
-    {"id": "o_commercial_no_incoterms_change", "layer": "commercial", "type": "exclusion", "params": {"activity": ["o2c.incoterms_change"], "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Delivery terms should not change after capture."},
-    {"id": "o_commercial_no_manual_price_change", "layer": "commercial", "type": "singularity", "params": {"activity": ["o2c.price_change_manual"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 1.2, "applicability": {}, "description": "Manual price changes indicate commercial inconsistency risk."},
-    {"id": "o_return_no_reversal", "layer": "returns", "type": "exclusion", "params": {"activity": ["o2c.delivery_reversal"], "after": null, "before": null}, "weight": 1.2, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Goods issues should not be reversed."},
-    {"id": "o_return_receipt_present", "layer": "returns", "type": "presence", "params": {"activity": ["o2c.return_delivery", "o2c.return_to_own_stock"], "m": 1}, "weight": 1.0, "applicability": {"attr": "return_item", "eq": "X"}, "description": "Return items should show the returned goods."},
-    {"id": "o_return_order_before_receipt", "layer": "returns", "type": "precedence", "params": {"a": ["o2c.return_order_create"], "b": ["o2c.return_delivery"], "k": 0, "K": 1.0, "missing_a": "violate", "missing_b": "skip"}, "weight": 1.0, "applicability": {"attr": "return_item", "eq": "X"}, "description": "Returns should be authorised by a return order before the goods arrive."},
-    {"id": "o_invoice_present", "layer": "invoice_payment", "type": "presence", "params": {"activity": ["o2c.invoice_create"], "m": 1}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"has": ["o2c.goods_issue"]}]}, "description": "Shipped items should be invoiced."},
-    {"id": "o_invoice_days_after_issue", "layer": "invoice_payment", "type": "lag", "params": {"a": ["o2c.goods_issue"], "b": ["o2c.invoice_create"], "delta": 2.0, "width": 5.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Invoices should follow the goods issue within a target time."},
-    {"id": "o_invoice_no_corrections", "layer": "invoice_payment", "type": "exclusion", "params": {"activity": ["o2c.invoice_cancel", "o2c.invoice_correction_request", "o2c.credit_memo_create", "o2c.debit_memo_create"], "after": null, "before": null}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Invoice corrections should be exceptional outside returns."},
-    {"id": "o_pay_present", "layer": "invoice_payment", "type": "presence", "params": {"activity": ["o2c.payment_receive"], "m": 1}, "weight": 1.2, "applicability": {"has": ["o2c.invoice_create"]}, "description": "Invoiced items should be paid."},
-    {"id": "o_pay_within_terms", "layer": "invoice_payment", "type": "lag", "params": {"a": ["o2c.invoice_create"], "b": ["o2c.payment_receive"], "delta": 30.0, "width": 60.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.4, "applicability": {}, "description": "Payment should arrive within terms; open receivables are scored by their age."},
-    {"id": "o_pay_no_dunning", "layer": "invoice_payment", "type": "exclusion", "params": {"activity": ["o2c.dunning"], "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Payment reminders should be exceptional."}
+    {
+      "id": "o_capture_no_credit_block",
+      "layer": "capture",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.credit_block_set"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.0,
+      "applicability": {},
+      "description": "Credit blocks should be exceptional."
+    },
+    {
+      "id": "o_capture_credit_release_days",
+      "layer": "capture",
+      "type": "lag",
+      "params": {
+        "a": [
+          "o2c.credit_block_set"
+        ],
+        "b": [
+          "o2c.credit_block_release"
+        ],
+        "delta": 1.0,
+        "width": 3.0,
+        "unit": "D",
+        "missing_a": "skip",
+        "missing_b": "censor",
+        "activation": "first",
+        "response": "first_after"
+      },
+      "weight": 1.0,
+      "applicability": {},
+      "description": "Credit blocks should be released within a target time; open blocks are scored by their age."
+    },
+    {
+      "id": "o_commit_no_postponement",
+      "layer": "commitment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.delivery_date_postpone"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.4,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "The committed delivery date should not be postponed."
+    },
+    {
+      "id": "o_commit_no_confirmation_removed",
+      "layer": "commitment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.schedule_confirm_remove"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.2,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "A confirmed quantity should not be withdrawn."
+    },
+    {
+      "id": "o_commit_no_rejection_after_confirmation",
+      "layer": "commitment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.rejection_change"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.2,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "attr": "confirmed_quantity",
+            "gt": 0
+          }
+        ]
+      },
+      "description": "Confirmed items should not be cancelled afterwards."
+    },
+    {
+      "id": "o_commit_no_delivery_block",
+      "layer": "commitment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.delivery_block_change",
+          "o2c.delivery_block_set"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 0.8,
+      "applicability": {
+        "attr": "return_item",
+        "ne": "X"
+      },
+      "description": "Delivery blocks should be exceptional."
+    },
+    {
+      "id": "o_commit_no_stockout",
+      "layer": "commitment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.item_out_of_stock"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "return_item",
+        "ne": "X"
+      },
+      "description": "Committed items should not run out of stock."
+    },
+    {
+      "id": "o_commit_confirmed_equals_ordered",
+      "layer": "commitment",
+      "type": "balance",
+      "params": {
+        "attr_x": "order_quantity",
+        "activities_x": [
+          "o2c.item_create"
+        ],
+        "attr_y": "confirmed_quantity",
+        "activities_y": [
+          "o2c.item_create"
+        ],
+        "tau": 0.0,
+        "width": 0.5,
+        "eps": 1e-09,
+        "agg": "first"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "The confirmed quantity should equal the ordered quantity."
+    },
+    {
+      "id": "o_deliv_delivery_present",
+      "layer": "delivery",
+      "type": "presence",
+      "params": {
+        "activity": [
+          "o2c.delivery_create"
+        ],
+        "m": 1
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "Deliverable items should get a delivery."
+    },
+    {
+      "id": "o_deliv_goods_issue_present",
+      "layer": "delivery",
+      "type": "presence",
+      "params": {
+        "activity": [
+          "o2c.goods_issue"
+        ],
+        "m": 1
+      },
+      "weight": 1.4,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "Deliverable items should be shipped."
+    },
+    {
+      "id": "o_deliv_order_to_issue_days",
+      "layer": "delivery",
+      "type": "lag",
+      "params": {
+        "a": [
+          "o2c.item_create"
+        ],
+        "b": [
+          "o2c.goods_issue"
+        ],
+        "delta": 14.0,
+        "width": 30.0,
+        "unit": "D",
+        "missing_a": "skip",
+        "missing_b": "censor",
+        "activation": "first",
+        "response": "first_after"
+      },
+      "weight": 1.4,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "Items should ship within a target time; open items are scored by their age."
+    },
+    {
+      "id": "o_deliv_days_late",
+      "layer": "delivery",
+      "type": "metric",
+      "params": {
+        "attribute": "days_late",
+        "threshold": 0.0,
+        "width": 7.0,
+        "direction": "high"
+      },
+      "weight": 1.4,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "Goods issue should not be later than the requested delivery date."
+    },
+    {
+      "id": "o_deliv_pick_to_issue_days",
+      "layer": "delivery",
+      "type": "lag",
+      "params": {
+        "a": [
+          "o2c.pick"
+        ],
+        "b": [
+          "o2c.goods_issue"
+        ],
+        "delta": 1.0,
+        "width": 3.0,
+        "unit": "D",
+        "missing_a": "skip",
+        "missing_b": "censor",
+        "activation": "first",
+        "response": "first_after"
+      },
+      "weight": 1.0,
+      "applicability": {},
+      "description": "Picked goods should leave within a target time."
+    },
+    {
+      "id": "o_deliv_no_split",
+      "layer": "delivery",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "o2c.delivery_create"
+        ],
+        "k": 1,
+        "K": 2.0,
+        "after": null,
+        "before": null
+      },
+      "weight": 0.8,
+      "applicability": {
+        "flow_type": [
+          "standard",
+          "make_to_order"
+        ]
+      },
+      "description": "Items should not be split across deliveries unless partial deliveries are allowed."
+    },
+    {
+      "id": "o_deliv_no_failed_delivery",
+      "layer": "delivery",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.failed_delivery"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 0.8,
+      "applicability": {},
+      "description": "Delivery attempts should not fail."
+    },
+    {
+      "id": "o_change_churn",
+      "layer": "changes",
+      "type": "metric",
+      "params": {
+        "attribute": "change_event_count",
+        "threshold": 1.0,
+        "width": 3.0,
+        "direction": "high"
+      },
+      "weight": 1.2,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "lacks": [
+              "o2c.rejection_change"
+            ]
+          }
+        ]
+      },
+      "description": "Items should not carry more than the tolerated number of change events."
+    },
+    {
+      "id": "o_change_avail_date",
+      "layer": "changes",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "o2c.avail_date_change"
+        ],
+        "k": 1,
+        "K": 2.0,
+        "after": null,
+        "before": null
+      },
+      "weight": 1.0,
+      "applicability": {},
+      "description": "Repeated availability date changes indicate planning churn."
+    },
+    {
+      "id": "o_change_prepone",
+      "layer": "changes",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "o2c.delivery_date_prepone"
+        ],
+        "k": 1,
+        "K": 2.0,
+        "after": null,
+        "before": null
+      },
+      "weight": 0.6,
+      "applicability": {},
+      "description": "Repeated date moves in either direction indicate unstable commitments."
+    },
+    {
+      "id": "o_change_requested_quantity",
+      "layer": "changes",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "o2c.schedule_request_change"
+        ],
+        "k": 0,
+        "K": 2.0,
+        "after": null,
+        "before": null
+      },
+      "weight": 0.8,
+      "applicability": {},
+      "description": "Requested quantity changes after capture should be rare."
+    },
+    {
+      "id": "o_commercial_no_incoterms_change",
+      "layer": "commercial",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.incoterms_change"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.0,
+      "applicability": {},
+      "description": "Delivery terms should not change after capture."
+    },
+    {
+      "id": "o_commercial_no_manual_price_change",
+      "layer": "commercial",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "o2c.price_change_manual"
+        ],
+        "k": 0,
+        "K": 2.0,
+        "after": null,
+        "before": null
+      },
+      "weight": 1.2,
+      "applicability": {},
+      "description": "Manual price changes indicate commercial inconsistency risk."
+    },
+    {
+      "id": "o_return_no_reversal",
+      "layer": "returns",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.delivery_reversal"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.2,
+      "applicability": {
+        "attr": "return_item",
+        "ne": "X"
+      },
+      "description": "Goods issues should not be reversed."
+    },
+    {
+      "id": "o_return_receipt_present",
+      "layer": "returns",
+      "type": "presence",
+      "params": {
+        "activity": [
+          "o2c.return_delivery",
+          "o2c.return_to_own_stock"
+        ],
+        "m": 1
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "return_item",
+        "eq": "X"
+      },
+      "description": "Return items should show the returned goods."
+    },
+    {
+      "id": "o_return_order_before_receipt",
+      "layer": "returns",
+      "type": "precedence",
+      "params": {
+        "a": [
+          "o2c.return_order_create"
+        ],
+        "b": [
+          "o2c.return_delivery"
+        ],
+        "k": 0,
+        "K": 1.0,
+        "missing_a": "violate",
+        "missing_b": "skip"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "return_item",
+        "eq": "X"
+      },
+      "description": "Returns should be authorised by a return order before the goods arrive."
+    },
+    {
+      "id": "o_invoice_present",
+      "layer": "invoice_payment",
+      "type": "presence",
+      "params": {
+        "activity": [
+          "o2c.invoice_create"
+        ],
+        "m": 1
+      },
+      "weight": 1.2,
+      "applicability": {
+        "all": [
+          {
+            "attr": "return_item",
+            "ne": "X"
+          },
+          {
+            "has": [
+              "o2c.goods_issue"
+            ]
+          }
+        ]
+      },
+      "description": "Shipped items should be invoiced."
+    },
+    {
+      "id": "o_invoice_days_after_issue",
+      "layer": "invoice_payment",
+      "type": "lag",
+      "params": {
+        "a": [
+          "o2c.goods_issue"
+        ],
+        "b": [
+          "o2c.invoice_create"
+        ],
+        "delta": 2.0,
+        "width": 5.0,
+        "unit": "D",
+        "missing_a": "skip",
+        "missing_b": "censor",
+        "activation": "first",
+        "response": "first_after"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "return_item",
+        "ne": "X"
+      },
+      "description": "Invoices should follow the goods issue within a target time."
+    },
+    {
+      "id": "o_invoice_no_corrections",
+      "layer": "invoice_payment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.invoice_cancel",
+          "o2c.invoice_correction_request",
+          "o2c.credit_memo_create",
+          "o2c.debit_memo_create"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "return_item",
+        "ne": "X"
+      },
+      "description": "Invoice corrections should be exceptional outside returns."
+    },
+    {
+      "id": "o_pay_present",
+      "layer": "invoice_payment",
+      "type": "presence",
+      "params": {
+        "activity": [
+          "o2c.payment_receive"
+        ],
+        "m": 1
+      },
+      "weight": 1.2,
+      "applicability": {
+        "has": [
+          "o2c.invoice_create"
+        ]
+      },
+      "description": "Invoiced items should be paid."
+    },
+    {
+      "id": "o_pay_within_terms",
+      "layer": "invoice_payment",
+      "type": "lag",
+      "params": {
+        "a": [
+          "o2c.invoice_create"
+        ],
+        "b": [
+          "o2c.payment_receive"
+        ],
+        "delta": 30.0,
+        "width": 60.0,
+        "unit": "D",
+        "missing_a": "skip",
+        "missing_b": "censor",
+        "activation": "first",
+        "response": "first_after"
+      },
+      "weight": 1.4,
+      "applicability": {},
+      "description": "Payment should arrive within terms; open receivables are scored by their age."
+    },
+    {
+      "id": "o_pay_no_dunning",
+      "layer": "invoice_payment",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "o2c.dunning"
+        ],
+        "after": null,
+        "before": null
+      },
+      "weight": 0.8,
+      "applicability": {},
+      "description": "Payment reminders should be exceptional."
+    }
   ]
 }

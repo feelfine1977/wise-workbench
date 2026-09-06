@@ -125,5 +125,86 @@ def get_case_table_mapping(projectId: str, caseTableId: str, c: ContainerDep) ->
     return schemas.ColumnMappingOut.from_domain(c.mappings.get_mapping(table.mapping_id))
 
 
+@router.get(
+    "/case-tables/{caseTableId}/flow-types",
+    operation_id="getFlowTypes",
+    response_model=schemas.FlowTypes,
+    description=(
+        "The detected flow types of a case table (from the mapping's flow typing, else from the named attribute): "
+        "counts, share, one process map each with stage groups, and a readiness headline per type. Each type carries "
+        "the run scope that analyses it alone."
+    ),
+)
+def get_flow_types(
+    projectId: str,
+    caseTableId: str,
+    c: ContainerDep,
+    attribute: Annotated[
+        str | None, Query(description="case attribute holding the flow type (default: the mapping's)")
+    ] = None,
+    abstraction: Annotated[float, Query(ge=0.0, le=1.0)] = 0.05,
+) -> schemas.FlowTypes:
+    return schemas.FlowTypes(
+        **c.mappings.flow_types(projectId, caseTableId, attribute=attribute, abstraction=abstraction)
+    )
+
+
+# ---------------------------------------------------------------------------- decisions on data caveats (R2-O1)
+@router.get(
+    "/decisions/kinds",
+    operation_id="listDecisionKinds",
+    response_model=list[schemas.DecisionKind],
+    description="The decisions a reader can take on readiness items, with the parameters each accepts.",
+)
+def list_decision_kinds(projectId: str, c: ContainerDep) -> list[schemas.DecisionKind]:
+    c.repos.get_project(projectId)
+    return [schemas.DecisionKind(**k) for k in c.decisions.kinds()]
+
+
+@router.get(
+    "/decisions",
+    operation_id="listDecisions",
+    response_model=list[schemas.Decision],
+    description="Decisions taken in the project (optionally those that touch one case table).",
+)
+def list_decisions(projectId: str, c: ContainerDep, caseTableId: str | None = None) -> list[schemas.Decision]:
+    return [schemas.Decision.from_domain(d) for d in c.decisions.list(projectId, caseTableId)]
+
+
+@router.post(
+    "/case-tables/{caseTableId}/decisions/preview",
+    operation_id="previewDecision",
+    response_model=schemas.DecisionPreviewOut,
+    description="Cases and events a decision would affect, before it is applied.",
+)
+def preview_decision(
+    projectId: str, caseTableId: str, body: schemas.DecisionRequest, c: ContainerDep
+) -> schemas.DecisionPreviewOut:
+    return schemas.DecisionPreviewOut(**c.decisions.preview(projectId, caseTableId, body.kind, body.params))
+
+
+@router.post(
+    "/case-tables/{caseTableId}/decisions",
+    operation_id="applyDecision",
+    response_model=schemas.DecisionApplied,
+    status_code=status.HTTP_202_ACCEPTED,
+    description=(
+        "Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built "
+        "from it (job) and its readiness report is the re-evaluation."
+    ),
+)
+def apply_decision(
+    projectId: str, caseTableId: str, body: schemas.DecisionRequest, c: ContainerDep
+) -> schemas.DecisionApplied:
+    decision, table, job = c.decisions.apply(
+        projectId, caseTableId, body.kind, body.params, author=body.author, note=body.note
+    )
+    return schemas.DecisionApplied(
+        decision=schemas.Decision.from_domain(decision),
+        caseTable=schemas.CaseTable.from_domain(table),
+        job=schemas.Job.from_domain(job),
+    )
+
+
 def _unused() -> dict[str, Any]:  # pragma: no cover - keeps the Any import meaningful for type checkers
     return {}

@@ -17,6 +17,10 @@ from .models import (
     ExpectedOrdering,
     FailureMode,
     GlossaryTerm,
+    Guidance,
+    GuidanceAction,
+    GuidanceExample,
+    GuidanceReason,
     Kpi,
     LabelEntry,
     LabelPack,
@@ -24,6 +28,7 @@ from .models import (
     Mapping,
     Pack,
     Playbook,
+    Preset,
     Role,
     SliceKey,
     SlicingGuide,
@@ -33,7 +38,7 @@ from .models import (
     Variant,
     WisePattern,
 )
-from .paths import PACK_FILES, knowledge_root, pack_dir
+from .paths import GUIDANCE_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files
 from .schema import ValidationIssue, read_yaml, validate_datasets, validate_pack
 
 
@@ -99,6 +104,7 @@ def _pattern(p: dict[str, Any]) -> WisePattern:
         params=dict(p.get("params", {}) or {}),
         applicability=p.get("applicability", ""),
         template=p.get("template"),
+        also_templates=_t(p.get("also_templates")),
         constraint_ref=p.get("constraint_ref"),
         calibration=p.get("calibration"),
         note=p.get("note", ""),
@@ -111,6 +117,7 @@ def _failure_mode(f: dict[str, Any]) -> FailureMode:
         version=str(f["version"]),
         name=_text(f["name"]),
         stage=f["stage"],
+        kind=f.get("kind", "process_behaviour"),
         signature=f["signature"],
         signature_activities=_t(f.get("signature_activities")),
         wise_patterns=tuple(_pattern(p) for p in f["wise_patterns"]),
@@ -260,6 +267,8 @@ def _templates(path: Path, doc: dict[str, Any] | None) -> tuple[TemplateEntry, .
             evidence=t["evidence"],
             review_status=t["review_status"],
             dataset=t.get("dataset"),
+            verbatim=bool(t.get("verbatim", False)),
+            derived_from=t.get("derived_from"),
             flow_type_attribute=t.get("flow_type_attribute"),
             flow_types=dict(t.get("flow_types", {}) or {}),
             sources=_t(t.get("sources")),
@@ -267,6 +276,82 @@ def _templates(path: Path, doc: dict[str, Any] | None) -> tuple[TemplateEntry, .
             path=path / "templates" / t["file"],
         )
         for t in doc["templates"]
+    )
+
+
+def _guidance_entries(doc: dict[str, Any] | None) -> tuple[Guidance, ...]:
+    """Entries of guidance.yaml with the file's defaults applied."""
+    if not doc:
+        return ()
+    defaults = dict(doc.get("defaults", {}) or {})
+    out: list[Guidance] = []
+    for kind, key in (("layer", "layers"), ("constraint", "constraints"), ("failure_mode", "failure_modes")):
+        for e in doc.get(key, []) or []:
+            out.append(
+                Guidance(
+                    kind=kind,
+                    id=str(e["id"]),
+                    plain_name=_text(e["plain_name"]),
+                    missed_label=_text(e.get("missed_label")),
+                    expectation=e["expectation"],
+                    meaning_when_missed=e["meaning_when_missed"],
+                    why_it_matters=e["why_it_matters"],
+                    how_detected=e["how_detected"],
+                    usual_reasons=tuple(
+                        GuidanceReason(text=r["text"], where=r["where"], check=r["check"]) for r in e["usual_reasons"]
+                    ),
+                    usual_actions=tuple(
+                        GuidanceAction(
+                            text=a["text"],
+                            countermeasure=a["countermeasure"],
+                            owner_role=a["owner_role"],
+                            effect_area=a["effect_area"],
+                        )
+                        for a in e["usual_actions"]
+                    ),
+                    what_to_check_first=_t(e["what_to_check_first"]),
+                    examples=tuple(
+                        GuidanceExample(kind=x["kind"], text=x["text"], trace=x.get("trace")) for x in e["examples"]
+                    ),
+                    kpis=_t(e.get("kpis")),
+                    owner_role=e["owner_role"],
+                    stakeholders=str(e.get("stakeholders", defaults.get("stakeholders", ""))),
+                    sources=_t(e.get("sources", defaults.get("sources"))),
+                    review_status=str(e.get("review_status", defaults.get("review_status", "draft"))),
+                    version=str(e.get("version", defaults.get("version", "1"))),
+                    templates=_t(e.get("templates")),
+                    aliases=dict(e.get("aliases", {}) or {}),
+                    notes=e.get("notes", ""),
+                )
+            )
+    return tuple(out)
+
+
+def load_preset(path: str | Path) -> Preset:
+    """A public-log preset file (``presets/*.yaml``)."""
+    p = Path(path)
+    d = read_yaml(p)
+    return Preset(
+        id=str(d["id"]),
+        pack=str(d["pack"]),
+        name=d["name"],
+        description=d["description"],
+        dataset=d["dataset"],
+        file=d["file"],
+        case_noun=_text(d["case_noun"]),
+        mapping=dict(d["mapping"]),
+        norm=dict(d["norm"]),
+        slicings=tuple(dict(s) for s in d["slicings"]),
+        derived_case_attributes=tuple(dict(a) for a in d.get("derived_case_attributes", []) or []),
+        view=d.get("view"),
+        gamma=d.get("gamma"),
+        min_cases=d.get("min_cases"),
+        pitfalls=_t(d.get("pitfalls")),
+        local_only=bool(d.get("local_only", False)),
+        sources=_t(d.get("sources")),
+        review_status=d.get("review_status", "draft"),
+        notes=d.get("notes", ""),
+        path=p,
     )
 
 
@@ -297,6 +382,8 @@ def load_pack(name_or_path: str | Path, validate: bool = True) -> Pack:
     docs = {kind: read_yaml(path / f"{kind}.yaml") for kind in PACK_FILES}
     index = path / "templates" / "index.yaml"
     docs["templates"] = read_yaml(index) if index.is_file() else None
+    guidance_file = path / f"{GUIDANCE_FILE}.yaml"
+    docs["guidance"] = read_yaml(guidance_file) if guidance_file.is_file() else None
     ont = docs["ontology"]
     label_packs = {
         name: LabelPack(
@@ -315,6 +402,10 @@ def load_pack(name_or_path: str | Path, validate: bool = True) -> Pack:
         for mp in sorted((path / "mappings").glob("*.yaml")):
             m = load_mapping(mp)
             mappings[m.id] = m
+    presets: dict[str, Preset] = {}
+    for pp in preset_files(path):
+        preset = load_preset(pp)
+        presets[preset.id] = preset
     layers = tuple(
         Layer(
             id=layer["id"],
@@ -343,6 +434,8 @@ def load_pack(name_or_path: str | Path, validate: bool = True) -> Pack:
         slicing=_slicing(docs["slicing"]),
         templates=_templates(path, docs["templates"]),
         mappings=mappings,
+        guidance=_guidance_entries(docs["guidance"]),
+        presets=presets,
         sources=_t(ont.get("sources")),
         raw=docs,
     )
@@ -373,4 +466,4 @@ def load_datasets(path: str | Path | None = None, validate: bool = True) -> Data
     )
 
 
-__all__ = ["PackError", "load_datasets", "load_mapping", "load_pack"]
+__all__ = ["PackError", "load_datasets", "load_mapping", "load_pack", "load_preset"]
