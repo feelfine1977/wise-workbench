@@ -1,0 +1,26 @@
+# Curated mapping of the 16 labels of the ICPM 2026 hackathon sales extract
+# (Sales_Eventlog.csv, column 'activity') to canonical o2c activities.
+# Test oracle for activity matching; the extract itself is local only.
+id: hackathon_sales
+pack: o2c
+dataset: icpm2026_hackathon
+key: {label: activity}
+sources:
+  - Sales_Eventlog.csv, 16 distinct labels counted on 2026-09-05
+labels:
+  - {label: Create Order Item, activity: o2c.item_create}
+  - {label: Create Order, activity: o2c.order_create}
+  - {label: Create Delivery Item, activity: o2c.delivery_create}
+  - {label: Goods issue, activity: o2c.goods_issue}
+  - {label: Picking Completed, activity: o2c.pick}
+  - {label: Changed Mat.Avail.Date, activity: o2c.avail_date_change}
+  - {label: Scheduled delivery date preponed, activity: o2c.delivery_date_prepone}
+  - {label: Scheduled delivery date postponed, activity: o2c.delivery_date_postpone}
+  - {label: Send Order Confirmation, activity: o2c.confirmation_send}
+  - {label: Changed RejectionReason, activity: o2c.rejection_change}
+  - {label: Schedule line confirmed quantity removed, activity: o2c.schedule_confirm_remove}
+  - {label: Changed Incoterms, activity: o2c.incoterms_change}
+  - {label: Schedule line requested quantity changed, activity: o2c.schedule_request_change}
+  - {label: Schedule line confirmed quantity changed, activity: o2c.schedule_confirm}
+  - {label: Packing Completed, activity: o2c.pack}
+  - {label: Changed Delivery block, activity: o2c.delivery_block_change}

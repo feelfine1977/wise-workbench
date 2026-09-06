@@ -1,0 +1,223 @@
+# Purchase-to-pay KPI definitions in WISE terms where possible.
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - APQC Process Classification Framework, procurement metrics (touchless rate, first-time match, cycle time)
+  - WISE BPIC 2019 norm (constraint ids referenced in failure_modes.yaml)
+  - SAP MM and FI documentation
+kpis:
+  - id: p2p.kpi.touchless_rate
+    version: 1
+    name: {en: Touchless processing rate, de: Dunkelverarbeitungsquote}
+    definition: {en: Share of PO items processed without a manual touch beyond the tolerated number., de: "Anteil der Bestellpositionen, die ohne manuelle Bearbeitung über die tolerierte Anzahl hinaus verarbeitet werden."}
+    formula: 1 - share of cases with violation > 0 on the metric constraint over manual_touch_count (c_l7_manual_touches)
+    unit: share
+    direction: higher_is_better
+    stage: order
+    failure_modes: [p2p.fm.manual_touch_load]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.three_way_match_first_time_rate
+    version: 1
+    name: {en: First-time three-way match rate, de: Erstdurchlaufquote des Dreiwege-Abgleichs}
+    definition: {en: Share of invoice-bearing items that clear without a payment block or an invoice-before-receipt violation., de: "Anteil der rechnungsrelevanten Positionen, die ohne Zahlsperre und ohne Rechnung-vor-Wareneingang-Verstoß ausgeglichen werden."}
+    formula: 1 - share of cases with violation > 0 on the exclusion of p2p.payment_block_set or the precedence receipt -> invoice (c_l2_df1_invoice_after_goods)
+    unit: share
+    direction: higher_is_better
+    stage: match
+    activities: [p2p.payment_block_set, p2p.payment_block_remove]
+    failure_modes: [p2p.fm.payment_block, p2p.fm.invoice_before_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.payment_block_rate
+    version: 1
+    name: {en: Payment block rate, de: Zahlsperrenquote}
+    definition: {en: Share of invoice-bearing items with a payment block release., de: Anteil der rechnungsrelevanten Positionen mit Aufhebung einer Zahlsperre.}
+    formula: share of cases with count(p2p.payment_block_remove) > 0 among invoice-bearing flows
+    unit: share
+    direction: lower_is_better
+    stage: match
+    activities: [p2p.payment_block_remove]
+    failure_modes: [p2p.fm.payment_block]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.po_cycle_time
+    version: 1
+    name: {en: Requisition-to-order cycle time, de: Durchlaufzeit Bestellanforderung bis Bestellung}
+    definition: {en: Days from requisition item creation to purchase order item creation., de: Tage von der Anlage der BANF-Position bis zur Anlage der Bestellposition.}
+    formula: lag p2p.pr_item_create -> p2p.po_item_create in days (activation_lags); applicable only where a requisition exists
+    unit: days
+    direction: lower_is_better
+    stage: order
+    activities: [p2p.pr_item_create, p2p.po_item_create]
+    failure_modes: [p2p.fm.late_or_repeated_approval]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.po_release_lead_time
+    version: 1
+    name: {en: Purchase order release lead time, de: Freigabedauer der Bestellung}
+    definition: {en: Days from order item creation to purchase order release., de: Tage von der Anlage der Bestellposition bis zur Bestellfreigabe.}
+    formula: lag p2p.po_item_create -> p2p.po_release in days (b_approval_po_release_days)
+    unit: days
+    direction: lower_is_better
+    stage: approve
+    activities: [p2p.po_item_create, p2p.po_release]
+    failure_modes: [p2p.fm.late_or_repeated_approval]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.gr_to_invoice_days
+    version: 1
+    name: {en: Goods receipt to invoice days, de: Tage von Wareneingang bis Rechnung}
+    definition: {en: Days from the first receipt to the first invoice evidence on GR-based items., de: Tage vom ersten Wareneingang bis zum ersten Rechnungsnachweis auf WE-bezogenen Positionen.}
+    formula: lag p2p.gr -> p2p.ir in days (c_l3_df1_goods_to_invoice_days); median and p90 per slice
+    unit: days
+    direction: lower_is_better
+    stage: invoice
+    activities: [p2p.gr, p2p.ir]
+    failure_modes: [p2p.fm.invoice_before_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.invoice_to_clear_days
+    version: 1
+    name: {en: Invoice to clearing days (DPO proxy), de: Tage von Rechnung bis Ausgleich (DPO-Näherung)}
+    definition: {en: "Days from invoice evidence to clearing; a days-payable-outstanding proxy per slice, to be read against payment terms.", de: "Tage vom Rechnungsnachweis bis zum Ausgleich; Näherung der Kreditorenlaufzeit je Slice, gegen Zahlungsbedingungen zu lesen."}
+    formula: lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta
+    unit: days
+    direction: target
+    stage: pay
+    activities: [p2p.ir, p2p.invoice_clear]
+    failure_modes: [p2p.fm.unpaid_or_late_invoice]
+    wise_expressible: true
+    review_status: draft
+    notes: Direction is a target because paying early forgoes working capital and paying late forgoes discounts.
+  - id: p2p.kpi.open_invoice_share
+    version: 1
+    name: {en: Open invoice share, de: Anteil offener Rechnungen}
+    definition: {en: "Share of invoice-bearing items without clearing at the end of the window, reported next to the censoring diagnostics.", de: "Anteil rechnungsrelevanter Positionen ohne Ausgleich am Fensterende, neben der Zensierungsdiagnostik berichtet."}
+    formula: share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice
+    unit: share
+    direction: lower_is_better
+    stage: pay
+    failure_modes: [p2p.fm.unpaid_or_late_invoice, p2p.fm.missing_invoice]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.open_receipt_share
+    version: 1
+    name: {en: Open receipt share, de: Anteil offener Wareneingänge}
+    definition: {en: Share of three-way items without receipt at the end of the window., de: Anteil der Dreiwege-Positionen ohne Wareneingang am Fensterende.}
+    formula: share of cases with violation > 0 on presence(p2p.gr, p2p.ses) (c_l1_goods_or_ses_present)
+    unit: share
+    direction: lower_is_better
+    stage: receive
+    failure_modes: [p2p.fm.missing_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.price_change_rate
+    version: 1
+    name: {en: Price change rate, de: Preisänderungsquote}
+    definition: {en: Share of PO items with at least one price change after ordering., de: Anteil der Bestellpositionen mit mindestens einer Preisänderung nach Bestellung.}
+    formula: share of cases with count(p2p.po_change_price) > 0 (c_l6_change_price violation > 0)
+    unit: share
+    direction: lower_is_better
+    stage: order
+    activities: [p2p.po_change_price]
+    failure_modes: [p2p.fm.price_change_after_po]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.quantity_change_rate
+    version: 1
+    name: {en: Quantity change rate, de: Mengenänderungsquote}
+    definition: {en: Share of PO items with at least one quantity change after ordering., de: Anteil der Bestellpositionen mit mindestens einer Mengenänderung nach Bestellung.}
+    formula: share of cases with count(p2p.po_change_quantity) > 0 (c_l6_change_quantity violation > 0)
+    unit: share
+    direction: lower_is_better
+    stage: order
+    activities: [p2p.po_change_quantity]
+    failure_modes: [p2p.fm.quantity_change_after_po]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.invoice_cancellation_rate
+    version: 1
+    name: {en: Invoice cancellation rate, de: Rechnungsstornoquote}
+    definition: {en: Share of PO items with a cancelled invoice receipt., de: Anteil der Bestellpositionen mit storniertem Rechnungseingang.}
+    formula: share of cases with count(p2p.ir_cancel) > 0 (c_l5_cancel_invoice_receipt violation)
+    unit: share
+    direction: lower_is_better
+    stage: invoice
+    activities: [p2p.ir_cancel]
+    failure_modes: [p2p.fm.cancelled_invoice, p2p.fm.duplicate_invoice]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.gr_cancellation_rate
+    version: 1
+    name: {en: Goods receipt cancellation rate, de: Wareneingangsstornoquote}
+    definition: {en: Share of PO items with a cancelled goods receipt., de: Anteil der Bestellpositionen mit storniertem Wareneingang.}
+    formula: share of cases with count(p2p.gr_cancel) > 0 (c_l5_cancel_goods_receipt violation)
+    unit: share
+    direction: lower_is_better
+    stage: receive
+    activities: [p2p.gr_cancel]
+    failure_modes: [p2p.fm.cancelled_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.item_deletion_rate
+    version: 1
+    name: {en: Order item deletion rate, de: Löschquote von Bestellpositionen}
+    definition: {en: Share of PO items deleted after creation., de: Anteil der nach Anlage gelöschten Bestellpositionen.}
+    formula: share of cases with count(p2p.po_item_delete) > 0 (c_l5_delete_item violation)
+    unit: share
+    direction: lower_is_better
+    stage: order
+    activities: [p2p.po_item_delete]
+    failure_modes: [p2p.fm.deleted_item]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.confirmation_churn
+    version: 1
+    name: {en: Vendor confirmation churn, de: Bestätigungsschwankung}
+    definition: {en: Share of PO items with more than the tolerated number of vendor confirmations or confirmed-date changes., de: Anteil der Bestellpositionen mit mehr als der tolerierten Zahl an Lieferantenbestätigungen oder Terminänderungen.}
+    formula: share of cases with violation > 0 on singularity(p2p.po_confirmation_receive, k) (b_rework_confirmation_churn)
+    unit: share
+    direction: lower_is_better
+    stage: order
+    activities: [p2p.po_confirmation_receive, p2p.confirmation_change_delivery_date]
+    failure_modes: [p2p.fm.vendor_confirmation_churn]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.on_time_receipt_rate
+    version: 1
+    name: {en: On-time receipt rate, de: Termintreue des Wareneingangs}
+    definition: {en: Share of received items whose first receipt is on or before the scheduled delivery date., de: "Anteil der gelieferten Positionen, deren erster Wareneingang am oder vor dem geplanten Liefertermin liegt."}
+    formula: 1 - share of cases with days_late > 0 where days_late = first p2p.gr date minus scheduled delivery date (derived attribute; metric constraint)
+    unit: share
+    direction: higher_is_better
+    stage: receive
+    activities: [p2p.gr]
+    failure_modes: [p2p.fm.late_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+    notes: Needs the scheduled delivery date as a case attribute; the hackathon extract carries it, BPIC 2019 does not.
+  - id: p2p.kpi.order_to_receipt_days
+    version: 1
+    name: {en: Order to receipt days, de: Tage von Bestellung bis Wareneingang}
+    definition: {en: Days from order item creation to the first receipt., de: Tage von der Anlage der Bestellposition bis zum ersten Wareneingang.}
+    formula: lag p2p.po_item_create -> p2p.gr in days (b_time_po_to_gr); median and p90 per slice, open items censored
+    unit: days
+    direction: lower_is_better
+    stage: receive
+    activities: [p2p.po_item_create, p2p.gr]
+    failure_modes: [p2p.fm.late_goods_receipt]
+    wise_expressible: true
+    review_status: draft
+  - id: p2p.kpi.spend_under_requisition
+    version: 1
+    name: {en: Share of orders with requisition evidence, de: Anteil der Bestellungen mit BANF-Nachweis}
+    definition: {en: Share of PO items preceded by a requisition or shopping cart; meaningful only for document types that require one., de: Anteil der Bestellpositionen mit vorangehender BANF oder Einkaufswagen; nur für Belegarten mit BANF-Pflicht aussagekräftig.}
+    formula: 1 - share of cases with violation > 0 on presence(p2p.pr_item_create, p2p.pr_create, p2p.srm_created) (b_approval_requisition_present)
+    unit: share
+    direction: higher_is_better
+    stage: request
+    failure_modes: [p2p.fm.order_without_requisition]
+    wise_expressible: true
+    review_status: draft

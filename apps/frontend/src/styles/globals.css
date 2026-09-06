@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* scrollIntoView keeps targets clear of the fixed job tray */
+    scroll-padding-bottom: 12rem;
+    font-family: var(--font-ui);
+    font-size: var(--text-base-size);
+    line-height: var(--text-base-leading);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    margin: 0;
+    min-height: 100vh;
+  }
+  code, kbd, pre, .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "liga" 0;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  ::selection {
+    background: var(--color-selection);
+  }
+  h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .tnum {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: var(--font-features-numeric);
+  }
+  .surface {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+  .skip-link {
+    position: absolute;
+    left: 8px;
+    top: -48px;
+    z-index: var(--z-toast);
+    padding: 8px 12px;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border-radius: var(--radius-sm);
+    transition: top var(--duration-fast) var(--easing-standard);
+  }
+  .skip-link:focus {
+    top: 8px;
+  }
+  .grid-row[data-active="true"] {
+    background: var(--color-selection);
+  }
+  .grid-row[data-pinned="true"] .pin-glyph {
+    color: var(--color-accent-text);
+  }
+  .layer-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid var(--color-border-strong);
+    vertical-align: -1px;
+  }
+  .sticky-pane {
+    position: sticky;
+    top: 56px;
+    max-height: calc(100vh - 72px);
+    overflow: auto;
+  }
+}
+
+/* Reduced motion: also switch off Radix animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

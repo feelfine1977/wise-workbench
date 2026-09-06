@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/slicing.schema.json",
+  "title": "Slicing guidance: roles, slice keys, exposure, identification pitfalls",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "roles", "slice_keys", "never_slice_by"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "description": { "type": "string" },
+          "systems": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "slice_keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "owner_role", "description"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "description": { "type": "string", "minLength": 1 },
+          "owner_role": { "$ref": "common.schema.json#/$defs/id" },
+          "recommended": { "type": "boolean" },
+          "attributes": {
+            "type": "object",
+            "description": "Column or field name per known source (dataset id or system).",
+            "additionalProperties": { "type": "string" }
+          },
+          "cardinality_hint": { "type": "string" },
+          "min_cases_hint": { "type": "integer", "minimum": 1 },
+          "pitfalls": { "type": "array", "items": { "type": "string" } },
+          "combine_with": { "$ref": "common.schema.json#/$defs/idList" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "never_slice_by": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "reason"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "alternative": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "exposure": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "attributes": { "type": "object", "additionalProperties": { "type": "string" } },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "identification_pitfalls": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

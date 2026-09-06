@@ -1,0 +1,195 @@
+# Order-to-cash KPI definitions in WISE terms where possible.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - APQC Process Classification Framework, order fulfilment and accounts receivable metrics
+  - o2c/README.md and failure_modes.yaml of this pack
+kpis:
+  - id: o2c.kpi.on_time_delivery_rate
+    version: 1
+    name: {en: On-time delivery rate, de: Liefertermintreue}
+    definition: {en: "Share of shipped items whose goods issue is on or before the requested delivery date.", de: "Anteil der gelieferten Positionen, deren Warenausgang am oder vor dem Wunschliefertermin liegt."}
+    formula: 1 - share of cases with violation > 0 on metric(days_late) (o_deliv_days_late)
+    unit: share
+    direction: higher_is_better
+    stage: fulfil
+    activities: [o2c.goods_issue]
+    failure_modes: [o2c.fm.late_goods_issue, o2c.fm.delivery_date_postponed]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.order_to_issue_days
+    version: 1
+    name: {en: Order-to-issue days, de: Tage von Auftrag bis Warenausgang}
+    definition: {en: "Days from item creation to goods issue; median and p90 per slice, open items censored.", de: "Tage von der Positionsanlage bis zum Warenausgang; Median und p90 je Slice, offene Positionen zensiert."}
+    formula: lag o2c.item_create -> o2c.goods_issue in days (o_deliv_order_to_issue_days with censor)
+    unit: days
+    direction: lower_is_better
+    stage: fulfil
+    activities: [o2c.item_create, o2c.goods_issue]
+    failure_modes: [o2c.fm.long_tail_fulfilment]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.perfect_order_rate
+    version: 1
+    name: {en: Perfect order item rate, de: Quote fehlerfreier Auftragspositionen}
+    definition: {en: "Share of items shipped on time without postponement, confirmation removal, rejection, reversal or invoice correction.", de: "Anteil der Positionen, die termingerecht ohne Verschiebung, Bestätigungsrücknahme, Absage, Storno oder Rechnungskorrektur geliefert wurden."}
+    formula: share of cases with score S = 1 in a view over the commitment, delivery and invoice layers
+    unit: share
+    direction: higher_is_better
+    failure_modes: [o2c.fm.delivery_date_postponed, o2c.fm.confirmation_withdrawn, o2c.fm.customer_cancellation, o2c.fm.late_goods_issue, o2c.fm.goods_issue_reversed, o2c.fm.invoice_correction]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.postponement_rate
+    version: 1
+    name: {en: Postponement rate, de: Verschiebungsquote}
+    definition: {en: "Share of items with at least one postponed delivery date.", de: "Anteil der Positionen mit mindestens einem verschobenen Liefertermin."}
+    formula: share of cases with count(o2c.delivery_date_postpone) > 0 (o_commit_no_postponement)
+    unit: share
+    direction: lower_is_better
+    stage: commit
+    activities: [o2c.delivery_date_postpone]
+    failure_modes: [o2c.fm.delivery_date_postponed]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.cancellation_rate
+    version: 1
+    name: {en: Cancellation rate after commitment, de: Stornoquote nach Zusage}
+    definition: {en: "Share of confirmed items with a rejection reason set afterwards.", de: "Anteil der bestätigten Positionen mit später gesetztem Absagegrund."}
+    formula: share of cases with count(o2c.rejection_change) > 0 among applicable cases (o_commit_no_rejection_after_confirmation)
+    unit: share
+    direction: lower_is_better
+    stage: commit
+    activities: [o2c.rejection_change]
+    failure_modes: [o2c.fm.customer_cancellation]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.confirmation_withdrawal_rate
+    version: 1
+    name: {en: Confirmation withdrawal rate, de: Quote zurückgenommener Bestätigungen}
+    definition: {en: "Share of items whose confirmed quantity was removed.", de: "Anteil der Positionen, deren bestätigte Menge entfernt wurde."}
+    formula: share of cases with count(o2c.schedule_confirm_remove) > 0 (o_commit_no_confirmation_removed)
+    unit: share
+    direction: lower_is_better
+    stage: commit
+    activities: [o2c.schedule_confirm_remove]
+    failure_modes: [o2c.fm.confirmation_withdrawn]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.change_churn_rate
+    version: 1
+    name: {en: Change churn rate, de: Änderungsquote}
+    definition: {en: "Share of items with more than the tolerated number of change events.", de: "Anteil der Positionen mit mehr als der tolerierten Zahl an Änderungsereignissen."}
+    formula: share of cases with violation > 0 on metric(change_event_count) (o_change_churn)
+    unit: share
+    direction: lower_is_better
+    stage: commit
+    failure_modes: [o2c.fm.change_churn, o2c.fm.availability_date_changed, o2c.fm.delivery_date_preponed]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.open_item_share
+    version: 1
+    name: {en: Open item share, de: Anteil offener Positionen}
+    definition: {en: "Share of deliverable items without goods issue at the end of the window, reported next to the censoring diagnostics.", de: "Anteil der lieferbaren Positionen ohne Warenausgang am Fensterende, neben der Zensierungsdiagnostik berichtet."}
+    formula: share of cases with violation > 0 on presence(o2c.goods_issue) (o_deliv_goods_issue_present), with right_censored per slice
+    unit: share
+    direction: lower_is_better
+    stage: fulfil
+    failure_modes: [o2c.fm.item_not_shipped]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.fill_rate
+    version: 1
+    name: {en: Confirmed-to-ordered fill rate, de: Bestätigungsquote (bestätigt zu bestellt)}
+    definition: {en: "Confirmed quantity divided by ordered quantity at first confirmation.", de: "Bestätigte Menge geteilt durch bestellte Menge bei der ersten Bestätigung."}
+    formula: 1 - mean violation of balance(order_quantity, confirmed_quantity) (o_commit_confirmed_equals_ordered)
+    unit: share
+    direction: higher_is_better
+    stage: commit
+    failure_modes: [o2c.fm.stockout_after_commitment]
+    wise_expressible: true
+    review_status: draft
+    notes: Equal to 1 for every item of the hackathon extract; the shortfall is invisible there.
+  - id: o2c.kpi.return_rate
+    version: 1
+    name: {en: Return rate, de: Retourenquote}
+    definition: {en: "Share of shipped items with a return order or returns delivery.", de: "Anteil der gelieferten Positionen mit Retourenauftrag oder Retourenlieferung."}
+    formula: share of cases with count(o2c.return_order_create, o2c.return_delivery) > 0 among shipped items
+    unit: share
+    direction: lower_is_better
+    stage: return
+    activities: [o2c.return_order_create, o2c.return_delivery]
+    failure_modes: [o2c.fm.return_without_return_order]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.reversal_rate
+    version: 1
+    name: {en: Goods issue reversal rate, de: Warenausgangsstornoquote}
+    definition: {en: "Share of shipped items whose goods issue was reversed.", de: "Anteil der gelieferten Positionen mit storniertem Warenausgang."}
+    formula: share of cases with count(o2c.delivery_reversal) > 0 (o_return_no_reversal)
+    unit: share
+    direction: lower_is_better
+    stage: return
+    activities: [o2c.delivery_reversal]
+    failure_modes: [o2c.fm.goods_issue_reversed]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.invoice_lead_time
+    version: 1
+    name: {en: Goods issue to invoice days, de: Tage von Warenausgang bis Rechnung}
+    definition: {en: "Days from goods issue to billing document.", de: "Tage vom Warenausgang bis zur Faktura."}
+    formula: lag o2c.goods_issue -> o2c.invoice_create in days (o_invoice_days_after_issue)
+    unit: days
+    direction: lower_is_better
+    stage: invoice
+    activities: [o2c.goods_issue, o2c.invoice_create]
+    failure_modes: [o2c.fm.invoice_missing_or_late]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.invoice_correction_rate
+    version: 1
+    name: {en: Invoice correction rate, de: Rechnungskorrekturquote}
+    definition: {en: "Share of invoiced items with a cancellation, correction request, credit or debit memo.", de: "Anteil der fakturierten Positionen mit Storno, Korrekturanforderung, Gut- oder Lastschrift."}
+    formula: share of cases with violation > 0 on exclusion(o2c.invoice_cancel, o2c.invoice_correction_request, o2c.credit_memo_create, o2c.debit_memo_create) (o_invoice_no_corrections)
+    unit: share
+    direction: lower_is_better
+    stage: invoice
+    failure_modes: [o2c.fm.invoice_correction]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.dso_proxy
+    version: 1
+    name: {en: Invoice to payment days (DSO proxy), de: Tage von Rechnung bis Zahlung (DSO-Näherung)}
+    definition: {en: "Days from billing document to incoming payment; a days-sales-outstanding proxy per slice, read against payment terms.", de: "Tage von der Faktura bis zum Zahlungseingang; Näherung der Debitorenlaufzeit je Slice, gegen Zahlungsbedingungen zu lesen."}
+    formula: lag o2c.invoice_create -> o2c.payment_receive in days (o_pay_within_terms with censor)
+    unit: days
+    direction: lower_is_better
+    stage: pay
+    activities: [o2c.invoice_create, o2c.payment_receive]
+    failure_modes: [o2c.fm.payment_after_due_date]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.dunning_rate
+    version: 1
+    name: {en: Dunning rate, de: Mahnquote}
+    definition: {en: "Share of invoiced items with at least one payment reminder.", de: "Anteil der fakturierten Positionen mit mindestens einer Mahnung."}
+    formula: share of cases with count(o2c.dunning) > 0 (o_pay_no_dunning)
+    unit: share
+    direction: lower_is_better
+    stage: pay
+    activities: [o2c.dunning]
+    failure_modes: [o2c.fm.payment_after_due_date]
+    wise_expressible: true
+    review_status: draft
+  - id: o2c.kpi.credit_block_rate
+    version: 1
+    name: {en: Credit block rate, de: Kreditsperrenquote}
+    definition: {en: "Share of orders blocked by credit management.", de: "Anteil der durch das Kreditmanagement gesperrten Aufträge."}
+    formula: share of cases with count(o2c.credit_block_set) > 0 (o_capture_no_credit_block)
+    unit: share
+    direction: lower_is_better
+    stage: capture
+    activities: [o2c.credit_block_set]
+    failure_modes: [o2c.fm.credit_block]
+    wise_expressible: true
+    review_status: draft

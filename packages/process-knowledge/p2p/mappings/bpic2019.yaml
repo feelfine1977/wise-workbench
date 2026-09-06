@@ -1,0 +1,52 @@
+# Curated mapping of the 42 BPI Challenge 2019 labels (column 'event concept:name')
+# to canonical p2p activities. Test oracle for activity matching (CP-D1) and
+# the preset mapping for the public-log preset.
+id: bpic2019
+pack: p2p
+dataset: bpic2019
+key: {label: "event concept:name"}
+sources:
+  - BPI_Challenge_2019.csv, 42 distinct labels counted on 2026-09-05
+labels:
+  - {label: Record Goods Receipt, activity: p2p.gr}
+  - {label: Create Purchase Order Item, activity: p2p.po_item_create}
+  - {label: Record Invoice Receipt, activity: p2p.ir}
+  - {label: Vendor creates invoice, activity: p2p.vendor_invoice}
+  - {label: Clear Invoice, activity: p2p.invoice_clear}
+  - {label: Record Service Entry Sheet, activity: p2p.ses}
+  - {label: Remove Payment Block, activity: p2p.payment_block_remove}
+  - {label: Create Purchase Requisition Item, activity: p2p.pr_item_create}
+  - {label: Receive Order Confirmation, activity: p2p.po_confirmation_receive}
+  - {label: Change Quantity, activity: p2p.po_change_quantity}
+  - {label: Change Price, activity: p2p.po_change_price}
+  - {label: Delete Purchase Order Item, activity: p2p.po_item_delete}
+  - {label: Change Approval for Purchase Order, activity: p2p.po_change_approval}
+  - {label: Cancel Invoice Receipt, activity: p2p.ir_cancel}
+  - {label: Vendor creates debit memo, activity: p2p.vendor_debit_memo}
+  - {label: Change Delivery Indicator, activity: p2p.po_change_delivery_indicator}
+  - {label: Cancel Goods Receipt, activity: p2p.gr_cancel}
+  - {label: "SRM: In Transfer to Execution Syst.", activity: p2p.srm_transfer}
+  - {label: "SRM: Awaiting Approval", activity: p2p.srm_awaiting_approval}
+  - {label: "SRM: Complete", activity: p2p.srm_complete}
+  - {label: "SRM: Ordered", activity: p2p.srm_ordered}
+  - {label: "SRM: Document Completed", activity: p2p.srm_document_completed}
+  - {label: "SRM: Created", activity: p2p.srm_created}
+  - {label: Release Purchase Order, activity: p2p.po_release}
+  - {label: "SRM: Change was Transmitted", activity: p2p.srm_change_transmitted}
+  - {label: Reactivate Purchase Order Item, activity: p2p.po_item_reactivate}
+  - {label: Block Purchase Order Item, activity: p2p.po_item_block}
+  - {label: Cancel Subsequent Invoice, activity: p2p.subsequent_invoice_cancel}
+  - {label: Release Purchase Requisition, activity: p2p.pr_release}
+  - {label: Change Storage Location, activity: p2p.po_change_storage_location}
+  - {label: Update Order Confirmation, activity: p2p.po_confirmation_update}
+  - {label: "SRM: Deleted", activity: p2p.srm_deleted}
+  - {label: Record Subsequent Invoice, activity: p2p.subsequent_invoice}
+  - {label: Set Payment Block, activity: p2p.payment_block_set}
+  - {label: "SRM: Transfer Failed (E.Sys.)", activity: p2p.srm_transfer_failed}
+  - {label: Change Currency, activity: p2p.po_change_currency}
+  - {label: Change Final Invoice Indicator, activity: p2p.final_invoice_indicator_change}
+  - {label: "SRM: Transaction Completed", activity: p2p.srm_transaction_completed}
+  - {label: Change payment term, activity: p2p.po_change_payment_terms}
+  - {label: "SRM: Incomplete", activity: p2p.srm_incomplete}
+  - {label: "SRM: Held", activity: p2p.srm_held}
+  - {label: Change Rejection Indicator, activity: p2p.po_change_rejection_indicator}

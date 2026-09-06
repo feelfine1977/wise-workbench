@@ -1,0 +1,172 @@
+# Order-to-cash playbooks per journey stage (docs/CUSTOMER_JOURNEY.md §3).
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - docs/CUSTOMER_JOURNEY.md journey stages S0 to S12
+  - docs/panel/process_panel.md §5 (O2C pitfalls)
+  - o2c/README.md §3 and §4
+playbooks:
+  - id: o2c.pb.s0_scope
+    version: 1
+    journey_stage: S0
+    title: {en: Steering question and scope, de: Steuerungsfrage und Umfang}
+    audience: [sponsor, process owner, analyst]
+    questions:
+      - {en: "Which goal lens steers first: delivery reliability (logistics), commitment stability (order management), working capital (finance) or customer experience (service)?", de: "Welche Zielperspektive steuert zuerst: Lieferzuverlässigkeit (Logistik), Zusagestabilität (Auftragsmanagement), Working Capital (Finanzen) oder Kundenerlebnis (Service)?"}
+      - {en: "Which customers, SKUs, plants and incoterms are in scope, and who owns each slice?", de: "Welche Kunden, SKUs, Werke und Incoterms sind im Umfang, und wer verantwortet jeden Slice?"}
+      - {en: "Are invoice and payment events available, or does the analysis stop at goods issue as in the hackathon extract?", de: "Sind Rechnungs- und Zahlungsereignisse verfügbar, oder endet die Analyse wie im Hackathon-Auszug beim Warenausgang?"}
+    workshop_script:
+      - Write the steering question with a measurable expectation shortfall (for example, share of items shipped after the requested date per customer).
+      - Choose o2c_baseline and record that every threshold is uncalibrated; agree which stages the log covers.
+    stages: [capture, commit, fulfil, return, invoice, pay]
+    review_status: draft
+  - id: o2c.pb.s1_readiness
+    version: 1
+    journey_stage: S1
+    title: {en: Log intake and data readiness, de: Logaufnahme und Datenbereitschaft}
+    audience: [analyst, data engineer]
+    questions:
+      - {en: "Is Create Order replicated onto every item (header event), and is it typed as such?", de: "Wird 'Create Order' auf jede Position kopiert (Kopfereignis), und ist es so typisiert?"}
+      - {en: "For which channels is the order confirmation logged (4 % of items in the extract)?", de: "Für welche Kanäle wird die Auftragsbestätigung protokolliert (4 % der Positionen im Auszug)?"}
+      - {en: "Do change events carry changed_from and changed_to values that the derive recipes should keep?", de: "Tragen Änderungsereignisse changed_from- und changed_to-Werte, die die Ableitungsrezepte behalten sollen?"}
+      - {en: "How many items are open at the extract end and how many of those are cancelled?", de: "Wie viele Positionen sind am Auszugsende offen und wie viele davon storniert?"}
+    workshop_script:
+      - Run the readiness report; record header replication, the open-item share and the confirmation logging coverage as caveats.
+      - Map the label column to the o2c ontology; keep changed_from and changed_to as event attributes.
+    review_status: draft
+  - id: o2c.pb.s2_case_notion
+    version: 1
+    journey_stage: S2
+    title: {en: "Case notion, variants and slice keys", de: "Fallnotion, Varianten und Slice-Schlüssel"}
+    audience: [analyst, process owner]
+    questions:
+      - {en: "Is the case the sales order item, the delivery or the invoice, and how do returns link to the original item?", de: "Ist der Fall die Auftragsposition, die Lieferung oder die Rechnung, und wie hängen Retouren mit der Ursprungsposition zusammen?"}
+      - {en: "Which items are return items or rejected at capture, and are they excluded from delivery-performance constraints?", de: "Welche Positionen sind Retouren oder bei Erfassung abgesagt, und sind sie von Lieferleistungsregeln ausgenommen?"}
+      - {en: "Which planning types are make-to-order and need their own lag thresholds?", de: "Welche Planungsarten sind Kundeneinzelfertigung und brauchen eigene Schwellen?"}
+    workshop_script:
+      - Derive return_item, rejected-at-capture and flow_type (standard, make_to_order, partial_delivery, returns) as recipes.
+      - Register owners per customer, SKU group and plant; incoterm FCA is too small to slice alone.
+    review_status: draft
+  - id: o2c.pb.s3_norm_workshop
+    version: 1
+    journey_stage: S3
+    title: {en: Norm elicitation workshop, de: Normerhebung im Workshop}
+    audience: [order management, logistics, sales, supply planning, analyst]
+    questions:
+      - {en: "How many days from order item to goods issue are expected for stock items, and where does the shortfall start to matter (median 1.9 days, p90 67 days in the extract)?", de: "Wie viele Tage von der Auftragsposition bis zum Warenausgang werden für Lagerartikel erwartet, und ab wann wird der Rückstand relevant (Median 1,9 Tage, p90 67 Tage im Auszug)?"}
+      - {en: "Is a preponed date a shortfall at all, or only repeated moves in both directions?", de: "Ist ein vorgezogener Termin überhaupt ein Rückstand, oder nur wiederholte Verschiebungen in beide Richtungen?"}
+      - {en: "Which cancellations count against the process (handling errors) and which are customer decisions?", de: "Welche Stornierungen zählen gegen den Prozess (Bearbeitungsfehler) und welche sind Kundenentscheidungen?"}
+      - {en: "Should on-time delivery be measured against the requested date or the first confirmed date?", de: "Soll die Termintreue gegen den Wunschtermin oder den ersten bestätigten Termin gemessen werden?"}
+    workshop_script:
+      - Walk the failure-mode catalogue stage by stage; write each accepted expectation as a sentence and pick its pattern.
+      - Set thresholds on the empirical distributions; separate make-to-order items; record the rationale per constraint.
+    review_status: draft
+  - id: o2c.pb.s4_views
+    version: 1
+    journey_stage: S4
+    title: {en: View design, de: Sichtenentwurf}
+    audience: [sponsor, process owner]
+    questions:
+      - {en: "Sales emphasises commitment and cancellations; logistics emphasises delivery performance; finance emphasises invoice and payment; which view steers?", de: "Vertrieb betont Zusage und Storni; Logistik die Lieferleistung; Finanzen Rechnung und Zahlung; welche Sicht steuert?"}
+    workshop_script:
+      - Start from the four views of o2c_baseline; adjust emphasis with sliders; show the agreement matrix before approving.
+    review_status: draft
+  - id: o2c.pb.s5_scoring
+    version: 1
+    journey_stage: S5
+    title: {en: Scoring and calibration, de: Bewertung und Kalibrierung}
+    audience: [analyst]
+    questions:
+      - {en: "What share of items is unscored because return_item, confirmed_quantity or flow_type is missing?", de: "Welcher Anteil der Positionen bleibt unbewertet, weil return_item, confirmed_quantity oder flow_type fehlen?"}
+      - {en: "Should priorities weight items or order quantity, given that the extract has no value column?", de: "Sollen Prioritäten Positionen oder Bestellmengen gewichten, da der Auszug keine Wertspalte hat?"}
+    workshop_script:
+      - Record gamma, min_cases, scoring mode and volume mode in the run manifest with a note.
+    review_status: draft
+  - id: o2c.pb.s6_backlog_review
+    version: 1
+    journey_stage: S6
+    title: {en: Backlog review session, de: Durchsicht der Prioritätenliste}
+    audience: [process owner, analyst]
+    questions:
+      - {en: "Does the owner recognise the top customers and SKUs, and which priorities are disputed?", de: "Erkennt der Verantwortliche die obersten Kunden und SKUs wieder, und welche Prioritäten werden bestritten?"}
+    hypotheses:
+      reservoir:
+        - Many customers with a moderate order-to-issue shortfall point to planning parameters or warehouse capacity rather than to single customers
+        - A SKU group with broad postponements points to supply on the purchase side
+      mechanism:
+        - A customer whose shortfall sits in commitment discipline (cancellations after confirmation) points to late confirmations or price changes
+        - A plant with a pick-to-issue shortfall points to carrier cut-offs or packing capacity
+      severity:
+        - A few items with very long open times are make-to-order or forgotten items, not a customer pattern
+        - A single customer with repeated goods issue reversals points to dock refusals or address data
+    workshop_script:
+      - Walk the top-k in presenter mode; record agree, dispute or defer per slice; disputed thresholds go back to S3.
+    review_status: draft
+  - id: o2c.pb.s7_validation
+    version: 1
+    journey_stage: S7
+    title: {en: Validation gate, de: Validierungstor}
+    audience: [analyst, process owner]
+    questions:
+      - {en: "How much of the slice's shortfall comes from items open at the extract end or cancelled?", de: "Wie viel des Rückstands im Slice stammt von am Auszugsende offenen oder stornierten Positionen?"}
+      - {en: "Is the header event Create Order typed away before change counts are read?", de: "Ist das Kopfereignis 'Create Order' vor dem Lesen der Änderungszahlen typisiert?"}
+      - {en: "Does the material master confirm the make-to-order reading for long-tail items?", de: "Bestätigt der Materialstamm die Lesart Kundeneinzelfertigung für die Long-Tail-Positionen?"}
+    workshop_script:
+      - Read right_censored and gap_retained per focus slice; record the reading with a note.
+    review_status: draft
+  - id: o2c.pb.s8_rca
+    version: 1
+    journey_stage: S8
+    title: {en: Mechanism and cause candidates, de: Mechanismus und Ursachenkandidaten}
+    audience: [improvement lead, order management, logistics, supply planning, sales]
+    questions:
+      - {en: "Ask order management whether the postponement followed a purchase-side confirmation change for the SKU.", de: "Fragen Sie das Auftragsmanagement, ob die Verschiebung auf eine Bestätigungsänderung auf der Einkaufsseite für die SKU folgte."}
+      - {en: "Ask the warehouse whether goods issue is posted at physical departure or at wave completion.", de: "Fragen Sie das Lager, ob der Warenausgang beim physischen Abgang oder beim Wellenabschluss gebucht wird."}
+      - {en: "Ask sales whether the cancelled items were confirmed late or repriced before the customer cancelled.", de: "Fragen Sie den Vertrieb, ob die stornierten Positionen spät bestätigt oder vor der Kundenstornierung umgepreist wurden."}
+      - {en: "Ask supply planning which SKUs had safety stock changes in the period.", de: "Fragen Sie die Bedarfsplanung, welche SKUs im Zeitraum Sicherheitsbestandsänderungen hatten."}
+    workshop_script:
+      - Open constraint drivers, worst cases and traces; use the failure-mode entry's evidence_to_check as the first checklist; one non-log confirmation per cause candidate.
+    failure_modes: [o2c.fm.delivery_date_postponed, o2c.fm.late_goods_issue, o2c.fm.customer_cancellation, o2c.fm.long_tail_fulfilment]
+    review_status: draft
+  - id: o2c.pb.s9_actions
+    version: 1
+    journey_stage: S9
+    title: {en: Action hypotheses, de: Maßnahmenhypothesen}
+    audience: [process owner, improvement lead]
+    questions:
+      - {en: "Which constraint should move if the countermeasure works, and for which customers or SKUs first?", de: "Welche Regel soll sich bewegen, wenn die Gegenmaßnahme wirkt, und für welche Kunden oder SKUs zuerst?"}
+    workshop_script:
+      - Draft cards from the failure-mode entry's typical_remedies; the owner picks or rewrites; expected movement named on a constraint.
+    review_status: draft
+  - id: o2c.pb.s10_planning
+    version: 1
+    journey_stage: S10
+    title: {en: Intervention planning, de: Maßnahmenplanung}
+    audience: [sponsor, process owner]
+    questions:
+      - {en: "Pilot on one plant or customer group, or roll out across all incoterms?", de: "Pilot in einem Werk oder einer Kundengruppe, oder Ausrollen über alle Incoterms?"}
+    workshop_script:
+      - Freeze and name the baseline run; write the success metric as a target violation share on the named constraint.
+    review_status: draft
+  - id: o2c.pb.s11_monitoring
+    version: 1
+    journey_stage: S11
+    title: {en: Monitoring across periods, de: Beobachtung über Perioden}
+    audience: [analyst, sponsor]
+    questions:
+      - {en: "Did the shortfall move on the targeted constraint, and did the SKU or customer mix change between periods?", de: "Hat sich der Rückstand bei der Zielregel bewegt, und hat sich der SKU- oder Kundenmix zwischen den Perioden verändert?"}
+      - {en: "Are the last periods still right-censored (open items) and read with the diagnostics?", de: "Sind die letzten Perioden noch rechtszensiert (offene Positionen) und mit der Diagnostik gelesen?"}
+    workshop_script:
+      - Compare periods against the frozen baseline; report per-constraint rates and open-item shares; no causal language.
+    review_status: draft
+  - id: o2c.pb.s12_standard
+    version: 1
+    journey_stage: S12
+    title: {en: Institutionalisation, de: Verankerung}
+    audience: [process owner, sponsor]
+    questions:
+      - {en: "Who owns the norm, and when are invoice and payment constraints added once the data reaches those stages?", de: "Wer verantwortet die Norm, und wann werden Rechnungs- und Zahlungsregeln ergänzt, sobald die Daten diese Stufen erreichen?"}
+    workshop_script:
+      - Export the norm as the standard with owner, cadence and change procedure.
+    review_status: draft

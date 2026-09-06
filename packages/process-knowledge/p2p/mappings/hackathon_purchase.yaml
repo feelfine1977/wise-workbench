@@ -1,0 +1,19 @@
+# Curated mapping of the 10 labels of the ICPM 2026 hackathon purchase extract
+# (Purchase_Eventlog.csv, column 'activity'); the extract itself is local only.
+id: hackathon_purchase
+pack: p2p
+dataset: icpm2026_hackathon
+key: {label: activity}
+sources:
+  - Purchase_Eventlog.csv, 10 distinct labels counted on 2026-09-05
+labels:
+  - {label: Created Purchase Vendor Confirmation, activity: p2p.po_confirmation_receive}
+  - {label: Goods receipt, activity: p2p.gr}
+  - {label: Send Purchase order, activity: p2p.po_send}
+  - {label: Create Purchase Order, activity: p2p.po_create}
+  - {label: Create Purchase Order Item, activity: p2p.po_item_create}
+  - {label: Change Delivery date (Confirmation), activity: p2p.confirmation_change_delivery_date}
+  - {label: Changed PO Quantity- Decrease, activity: p2p.po_change_quantity}
+  - {label: Change PO Deleted Flag, activity: p2p.po_item_delete}
+  - {label: Changed Delivery date (Schedule Line), activity: p2p.po_change_delivery_date}
+  - {label: Changed PO Quantity - Increase, activity: p2p.po_change_quantity}

@@ -1,0 +1,81 @@
+# Draft — service topology only; images and Dockerfiles are built in Phase 0.
+name: wise-workbench
+
+x-backend: &backend
+  image: ghcr.io/ORG/wise-workbench:${WISE_VERSION:-latest}
+  env_file: .env
+  volumes:
+    - workspace:/workspace
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *backend
+    command: wise-workbench serve --host 0.0.0.0 --port 8000
+    ports: ["8080:8000"]
+    healthcheck:
+      test: ["CMD", "wise-workbench", "health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: [single, team, dev]
+
+  worker:
+    <<: *backend
+    command: wise-workbench worker --concurrency 1
+    deploy:
+      replicas: ${WISE_WORKERS:-2}
+      resources:
+        limits:
+          memory: ${WISE_WORKER_MEMORY_LIMIT:-8g}
+    depends_on: [postgres]
+    profiles: [team, dev]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: wise
+      POSTGRES_USER: wise
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    secrets: [pg_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wise"]
+    profiles: [team, dev]
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    profiles: [team]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama pull ${WISE_LLM_MODEL:-qwen3:8b} &&
+       ollama pull ${WISE_EMBED_MODEL:-bge-m3}"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on: [ollama]
+    profiles: [team]
+
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on: [api]
+    profiles: [team]
+
+volumes:
+  workspace:
+  pgdata:
+  ollama:
+  caddy:
+
+secrets:
+  pg_password:
+    file: ./secrets/pg_password

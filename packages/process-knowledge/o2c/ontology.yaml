@@ -1,0 +1,661 @@
+# Order-to-cash ontology: canonical activities and system label packs.
+# Evidence for capture, commit, fulfil and return comes from the ICPM 2026
+# hackathon sales extract (SAP SD, local only); invoice and payment stages
+# use the OCEL 2.0 Order Management vocabulary and SAP SD documentation.
+# The draft ids of o2c/README.md are kept; o2c.schedule_confirm covers the
+# 'confirmed quantity changed' label and o2c.schedule_confirm_remove the
+# 'confirmed quantity removed' label, because the failure mode
+# 'confirmation withdrawn' needs the removal as its own activity.
+pack: o2c
+version: 1
+review_status: draft
+process: order-to-cash
+description: >
+  Canonical activities of order-to-cash from order capture through commitment,
+  fulfilment, returns, invoicing and payment. Stage ids refer to stages.yaml.
+sources:
+  - ICPM 2026 hackathon sales extract (SAP SD, Jan 2023 to Jan 2026), use permitted by the owner on 2026-09-05, not redistributed
+  - OCEL 2.0 Order Management (simulated), Zenodo, doi:10.5281/zenodo.8337463
+  - SAP ERP SD documentation, sales (VA*), shipping (VL*), billing (VF*) and accounts receivable (F-28, F150)
+  - packages/process-knowledge/o2c/README.md (draft of 2026-09-05)
+  - APQC Process Classification Framework, 5.0 Deliver physical products and 9.2 Manage accounts receivable
+object_types:
+  - id: inquiry
+    name: {en: inquiry, de: Anfrage}
+  - id: quotation
+    name: {en: quotation, de: Angebot}
+  - id: sales_order
+    name: {en: sales order (header), de: Kundenauftrag (Kopf)}
+  - id: sales_order_item
+    name: {en: sales order item, de: Auftragsposition}
+  - id: schedule_line
+    name: {en: schedule line, de: Einteilung}
+  - id: delivery
+    name: {en: outbound delivery, de: Auslieferung}
+  - id: package
+    name: {en: package (handling unit), de: Packstück}
+  - id: return_order
+    name: {en: return order, de: Retourenauftrag}
+  - id: billing_document
+    name: {en: billing document, de: Faktura}
+  - id: payment
+    name: {en: incoming payment, de: Zahlungseingang}
+  - id: customer
+    name: {en: customer, de: Kunde}
+  - id: material
+    name: {en: material (SKU), de: Material (SKU)}
+
+activities:
+  # ---------------------------------------------------------------- capture
+  - id: o2c.inquiry_create
+    name: {en: Create inquiry, de: Anfrage anlegen}
+    stage: capture
+    description: A customer inquiry is recorded before quotation and order (vocabulary; not in the hackathon extract).
+    synonyms:
+      en: [Create Inquiry, Inquiry received, Customer inquiry]
+      de: [Kundenanfrage anlegen, Anfrage erfassen]
+    object_types: [inquiry]
+    granularity: document
+    tcodes: [VA11]
+    sources: [SAP SD documentation]
+    review_status: draft
+  - id: o2c.quotation_create
+    name: {en: Create quotation, de: Angebot anlegen}
+    stage: capture
+    description: A quotation is issued to the customer (vocabulary).
+    synonyms:
+      en: [Create Quotation, Quotation sent, Quote created, Send quotation]
+      de: [Angebot erstellen, Angebot senden]
+    object_types: [quotation]
+    granularity: document
+    tcodes: [VA21]
+    sources: [SAP SD documentation]
+    review_status: draft
+  - id: o2c.order_create
+    name: {en: Create sales order, de: Kundenauftrag anlegen}
+    stage: capture
+    description: The sales order header is created; replicated onto every item case (header event) in the hackathon extract; 'place order' in OCEL 2.0 Order Management.
+    synonyms:
+      en: [Create Order, Create Sales Order, place order, Order placed, Sales order created, Order entry, Order received]
+      de: [Auftrag anlegen, Kundenauftrag erfassen, Auftragseingang, Auftrag angelegt]
+    object_types: [sales_order]
+    granularity: header
+    tags: [milestone]
+    tcodes: [VA01]
+    sources: [ICPM 2026 hackathon sales extract, OCEL 2.0 Order Management, SAP SD documentation]
+    review_status: draft
+  - id: o2c.item_create
+    name: {en: Create sales order item, de: Auftragsposition anlegen}
+    stage: capture
+    description: A sales order item is created; the case notion of the O2C pack (sales document number plus item).
+    synonyms:
+      en: [Create Order Item, Create Sales Order Item, Order item created, Order line created, Add order item]
+      de: [Auftragsposition erfassen, Position anlegen, Auftragsposition angelegt]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VA01]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.confirmation_send
+    name: {en: Send order confirmation, de: Auftragsbestätigung senden}
+    stage: capture
+    description: The order confirmation is sent to the customer; logged for 4 % of items in the hackathon extract, so a presence rule on it measures logging rather than behaviour; 'confirm order' in OCEL 2.0 Order Management.
+    synonyms:
+      en: [Send Order Confirmation, confirm order, Order confirmation sent, Order acknowledged, Confirm sales order]
+      de: [Auftragsbestätigung versenden, Auftrag bestätigen, AB gesendet]
+    object_types: [sales_order]
+    granularity: header
+    tags: [milestone, logging, customer_side]
+    tcodes: [VA02]
+    sources: [ICPM 2026 hackathon sales extract, OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.credit_check
+    name: {en: Perform credit check, de: Kreditprüfung durchführen}
+    stage: capture
+    description: Automatic or manual credit check on the order (vocabulary).
+    synonyms:
+      en: [Credit check, Check credit limit, Credit control]
+      de: [Kreditlimitprüfung, Bonitätsprüfung]
+    object_types: [sales_order]
+    granularity: header
+    sources: [SAP SD documentation credit management]
+    review_status: draft
+  - id: o2c.credit_block_set
+    name: {en: Set credit block, de: Kreditsperre setzen}
+    stage: capture
+    description: The order is blocked by credit management (vocabulary).
+    synonyms:
+      en: [Credit block set, Order blocked for credit, Credit hold]
+      de: [Kreditsperre gesetzt, Auftrag kreditgesperrt]
+    object_types: [sales_order]
+    granularity: header
+    tags: [exception]
+    sources: [SAP SD documentation credit management]
+    review_status: draft
+  - id: o2c.credit_block_release
+    name: {en: Release credit block, de: Kreditsperre aufheben}
+    stage: capture
+    description: A credit-blocked order is released (vocabulary).
+    synonyms:
+      en: [Release credit block, Credit release, Release blocked SD document, Credit hold released]
+      de: [Kreditsperre aufheben, Kreditfreigabe, Gesperrte Vertriebsbelege freigeben]
+    object_types: [sales_order]
+    granularity: header
+    tags: [milestone]
+    tcodes: [VKM1, VKM3]
+    sources: [SAP SD documentation credit management]
+    review_status: draft
+  - id: o2c.price_change_manual
+    name: {en: Change price manually, de: Preis manuell ändern}
+    stage: capture
+    description: A manual condition change on the order item (vocabulary; the hackathon extract has no value columns).
+    synonyms:
+      en: [Manual price change, Change price, Price condition changed, Manual discount]
+      de: [Manuelle Preisänderung, Konditionsänderung, Preis ändern]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [VA02]
+    sources: [SAP SD documentation pricing]
+    review_status: draft
+  # ---------------------------------------------------------------- commit
+  - id: o2c.schedule_confirm
+    name: {en: Schedule line confirmed quantity changed, de: Bestätigte Menge der Einteilung geändert}
+    stage: commit
+    description: The confirmed quantity of a schedule line is changed by availability check or manual confirmation.
+    synonyms:
+      en: [Schedule line confirmed quantity changed, Confirmed quantity changed, Schedule line confirmed, ATP confirmation changed]
+      de: [Bestätigte Menge geändert, Einteilung bestätigt, Verfügbarkeitsprüfung geändert]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change, milestone]
+    sources: [ICPM 2026 hackathon sales extract, SAP SD documentation schedule lines]
+    review_status: draft
+  - id: o2c.schedule_confirm_remove
+    name: {en: Schedule line confirmed quantity removed, de: Bestätigte Menge der Einteilung entfernt}
+    stage: commit
+    description: A previously confirmed quantity is withdrawn (confirmation removed); 1.5 % of items in the hackathon extract.
+    synonyms:
+      en: [Schedule line confirmed quantity removed, Confirmed quantity removed, Confirmation withdrawn, Confirmation removed]
+      de: [Bestätigte Menge entfernt, Bestätigung zurückgenommen, Bestätigung entfernt]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change, exception]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.schedule_request_change
+    name: {en: Schedule line requested quantity changed, de: Wunschmenge der Einteilung geändert}
+    stage: commit
+    description: The customer's requested quantity on the schedule line is changed.
+    synonyms:
+      en: [Schedule line requested quantity changed, Requested quantity changed, Order quantity changed]
+      de: [Wunschmenge geändert, Auftragsmenge geändert, Bestellmenge geändert]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change, customer_side]
+    tcodes: [VA02]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.avail_date_change
+    name: {en: Material availability date changed, de: Materialbereitstellungsdatum geändert}
+    stage: commit
+    description: The material availability date of the schedule line is changed after rescheduling or availability check; 9.9 % of items.
+    synonyms:
+      en: [Changed Mat.Avail.Date, Material availability date changed, Availability date changed, Mat avail date change]
+      de: [Materialbereitstellungsdatum geändert, Verfügbarkeitsdatum geändert, Bereitstellungstermin geändert]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.delivery_date_postpone
+    name: {en: Scheduled delivery date postponed, de: Geplanter Liefertermin verschoben (später)}
+    stage: commit
+    description: The confirmed delivery date moves later than previously committed; 3.2 % of items.
+    synonyms:
+      en: [Scheduled delivery date postponed, Delivery date postponed, Delivery date moved later, Delivery delayed]
+      de: [Liefertermin nach hinten verschoben, Liefertermin verschoben, Lieferdatum später]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change, exception]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.delivery_date_prepone
+    name: {en: Scheduled delivery date preponed, de: Geplanter Liefertermin vorgezogen}
+    stage: commit
+    description: The confirmed delivery date moves earlier than previously committed; 7.8 % of items.
+    synonyms:
+      en: [Scheduled delivery date preponed, Delivery date preponed, Delivery date moved earlier, Delivery date advanced]
+      de: [Liefertermin vorgezogen, Lieferdatum früher, Liefertermin nach vorn verschoben]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.incoterms_change
+    name: {en: Incoterms changed, de: Incoterms geändert}
+    stage: commit
+    description: The delivery terms of the item are changed after capture; 0.8 % of items.
+    synonyms:
+      en: [Changed Incoterms, Incoterms changed, Delivery terms changed, Change incoterms]
+      de: [Lieferbedingungen geändert, Incoterm geändert]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [VA02]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.delivery_block_change
+    name: {en: Delivery block changed, de: Liefersperre geändert}
+    stage: commit
+    description: The delivery block of the item is set or released (direction in changed_from and changed_to); 0.1 % of items.
+    synonyms:
+      en: [Changed Delivery block, Delivery block changed, Delivery block set or released]
+      de: [Liefersperre gesetzt oder aufgehoben, Liefersperre geändert]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [change, exception]
+    tcodes: [VA02]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.delivery_block_set
+    name: {en: Set delivery block, de: Liefersperre setzen}
+    stage: commit
+    description: A delivery block is set on the order or item (vocabulary; the hackathon extract logs the change without direction as its own label).
+    synonyms:
+      en: [Delivery block set, Block delivery, Order blocked for delivery]
+      de: [Liefersperre gesetzt, Lieferung sperren]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [exception]
+    sources: [SAP SD documentation delivery blocks]
+    review_status: draft
+  - id: o2c.delivery_block_release
+    name: {en: Release delivery block, de: Liefersperre aufheben}
+    stage: commit
+    description: A delivery block is released (vocabulary).
+    synonyms:
+      en: [Delivery block released, Release delivery block, Unblock delivery]
+      de: [Liefersperre aufgehoben, Liefersperre entfernen]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [milestone]
+    sources: [SAP SD documentation delivery blocks]
+    review_status: draft
+  - id: o2c.rejection_change
+    name: {en: Rejection reason changed, de: Absagegrund geändert}
+    stage: commit
+    description: The rejection reason of the item is set or changed (reason 80 'cancelled according to customer' on 1,425 items; 99 handling error; 86 position deleted; 82 double order).
+    synonyms:
+      en: [Changed RejectionReason, Rejection reason changed, Item rejected, Reason for rejection set, Order item cancelled]
+      de: [Absagegrund gesetzt, Position abgesagt, Auftragsposition storniert, Absagegrund geändert]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [change, cancellation]
+    tcodes: [VA02]
+    sources: [ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.backorder_reschedule
+    name: {en: Backorder rescheduling, de: Rückstandsbearbeitung}
+    stage: commit
+    description: Backorder processing redistributes confirmed quantities across open items (vocabulary).
+    synonyms:
+      en: [Rescheduling, Backorder processing, Reschedule sales documents]
+      de: [Neuterminierung, Rückstandsauflösung, Umterminierung]
+    object_types: [schedule_line]
+    granularity: item
+    tags: [change]
+    tcodes: [V_V2]
+    sources: [SAP SD documentation backorder processing]
+    review_status: draft
+  - id: o2c.item_out_of_stock
+    name: {en: Item out of stock, de: Artikel nicht verfügbar}
+    stage: commit
+    description: The item cannot be picked because stock is missing; 'item out of stock' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [item out of stock, Out of stock, Stock shortage, ATP shortfall]
+      de: [Nicht auf Lager, Fehlbestand, Bestand nicht verfügbar]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [exception]
+    sources: [OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.reorder_item
+    name: {en: Reorder item, de: Artikel nachbestellen}
+    stage: commit
+    description: Replenishment is triggered for an out-of-stock item; 'reorder item' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [reorder item, Replenish item, Trigger replenishment]
+      de: [Artikel nachbestellen, Nachschub auslösen]
+    object_types: [material]
+    granularity: item
+    sources: [OCEL 2.0 Order Management]
+    review_status: draft
+  # ---------------------------------------------------------------- fulfil
+  - id: o2c.delivery_create
+    name: {en: Create delivery item, de: Lieferposition anlegen}
+    stage: fulfil
+    description: An outbound delivery item is created for the order item; 95.3 % of items in the hackathon extract.
+    synonyms:
+      en: [Create Delivery Item, Create outbound delivery, Delivery created, Delivery item created, Create delivery]
+      de: [Auslieferung anlegen, Lieferung angelegt, Lieferposition erstellt]
+    object_types: [delivery]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VL01N, VL10]
+    sources: [ICPM 2026 hackathon sales extract, SAP SD documentation shipping]
+    review_status: draft
+  - id: o2c.pick
+    name: {en: Picking completed, de: Kommissionierung abgeschlossen}
+    stage: fulfil
+    description: The delivery item is picked; 'pick item' in OCEL 2.0 Order Management.
+    synonyms:
+      en: [Picking Completed, pick item, Item picked, Picking done, Confirm transfer order]
+      de: [Kommissioniert, Kommissionierung beendet, Transportauftrag quittiert]
+    object_types: [delivery]
+    granularity: item
+    tags: [milestone]
+    tcodes: [LT03, VL02N]
+    sources: [ICPM 2026 hackathon sales extract, OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.pack
+    name: {en: Packing completed, de: Verpackung abgeschlossen}
+    stage: fulfil
+    description: The delivery item is packed into handling units; logged for 0.2 % of items in the hackathon extract (logging, not behaviour); 'create package' in OCEL 2.0 Order Management.
+    synonyms:
+      en: [Packing Completed, create package, Item packed, Packing done, Handling unit created]
+      de: [Verpackt, Packstück angelegt, Verpackung beendet]
+    object_types: [package, delivery]
+    granularity: item
+    tags: [milestone, logging]
+    tcodes: [VL02N]
+    sources: [ICPM 2026 hackathon sales extract, OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.goods_issue
+    name: {en: Post goods issue, de: Warenausgang buchen}
+    stage: fulfil
+    description: The goods leave the warehouse; the delivery-performance milestone (95.2 % of items); 'send package' in OCEL 2.0 Order Management.
+    synonyms:
+      en: [Goods issue, Post goods issue, PGI, send package, Package sent, Shipped, Goods issued, Dispatch]
+      de: [Warenausgang, WA buchen, Versand, Ware verlässt Lager, Warenausgang gebucht]
+    object_types: [delivery]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VL02N, VL06O]
+    sources: [ICPM 2026 hackathon sales extract, OCEL 2.0 Order Management, SAP SD documentation shipping]
+    review_status: draft
+  - id: o2c.delivery_complete
+    name: {en: Package delivered, de: Paket zugestellt}
+    stage: fulfil
+    description: Proof of delivery at the customer; 'package delivered' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [package delivered, Delivered, Proof of delivery, POD received, Delivery confirmed]
+      de: [Zugestellt, Liefernachweis, Ablieferbeleg]
+    object_types: [package]
+    granularity: item
+    tags: [milestone, customer_side]
+    sources: [OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.failed_delivery
+    name: {en: Failed delivery attempt, de: Fehlgeschlagener Zustellversuch}
+    stage: fulfil
+    description: The carrier could not deliver the package; 'failed delivery' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [failed delivery, Delivery failed, Delivery attempt failed, Carrier exception]
+      de: [Zustellung fehlgeschlagen, Zustellversuch erfolglos]
+    object_types: [package]
+    granularity: item
+    tags: [exception]
+    sources: [OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.delivery_split
+    name: {en: Delivery split, de: Lieferung geteilt}
+    stage: fulfil
+    description: One order item is shipped in more than one delivery (vocabulary; detect as more than one delivery item per order item).
+    synonyms:
+      en: [Delivery split, Partial delivery, Split shipment, Multiple deliveries]
+      de: [Teillieferung, Lieferaufteilung, Lieferung gesplittet]
+    object_types: [delivery]
+    granularity: item
+    tags: [exception]
+    sources: [SAP SD documentation partial deliveries]
+    review_status: draft
+  # ---------------------------------------------------------------- return
+  - id: o2c.return_order_create
+    name: {en: Create return order, de: Retourenauftrag anlegen}
+    stage: return
+    description: A return order (order type RE) is created for goods coming back (vocabulary; the hackathon extract flags 20 return items).
+    synonyms:
+      en: [Create return order, Return order created, Returns order, RMA created, Create returns]
+      de: [Retoure anlegen, Retourenauftrag erfassen, Rücknahme anlegen]
+    object_types: [return_order]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VA01]
+    sources: [SAP SD documentation returns, ICPM 2026 hackathon sales extract]
+    review_status: draft
+  - id: o2c.return_delivery
+    name: {en: Returns delivery received, de: Retourenlieferung erhalten}
+    stage: return
+    description: Goods are received back from the customer (movement types 651 and 653); 59 stock movements in the hackathon extract.
+    synonyms:
+      en: [Returns delivery, Return received, Customer return receipt, Goods receipt for return]
+      de: [Retourenlieferung, Retoure erhalten, Wareneingang Retoure]
+    object_types: [return_order, delivery]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VL01N, VL02N]
+    sources: [ICPM 2026 hackathon stock movements, SAP SD documentation returns]
+    review_status: draft
+  - id: o2c.return_to_own_stock
+    name: {en: Return to own stock, de: Rückgabe in eigenen Bestand}
+    stage: return
+    description: Returned goods are transferred into unrestricted own stock (movement type 453); 110 stock movements in the hackathon extract.
+    synonyms:
+      en: [Returns to own stock, Transfer returns to unrestricted stock, Return to stock]
+      de: [Retoure in frei verwendbaren Bestand, Rückbuchung in Eigenbestand]
+    object_types: [material]
+    granularity: item
+    tcodes: [MIGO]
+    sources: [ICPM 2026 hackathon stock movements]
+    review_status: draft
+  - id: o2c.delivery_reversal
+    name: {en: Goods issue reversed, de: Warenausgang storniert}
+    stage: return
+    description: A posted goods issue is reversed (movement type 602); 397 stock movements in the hackathon extract.
+    synonyms:
+      en: [Goods delivery reversal, Reverse goods issue, Cancel goods issue, Goods issue cancelled, Delivery reversal]
+      de: [Warenausgang stornieren, WA-Storno, Lieferung storniert]
+    object_types: [delivery]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [VL09]
+    sources: [ICPM 2026 hackathon stock movements, SAP SD documentation shipping]
+    review_status: draft
+  # ---------------------------------------------------------------- invoice
+  - id: o2c.invoice_create
+    name: {en: Create billing document, de: Faktura anlegen}
+    stage: invoice
+    description: The customer invoice is created from the delivery or the order (vocabulary; not in the hackathon extract).
+    synonyms:
+      en: [Create Invoice, Create billing document, Invoice created, Billing, Bill customer, Issue invoice]
+      de: [Rechnung anlegen, Fakturieren, Faktura erstellt, Rechnung erstellen, Kundenrechnung]
+    object_types: [billing_document]
+    granularity: item
+    tags: [milestone]
+    tcodes: [VF01, VF04]
+    sources: [SAP SD documentation billing, OCEL 2.0 Order Management]
+    review_status: draft
+  - id: o2c.invoice_cancel
+    name: {en: Cancel billing document, de: Faktura stornieren}
+    stage: invoice
+    description: The customer invoice is cancelled (vocabulary).
+    synonyms:
+      en: [Cancel Invoice, Cancel billing document, Invoice cancelled, Invoice reversal, Billing cancellation]
+      de: [Rechnung stornieren, Fakturastorno, Rechnungsstorno]
+    object_types: [billing_document]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [VF11]
+    sources: [SAP SD documentation billing]
+    review_status: draft
+  - id: o2c.credit_memo_create
+    name: {en: Create credit memo, de: Gutschrift anlegen}
+    stage: invoice
+    description: A credit memo reduces the customer's receivable after a return or a claim (vocabulary).
+    synonyms:
+      en: [Create credit memo, Credit memo, Credit note issued, Customer credit]
+      de: [Gutschrift erstellen, Gutschriftsanforderung, Kundengutschrift]
+    object_types: [billing_document]
+    granularity: item
+    tags: [exception]
+    tcodes: [VF01, VA01]
+    sources: [SAP SD documentation billing]
+    review_status: draft
+  - id: o2c.debit_memo_create
+    name: {en: Create debit memo, de: Lastschrift anlegen}
+    stage: invoice
+    description: A debit memo increases the customer's receivable (vocabulary).
+    synonyms:
+      en: [Create debit memo, Debit memo, Debit note issued]
+      de: [Lastschrift erstellen, Belastung, Nachberechnung]
+    object_types: [billing_document]
+    granularity: item
+    tags: [exception]
+    tcodes: [VF01, VA01]
+    sources: [SAP SD documentation billing]
+    review_status: draft
+  - id: o2c.invoice_correction_request
+    name: {en: Create invoice correction request, de: Rechnungskorrekturanforderung anlegen}
+    stage: invoice
+    description: An invoice correction request (order type RK) corrects price or quantity of a billed item (vocabulary).
+    synonyms:
+      en: [Invoice correction request, Invoice correction, Correct invoice, Billing correction]
+      de: [Rechnungskorrektur, Rechnungskorrekturanforderung, Faktura korrigieren]
+    object_types: [billing_document]
+    granularity: item
+    tags: [exception]
+    tcodes: [VA01]
+    sources: [SAP SD documentation billing]
+    review_status: draft
+  - id: o2c.billing_block_change
+    name: {en: Billing block changed, de: Fakturasperre geändert}
+    stage: invoice
+    description: A billing block is set or released on the item (vocabulary).
+    synonyms:
+      en: [Billing block set, Billing block released, Change billing block]
+      de: [Fakturasperre gesetzt, Fakturasperre aufgehoben]
+    object_types: [sales_order_item]
+    granularity: item
+    tags: [change, exception]
+    tcodes: [VA02]
+    sources: [SAP SD documentation billing blocks]
+    review_status: draft
+  # ---------------------------------------------------------------- pay
+  - id: o2c.payment_receive
+    name: {en: Receive payment, de: Zahlungseingang buchen}
+    stage: pay
+    description: The customer payment is posted and clears the receivable; 'pay order' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [pay order, Payment received, Post incoming payment, Incoming payment, Customer payment, Receivable cleared, Cash application]
+      de: [Zahlungseingang, Zahlung erhalten, Debitorenzahlung buchen, Forderung ausgeglichen, Zahlungseingang buchen]
+    object_types: [payment]
+    granularity: item
+    tags: [milestone, customer_side]
+    tcodes: [F-28]
+    sources: [OCEL 2.0 Order Management, SAP FI documentation accounts receivable]
+    review_status: draft
+  - id: o2c.dunning
+    name: {en: Send payment reminder (dunning), de: Mahnung versenden}
+    stage: pay
+    description: A dunning notice or payment reminder is sent for an overdue receivable; 'payment reminder' in OCEL 2.0 Order Management (vocabulary).
+    synonyms:
+      en: [payment reminder, Dunning notice, Dunning run, Send reminder, Overdue notice]
+      de: [Mahnung, Mahnlauf, Zahlungserinnerung, Mahnung senden]
+    object_types: [payment]
+    granularity: item
+    tags: [exception]
+    tcodes: [F150]
+    sources: [OCEL 2.0 Order Management, SAP FI documentation dunning]
+    review_status: draft
+
+label_packs:
+  hackathon:
+    system: SAP S/4HANA SD (ICPM 2026 hackathon sales extract)
+    description: The 16 labels of column 'activity' of Sales_Eventlog.csv; the extract is local only.
+    dataset: icpm2026_hackathon
+    language: en
+    sources: [ICPM 2026 hackathon sales extract]
+    labels:
+      - {label: Create Order, activity: o2c.order_create, note: header event replicated onto every item}
+      - {label: Create Order Item, activity: o2c.item_create}
+      - {label: Send Order Confirmation, activity: o2c.confirmation_send}
+      - {label: Schedule line confirmed quantity changed, activity: o2c.schedule_confirm}
+      - {label: Schedule line confirmed quantity removed, activity: o2c.schedule_confirm_remove}
+      - {label: Schedule line requested quantity changed, activity: o2c.schedule_request_change}
+      - {label: Changed Mat.Avail.Date, activity: o2c.avail_date_change}
+      - {label: Scheduled delivery date preponed, activity: o2c.delivery_date_prepone}
+      - {label: Scheduled delivery date postponed, activity: o2c.delivery_date_postpone}
+      - {label: Changed Delivery block, activity: o2c.delivery_block_change}
+      - {label: Changed Incoterms, activity: o2c.incoterms_change}
+      - {label: Changed RejectionReason, activity: o2c.rejection_change}
+      - {label: Create Delivery Item, activity: o2c.delivery_create}
+      - {label: Picking Completed, activity: o2c.pick}
+      - {label: Packing Completed, activity: o2c.pack}
+      - {label: Goods issue, activity: o2c.goods_issue}
+  ocel2_order_management:
+    system: OCEL 2.0 Order Management (simulated e-commerce)
+    description: The eleven activities of the OCEL 2.0 Order Management log; vocabulary and structure only.
+    dataset: ocel2_order_management
+    language: en
+    sources: [OCEL 2.0 Order Management]
+    labels:
+      - {label: place order, activity: o2c.order_create}
+      - {label: confirm order, activity: o2c.confirmation_send}
+      - {label: item out of stock, activity: o2c.item_out_of_stock}
+      - {label: reorder item, activity: o2c.reorder_item}
+      - {label: pick item, activity: o2c.pick}
+      - {label: create package, activity: o2c.pack}
+      - {label: send package, activity: o2c.goods_issue}
+      - {label: failed delivery, activity: o2c.failed_delivery}
+      - {label: package delivered, activity: o2c.delivery_complete}
+      - {label: pay order, activity: o2c.payment_receive}
+      - {label: payment reminder, activity: o2c.dunning}
+  sap_sd:
+    system: SAP ERP / S/4HANA SD and FI-AR (transaction vocabulary)
+    description: Transaction-oriented labels from change documents and extraction tools; tcodes are part of the key.
+    language: mixed
+    sources: [SAP SD documentation, SAP FI documentation]
+    labels:
+      - {label: Create Inquiry, activity: o2c.inquiry_create, tcode: VA11}
+      - {label: Create Quotation, activity: o2c.quotation_create, tcode: VA21}
+      - {label: Create Sales Order, activity: o2c.order_create, tcode: VA01}
+      - {label: Kundenauftrag anlegen, activity: o2c.order_create, tcode: VA01}
+      - {label: Change Sales Order, activity: o2c.schedule_request_change, tcode: VA02, note: generic change transaction; refine with the changed field}
+      - {label: Set Reason for Rejection, activity: o2c.rejection_change, tcode: VA02}
+      - {label: Absagegrund setzen, activity: o2c.rejection_change, tcode: VA02}
+      - {label: Release Blocked SD Documents, activity: o2c.credit_block_release, tcode: VKM1}
+      - {label: Gesperrte Vertriebsbelege freigeben, activity: o2c.credit_block_release, tcode: VKM1}
+      - {label: Rescheduling of Sales Documents, activity: o2c.backorder_reschedule, tcode: V_V2}
+      - {label: Create Outbound Delivery, activity: o2c.delivery_create, tcode: VL01N}
+      - {label: Auslieferung anlegen, activity: o2c.delivery_create, tcode: VL01N}
+      - {label: Create Transfer Order for Delivery, activity: o2c.pick, tcode: LT03}
+      - {label: Kommissionieren, activity: o2c.pick, tcode: LT03}
+      - {label: Post Goods Issue, activity: o2c.goods_issue, tcode: VL02N}
+      - {label: Warenausgang buchen, activity: o2c.goods_issue, tcode: VL02N}
+      - {label: Cancel Goods Issue, activity: o2c.delivery_reversal, tcode: VL09}
+      - {label: Warenausgang stornieren, activity: o2c.delivery_reversal, tcode: VL09}
+      - {label: Create Returns Order, activity: o2c.return_order_create, tcode: VA01, note: order type RE}
+      - {label: Retourenauftrag anlegen, activity: o2c.return_order_create, tcode: VA01}
+      - {label: Create Billing Document, activity: o2c.invoice_create, tcode: VF01}
+      - {label: Faktura anlegen, activity: o2c.invoice_create, tcode: VF01}
+      - {label: Process Billing Due List, activity: o2c.invoice_create, tcode: VF04}
+      - {label: Cancel Billing Document, activity: o2c.invoice_cancel, tcode: VF11}
+      - {label: Faktura stornieren, activity: o2c.invoice_cancel, tcode: VF11}
+      - {label: Create Credit Memo Request, activity: o2c.credit_memo_create, tcode: VA01, note: order type CR / G2}
+      - {label: Create Invoice Correction Request, activity: o2c.invoice_correction_request, tcode: VA01, note: order type RK}
+      - {label: Post Incoming Payment, activity: o2c.payment_receive, tcode: F-28}
+      - {label: Zahlungseingang buchen, activity: o2c.payment_receive, tcode: F-28}
+      - {label: Dunning Run, activity: o2c.dunning, tcode: F150}
+      - {label: Mahnlauf, activity: o2c.dunning, tcode: F150}

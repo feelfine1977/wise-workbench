@@ -1,0 +1,347 @@
+# Registry of public event logs used for knowledge packs, presets and evaluation.
+# Counts marked approx are from the literature; fill `checked` after download.
+# Files are never stored in the repository.
+version: 1
+licence_default: CC-BY-4.0
+datasets:
+  - id: bpic2019
+    title: BPI Challenge 2019
+    doi: 10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1
+    pack: p2p
+    process: purchase-to-pay
+    organisation: multinational coatings company (NL)
+    formats: [csv, xes, ocel]
+    cases: 251734
+    events: 1595923
+    activities: 42
+    period: 2018 (tail into 2019)
+    case_notion: purchase order item
+    exposure: cumulative net worth
+    slice_keys: [vendor, purchasing organisation, item category, spend area, company]
+    pitfalls: [flow types by item category, replicated header events, right-censoring of open items]
+    preset: presets/bpic2019.yaml
+    reference_norm: ../../examples/bpic19_norm.json   # from the wise-pm repository
+    checked:
+      date: 2026-09-05
+      file: BPI_Challenge_2019.csv
+      events: 1595923
+      cases: 251734
+      activities: 42
+      vendors: 1975
+      timestamp_range: 1948-01-26 to 2020-09-04 (outliers; bulk 2018 to early 2019)
+      item_category_events: {3-way match invoice before GR: 1234708, 3-way match invoice after GR: 319233, consignment: 36084, 2-way match: 5898}
+      spend_areas: 20
+      companies: 4 (one holds 99.6% of events)
+  - id: bpic2017
+    title: BPI Challenge 2017
+    doi: 10.4121/uuid:5f3067df-f10b-45da-b98b-86ae4c7a310b
+    pack: application_handling
+    variant: credit
+    process: loan application
+    organisation: Dutch financial institute
+    formats: [xes]
+    cases: 31509
+    events: 1202267
+    offers: 42995
+    period: 2016-01 to 2017-02
+    case_notion: application (offers as sub-objects)
+    exposure: RequestedAmount
+    slice_keys: [LoanGoal, ApplicationType, requested-amount band, month]
+    pitfalls: [right-censoring at 2017-02-01, multiple offers per application, lifecycle transitions of W_ items]
+    checked:
+      date: 2026-09-05
+      file: BPI Challenge 2017.xes.gz
+      cases: 31509
+      events: 1202267
+      activities: 26
+      lifecycle: {complete: 475306, suspend: 215402, schedule: 149104, start: 128227, withdraw: 21844, resume: rest}
+      timestamp_range: 2016-01-01 to 2017-02-01
+      resources: all events
+      note: W_ items carry schedule/start/suspend/resume/complete transitions; lag activation must filter on lifecycle
+  - id: bpic2012
+    title: BPI Challenge 2012
+    doi: 10.4121/uuid:3926db30-f712-4394-aebc-75976070e91f
+    pack: application_handling
+    variant: credit
+    process: personal loan / overdraft application
+    organisation: Dutch financial institute
+    formats: [xes, mxml]
+    cases: 13087
+    events: 262200
+    period: 2011-10 to 2012-03
+    case_notion: application
+    exposure: AMOUNT_REQ
+    slice_keys: [requested-amount band, month]
+    pitfalls: [right-censoring at 2012-03, W_ items with schedule/start/complete lifecycle]
+    checked:
+      date: 2026-09-05
+      file: BPI_Challenge_2012.xes.gz
+      cases: 13087
+      events: 262200
+      activities: 24
+      events_with_resource: 244190
+      timestamp_range: 2011-10-01 to 2012-03-14
+  - id: bpic2013_incidents
+    title: BPI Challenge 2013, incidents
+    doi: 10.4121/uuid:500573e6-accc-4b0c-9576-aa5468b10cee
+    pack: itsm
+    process: incident management (VINST)
+    organisation: Volvo IT Belgium
+    formats: [xes, csv]
+    cases: 7554
+    events: 65533
+    case_notion: incident
+    slice_keys: [org line, product, country, impact, support team]
+    pitfalls: [status-substatus as activities, ownership changes, wait-user loops]
+    checked:
+      date: 2026-09-05
+      file: BPI_Challenge_2013_incidents.xes.gz
+      cases: 7554
+      events: 65533
+      activities: 4 status values (Accepted, Completed, Queued, Unmatched)
+      lifecycle_as_substatus: {In Progress: 30239, Awaiting Assignment: 11544, Resolved: 6115, Closed: 5716, Assigned: 3221}
+      timestamp_range: 2010-03-31 to 2012-05-23
+      resources: all events
+      note: activity = status, lifecycle:transition = sub-status; canonical activities are status+sub-status pairs
+  - id: bpic2014
+    title: BPI Challenge 2014
+    doi: 10.4121/uuid:c3e5d162-0cfd-4bb0-bd82-af5268819c35
+    pack: itsm
+    process: ITIL interaction, incident and change management
+    organisation: Rabobank Group ICT
+    formats: [csv]
+    cases: 46616
+    events: 466737
+    case_notion: incident (interactions and changes as linked tables)
+    slice_keys: [CI subtype, service component, priority, assignment group]
+    pitfalls: [three linked tables, SLA fields per priority, relating changes to incidents]
+    checked:
+      date: 2026-09-05
+      files: [Detail_Incident_Activity.csv, Detail_Incident.csv, Detail_Interaction.csv, Detail_Change.csv]
+      incident_activity_rows: 466737
+      incidents_with_activities: 46616
+      activity_types: 39
+      timestamp_range: 2013-01-02 to 2014-12-03
+      incident_records: 46809 (46606 incidents; Impact, Urgency, Priority, Category, KM number, reassignments, open/reopen/resolved/close times, handle time, closure code)
+      interaction_records: 147004
+      change_records: 30275 (change type, risk, emergency flag, CAB approval, planned and actual start/end, related interactions and incidents)
+      separator: ';'
+      note: event log = incident activities; incident details as case attributes; interactions and changes linked by id
+  - id: bpic2015
+    title: BPI Challenge 2015 (five municipalities)
+    doi: 10.4121/uuid:31a308ef-c844-48da-948c-305d167a0ec1
+    pack: application_handling
+    variant: permits
+    process: building permit applications (WABO)
+    organisation: five Dutch municipalities
+    formats: [xes]
+    cases: [1199, 832, 1409, 1053, 1156]
+    period: 2010 to 2015
+    case_notion: application
+    exposure: SUMleges (fees)
+    slice_keys: [municipality, case type, parts, responsible actor]
+    pitfalls: [about 400 activity codes needing the glossary, phase sub-logs, statutory deadlines]
+    checked:
+      date: 2026-09-05
+      files: [BPIC15_1.xes, BPIC15_2.xes, BPIC15_3.xes, BPIC15_4.xes, BPIC15_5.xes]
+      cases: [1199, 832, 1409, 1053, 1156]
+      events: [52217, 44354, 59681, 47293, 59083]
+      activities: [398, 410, 383, 356, 389]
+      timestamp_range: 2009-11 to 2015-08 (day precision for most events)
+      resources: all events
+      note: activity codes such as 01_HOOFD_010 (phase_subprocess_step); the glossary in the challenge documentation is required for canonicalisation
+  - id: bpic2018
+    title: BPI Challenge 2018
+    doi: 10.4121/uuid:3301445f-95e8-4ff0-98a4-901f1f204972
+    pack: application_handling
+    variant: subsidies
+    process: EU direct-payment applications
+    organisation: German paying agency
+    formats: [xes]
+    cases: 43809
+    events: 2514266
+    activities: 14
+    document_types: 9
+    period: three yearly cohorts
+    case_notion: application (document sub-logs available)
+    exposure: applied amount
+    slice_keys: [department, year, application size, small farmer flag]
+    pitfalls: [document sub-processes replicate events, yearly deadlines differ]
+    checked:
+      date: 2026-09-05
+      file: BPI Challenge 2018.xes.gz
+      cases: 43809
+      events: 2514266
+      activities: 41 labels (calculate, finish editing, begin editing, save, initialize, ...)
+      timestamp_range: 2014-05-04 to 2018-01-19
+      resources: all events
+      case_attributes: [amount_applied0..3, applicant, area, basic payment, cross_compliance, department, greening, small farmer, penalty fields, year]
+      event_attributes: [doctype, docid, subprocess, success, note]
+      note: activity labels repeat across document types and sub-processes; canonical activity = doctype + subprocess + label
+  - id: bpic2020
+    title: BPI Challenge 2020
+    doi: 10.4121/uuid:52fb97d4-4588-43c9-9d04-3604d4613b51
+    pack: application_handling
+    variant: expense_claims
+    process: travel declarations, prepaid costs, requests for payment, travel permits
+    organisation: Eindhoven University of Technology
+    formats: [xes]
+    cases: {domestic: 10500, international: 6449, prepaid: 2099, request_for_payment: 6886, permit: 7065}
+    period: 2017 to 2018
+    case_notion: declaration (permit linked)
+    exposure: amount
+    slice_keys: [organisational entity, amount band, approver role, project]
+    pitfalls: [five logs with different flows, rejection loops, permit-declaration linkage]
+    checked:
+      date: 2026-09-05
+      files:
+        DomesticDeclarations.xes.gz: {cases: 10500, events: 56437, activities: 17, range: 2017-01-09 to 2019-06-17}
+        InternationalDeclarations.xes.gz: {cases: 6449, events: 72151, activities: 34, range: 2016-10-05 to 2020-05-10}
+        PermitLog.xes.gz: {cases: 7065, events: 86581, activities: 51, range: 2016-10-05 to 2021-09-01}
+        PrepaidTravelCost.xes.gz: {cases: 2099, events: 18246, activities: 29, range: 2017-01-09 to 2019-02-21}
+        RequestForPayment.xes.gz: {cases: 6886, events: 36796, activities: 19, range: 2017-01-09 to 2019-08-08}
+      resources: all events (roles such as EMPLOYEE, SUPERVISOR, ADMINISTRATION, BUDGET OWNER)
+      case_attributes: [Amount, RequestedAmount, AdjustedAmount, BudgetNumber, OrganizationalEntity, Project, Task, Cost Type, permit linkage fields]
+      note: activity labels encode actor role (e.g. 'Declaration APPROVED by ADMINISTRATION'); trip start/end dates allow deadline constraints
+  - id: bpic2011
+    title: BPI Challenge 2011
+    doi: 10.4121/uuid:d9769f3d-0ab0-4fb8-803b-0d1120ffcf54
+    pack: healthcare
+    process: gynaecology treatment trajectories
+    organisation: Dutch academic hospital
+    formats: [xes, mxml, csv]
+    cases: 1143
+    events: 150291
+    activities: 624
+    checked:
+      date: 2026-09-05
+      file: Hospital_log.xes.gz
+      cases: 1143
+      events: 150291
+      activities: 624
+      timestamp_range: 2005-01-03 to 2008-03-20 (day precision)
+      resources: none
+      note: Dutch activity labels with billing codes; many attributes per event
+  - id: sepsis
+    title: Sepsis Cases - Event Log
+    doi: 10.4121/uuid:915d2bfb-7e84-49ad-a286-dc35f063a460
+    pack: healthcare
+    approx: true
+    cases: 1050
+    events: 15214
+    activities: 16
+    checked:
+      date: 2026-09-05
+      cases: 1050
+      events: 15214
+      activities: 16
+  - id: road_traffic_fines
+    title: Road Traffic Fine Management Process
+    doi: 10.4121/uuid:270fd440-1057-4fb9-89a9-b699b47990f5
+    pack: public_sector
+    cases: 150370
+    events: 561470
+    activities: 11
+    period: 2000 to 2013
+    pitfalls: [heavy right-censoring of unpaid fines]
+    role: stress test for censoring diagnostics
+    checked:
+      date: 2026-09-05
+      file: Road_Traffic_Fine_Management_Process.xes.gz
+      cases: 150370
+      events: 561470
+      activities: 11
+      timestamp_range: 2000-01-01 to 2013-06-18 (day precision)
+      resources: 150925 events
+      note: Send Fine on 103987 cases, Payment on 77601; large open-case share
+  - id: hospital_billing
+    title: Hospital Billing - Event Log
+    doi: 10.4121/uuid:76c46b83-c930-4798-a1c9-4be94dfeb741
+    pack: healthcare
+    variant: billing
+    cases: 100000
+    events: 451359
+    activities: 18
+    period: 2012 to 2016
+    checked:
+      date: 2026-09-05
+      file: Hospital Billing - Event Log.xes.gz
+      cases: 100000
+      events: 451359
+      activities: 18
+      timestamp_range: 2012-12-13 to 2016-01-19
+      resources: 249081 events
+  - id: helpdesk
+    title: Help desk log of an Italian company
+    doi: 10.4121/uuid:0c60edf1-6f83-4e75-9367-4c63b3e9d5bb
+    pack: itsm
+    approx: true
+    cases: 4580
+    events: 21348
+    activities: 14
+    checked:
+      date: 2026-09-05
+      file: finale.csv
+      cases: 4580
+      events: 21348
+      activities: 14
+      timestamp_range: 2010-01-13 to 2014-01-03
+      columns: [Case ID, Activity, Resource, Complete Timestamp, seriousness, customer, product, responsible_section, service_level, service_type, support_section, workgroup]
+  - id: production
+    title: Production analysis log (Levy, 2014)
+    doi: 10.4121/uuid:68726926-5ac5-4fab-b873-ee76ea412399
+    pack: production
+    approx: true
+    cases: 225
+    events: 4543
+    activities: 55
+    checked:
+      date: 2026-09-05
+      file: Production_Data.csv (in data.zip, with MI_-Eng.pdf description)
+      cases: 225
+      events: 4543
+      activities: 55
+      timestamp_range: 2012-01-02 to 2012-03-31
+      columns: [Case ID, Activity, Resource, Start Timestamp, Complete Timestamp, Work Order Qty, Part Desc., Worker ID, Report Type, Qty Completed, Qty Rejected, Qty for MRB, Rework]
+  - id: ocel2_p2p
+    title: OCEL 2.0 Procure-to-Pay (simulated from a real SAP system)
+    doi: 10.5281/zenodo.8412919
+    pack: p2p
+    role: vocabulary and structure only (simulated)
+    formats: [xml, json, sqlite]
+    checked: null
+  - id: ocel2_order_management
+    title: OCEL 2.0 Order Management (simulated)
+    doi: 10.5281/zenodo.8337463
+    pack: order_management
+    role: vocabulary and structure only (simulated)
+    formats: [xml, json, sqlite]
+    checked: null
+  - id: ocel2_hinge_production
+    title: OCEL 2.0 Hinge Production (simulated, sustainability-enriched)
+    doi: 10.5281/zenodo.13638681
+    pack: production
+    role: vocabulary and structure only (simulated)
+    checked: null
+  - id: icpm2026_hackathon
+    title: ICPM 2026 hackathon data (sales orders, purchase orders, stock movements, material master)
+    doi: null
+    pack: o2c (sales side), p2p (purchase side), inventory
+    role: real evidence for the O2C pack (order-to-delivery stages) and a second P2P source
+    usage: permitted by the owner on 2026-09-05; raw files are not redistributed
+    local_only: true
+    pack_draft: o2c/README.md
+    checked:
+      date: 2026-09-05
+      sales_order_items: 51164
+      sales_events: 267071
+      sales_activities: 16
+      sales_timestamp_range: 2023-01-02 to 2026-01-27
+      customers: 68
+      skus: 71
+      return_items: 20
+      purchase_order_items: 1412
+      purchase_events: 13567
+      purchase_activities: 10
+      stock_movements: 59629
+      sales_activity_list: [Create Order, Create Order Item, Send Order Confirmation, Schedule line confirmed quantity changed, Schedule line confirmed quantity removed, Schedule line requested quantity changed, Changed Mat.Avail.Date, Scheduled delivery date preponed, Scheduled delivery date postponed, Changed Delivery block, Changed Incoterms, Changed RejectionReason, Create Delivery Item, Picking Completed, Packing Completed, Goods issue]

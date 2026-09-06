@@ -1,0 +1,5 @@
+# apps/backend/src/wise_workbench/assistant
+
+Local-LLM assistant: capability probe and tiers, digests of `wise` artefacts with stable ids, tool registry mapped to library functions, output schemas (ConstraintProposal, NormReview, Narrative, ActionHypotheses, Answer, NextStep, ReportDraft), versioned prompts, runners per use case, tool loop with argument validation and cache, guardrails (vocabulary and faithfulness checks, injection screening, pseudonymisation, causal-language gate), audit store, deterministic fallbacks (wizard, lint list, Jinja narration, playbook, checklist), evaluation harness (golden sets, cassettes).
+
+Knowledge layer (`docs/panel/llm_knowledge_architecture.md`): `context_builder.py` assembles the process profile (stages present, failure modes whose patterns are in the norm, glossary, mapping table) within the model's token budget; tools `kb.*` (ontology, failure modes, KPIs, playbooks), `docs.*` (grounded search with citations), `graph.*` (neighbours, paths, explanations). Thin in-house loop; no LangChain; Ollama schema-constrained output.

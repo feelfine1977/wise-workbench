@@ -1,0 +1,19 @@
+# Curated mapping of the OCEL 2.0 Order Management activities (vocabulary only).
+id: ocel2_order_management
+pack: o2c
+dataset: ocel2_order_management
+key: {label: activity}
+sources:
+  - OCEL 2.0 Order Management, Zenodo, doi:10.5281/zenodo.8337463 (activity list from the dataset description)
+labels:
+  - {label: place order, activity: o2c.order_create}
+  - {label: confirm order, activity: o2c.confirmation_send}
+  - {label: item out of stock, activity: o2c.item_out_of_stock}
+  - {label: reorder item, activity: o2c.reorder_item}
+  - {label: pick item, activity: o2c.pick}
+  - {label: create package, activity: o2c.pack}
+  - {label: send package, activity: o2c.goods_issue}
+  - {label: failed delivery, activity: o2c.failed_delivery}
+  - {label: package delivered, activity: o2c.delivery_complete}
+  - {label: pay order, activity: o2c.payment_receive}
+  - {label: payment reminder, activity: o2c.dunning}

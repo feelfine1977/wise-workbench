@@ -1,0 +1,10 @@
+# Overlay: docker compose -f compose.yml -f compose.gpu.yml --profile team up -d
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

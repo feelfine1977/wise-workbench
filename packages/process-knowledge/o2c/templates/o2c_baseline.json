@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "name": "O2C baseline",
+  "version": "0.1",
+  "description": "Order-to-cash norm derived from the failure-mode catalogue of the o2c pack. Activity parameters are canonical ids (o2c.*) translated through the activity mapping; return items and items rejected at capture are excluded from delivery-performance constraints by applicability rules; open items are scored by their age (lag with missing_b = censor). Every threshold is a placeholder flagged uncalibrated in metadata.meta.",
+  "scoring_mode": "layer_balanced",
+  "metadata": {
+    "meta": {
+      "pack": "o2c",
+      "template": "o2c_baseline",
+      "calibration": "uncalibrated",
+      "activity_labels": "canonical_ids",
+      "flow_type_attribute": "flow_type",
+      "flow_types": ["standard", "make_to_order", "partial_delivery", "order_related_billing", "returns", "rejected"],
+      "case_attributes": {
+        "return_item": "Returns Item (X for return items) in the hackathon extract",
+        "confirmed_quantity": "Confirmed Quantity at item creation",
+        "days_late": "goods issue date minus requested delivery date in days; prepared before scoring",
+        "flow_type": "derived by recipe from planning type, partial delivery indicator, return flag and rejection status"
+      },
+      "event_attributes": {
+        "order_quantity": "Order Quantity",
+        "confirmed_quantity": "Confirmed Quantity"
+      },
+      "review_status": "draft",
+      "uncalibrated_parameters": {
+        "o_capture_credit_release_days": ["delta", "width"],
+        "o_commit_confirmed_equals_ordered": ["tau", "width"],
+        "o_deliv_order_to_issue_days": ["delta", "width"],
+        "o_deliv_days_late": ["threshold", "width"],
+        "o_deliv_pick_to_issue_days": ["delta", "width"],
+        "o_deliv_no_split": ["k", "K"],
+        "o_change_churn": ["threshold", "width"],
+        "o_change_avail_date": ["k", "K"],
+        "o_change_prepone": ["k", "K"],
+        "o_change_requested_quantity": ["K"],
+        "o_commercial_no_manual_price_change": ["K"],
+        "o_invoice_days_after_issue": ["delta", "width"],
+        "o_pay_within_terms": ["delta", "width"]
+      },
+      "notes": [
+        "Measured shares of the hackathon extract (o2c/README.md) are seeds for the catalogue, not thresholds.",
+        "Make-to-order items need their own order-to-issue threshold; restrict o_deliv_order_to_issue_days by flow_type once planning types are known.",
+        "The balance constraint is always satisfied on the hackathon extract because confirmed quantity equals ordered quantity for every item."
+      ],
+      "sources": ["failure_modes.yaml (o2c)", "o2c/README.md"]
+    }
+  },
+  "layers": [
+    {"id": "capture", "name": "Capture and credit", "description": ""},
+    {"id": "commitment", "name": "Commitment discipline", "description": ""},
+    {"id": "delivery", "name": "Delivery performance", "description": ""},
+    {"id": "changes", "name": "Change discipline", "description": ""},
+    {"id": "commercial", "name": "Commercial integrity", "description": "Commercial-risk indicators, not audit findings."},
+    {"id": "returns", "name": "Returns and reversals", "description": ""},
+    {"id": "invoice_payment", "name": "Invoice and payment", "description": "Vocabulary until a log covers billing and payment."}
+  ],
+  "views": [
+    {"name": "Sales", "description": "", "layer_weights": {"capture": 0.10, "commitment": 0.30, "delivery": 0.20, "changes": 0.10, "commercial": 0.15, "returns": 0.10, "invoice_payment": 0.05}},
+    {"name": "Logistics", "description": "", "layer_weights": {"capture": 0.02, "commitment": 0.15, "delivery": 0.40, "changes": 0.15, "commercial": 0.03, "returns": 0.20, "invoice_payment": 0.05}},
+    {"name": "Finance", "description": "", "layer_weights": {"capture": 0.15, "commitment": 0.10, "delivery": 0.10, "changes": 0.05, "commercial": 0.20, "returns": 0.10, "invoice_payment": 0.30}},
+    {"name": "Customer service", "description": "", "layer_weights": {"capture": 0.10, "commitment": 0.25, "delivery": 0.25, "changes": 0.15, "commercial": 0.05, "returns": 0.15, "invoice_payment": 0.05}}
+  ],
+  "derived_attributes": [
+    {"name": "change_event_count", "kind": "count", "activities": ["o2c.schedule_confirm", "o2c.schedule_confirm_remove", "o2c.schedule_request_change", "o2c.avail_date_change", "o2c.delivery_date_postpone", "o2c.delivery_date_prepone", "o2c.incoterms_change", "o2c.delivery_block_change", "o2c.rejection_change"]},
+    {"name": "order_to_issue_days", "kind": "lag", "a": ["o2c.item_create"], "b": ["o2c.goods_issue"], "unit": "D"}
+  ],
+  "constraints": [
+    {"id": "o_capture_no_credit_block", "layer": "capture", "type": "exclusion", "params": {"activity": ["o2c.credit_block_set"], "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Credit blocks should be exceptional."},
+    {"id": "o_capture_credit_release_days", "layer": "capture", "type": "lag", "params": {"a": ["o2c.credit_block_set"], "b": ["o2c.credit_block_release"], "delta": 1.0, "width": 3.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Credit blocks should be released within a target time; open blocks are scored by their age."},
+    {"id": "o_commit_no_postponement", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.delivery_date_postpone"], "after": null, "before": null}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "The committed delivery date should not be postponed."},
+    {"id": "o_commit_no_confirmation_removed", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.schedule_confirm_remove"], "after": null, "before": null}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "A confirmed quantity should not be withdrawn."},
+    {"id": "o_commit_no_rejection_after_confirmation", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.rejection_change"], "after": null, "before": null}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"attr": "confirmed_quantity", "gt": 0}]}, "description": "Confirmed items should not be cancelled afterwards."},
+    {"id": "o_commit_no_delivery_block", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.delivery_block_change", "o2c.delivery_block_set"], "after": null, "before": null}, "weight": 0.8, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Delivery blocks should be exceptional."},
+    {"id": "o_commit_no_stockout", "layer": "commitment", "type": "exclusion", "params": {"activity": ["o2c.item_out_of_stock"], "after": null, "before": null}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Committed items should not run out of stock."},
+    {"id": "o_commit_confirmed_equals_ordered", "layer": "commitment", "type": "balance", "params": {"attr_x": "order_quantity", "activities_x": ["o2c.item_create"], "attr_y": "confirmed_quantity", "activities_y": ["o2c.item_create"], "tau": 0.0, "width": 0.5, "eps": 1e-09, "agg": "first"}, "weight": 1.0, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "The confirmed quantity should equal the ordered quantity."},
+    {"id": "o_deliv_delivery_present", "layer": "delivery", "type": "presence", "params": {"activity": ["o2c.delivery_create"], "m": 1}, "weight": 1.0, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Deliverable items should get a delivery."},
+    {"id": "o_deliv_goods_issue_present", "layer": "delivery", "type": "presence", "params": {"activity": ["o2c.goods_issue"], "m": 1}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Deliverable items should be shipped."},
+    {"id": "o_deliv_order_to_issue_days", "layer": "delivery", "type": "lag", "params": {"a": ["o2c.item_create"], "b": ["o2c.goods_issue"], "delta": 14.0, "width": 30.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Items should ship within a target time; open items are scored by their age."},
+    {"id": "o_deliv_days_late", "layer": "delivery", "type": "metric", "params": {"attribute": "days_late", "threshold": 0.0, "width": 7.0, "direction": "high"}, "weight": 1.4, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Goods issue should not be later than the requested delivery date."},
+    {"id": "o_deliv_pick_to_issue_days", "layer": "delivery", "type": "lag", "params": {"a": ["o2c.pick"], "b": ["o2c.goods_issue"], "delta": 1.0, "width": 3.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Picked goods should leave within a target time."},
+    {"id": "o_deliv_no_split", "layer": "delivery", "type": "singularity", "params": {"activity": ["o2c.delivery_create"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 0.8, "applicability": {"flow_type": ["standard", "make_to_order"]}, "description": "Items should not be split across deliveries unless partial deliveries are allowed."},
+    {"id": "o_deliv_no_failed_delivery", "layer": "delivery", "type": "exclusion", "params": {"activity": ["o2c.failed_delivery"], "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Delivery attempts should not fail."},
+    {"id": "o_change_churn", "layer": "changes", "type": "metric", "params": {"attribute": "change_event_count", "threshold": 1.0, "width": 3.0, "direction": "high"}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"lacks": ["o2c.rejection_change"]}]}, "description": "Items should not carry more than the tolerated number of change events."},
+    {"id": "o_change_avail_date", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.avail_date_change"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Repeated availability date changes indicate planning churn."},
+    {"id": "o_change_prepone", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.delivery_date_prepone"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 0.6, "applicability": {}, "description": "Repeated date moves in either direction indicate unstable commitments."},
+    {"id": "o_change_requested_quantity", "layer": "changes", "type": "singularity", "params": {"activity": ["o2c.schedule_request_change"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Requested quantity changes after capture should be rare."},
+    {"id": "o_commercial_no_incoterms_change", "layer": "commercial", "type": "exclusion", "params": {"activity": ["o2c.incoterms_change"], "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Delivery terms should not change after capture."},
+    {"id": "o_commercial_no_manual_price_change", "layer": "commercial", "type": "singularity", "params": {"activity": ["o2c.price_change_manual"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 1.2, "applicability": {}, "description": "Manual price changes indicate commercial inconsistency risk."},
+    {"id": "o_return_no_reversal", "layer": "returns", "type": "exclusion", "params": {"activity": ["o2c.delivery_reversal"], "after": null, "before": null}, "weight": 1.2, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Goods issues should not be reversed."},
+    {"id": "o_return_receipt_present", "layer": "returns", "type": "presence", "params": {"activity": ["o2c.return_delivery", "o2c.return_to_own_stock"], "m": 1}, "weight": 1.0, "applicability": {"attr": "return_item", "eq": "X"}, "description": "Return items should show the returned goods."},
+    {"id": "o_return_order_before_receipt", "layer": "returns", "type": "precedence", "params": {"a": ["o2c.return_order_create"], "b": ["o2c.return_delivery"], "k": 0, "K": 1.0, "missing_a": "violate", "missing_b": "skip"}, "weight": 1.0, "applicability": {"attr": "return_item", "eq": "X"}, "description": "Returns should be authorised by a return order before the goods arrive."},
+    {"id": "o_invoice_present", "layer": "invoice_payment", "type": "presence", "params": {"activity": ["o2c.invoice_create"], "m": 1}, "weight": 1.2, "applicability": {"all": [{"attr": "return_item", "ne": "X"}, {"has": ["o2c.goods_issue"]}]}, "description": "Shipped items should be invoiced."},
+    {"id": "o_invoice_days_after_issue", "layer": "invoice_payment", "type": "lag", "params": {"a": ["o2c.goods_issue"], "b": ["o2c.invoice_create"], "delta": 2.0, "width": 5.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Invoices should follow the goods issue within a target time."},
+    {"id": "o_invoice_no_corrections", "layer": "invoice_payment", "type": "exclusion", "params": {"activity": ["o2c.invoice_cancel", "o2c.invoice_correction_request", "o2c.credit_memo_create", "o2c.debit_memo_create"], "after": null, "before": null}, "weight": 1.0, "applicability": {"attr": "return_item", "ne": "X"}, "description": "Invoice corrections should be exceptional outside returns."},
+    {"id": "o_pay_present", "layer": "invoice_payment", "type": "presence", "params": {"activity": ["o2c.payment_receive"], "m": 1}, "weight": 1.2, "applicability": {"has": ["o2c.invoice_create"]}, "description": "Invoiced items should be paid."},
+    {"id": "o_pay_within_terms", "layer": "invoice_payment", "type": "lag", "params": {"a": ["o2c.invoice_create"], "b": ["o2c.payment_receive"], "delta": 30.0, "width": 60.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.4, "applicability": {}, "description": "Payment should arrive within terms; open receivables are scored by their age."},
+    {"id": "o_pay_no_dunning", "layer": "invoice_payment", "type": "exclusion", "params": {"activity": ["o2c.dunning"], "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Payment reminders should be exceptional."}
+  ]
+}

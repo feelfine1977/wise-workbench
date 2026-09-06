@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "name": "P2P baseline",
+  "version": "0.1",
+  "description": "Generic purchase-to-pay norm derived from the failure-mode catalogue of the p2p pack. Activity parameters are canonical ids (p2p.*) to be translated through the activity mapping; thresholds are placeholders flagged uncalibrated in metadata.meta and must be set by the owners on the empirical distributions.",
+  "scoring_mode": "layer_balanced",
+  "metadata": {
+    "meta": {
+      "pack": "p2p",
+      "template": "p2p_baseline",
+      "calibration": "uncalibrated",
+      "activity_labels": "canonical_ids",
+      "flow_type_attribute": "flow_type",
+      "flow_types": ["three_way_gr_first", "three_way_invoice_first", "two_way", "consignment", "service"],
+      "resource_column": "org:resource",
+      "review_status": "draft",
+      "uncalibrated_parameters": {
+        "b_approval_pr_release_days": ["delta", "width"],
+        "b_approval_po_release_days": ["delta", "width"],
+        "b_approval_change_repeats": ["K"],
+        "b_time_goods_to_invoice": ["delta", "width"],
+        "b_time_invoice_to_clear": ["delta", "width"],
+        "b_time_po_to_gr": ["delta", "width"],
+        "b_time_release_to_clear": ["delta", "width"],
+        "b_rework_gr_fragmentation": ["k", "K"],
+        "b_rework_repeated_ir": ["k", "K"],
+        "b_rework_confirmation_churn": ["k", "K"],
+        "b_rework_confirmation_date_changes": ["K"],
+        "b_rework_payment_terms_changes": ["K"],
+        "b_value_price_change_after_po": ["K"],
+        "b_value_quantity_change_after_gr": ["K"],
+        "b_effort_manual_touches": ["threshold", "width"],
+        "b_effort_total_events": ["threshold", "width"]
+      },
+      "notes": [
+        "Lag constraints use missing_b='censor' so that open items are scored by their age instead of as full violations.",
+        "Applicability uses the variant ids of stages.yaml as flow_type values; derive flow_type with a recipe before scoring.",
+        "The requisition-presence constraint applies only where the organisation requires requisitions; restrict its applicability to those document types."
+      ],
+      "sources": ["failure_modes.yaml (p2p)", "Jessen, Fahland, Zerbato, WISE, BPIC 2019 norm"]
+    }
+  },
+  "layers": [
+    {"id": "closure", "name": "Expected completion and closure", "description": ""},
+    {"id": "flow_discipline", "name": "Flow-conditioned control discipline", "description": ""},
+    {"id": "approval", "name": "Approval discipline", "description": ""},
+    {"id": "timeliness", "name": "Handovers and ageing", "description": ""},
+    {"id": "rework", "name": "Rework and instability", "description": ""},
+    {"id": "exceptions", "name": "Exceptions and corrections", "description": ""},
+    {"id": "value", "name": "Value and commercial integrity", "description": "Commercial-risk indicators, not audit findings."},
+    {"id": "effort", "name": "Effort and automation friction", "description": ""}
+  ],
+  "views": [
+    {"name": "Finance", "description": "", "layer_weights": {"closure": 0.22, "flow_discipline": 0.08, "approval": 0.04, "timeliness": 0.22, "rework": 0.06, "exceptions": 0.08, "value": 0.24, "effort": 0.06}},
+    {"name": "Logistics", "description": "", "layer_weights": {"closure": 0.08, "flow_discipline": 0.22, "approval": 0.04, "timeliness": 0.20, "rework": 0.22, "exceptions": 0.08, "value": 0.04, "effort": 0.12}},
+    {"name": "Compliance", "description": "", "layer_weights": {"closure": 0.10, "flow_discipline": 0.26, "approval": 0.16, "timeliness": 0.08, "rework": 0.06, "exceptions": 0.22, "value": 0.06, "effort": 0.06}},
+    {"name": "Automation", "description": "", "layer_weights": {"closure": 0.06, "flow_discipline": 0.08, "approval": 0.04, "timeliness": 0.10, "rework": 0.26, "exceptions": 0.06, "value": 0.08, "effort": 0.32}}
+  ],
+  "derived_attributes": [
+    {"name": "manual_touch_count", "kind": "count_events", "where": {"column": "org:resource", "regex": "(?i)^(?!(?:batch|none|nan|null|\\s*$))."}},
+    {"name": "total_events", "kind": "eval", "expr": "n_events"}
+  ],
+  "constraints": [
+    {"id": "b_closure_invoice_present", "layer": "closure", "type": "presence", "params": {"activity": ["p2p.ir", "p2p.vendor_invoice"], "m": 1}, "weight": 1.2, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "two_way", "service"]}, "description": "Invoice evidence should exist for invoice-bearing flows."},
+    {"id": "b_closure_clear_present", "layer": "closure", "type": "presence", "params": {"activity": ["p2p.invoice_clear"], "m": 1}, "weight": 1.4, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "two_way", "service"]}, "description": "Invoice-bearing flows should eventually be cleared."},
+    {"id": "b_closure_goods_present", "layer": "closure", "type": "presence", "params": {"activity": ["p2p.gr", "p2p.ses"], "m": 1}, "weight": 1.1, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "service"]}, "description": "Three-way and service flows should contain receipt evidence."},
+    {"id": "b_flow_invoice_after_goods", "layer": "flow_discipline", "type": "precedence", "params": {"a": ["p2p.gr", "p2p.ses"], "b": ["p2p.ir", "p2p.vendor_invoice"], "k": 0, "K": 1.0, "missing_a": "skip", "missing_b": "skip"}, "weight": 1.4, "applicability": {"flow_type": ["three_way_gr_first", "service"]}, "description": "In GR-based flows invoice evidence should not precede the first receipt."},
+    {"id": "b_flow_release_after_goods", "layer": "flow_discipline", "type": "precedence", "params": {"a": ["p2p.gr", "p2p.ses"], "b": ["p2p.payment_block_remove"], "k": 0, "K": 1.0, "missing_a": "skip", "missing_b": "skip"}, "weight": 1.5, "applicability": {"flow_type": ["three_way_invoice_first"]}, "description": "In invoice-first flows the payment block release should follow the receipt."},
+    {"id": "b_flow_no_goods_in_two_way", "layer": "flow_discipline", "type": "exclusion", "params": {"activity": ["p2p.gr", "p2p.ses"], "after": null, "before": null}, "weight": 1.2, "applicability": {"flow_type": ["two_way"]}, "description": "Two-way items should not show receipt postings."},
+    {"id": "b_flow_consignment_no_clear", "layer": "flow_discipline", "type": "exclusion", "params": {"activity": ["p2p.invoice_clear"], "after": null, "before": null}, "weight": 0.8, "applicability": {"flow_type": ["consignment"]}, "description": "Consignment items are settled periodically, not cleared per item."},
+    {"id": "b_approval_requisition_present", "layer": "approval", "type": "presence", "params": {"activity": ["p2p.pr_item_create", "p2p.pr_create", "p2p.srm_created"], "m": 1}, "weight": 0.8, "applicability": {}, "description": "Requisition or shopping-cart evidence should precede the order (restrict applicability to document types that require one)."},
+    {"id": "b_approval_pr_release_days", "layer": "approval", "type": "lag", "params": {"a": ["p2p.pr_item_create", "p2p.pr_create"], "b": ["p2p.pr_release"], "delta": 2.0, "width": 5.0, "unit": "D", "missing_a": "skip", "missing_b": "skip", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Requisitions should be released within a target time (uncalibrated)."},
+    {"id": "b_approval_po_release_days", "layer": "approval", "type": "lag", "params": {"a": ["p2p.po_item_create", "p2p.po_create"], "b": ["p2p.po_release"], "delta": 2.0, "width": 5.0, "unit": "D", "missing_a": "skip", "missing_b": "skip", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {}, "description": "Orders should be released within a target time (uncalibrated)."},
+    {"id": "b_approval_change_repeats", "layer": "approval", "type": "singularity", "params": {"activity": ["p2p.po_change_approval"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Re-approvals after changes should be rare."},
+    {"id": "b_time_goods_to_invoice", "layer": "timeliness", "type": "lag", "params": {"a": ["p2p.gr", "p2p.ses"], "b": ["p2p.ir", "p2p.vendor_invoice"], "delta": 10.0, "width": 20.0, "unit": "D", "missing_a": "skip", "missing_b": "skip", "activation": "first", "response": "first_after"}, "weight": 1.3, "applicability": {"flow_type": ["three_way_gr_first", "service"]}, "description": "In GR-based flows the invoice should follow the receipt within a target time."},
+    {"id": "b_time_invoice_to_clear", "layer": "timeliness", "type": "lag", "params": {"a": ["p2p.ir", "p2p.vendor_invoice"], "b": ["p2p.invoice_clear"], "delta": 30.0, "width": 60.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.5, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "two_way", "service"]}, "description": "Invoices should clear within terms; open invoices are scored by their age."},
+    {"id": "b_time_po_to_gr", "layer": "timeliness", "type": "lag", "params": {"a": ["p2p.po_item_create"], "b": ["p2p.gr", "p2p.ses"], "delta": 30.0, "width": 60.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.0, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "consignment", "service"]}, "description": "Goods should arrive within the planned lead time; open items are scored by their age (replace delta by days beyond the scheduled date where available)."},
+    {"id": "b_time_release_to_clear", "layer": "timeliness", "type": "lag", "params": {"a": ["p2p.payment_block_remove"], "b": ["p2p.invoice_clear"], "delta": 5.0, "width": 20.0, "unit": "D", "missing_a": "skip", "missing_b": "censor", "activation": "first", "response": "first_after"}, "weight": 1.2, "applicability": {}, "description": "Released invoices should clear quickly."},
+    {"id": "b_rework_gr_fragmentation", "layer": "rework", "type": "singularity", "params": {"activity": ["p2p.gr", "p2p.ses"], "k": 2, "K": 3.0, "after": null, "before": null}, "weight": 1.2, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "consignment", "service"]}, "description": "Too many receipt events indicate fragmentation."},
+    {"id": "b_rework_repeated_ir", "layer": "rework", "type": "singularity", "params": {"activity": ["p2p.ir"], "k": 1, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "two_way", "service"]}, "description": "Repeated invoice receipts indicate invoice handling churn."},
+    {"id": "b_rework_confirmation_churn", "layer": "rework", "type": "singularity", "params": {"activity": ["p2p.po_confirmation_receive", "p2p.po_confirmation_update"], "k": 2, "K": 3.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Vendor confirmations beyond the tolerated number indicate unstable commitments."},
+    {"id": "b_rework_confirmation_date_changes", "layer": "rework", "type": "singularity", "params": {"activity": ["p2p.confirmation_change_delivery_date", "p2p.po_change_delivery_date"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Delivery-date changes after ordering should be rare."},
+    {"id": "b_rework_payment_terms_changes", "layer": "rework", "type": "singularity", "params": {"activity": ["p2p.po_change_payment_terms"], "k": 0, "K": 2.0, "after": null, "before": null}, "weight": 1.0, "applicability": {}, "description": "Payment-term changes on the order should be rare."},
+    {"id": "b_exc_cancel_ir", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.ir_cancel", "p2p.subsequent_invoice_cancel"], "after": null, "before": null}, "weight": 1.2, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "two_way", "service"]}, "description": "Invoice cancellations should be exceptional."},
+    {"id": "b_exc_cancel_gr", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.gr_cancel"], "after": null, "before": null}, "weight": 1.0, "applicability": {"flow_type": ["three_way_gr_first", "three_way_invoice_first", "consignment", "service"]}, "description": "Goods receipt cancellations should be exceptional."},
+    {"id": "b_exc_delete_item", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.po_item_delete"], "after": null, "before": null}, "weight": 1.1, "applicability": {}, "description": "Item deletion should be exceptional once execution is underway."},
+    {"id": "b_exc_item_block", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.po_item_block"], "after": null, "before": null}, "weight": 0.8, "applicability": {}, "description": "Item blocks should be exceptional."},
+    {"id": "b_exc_payment_block", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.payment_block_set"], "after": null, "before": null}, "weight": 1.0, "applicability": {"flow_type": ["three_way_gr_first", "two_way", "service"]}, "description": "Manual payment blocks should be exceptional outside invoice-first flows."},
+    {"id": "b_exc_debit_credit_memo", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.vendor_debit_memo", "p2p.vendor_credit_memo"], "after": null, "before": null}, "weight": 1.2, "applicability": {}, "description": "Vendor memos should be rare."},
+    {"id": "b_exc_transfer_failed", "layer": "exceptions", "type": "exclusion", "params": {"activity": ["p2p.srm_transfer_failed"], "after": null, "before": null}, "weight": 0.6, "applicability": {}, "description": "Interface transfer failures should not occur."},
+    {"id": "b_value_price_change_after_po", "layer": "value", "type": "singularity", "params": {"activity": ["p2p.po_change_price"], "k": 0, "K": 2.0, "after": ["p2p.po_item_create"], "before": null}, "weight": 1.4, "applicability": {}, "description": "Price changes after item creation indicate commercial inconsistency risk."},
+    {"id": "b_value_quantity_change_after_gr", "layer": "value", "type": "singularity", "params": {"activity": ["p2p.po_change_quantity"], "k": 0, "K": 2.0, "after": ["p2p.gr"], "before": null}, "weight": 1.2, "applicability": {}, "description": "Quantity changes after the first receipt indicate commercial inconsistency risk."},
+    {"id": "b_value_invoice_before_order", "layer": "value", "type": "precedence", "params": {"a": ["p2p.po_item_create", "p2p.po_create"], "b": ["p2p.vendor_invoice", "p2p.ir"], "k": 0, "K": 1.0, "missing_a": "skip", "missing_b": "satisfy"}, "weight": 1.0, "applicability": {}, "description": "Invoices should not precede the order item."},
+    {"id": "b_effort_manual_touches", "layer": "effort", "type": "metric", "params": {"attribute": "manual_touch_count", "threshold": 4.0, "width": 6.0, "direction": "high"}, "weight": 1.4, "applicability": {}, "description": "Too many manual touches reduce touchless processing potential."},
+    {"id": "b_effort_total_events", "layer": "effort", "type": "metric", "params": {"attribute": "total_events", "threshold": 10.0, "width": 15.0, "direction": "high"}, "weight": 1.0, "applicability": {}, "description": "Very long event chains indicate execution friction."}
+  ]
+}

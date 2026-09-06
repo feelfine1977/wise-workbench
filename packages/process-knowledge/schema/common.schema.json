@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/common.schema.json",
+  "title": "Shared definitions for process knowledge packs",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.\\-]*$",
+      "description": "Lower-case identifier; canonical activities use '<pack>.<name>', failure modes '<pack>.fm.<name>'."
+    },
+    "idList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/id" },
+      "uniqueItems": true
+    },
+    "version": {
+      "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "minLength": 1 }]
+    },
+    "reviewStatus": {
+      "type": "string",
+      "enum": ["draft", "reviewed", "approved"]
+    },
+    "source": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["title"],
+          "properties": {
+            "title": { "type": "string" },
+            "url": { "type": "string" },
+            "doi": { "type": "string" },
+            "note": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "text": {
+      "description": "A term or sentence in English with an optional German rendering.",
+      "type": "object",
+      "required": ["en"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1 },
+        "de": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "textList": {
+      "type": "array",
+      "items": { "oneOf": [{ "type": "string", "minLength": 1 }, { "$ref": "#/$defs/text" }] }
+    },
+    "evidence": {
+      "description": "Datasets in which the entry was observed, or 'none' for vocabulary-only entries.",
+      "oneOf": [
+        { "type": "string", "const": "none" },
+        { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      ]
+    },
+    "packHeader": {
+      "type": "object",
+      "required": ["pack", "version", "review_status"],
+      "properties": {
+        "pack": { "$ref": "#/$defs/id" },
+        "version": { "$ref": "#/$defs/version" },
+        "review_status": { "$ref": "#/$defs/reviewStatus" },
+        "sources": { "$ref": "#/$defs/sources" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

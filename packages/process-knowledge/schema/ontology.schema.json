@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/ontology.schema.json",
+  "title": "Process ontology: canonical activities and system label packs",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "process", "activities", "label_packs"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "process": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "object_types": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "activities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/activity" }
+    },
+    "label_packs": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "common.schema.json#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/labelPack" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "activity": {
+      "type": "object",
+      "required": ["id", "name", "stage", "description"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "name": { "$ref": "common.schema.json#/$defs/text" },
+        "stage": { "$ref": "common.schema.json#/$defs/id" },
+        "description": { "type": "string", "minLength": 1 },
+        "synonyms": {
+          "type": "object",
+          "properties": {
+            "en": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "de": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          },
+          "additionalProperties": false
+        },
+        "object_types": { "$ref": "common.schema.json#/$defs/idList" },
+        "granularity": {
+          "type": "string",
+          "enum": ["header", "item", "document", "event"],
+          "description": "Level at which the source system records the event; header events replicate onto every item case."
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["milestone", "change", "exception", "approval", "cancellation", "status", "vendor_side", "customer_side", "logging"] }
+        },
+        "tcodes": { "type": "array", "items": { "type": "string" } },
+        "version": { "$ref": "common.schema.json#/$defs/version" },
+        "sources": { "$ref": "common.schema.json#/$defs/sources" },
+        "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "labelPack": {
+      "type": "object",
+      "required": ["system", "labels"],
+      "properties": {
+        "system": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "dataset": { "type": "string", "description": "Registry id in datasets.yaml when the pack was read off a dataset." },
+        "language": { "type": "string", "enum": ["en", "de", "mixed"] },
+        "sources": { "$ref": "common.schema.json#/$defs/sources" },
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/labelEntry" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "labelEntry": {
+      "type": "object",
+      "required": ["label", "activity"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "activity": { "$ref": "common.schema.json#/$defs/id" },
+        "lifecycle": { "type": "string", "description": "Lifecycle transition that is part of the matching key (e.g. 'complete')." },
+        "document_type": { "type": "string", "description": "Document type that is part of the matching key." },
+        "subprocess": { "type": "string", "description": "Sub-process that is part of the matching key." },
+        "tcode": { "type": "string", "description": "Transaction code or system function code." },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

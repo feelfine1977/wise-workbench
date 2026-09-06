@@ -1,0 +1,182 @@
+# Order-to-cash glossary, English and German.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - SAP SD and FI-AR documentation and transaction names
+  - ICPM 2026 hackathon sales extract column names
+  - o2c/README.md
+terms:
+  - id: o2c.term.sales_order
+    term: {en: sales order, de: Kundenauftrag}
+    definition: {en: "The customer's order as a document with header data (customer, incoterms, payment terms) and items.", de: "Der Auftrag des Kunden als Beleg mit Kopfdaten (Kunde, Incoterms, Zahlungsbedingungen) und Positionen."}
+    aliases: [order, SO, Auftrag]
+    activities: [o2c.order_create]
+    stages: [capture]
+    review_status: draft
+  - id: o2c.term.sales_order_item
+    term: {en: sales order item, de: Auftragsposition}
+    definition: {en: "One line of a sales order (material, quantity, requested date); the case notion of the O2C pack.", de: "Eine Zeile eines Kundenauftrags (Material, Menge, Wunschtermin); die Fallnotion des O2C-Pakets."}
+    aliases: [order item, order line, SO item]
+    activities: [o2c.item_create]
+    stages: [capture]
+    review_status: draft
+  - id: o2c.term.header_event
+    term: {en: header event, de: Kopfereignis}
+    definition: {en: "An event recorded once on the order header (Create Order) but replicated onto every item case; type it before counting.", de: "Ein einmal am Auftragskopf erfasstes Ereignis (Auftrag anlegen), das auf jede Positionsfall kopiert wird; vor dem Zählen typisieren."}
+    aliases: [replicated event]
+    activities: [o2c.order_create]
+    review_status: draft
+  - id: o2c.term.schedule_line
+    term: {en: schedule line, de: Einteilung}
+    definition: {en: "Date and quantity commitment of an order item; several schedule lines split the item across dates.", de: "Termin- und Mengenzusage einer Auftragsposition; mehrere Einteilungen verteilen die Position auf Termine."}
+    activities: [o2c.schedule_confirm, o2c.schedule_confirm_remove, o2c.schedule_request_change]
+    stages: [commit]
+    review_status: draft
+  - id: o2c.term.confirmed_quantity
+    term: {en: confirmed quantity, de: Bestätigte Menge}
+    definition: {en: "Quantity the availability check committed for the schedule line; equal to the ordered quantity for every item of the hackathon extract.", de: "Von der Verfügbarkeitsprüfung zugesagte Menge der Einteilung; im Hackathon-Auszug für jede Position gleich der Bestellmenge."}
+    aliases: [ATP quantity]
+    activities: [o2c.schedule_confirm, o2c.schedule_confirm_remove]
+    failure_modes: [o2c.fm.confirmation_withdrawn, o2c.fm.stockout_after_commitment]
+    review_status: draft
+  - id: o2c.term.requested_delivery_date
+    term: {en: requested delivery date, de: Wunschliefertermin}
+    definition: {en: "The date the customer asked for; the reference for on-time delivery.", de: "Der vom Kunden gewünschte Termin; Bezug für die Liefertermintreue."}
+    aliases: [RDD, customer requested date]
+    failure_modes: [o2c.fm.late_goods_issue]
+    review_status: draft
+  - id: o2c.term.material_availability_date
+    term: {en: material availability date, de: Materialbereitstellungsdatum}
+    definition: {en: "The date by which the material must be available for picking so that the confirmed delivery date is met.", de: "Der Termin, zu dem das Material für die Kommissionierung bereitstehen muss, damit der bestätigte Liefertermin gehalten wird."}
+    activities: [o2c.avail_date_change]
+    failure_modes: [o2c.fm.availability_date_changed]
+    review_status: draft
+  - id: o2c.term.delivery_block
+    term: {en: delivery block, de: Liefersperre}
+    definition: {en: "Indicator that stops delivery creation for an order or item until released.", de: "Kennzeichen, das die Lieferanlage für einen Auftrag oder eine Position bis zur Freigabe verhindert."}
+    activities: [o2c.delivery_block_change, o2c.delivery_block_set, o2c.delivery_block_release]
+    failure_modes: [o2c.fm.delivery_block]
+    review_status: draft
+  - id: o2c.term.credit_block
+    term: {en: credit block, de: Kreditsperre}
+    definition: {en: "Hold placed by credit management when the customer's exposure exceeds the limit; released in VKM1.", de: "Sperre des Kreditmanagements, wenn das Obligo des Kunden das Limit überschreitet; Freigabe in VKM1."}
+    aliases: [credit hold, VKM1]
+    activities: [o2c.credit_block_set, o2c.credit_block_release]
+    failure_modes: [o2c.fm.credit_block]
+    review_status: draft
+  - id: o2c.term.rejection_reason
+    term: {en: rejection reason, de: Absagegrund}
+    definition: {en: "Code that cancels an order item (80 cancelled according to customer, 82 double order, 86 position deleted, 99 handling error in the hackathon extract).", de: "Schlüssel, der eine Auftragsposition storniert (80 laut Kunde storniert, 82 Doppelauftrag, 86 Position gelöscht, 99 Bearbeitungsfehler im Hackathon-Auszug)."}
+    aliases: [reason for rejection, cancellation status]
+    activities: [o2c.rejection_change]
+    failure_modes: [o2c.fm.customer_cancellation]
+    review_status: draft
+  - id: o2c.term.outbound_delivery
+    term: {en: outbound delivery, de: Auslieferung}
+    definition: {en: "The shipping document created from the order; picking, packing and goods issue happen on it.", de: "Der aus dem Auftrag erzeugte Versandbeleg; Kommissionierung, Verpackung und Warenausgang erfolgen darauf."}
+    aliases: [delivery, delivery note, VL01N]
+    activities: [o2c.delivery_create]
+    stages: [fulfil]
+    review_status: draft
+  - id: o2c.term.picking
+    term: {en: picking, de: Kommissionierung}
+    definition: {en: "Collecting the ordered goods in the warehouse for the delivery.", de: "Zusammenstellen der bestellten Ware im Lager für die Lieferung."}
+    activities: [o2c.pick]
+    stages: [fulfil]
+    review_status: draft
+  - id: o2c.term.goods_issue
+    term: {en: goods issue, de: Warenausgang}
+    definition: {en: "Posting that records the goods leaving the warehouse; the delivery-performance milestone.", de: "Buchung, die den Abgang der Ware aus dem Lager festhält; der Meilenstein der Lieferleistung."}
+    aliases: [PGI, WA, post goods issue]
+    activities: [o2c.goods_issue]
+    stages: [fulfil]
+    failure_modes: [o2c.fm.late_goods_issue, o2c.fm.item_not_shipped]
+    review_status: draft
+  - id: o2c.term.incoterms
+    term: {en: incoterms, de: Incoterms}
+    definition: {en: "Delivery terms that define when risk and transport responsibility pass (DAP 74 %, CPT 26 %, FCA 0.4 % in the extract).", de: "Lieferbedingungen, die den Übergang von Risiko und Transportverantwortung festlegen (DAP 74 %, CPT 26 %, FCA 0,4 % im Auszug)."}
+    activities: [o2c.incoterms_change]
+    failure_modes: [o2c.fm.incoterms_changed]
+    review_status: draft
+  - id: o2c.term.partial_delivery
+    term: {en: partial delivery, de: Teillieferung}
+    definition: {en: "Shipment of part of an item's quantity; legitimate where the customer allows it, otherwise a split.", de: "Lieferung eines Teils der Positionsmenge; zulässig, wenn der Kunde es erlaubt, sonst eine Aufteilung."}
+    activities: [o2c.delivery_split]
+    failure_modes: [o2c.fm.partial_delivery_split]
+    review_status: draft
+  - id: o2c.term.return_item
+    term: {en: return item, de: Retourenposition}
+    definition: {en: "An order item that brings goods back (flag 'Returns Item' = X in the extract, order type RE in SAP SD); excluded from delivery-performance constraints.", de: "Eine Auftragsposition, die Ware zurückholt (Kennzeichen 'Returns Item' = X im Auszug, Auftragsart RE in SAP SD); von Lieferleistungsregeln ausgenommen."}
+    aliases: [returns order, RE order]
+    activities: [o2c.return_order_create, o2c.return_delivery]
+    stages: [return]
+    review_status: draft
+  - id: o2c.term.goods_issue_reversal
+    term: {en: goods issue reversal, de: Warenausgangsstorno}
+    definition: {en: "Cancellation of a posted goods issue (VL09, movement type 602).", de: "Storno eines gebuchten Warenausgangs (VL09, Bewegungsart 602)."}
+    activities: [o2c.delivery_reversal]
+    failure_modes: [o2c.fm.goods_issue_reversed]
+    review_status: draft
+  - id: o2c.term.billing_document
+    term: {en: billing document, de: Faktura}
+    definition: {en: "The customer invoice created from the delivery (delivery-related) or the order (order-related).", de: "Die Kundenrechnung, erzeugt aus der Lieferung (lieferbezogen) oder dem Auftrag (auftragsbezogen)."}
+    aliases: [invoice, VF01]
+    activities: [o2c.invoice_create, o2c.invoice_cancel]
+    stages: [invoice]
+    review_status: draft
+  - id: o2c.term.credit_memo
+    term: {en: credit memo, de: Gutschrift}
+    definition: {en: "A billing document that reduces the receivable after a return or a claim.", de: "Ein Fakturabeleg, der die Forderung nach einer Retoure oder Reklamation verringert."}
+    activities: [o2c.credit_memo_create]
+    failure_modes: [o2c.fm.invoice_correction]
+    review_status: draft
+  - id: o2c.term.invoice_correction_request
+    term: {en: invoice correction request, de: Rechnungskorrekturanforderung}
+    definition: {en: "Order type RK that corrects price or quantity of a billed item in one document.", de: "Auftragsart RK, die Preis oder Menge einer fakturierten Position in einem Beleg korrigiert."}
+    activities: [o2c.invoice_correction_request]
+    failure_modes: [o2c.fm.invoice_correction]
+    review_status: draft
+  - id: o2c.term.dunning
+    term: {en: dunning, de: Mahnung}
+    definition: {en: "Payment reminders for overdue receivables in escalating levels (F150).", de: "Zahlungserinnerungen für überfällige Forderungen in Stufen (F150)."}
+    aliases: [payment reminder, Mahnlauf]
+    activities: [o2c.dunning]
+    stages: [pay]
+    failure_modes: [o2c.fm.payment_after_due_date]
+    review_status: draft
+  - id: o2c.term.dso
+    term: {en: days sales outstanding, de: Debitorenlaufzeit}
+    definition: {en: "Average days from invoice to payment; approximated per slice by the invoice-to-payment lag.", de: "Durchschnittliche Tage von Rechnung bis Zahlung; je Slice durch die Rechnung-zu-Zahlung-Wartezeit angenähert."}
+    aliases: [DSO]
+    failure_modes: [o2c.fm.payment_after_due_date]
+    review_status: draft
+  - id: o2c.term.backorder
+    term: {en: backorder, de: Rückstand}
+    definition: {en: "An order item confirmed later than requested or not at all because stock is missing; backorder processing redistributes confirmations.", de: "Eine später als gewünscht oder gar nicht bestätigte Auftragsposition wegen fehlenden Bestands; die Rückstandsbearbeitung verteilt Bestätigungen neu."}
+    activities: [o2c.backorder_reschedule, o2c.item_out_of_stock]
+    failure_modes: [o2c.fm.stockout_after_commitment, o2c.fm.confirmation_withdrawn]
+    review_status: draft
+  - id: o2c.term.atp
+    term: {en: available-to-promise (ATP), de: Verfügbarkeitsprüfung (ATP)}
+    definition: {en: "The check that commits quantity and date against stock and planned receipts.", de: "Die Prüfung, die Menge und Termin gegen Bestand und geplante Zugänge zusagt."}
+    aliases: [availability check]
+    activities: [o2c.schedule_confirm]
+    stages: [commit]
+    review_status: draft
+  - id: o2c.term.make_to_order
+    term: {en: make-to-order, de: Kundeneinzelfertigung}
+    definition: {en: "Planning type where production starts after the order; order-to-issue lags are structurally longer.", de: "Planungsart, bei der die Produktion nach dem Auftrag beginnt; Durchlaufzeiten bis zum Warenausgang sind strukturell länger."}
+    aliases: [MTO]
+    failure_modes: [o2c.fm.long_tail_fulfilment]
+    review_status: draft
+  - id: o2c.term.right_censoring
+    term: {en: right-censoring, de: Rechtszensierung}
+    definition: {en: "Items still open at the extract end (4.8 % without goods issue) look like missing milestones; read them with the censoring diagnostics.", de: "Am Auszugsende noch offene Positionen (4,8 % ohne Warenausgang) erscheinen wie fehlende Meilensteine; mit der Zensierungsdiagnostik lesen."}
+    aliases: [open items, censoring]
+    failure_modes: [o2c.fm.item_not_shipped, o2c.fm.long_tail_fulfilment]
+    review_status: draft
+  - id: o2c.term.plant
+    term: {en: plant, de: Werk}
+    definition: {en: "The shipping site; owner is the site logistics lead.", de: "Der Versandstandort; Verantwortlicher ist die Standortlogistik."}
+    review_status: draft

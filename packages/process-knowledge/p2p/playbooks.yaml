@@ -1,0 +1,189 @@
+# Purchase-to-pay playbooks per journey stage (docs/CUSTOMER_JOURNEY.md §3).
+# Questions are asked to people; hypotheses are candidates per hotspot type
+# (reservoir: many cases with a moderate shortfall; mechanism: a specific
+# constraint pattern; severity: few cases with a large shortfall).
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - docs/CUSTOMER_JOURNEY.md journey stages S0 to S12
+  - docs/panel/process_panel.md §2 and §5 (P2P pitfalls)
+  - BPI Challenge 2019 measurement 2026-09-05
+playbooks:
+  - id: p2p.pb.s0_scope
+    version: 1
+    journey_stage: S0
+    title: {en: Steering question and scope, de: Steuerungsfrage und Umfang}
+    audience: [sponsor, process owner, analyst]
+    questions:
+      - {en: "Which goal lens steers first, working capital (finance), supply continuity (logistics), control (compliance) or effort (automation)?", de: "Welche Zielperspektive steuert zuerst, Working Capital (Finanzen), Versorgungssicherheit (Logistik), Kontrolle (Compliance) oder Aufwand (Automatisierung)?"}
+      - {en: "Which purchasing organisations, company codes and spend areas are in scope, and who owns each of them?", de: "Welche Einkaufsorganisationen, Buchungskreise und Ausgabenbereiche sind im Umfang, und wer verantwortet sie?"}
+      - {en: "Which flow types exist here (GR-based, invoice-before-GR, two-way, consignment, service, framework) and which are legitimately different?", de: "Welche Flusstypen gibt es hier (WE-bezogen, Rechnung vor WE, Zweiwege, Konsignation, Leistung, Rahmen) und welche sind legitim verschieden?"}
+      - {en: "Which period and which baseline will later comparisons use?", de: "Welcher Zeitraum und welche Baseline dienen späteren Vergleichen?"}
+    workshop_script:
+      - Write the steering question in one sentence with a measurable expectation shortfall (for example, share of invoices cleared beyond terms per vendor).
+      - Name the owner group per slice key before any data is opened.
+      - Choose the template (p2p_bpic19 for SAP MM logs shaped like BPIC 2019, p2p_baseline otherwise) and record that its thresholds are uncalibrated.
+    stages: [request, approve, order, receive, invoice, match, pay]
+    review_status: draft
+  - id: p2p.pb.s1_readiness
+    version: 1
+    journey_stage: S1
+    title: {en: Log intake and data readiness, de: Logaufnahme und Datenbereitschaft}
+    audience: [analyst, data engineer]
+    questions:
+      - {en: "Are timestamps per activity at second, day or sentinel precision (BPIC 2019 has 1948 and 2020 sentinel dates)?", de: "Liegen die Zeitstempel je Aktivität in Sekunden-, Tages- oder Platzhaltergenauigkeit vor (BPIC 2019 enthält Platzhalterdaten von 1948 und 2020)?"}
+      - {en: "Which events are header events replicated onto every item (order creation, SRM statuses, currency and payment-term changes)?", de: "Welche Ereignisse sind Kopfereignisse, die auf jede Position kopiert werden (Bestellanlage, SRM-Status, Währungs- und Zahlungsbedingungsänderungen)?"}
+      - {en: "Where does the observation window end and how many items are still open there?", de: "Wo endet das Beobachtungsfenster und wie viele Positionen sind dort noch offen?"}
+      - {en: "Do vendor-side events (vendor creates invoice) carry the vendor's document date or the receipt date?", de: "Tragen lieferantenseitige Ereignisse (Lieferant erstellt Rechnung) das Belegdatum des Lieferanten oder das Eingangsdatum?"}
+    workshop_script:
+      - Run the readiness report; attach timestamp outliers, replication warnings and the open-item share as caveats that travel with every later export.
+      - Map the label column to the p2p ontology; unmapped labels stay visible as readiness items.
+    review_status: draft
+  - id: p2p.pb.s2_case_notion
+    version: 1
+    journey_stage: S2
+    title: {en: "Case notion, flow types and slice keys", de: "Fallnotion, Flusstypen und Slice-Schlüssel"}
+    audience: [analyst, process owner]
+    questions:
+      - {en: "Is the case the PO item, the PO header or the invoice, and which question does each answer?", de: "Ist der Fall die Bestellposition, der Bestellkopf oder die Rechnung, und welche Frage beantwortet jeweils welcher?"}
+      - {en: "From which attribute is the flow type derived (item category, GR-based IV flag, document type) and does every case get one?", de: "Aus welchem Attribut wird der Flusstyp abgeleitet (Positionstyp, WE-bezogene RP, Belegart) und erhält jeder Fall einen?"}
+      - {en: "Which slice keys have a named owner (vendor, purchasing organisation, spend area, company code) and which slices are too small to show?", de: "Welche Slice-Schlüssel haben einen benannten Verantwortlichen (Lieferant, Einkaufsorganisation, Ausgabenbereich, Buchungskreis) und welche Slices sind zu klein zum Zeigen?"}
+    workshop_script:
+      - Derive flow_type as a recipe stored with the norm; count cases per flow type and per 'other'.
+      - Register an owner per slice value; merge small vendors into 'other vendors' per purchasing organisation.
+      - Never slice by user or resource; use the manual-touch attribute instead.
+    review_status: draft
+  - id: p2p.pb.s3_norm_workshop
+    version: 1
+    journey_stage: S3
+    title: {en: Norm elicitation workshop, de: Normerhebung im Workshop}
+    audience: [process owner, accounts payable, warehouse, purchasing, analyst]
+    questions:
+      - {en: "In a GR-based flow, how many days after the receipt should the invoice be recorded, and where does the shortfall start to matter?", de: "Wie viele Tage nach dem Wareneingang soll die Rechnung im WE-bezogenen Fluss erfasst sein, und ab wann wird der Verzug relevant?"}
+      - {en: "Which payment terms apply per vendor group, and should the norm score days beyond terms instead of a fixed number of days?", de: "Welche Zahlungsbedingungen gelten je Lieferantengruppe, und soll die Norm Tage über Ziel statt einer festen Tageszahl bewerten?"}
+      - {en: "How many goods receipts per item are normal for this vendor or material group before it counts as fragmentation?", de: "Wie viele Wareneingänge je Position sind für diesen Lieferanten oder diese Warengruppe normal, bevor es als Fragmentierung gilt?"}
+      - {en: "Is a price change before release a normal negotiation step here, or should every change after item creation count?", de: "Ist eine Preisänderung vor Freigabe hier ein normaler Verhandlungsschritt, oder soll jede Änderung nach Positionsanlage zählen?"}
+      - {en: "Which exceptions (cancellations, deletions, memos, blocks) are tolerated at all, and for which flow types?", de: "Welche Ausnahmen (Storni, Löschungen, Gut- und Lastschriften, Sperren) werden überhaupt toleriert, und für welche Flusstypen?"}
+    workshop_script:
+      - Walk the failure-mode catalogue stage by stage; for each accepted entry, write the expectation as a sentence and pick the constraint pattern.
+      - Set every threshold on the empirical distribution of the log (calibrator); the owner drags, the analyst records the quantile and the rationale.
+      - Assign each constraint a layer and an owner; run check() against the log so that every activity exists.
+    review_status: draft
+  - id: p2p.pb.s4_views
+    version: 1
+    journey_stage: S4
+    title: {en: View design, de: Sichtenentwurf}
+    audience: [sponsor, process owner]
+    questions:
+      - {en: "Finance emphasises closure, ageing and value; logistics emphasises flow discipline and rework; which of these steers this cycle?", de: "Finanzen betont Abschluss, Alterung und Wert; Logistik betont Flussdisziplin und Nacharbeit; welche Sicht steuert diesen Zyklus?"}
+      - {en: "Do the views agree on the top slices, and if not, which disagreement is worth a conversation?", de: "Stimmen die Sichten bei den obersten Slices überein, und wenn nicht, welche Abweichung ist ein Gespräch wert?"}
+    workshop_script:
+      - Start from the four views of the paper's norm (Finance, Logistics, Compliance, Automation); adjust layer emphasis with sliders, not decimals.
+      - Show the agreement matrix and the top-k overlap before approving a steering view.
+    review_status: draft
+  - id: p2p.pb.s5_scoring
+    version: 1
+    journey_stage: S5
+    title: {en: Scoring and calibration, de: Bewertung und Kalibrierung}
+    audience: [analyst]
+    questions:
+      - {en: "What share of cases is unscored per flow type, and why (no applicable constraint, missing attributes)?", de: "Welcher Anteil der Fälle ist je Flusstyp unbewertet, und warum (keine anwendbare Regel, fehlende Attribute)?"}
+      - {en: "Which gamma keeps small vendors from dominating the backlog without hiding real signals?", de: "Welches Gamma verhindert, dass kleine Lieferanten die Liste dominieren, ohne echte Signale zu verbergen?"}
+      - {en: "Should priorities weight cases or exposure (cumulative net worth) for this steering question?", de: "Sollen Prioritäten Fälle oder Exposition (kumulierter Nettowert) gewichten für diese Steuerungsfrage?"}
+    workshop_script:
+      - Record gamma, min_cases, scoring mode and volume mode in the run manifest with a note.
+    review_status: draft
+  - id: p2p.pb.s6_backlog_review
+    version: 1
+    journey_stage: S6
+    title: {en: Backlog review session, de: Durchsicht der Prioritätenliste}
+    audience: [process owner, analyst]
+    questions:
+      - {en: "Does the owner recognise the top three slices, and which does the owner dispute?", de: "Erkennt der Verantwortliche die obersten drei Slices wieder, und welche bestreitet er?"}
+      - {en: "Which layer dominates each slice's shortfall, and does it match the owner's experience?", de: "Welche Ebene dominiert den Rückstand jedes Slices, und passt das zur Erfahrung des Verantwortlichen?"}
+    hypotheses:
+      reservoir:
+        - Many vendors with a moderate invoice-to-clearing shortfall point to payment terms or run cadence rather than to single vendors
+        - A spend area with a broad price-change shortfall points to catalogue or contract maintenance
+      mechanism:
+        - A vendor whose shortfall sits in flow discipline (invoice before receipt) points to a wrong item category or to dock posting delay
+        - A purchasing organisation with repeated approvals points to release strategy thresholds
+      severity:
+        - A few high-exposure items with memos and price changes are commercial-risk indicators for finance, not audit findings
+        - A single vendor with cancelled receipts and invoices points to a specific master-data or delivery problem
+    workshop_script:
+      - Walk the top-k in presenter mode; record agree, dispute or defer per slice with a note; disputed thresholds go back to S3.
+    review_status: draft
+  - id: p2p.pb.s7_validation
+    version: 1
+    journey_stage: S7
+    title: {en: Validation gate, de: Validierungstor}
+    audience: [analyst, process owner]
+    questions:
+      - {en: "How much of the slice's shortfall comes from items still open at the window end (right-censoring)?", de: "Wie viel des Rückstands im Slice stammt von am Fensterende noch offenen Positionen (Rechtszensierung)?"}
+      - {en: "Are the replicated header events counted as rework in this slice (paper reports 72.5 % in one slice)?", de: "Werden in diesem Slice kopierte Kopfereignisse als Nacharbeit gezählt (im Paper 72,5 % in einem Slice)?"}
+      - {en: "Do the source tables (blocking reasons, payment terms, item categories) confirm the reading before anyone is called?", de: "Bestätigen die Quelltabellen (Sperrgründe, Zahlungsbedingungen, Positionstypen) die Lesart, bevor jemand angesprochen wird?"}
+    workshop_script:
+      - Read right_censored, left_truncated and gap_retained per focus slice; record the reading (stable, verify first, artefact) with a note.
+    review_status: draft
+  - id: p2p.pb.s8_rca
+    version: 1
+    journey_stage: S8
+    title: {en: Mechanism and cause candidates, de: Mechanismus und Ursachenkandidaten}
+    audience: [improvement lead, process owner, purchasing, accounts payable, warehouse]
+    questions:
+      - {en: Ask the buyer whether the price change came before or after the vendor's confirmation., de: "Fragen Sie den Einkäufer, ob die Preisänderung vor oder nach der Bestätigung des Lieferanten kam."}
+      - {en: Ask accounts payable which blocking reason dominates the blocked invoices of this vendor., de: "Fragen Sie die Kreditorenbuchhaltung, welcher Sperrgrund bei den gesperrten Rechnungen dieses Lieferanten dominiert."}
+      - {en: Ask the warehouse whether receipts are posted on the day of arrival or in batches., de: "Fragen Sie das Lager, ob Wareneingänge am Ankunftstag oder gesammelt gebucht werden."}
+      - {en: Ask the requester whether the requisition was raised in the system or by e-mail before the order., de: "Fragen Sie den Anforderer, ob die BANF im System oder per E-Mail vor der Bestellung ausgelöst wurde."}
+    workshop_script:
+      - Open the constraint drivers, then worst cases, then traces; confirm the mechanism (queue vs tail, fragmentation vs logging) before naming a cause candidate.
+      - Use the failure-mode entry's evidence_to_check list as the first checklist; one non-log confirmation per cause candidate.
+    failure_modes: [p2p.fm.price_change_after_po, p2p.fm.payment_block, p2p.fm.invoice_before_goods_receipt, p2p.fm.order_without_requisition]
+    review_status: draft
+  - id: p2p.pb.s9_actions
+    version: 1
+    journey_stage: S9
+    title: {en: Action hypotheses, de: Maßnahmenhypothesen}
+    audience: [process owner, improvement lead]
+    questions:
+      - {en: "Which constraint and layer should move if the countermeasure works, and by how much per slice?", de: "Welche Regel und Ebene soll sich bewegen, wenn die Gegenmaßnahme wirkt, und um wie viel je Slice?"}
+      - {en: "Who owns the countermeasure (purchasing, accounts payable, warehouse, vendor management) and which evidence links support it?", de: "Wer verantwortet die Gegenmaßnahme (Einkauf, Kreditoren, Lager, Lieferantenmanagement) und welche Nachweise stützen sie?"}
+    workshop_script:
+      - Draft the card from the failure-mode entry's typical_remedies as candidates; the owner picks or rewrites; expected movement is stated on a named constraint.
+    review_status: draft
+  - id: p2p.pb.s10_planning
+    version: 1
+    journey_stage: S10
+    title: {en: Intervention planning, de: Maßnahmenplanung}
+    audience: [sponsor, process owner]
+    questions:
+      - {en: "Pilot on one vendor group or purchasing organisation, or roll out across the company code?", de: "Pilot bei einer Lieferantengruppe oder Einkaufsorganisation, oder Ausrollen über den Buchungskreis?"}
+      - {en: "Which run is frozen as the baseline and which period report closes the pilot?", de: "Welcher Lauf wird als Baseline eingefroren und welcher Periodenbericht schließt den Piloten ab?"}
+    workshop_script:
+      - Freeze and name the baseline run; write the success metric as a target violation share on the named constraint.
+    review_status: draft
+  - id: p2p.pb.s11_monitoring
+    version: 1
+    journey_stage: S11
+    title: {en: Monitoring across periods, de: Beobachtung über Perioden}
+    audience: [analyst, sponsor]
+    questions:
+      - {en: "Did the shortfall move on the constraint the action targeted, or elsewhere?", de: "Hat sich der Rückstand bei der Regel bewegt, auf die die Maßnahme zielte, oder anderswo?"}
+      - {en: "Did the flow-type mix or the vendor mix change between periods, which would move the numbers without any action?", de: "Hat sich zwischen den Perioden der Flusstyp- oder Lieferantenmix verändert, was die Zahlen ohne jede Maßnahme bewegen würde?"}
+      - {en: "Is the norm still right, and if a threshold changes, is the re-baselining recorded with a sponsor note?", de: "Ist die Norm noch richtig, und wird bei einer Schwellenänderung die neue Baseline mit einer Sponsor-Notiz festgehalten?"}
+    workshop_script:
+      - Compare periods against the frozen baseline; report per-constraint rates and the open-item share of each period; never use causal language in the period report.
+    review_status: draft
+  - id: p2p.pb.s12_standard
+    version: 1
+    journey_stage: S12
+    title: {en: Institutionalisation, de: Verankerung}
+    audience: [process owner, sponsor]
+    questions:
+      - {en: "Who owns the norm and how often is it reviewed with the owners?", de: "Wer verantwortet die Norm und wie oft wird sie mit den Verantwortlichen durchgesehen?"}
+      - {en: "Which constraints are retired because the shortfall is gone, and which are added from the failure-mode catalogue?", de: "Welche Regeln werden zurückgezogen, weil der Rückstand verschwunden ist, und welche aus dem Katalog der Fehlermodi ergänzt?"}
+    workshop_script:
+      - Export the norm as the standard with owner, cadence and change procedure; extract a company template from it.
+    review_status: draft

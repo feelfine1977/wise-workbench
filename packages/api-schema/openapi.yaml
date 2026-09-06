@@ -1,0 +1,3153 @@
+openapi: 3.1.0
+info:
+  title: WISE Workbench API
+  description: 'WISE Workbench backend: projects, datasets, mappings, case tables, norm versions, runs, backlogs, slice detail, traces, diagnostics, signal distributions, process flow and jobs. Errors are RFC 9457 problem details.'
+  version: 0.1.0
+paths:
+  /system/health:
+    get:
+      tags:
+      - system
+      summary: Health
+      operationId: health
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Health
+  /system/ready:
+    get:
+      tags:
+      - system
+      summary: Ready
+      operationId: ready
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready
+  /system/version:
+    get:
+      tags:
+      - system
+      summary: Version
+      operationId: version
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+  /projects:
+    get:
+      tags:
+      - projects
+      summary: List Projects
+      operationId: listProjects
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Project'
+                type: array
+                title: Response Listprojects
+    post:
+      tags:
+      - projects
+      summary: Create Project
+      operationId: createProject
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}:
+    get:
+      tags:
+      - projects
+      summary: Get Project
+      operationId: getProject
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets:
+    get:
+      tags:
+      - datasets
+      summary: List Datasets
+      operationId: listDatasets
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatasetVersion'
+                title: Response Listdatasets
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - datasets
+      summary: Upload Dataset
+      description: Multipart upload of CSV, Parquet or XES; returns the ingest job. The dataset id is in resultRef.
+      operationId: uploadDataset
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_uploadDataset'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets/presets:
+    get:
+      tags:
+      - datasets
+      summary: List Presets
+      description: Public logs with a known mapping and norm that can be loaded in one click; `available` says whether the files are on this machine.
+      operationId: listPresets
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Preset'
+                title: Response Listpresets
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets/presets/{presetId}:
+    post:
+      tags:
+      - datasets
+      summary: Load Preset
+      description: 'Loads a public log preset: registers the configured file (not copied), builds the case table with the known mapping, imports the norm and scores a run, all in one job. The run id is in resultRef when done; every step reuses what the project already has.'
+      operationId: loadPreset
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: presetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Presetid
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/datasets/{datasetId}:
+    get:
+      tags:
+      - datasets
+      summary: Get Dataset
+      operationId: getDataset
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Datasetid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetVersion'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets/{datasetId}/preview:
+    get:
+      tags:
+      - datasets
+      summary: Preview Dataset
+      operationId: previewDataset
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Datasetid
+      - name: rows
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 50
+          title: Rows
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets/{datasetId}/mapping-suggestion:
+    get:
+      tags:
+      - datasets
+      summary: Suggest Mapping
+      description: 'A column mapping guessed from the column names: exact presets for known logs, patterns otherwise.'
+      operationId: suggestMapping
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Datasetid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingSuggestion'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/datasets/{datasetId}/mappings:
+    get:
+      tags:
+      - datasets
+      summary: List Mappings
+      operationId: listMappings
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Datasetid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColumnMappingOut'
+                title: Response Listmappings
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - datasets
+      summary: Create Mapping
+      description: Validates the mapping on a sample and starts the case-table build job. The case table id is in resultRef.
+      operationId: createMapping
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Datasetid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ColumnMapping'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/case-tables:
+    get:
+      tags:
+      - datasets
+      summary: List Case Tables
+      operationId: listCaseTables
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CaseTable'
+                title: Response Listcasetables
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/case-tables/{caseTableId}:
+    get:
+      tags:
+      - datasets
+      summary: Get Case Table
+      operationId: getCaseTable
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Casetableid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTable'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/case-tables/{caseTableId}/mapping:
+    get:
+      tags:
+      - datasets
+      summary: Get Case Table Mapping
+      operationId: getCaseTableMapping
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Casetableid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColumnMappingOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/norms:
+    get:
+      tags:
+      - norms
+      summary: List Norms
+      operationId: listNorms
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NormVersion'
+                title: Response Listnorms
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - norms
+      summary: Create Norm Version
+      description: Body is the library's norm JSON plus a note; a new immutable version is created and validated.
+      operationId: createNormVersion
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormVersionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormVersion'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/norms/{normVersionId}:
+    get:
+      tags:
+      - norms
+      summary: Get Norm Version
+      operationId: getNormVersion
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormVersion'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - norms
+      summary: Set Norm Status
+      operationId: setNormStatus
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormVersion'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/norms/{normVersionId}/check:
+    post:
+      tags:
+      - norms
+      summary: Check Norm
+      operationId: checkNorm
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormCheckRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormCheck'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs:
+    get:
+      tags:
+      - runs
+      summary: List Runs
+      operationId: listRuns
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Run'
+                title: Response Listruns
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - runs
+      summary: Create Run
+      description: Creates a run and queues its job; identical parameters (or the same Idempotency-Key) return the existing run.
+      operationId: createRun
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}:
+    get:
+      tags:
+      - runs
+      summary: Get Run
+      operationId: getRun
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/cancel:
+    post:
+      tags:
+      - runs
+      summary: Cancel Run
+      operationId: cancelRun
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/summary:
+    get:
+      tags:
+      - runs
+      summary: Get Run Summary
+      operationId: getRunSummary
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSummary'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/backlog:
+    get:
+      tags:
+      - runs
+      summary: Get Backlog
+      operationId: getBacklog
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          description: slicing id or comma-separated case attributes
+          title: Slicing
+        description: slicing id or comma-separated case attributes
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: gamma
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gamma
+      - name: minCases
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 20
+          title: Mincases
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          default: -PI
+          title: Sort
+      - name: hotspotType
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - severity
+            - mechanism
+            - reservoir
+            type: string
+          - type: 'null'
+          description: method name of the kind
+          title: Hotspottype
+        description: method name of the kind
+      - name: kind
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - acute
+            - systematic
+            - widespread
+            type: string
+          - type: 'null'
+          description: kind of problem
+          title: Kind
+        description: kind of problem
+      - name: layer
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: most-missed expectation area (layer id)
+          title: Layer
+        description: most-missed expectation area (layer id)
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Q
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 50
+          title: Pagesize
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacklogPage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/slices/{sliceKey}:
+    get:
+      tags:
+      - runs
+      summary: Get Slice
+      operationId: getSlice
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: sliceKey
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Slicekey
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: drilldown
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: case attribute for the penalty-mass Pareto
+          title: Drilldown
+        description: case attribute for the penalty-mass Pareto
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SliceDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/cases/{caseId}/trace:
+    get:
+      tags:
+      - runs
+      summary: Get Trace
+      operationId: getTrace
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Caseid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trace'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/diagnostics:
+    get:
+      tags:
+      - runs
+      summary: Get Diagnostics
+      operationId: getDiagnostics
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/signals/{constraintId}:
+    get:
+      tags:
+      - runs
+      summary: Get Signal Distribution
+      operationId: getSignalDistribution
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: constraintId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Constraintid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: sliceKey
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Distribution'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/flow:
+    get:
+      tags:
+      - runs
+      summary: Get Flow
+      operationId: getFlow
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: sliceKey
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+      - name: abstraction
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          default: 0.05
+          title: Abstraction
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowGraph'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /jobs:
+    get:
+      tags:
+      - jobs
+      summary: List Jobs
+      operationId: listJobs
+      parameters:
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      - name: projectId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Projectid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+                title: Response Listjobs
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /jobs/{jobId}:
+    get:
+      tags:
+      - jobs
+      summary: Get Job
+      operationId: getJob
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Jobid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - jobs
+      summary: Cancel Job
+      operationId: cancelJob
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Jobid
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /jobs/{jobId}/events:
+    get:
+      tags:
+      - jobs
+      summary: Job Events
+      description: 'Server-sent events: `progress` on every change, heartbeat comments while nothing changes, then one terminal `done` event (status done, failed or cancelled) and the stream closes.'
+      operationId: jobEvents
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Jobid
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 1
+          - type: 'null'
+          title: Timeout
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            application/json:
+              schema: {}
+            text/event-stream: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ActivityCount:
+      properties:
+        label:
+          type: string
+          title: Label
+        events:
+          type: integer
+          title: Events
+        cases:
+          type: integer
+          title: Cases
+      type: object
+      required:
+      - label
+      - events
+      - cases
+      title: ActivityCount
+    BacklogPage:
+      properties:
+        rows:
+          items:
+            $ref: '#/components/schemas/BacklogRow'
+          type: array
+          title: Rows
+        total:
+          type: integer
+          title: Total
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        globalMean:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Globalmean
+        maxStablePI:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Maxstablepi
+          description: largest stable PI of the whole backlog (priority bars)
+      type: object
+      required:
+      - rows
+      - total
+      - params
+      title: BacklogPage
+    BacklogRow:
+      properties:
+        key:
+          type: string
+          title: Key
+          description: JSON array of the slice's key values, e.g. ["companyID_0000", "Packaging"]
+        keys:
+          additionalProperties:
+            type: string
+          type: object
+          title: Keys
+          description: key values by case attribute (column name)
+        n_cases:
+          type: integer
+          title: N Cases
+        mean_score:
+          type: number
+          title: Mean Score
+        gap:
+          type: number
+          title: Gap
+        stable_gap:
+          type: number
+          title: Stable Gap
+        PI:
+          type: number
+          title: Pi
+        stable_PI:
+          type: number
+          title: Stable Pi
+        PI_lower:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pi Lower
+        volume:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Volume
+        exposure:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Exposure
+        stable_mean:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Stable Mean
+        global_mean:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Global Mean
+        se:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Se
+        gap_lower:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gap Lower
+        rank:
+          type: integer
+          title: Rank
+        hotspot_type:
+          anyOf:
+          - type: string
+            enum:
+            - severity
+            - mechanism
+            - reservoir
+          - type: 'null'
+          title: Hotspot Type
+          description: the library's name; `kind` is the plain label
+        kind:
+          anyOf:
+          - type: string
+            enum:
+            - acute
+            - systematic
+            - widespread
+          - type: 'null'
+          title: Kind
+          description: 'kind of problem: acute | systematic | widespread'
+        kind_reading:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind Reading
+          description: few cases, far off | one pattern behind it | many cases, slightly off
+        dominant_layer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dominant Layer
+        dominant_layer_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dominant Layer Name
+          description: the most-missed expectation area, by name
+        top_constraint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Top Constraint
+          description: the expectation of that area missed most in this group
+        top_constraint_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Top Constraint Description
+        top_constraint_share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Top Constraint Share
+          description: share of the group's cases missing it
+        n_ranked:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: N Ranked
+          description: how many groups are ranked (rank x of n_ranked)
+        stability:
+          type: string
+          enum:
+          - stable
+          - fragile
+          - insufficient_support
+          - unknown
+          title: Stability
+          default: unknown
+        reading:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reading
+      additionalProperties: true
+      type: object
+      required:
+      - key
+      - n_cases
+      - mean_score
+      - gap
+      - stable_gap
+      - PI
+      - stable_PI
+      - rank
+      title: BacklogRow
+    Body_uploadDataset:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      type: object
+      required:
+      - file
+      title: Body_uploadDataset
+    CaseTable:
+      properties:
+        id:
+          type: string
+          title: Id
+        datasetId:
+          type: string
+          title: Datasetid
+        mappingId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mappingid
+        cases:
+          type: integer
+          title: Cases
+        events:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Events
+        status:
+          type: string
+          enum:
+          - building
+          - ready
+          - failed
+          title: Status
+        readiness:
+          anyOf:
+          - $ref: '#/components/schemas/Readiness'
+          - type: 'null'
+        activities:
+          items:
+            $ref: '#/components/schemas/ActivityCount'
+          type: array
+          title: Activities
+        attributes:
+          items:
+            type: string
+          type: array
+          title: Attributes
+        jobId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Jobid
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - id
+      - datasetId
+      - cases
+      - status
+      - createdAt
+      title: CaseTable
+    ColumnMapping:
+      properties:
+        caseId:
+          type: string
+          title: Caseid
+        activity:
+          type: string
+          title: Activity
+        timestamp:
+          type: string
+          title: Timestamp
+        timestampFormat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timestampformat
+        dayfirst:
+          type: boolean
+          title: Dayfirst
+          default: false
+        utc:
+          type: boolean
+          title: Utc
+          default: false
+        lifecycle:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lifecycle
+        keepTransitions:
+          items:
+            type: string
+          type: array
+          title: Keeptransitions
+        resource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource
+        order:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Order
+        eventId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Eventid
+        caseAttributes:
+          items:
+            type: string
+          type: array
+          title: Caseattributes
+        exposure:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exposure
+        exposureAgg:
+          type: string
+          title: Exposureagg
+          default: max
+        exposureAbs:
+          type: boolean
+          title: Exposureabs
+          default: true
+        headerEvents:
+          items:
+            type: string
+          type: array
+          title: Headerevents
+          description: activities that belong to a header object and are replicated onto items
+        flowTyping:
+          items:
+            $ref: '#/components/schemas/FlowTypingRule'
+          type: array
+          title: Flowtyping
+        flowTypeDefault:
+          type: string
+          title: Flowtypedefault
+          default: other
+        closureActivities:
+          items:
+            type: string
+          type: array
+          title: Closureactivities
+        derivedAttributes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Derivedattributes
+          description: library derive recipes
+        dedupe:
+          type: boolean
+          title: Dedupe
+          default: false
+        missingLabel:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Missinglabel
+          description: label for null case-attribute values; null keeps them as nulls
+          default: (missing)
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - caseId
+      - activity
+      - timestamp
+      title: ColumnMapping
+    ColumnMappingOut:
+      properties:
+        caseId:
+          type: string
+          title: Caseid
+        activity:
+          type: string
+          title: Activity
+        timestamp:
+          type: string
+          title: Timestamp
+        timestampFormat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timestampformat
+        dayfirst:
+          type: boolean
+          title: Dayfirst
+          default: false
+        utc:
+          type: boolean
+          title: Utc
+          default: false
+        lifecycle:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lifecycle
+        keepTransitions:
+          items:
+            type: string
+          type: array
+          title: Keeptransitions
+        resource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource
+        order:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Order
+        eventId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Eventid
+        caseAttributes:
+          items:
+            type: string
+          type: array
+          title: Caseattributes
+        exposure:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exposure
+        exposureAgg:
+          type: string
+          title: Exposureagg
+          default: max
+        exposureAbs:
+          type: boolean
+          title: Exposureabs
+          default: true
+        headerEvents:
+          items:
+            type: string
+          type: array
+          title: Headerevents
+          description: activities that belong to a header object and are replicated onto items
+        flowTyping:
+          items:
+            $ref: '#/components/schemas/FlowTypingRule'
+          type: array
+          title: Flowtyping
+        flowTypeDefault:
+          type: string
+          title: Flowtypedefault
+          default: other
+        closureActivities:
+          items:
+            type: string
+          type: array
+          title: Closureactivities
+        derivedAttributes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Derivedattributes
+          description: library derive recipes
+        dedupe:
+          type: boolean
+          title: Dedupe
+          default: false
+        missingLabel:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Missinglabel
+          description: label for null case-attribute values; null keeps them as nulls
+          default: (missing)
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        id:
+          type: string
+          title: Id
+        datasetId:
+          type: string
+          title: Datasetid
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      additionalProperties: false
+      type: object
+      required:
+      - caseId
+      - activity
+      - timestamp
+      - id
+      - datasetId
+      - createdAt
+      title: ColumnMappingOut
+    ColumnProfile:
+      properties:
+        name:
+          type: string
+          title: Name
+        dtype:
+          type: string
+          title: Dtype
+        nulls:
+          type: number
+          title: Nulls
+        distinct:
+          type: integer
+          title: Distinct
+        sample:
+          items: {}
+          type: array
+          title: Sample
+      type: object
+      required:
+      - name
+      - dtype
+      - nulls
+      - distinct
+      title: ColumnProfile
+    DatasetVersion:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          enum:
+          - ingesting
+          - ready
+          - failed
+          title: Status
+        contentHash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contenthash
+        events:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Events
+        columns:
+          items:
+            $ref: '#/components/schemas/ColumnProfile'
+          type: array
+          title: Columns
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        jobId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Jobid
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        sourceKind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sourcekind
+      type: object
+      required:
+      - id
+      - name
+      - status
+      - createdAt
+      title: DatasetVersion
+    Distribution:
+      properties:
+        unit:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unit
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        constraintId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Constraintid
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        direction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Direction
+        bins:
+          items:
+            $ref: '#/components/schemas/DistributionBin'
+          type: array
+          title: Bins
+        ecdf:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Ecdf
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+        width:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Width
+        stats:
+          additionalProperties: true
+          type: object
+          title: Stats
+        slice:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Slice
+        casesInScope:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Casesinscope
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      title: Distribution
+    DistributionBin:
+      properties:
+        x0:
+          type: number
+          title: X0
+        x1:
+          type: number
+          title: X1
+        n:
+          type: integer
+          title: N
+      type: object
+      required:
+      - x0
+      - x1
+      - n
+      title: DistributionBin
+    FlowEdge:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          enum:
+          - follows
+          - constraint
+          - flow
+          title: Kind
+        source:
+          type: string
+          title: Source
+        target:
+          type: string
+          title: Target
+        metrics:
+          additionalProperties:
+            type: number
+          type: object
+          title: Metrics
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        payload:
+          title: Payload
+      type: object
+      required:
+      - id
+      - kind
+      - source
+      - target
+      title: FlowEdge
+    FlowGraph:
+      properties:
+        nodes:
+          items:
+            $ref: '#/components/schemas/FlowNode'
+          type: array
+          title: Nodes
+        edges:
+          items:
+            $ref: '#/components/schemas/FlowEdge'
+          type: array
+          title: Edges
+        groups:
+          items:
+            $ref: '#/components/schemas/FlowGroup'
+          type: array
+          title: Groups
+        overlays:
+          items:
+            $ref: '#/components/schemas/FlowOverlay'
+          type: array
+          title: Overlays
+        meta:
+          additionalProperties: true
+          type: object
+          title: Meta
+      type: object
+      required:
+      - nodes
+      - edges
+      title: FlowGraph
+    FlowGroup:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          enum:
+          - lane
+          - stage
+          - pool
+          title: Kind
+        label:
+          type: string
+          title: Label
+        parent:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent
+      type: object
+      required:
+      - id
+      - kind
+      - label
+      title: FlowGroup
+    FlowNode:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          enum:
+          - activity
+          - stage
+          - gateway
+          - event
+          - note
+          title: Kind
+        label:
+          type: string
+          title: Label
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+        metrics:
+          additionalProperties:
+            type: number
+          type: object
+          title: Metrics
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+      type: object
+      required:
+      - id
+      - kind
+      - label
+      title: FlowNode
+    FlowOverlay:
+      properties:
+        kind:
+          type: string
+          enum:
+          - badge
+          - arc
+          - hatch
+          - tint
+          - chip
+          - selfLoop
+          title: Kind
+        target:
+          type: string
+          title: Target
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+      type: object
+      required:
+      - kind
+      - target
+      title: FlowOverlay
+    FlowTypingRule:
+      properties:
+        name:
+          type: string
+          title: Name
+        rule:
+          additionalProperties: true
+          type: object
+          title: Rule
+      type: object
+      required:
+      - name
+      - rule
+      title: FlowTypingRule
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Job:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          title: Kind
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - done
+          - failed
+          - cancelled
+          title: Status
+        progress:
+          type: number
+          title: Progress
+          default: 0.0
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message
+        attempts:
+          type: integer
+          title: Attempts
+          default: 0
+        resultRef:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resultref
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+        projectId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Projectid
+        cancelRequested:
+          type: boolean
+          title: Cancelrequested
+          default: false
+      type: object
+      required:
+      - id
+      - kind
+      - status
+      - createdAt
+      - updatedAt
+      title: Job
+    MappingSuggestion:
+      properties:
+        mapping:
+          $ref: '#/components/schemas/ColumnMapping'
+        source:
+          type: string
+          enum:
+          - bpic2019
+          - pm4py
+          - heuristic
+          title: Source
+        notes:
+          items:
+            type: string
+          type: array
+          title: Notes
+      type: object
+      required:
+      - mapping
+      - source
+      title: MappingSuggestion
+    NormCheck:
+      properties:
+        constraints:
+          items:
+            $ref: '#/components/schemas/NormCheckConstraint'
+          type: array
+          title: Constraints
+        issues:
+          items:
+            type: string
+          type: array
+          title: Issues
+        cases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cases
+        fingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fingerprint
+      type: object
+      required:
+      - constraints
+      title: NormCheck
+    NormCheckConstraint:
+      properties:
+        id:
+          type: string
+          title: Id
+        layer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Layer
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        activitiesMissing:
+          items:
+            type: string
+          type: array
+          title: Activitiesmissing
+        casesInScope:
+          type: integer
+          title: Casesinscope
+        casesEvaluated:
+          type: integer
+          title: Casesevaluated
+      type: object
+      required:
+      - id
+      - casesInScope
+      - casesEvaluated
+      title: NormCheckConstraint
+    NormCheckRequest:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+      type: object
+      required:
+      - caseTableId
+      title: NormCheckRequest
+    NormStatusUpdate:
+      properties:
+        status:
+          type: string
+          enum:
+          - draft
+          - reviewed
+          - approved
+          title: Status
+      type: object
+      required:
+      - status
+      title: NormStatusUpdate
+    NormVersion:
+      properties:
+        id:
+          type: string
+          title: Id
+        version:
+          type: integer
+          title: Version
+        fingerprint:
+          type: string
+          title: Fingerprint
+        status:
+          type: string
+          enum:
+          - draft
+          - reviewed
+          - approved
+          title: Status
+        note:
+          type: string
+          title: Note
+          default: ''
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        parentId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parentid
+        norm:
+          additionalProperties: true
+          type: object
+          title: Norm
+        validation:
+          items:
+            type: string
+          type: array
+          title: Validation
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        normId:
+          type: string
+          title: Normid
+        name:
+          type: string
+          title: Name
+        views:
+          items:
+            type: string
+          type: array
+          title: Views
+      type: object
+      required:
+      - id
+      - version
+      - fingerprint
+      - status
+      - norm
+      - createdAt
+      - normId
+      - name
+      title: NormVersion
+    NormVersionCreate:
+      properties:
+        norm:
+          additionalProperties: true
+          type: object
+          title: Norm
+          description: library norm JSON
+        note:
+          type: string
+          title: Note
+        parentId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parentid
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+      type: object
+      required:
+      - norm
+      - note
+      title: NormVersionCreate
+    Preset:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        available:
+          type: boolean
+          title: Available
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
+          description: path of the log file on this machine
+        norm:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Norm
+          description: path of the norm file on this machine
+        mapping:
+          $ref: '#/components/schemas/ColumnMapping'
+        slicing:
+          items:
+            type: string
+          type: array
+          title: Slicing
+        view:
+          type: string
+          title: View
+        gamma:
+          type: number
+          title: Gamma
+        minCases:
+          type: integer
+          title: Mincases
+        process:
+          type: string
+          title: Process
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - available
+      - mapping
+      - slicing
+      - view
+      - gamma
+      - minCases
+      - process
+      title: Preset
+    Problem:
+      properties:
+        type:
+          type: string
+          title: Type
+          default: about:blank
+        title:
+          type: string
+          title: Title
+        status:
+          type: integer
+          title: Status
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detail
+        instance:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instance
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        errors:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Errors
+      type: object
+      required:
+      - title
+      - status
+      title: Problem
+    Project:
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Name
+        process:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+          description: knowledge pack id such as p2p or o2c
+        question:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Question
+        id:
+          type: string
+          title: Id
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        latestRunId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latestrunid
+      type: object
+      required:
+      - name
+      - id
+      - createdAt
+      title: Project
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Name
+        process:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+          description: knowledge pack id such as p2p or o2c
+        question:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Question
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+    Readiness:
+      properties:
+        status:
+          type: string
+          enum:
+          - pass
+          - warn
+          - fail
+          title: Status
+        items:
+          items:
+            $ref: '#/components/schemas/ReadinessItem'
+          type: array
+          title: Items
+      type: object
+      required:
+      - status
+      title: Readiness
+    ReadinessItem:
+      properties:
+        id:
+          type: string
+          title: Id
+        level:
+          type: string
+          enum:
+          - info
+          - warn
+          - fail
+          title: Level
+        message:
+          type: string
+          title: Message
+        evidence:
+          additionalProperties: true
+          type: object
+          title: Evidence
+      type: object
+      required:
+      - id
+      - level
+      - message
+      title: ReadinessItem
+    Run:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        normVersionId:
+          type: string
+          title: Normversionid
+        views:
+          items:
+            type: string
+          type: array
+          title: Views
+        slicings:
+          items:
+            $ref: '#/components/schemas/SlicingSpec'
+          type: array
+          title: Slicings
+        gamma:
+          type: number
+          title: Gamma
+          default: 50
+        minCases:
+          type: integer
+          title: Mincases
+          default: 20
+        baselineRunId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Baselinerunid
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        id:
+          type: string
+          title: Id
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - done
+          - failed
+          - cancelled
+          title: Status
+        jobId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Jobid
+        manifest:
+          anyOf:
+          - $ref: '#/components/schemas/RunManifest'
+          - type: 'null'
+        paramsHash:
+          type: string
+          title: Paramshash
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        links:
+          additionalProperties:
+            type: string
+          type: object
+          title: Links
+      type: object
+      required:
+      - caseTableId
+      - normVersionId
+      - id
+      - status
+      - paramsHash
+      - createdAt
+      title: Run
+    RunCreate:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        normVersionId:
+          type: string
+          title: Normversionid
+        views:
+          items:
+            type: string
+          type: array
+          title: Views
+        slicings:
+          items:
+            $ref: '#/components/schemas/SlicingSpec'
+          type: array
+          title: Slicings
+        gamma:
+          type: number
+          title: Gamma
+          default: 50
+        minCases:
+          type: integer
+          title: Mincases
+          default: 20
+        baselineRunId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Baselinerunid
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - caseTableId
+      - normVersionId
+      title: RunCreate
+    RunManifest:
+      properties:
+        normFingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Normfingerprint
+        contentHash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contenthash
+        mappingId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mappingid
+        paramsHash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paramshash
+        wiseVersion:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Wiseversion
+        workbenchVersion:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workbenchversion
+        startedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Startedat
+        finishedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Finishedat
+        views:
+          items:
+            type: string
+          type: array
+          title: Views
+        slicings:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Slicings
+        artefacts:
+          additionalProperties:
+            additionalProperties: true
+            type: object
+          type: object
+          title: Artefacts
+      type: object
+      title: RunManifest
+    RunSummary:
+      properties:
+        means:
+          additionalProperties:
+            anyOf:
+            - type: number
+            - type: 'null'
+          type: object
+          title: Means
+        scored:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Scored
+        density:
+          additionalProperties:
+            anyOf:
+            - type: number
+            - type: 'null'
+          type: object
+          title: Density
+        layers:
+          anyOf:
+          - $ref: '#/components/schemas/Table'
+          - type: 'null'
+        concentration:
+          additionalProperties:
+            additionalProperties:
+              $ref: '#/components/schemas/Table'
+            type: object
+          type: object
+          title: Concentration
+        agreement:
+          additionalProperties:
+            $ref: '#/components/schemas/Table'
+          type: object
+          title: Agreement
+        cases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cases
+        views:
+          items:
+            type: string
+          type: array
+          title: Views
+      type: object
+      title: RunSummary
+    SliceDetail:
+      properties:
+        row:
+          $ref: '#/components/schemas/BacklogRow'
+        reading:
+          type: string
+          title: Reading
+        drivers:
+          $ref: '#/components/schemas/Table'
+        layers:
+          $ref: '#/components/schemas/Table'
+        penaltyMass:
+          $ref: '#/components/schemas/Table'
+        penaltyMassBy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Penaltymassby
+        validation:
+          additionalProperties: true
+          type: object
+          title: Validation
+        worstCases:
+          items:
+            $ref: '#/components/schemas/WorstCase'
+          type: array
+          title: Worstcases
+        headroom:
+          $ref: '#/components/schemas/Table'
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+      type: object
+      required:
+      - row
+      - reading
+      - drivers
+      - layers
+      - penaltyMass
+      - headroom
+      title: SliceDetail
+    SlicingSpec:
+      properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        attributes:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Attributes
+      type: object
+      required:
+      - attributes
+      title: SlicingSpec
+    Table:
+      properties:
+        columns:
+          items:
+            type: string
+          type: array
+          title: Columns
+        rows:
+          items:
+            items: {}
+            type: array
+          type: array
+          title: Rows
+      type: object
+      required:
+      - columns
+      - rows
+      title: Table
+    Trace:
+      properties:
+        caseId:
+          type: string
+          title: Caseid
+        attributes:
+          additionalProperties: true
+          type: object
+          title: Attributes
+        scores:
+          additionalProperties:
+            anyOf:
+            - type: number
+            - type: 'null'
+          type: object
+          title: Scores
+        violations:
+          additionalProperties:
+            anyOf:
+            - type: number
+            - type: 'null'
+          type: object
+          title: Violations
+        events:
+          items:
+            $ref: '#/components/schemas/TraceEvent'
+          type: array
+          title: Events
+      type: object
+      required:
+      - caseId
+      title: Trace
+    TraceEvent:
+      properties:
+        activity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Activity
+        canonicalId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Canonicalid
+        timestamp:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timestamp
+        resource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource
+        lifecycle:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lifecycle
+        violates:
+          items:
+            type: string
+          type: array
+          title: Violates
+        attributes:
+          additionalProperties: true
+          type: object
+          title: Attributes
+      type: object
+      title: TraceEvent
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    Version:
+      properties:
+        workbench:
+          type: string
+          title: Workbench
+        wise:
+          type: string
+          title: Wise
+        duckdb:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Duckdb
+      type: object
+      required:
+      - workbench
+      - wise
+      title: Version
+    WorstCase:
+      properties:
+        caseId:
+          type: string
+          title: Caseid
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        violated:
+          items:
+            type: string
+          type: array
+          title: Violated
+      type: object
+      required:
+      - caseId
+      title: WorstCase
+servers:
+- url: /api/v1

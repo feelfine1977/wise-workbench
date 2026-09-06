@@ -1,0 +1,578 @@
+# Order-to-cash failure-mode catalogue.
+# Shares marked icpm2026_hackathon are the values measured for o2c/README.md
+# on 2026-09-05 (51,164 sales order items); they seed the catalogue and are
+# never thresholds. Entries with evidence 'none' are vocabulary from the OCEL
+# 2.0 Order Management log and SAP SD documentation.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - packages/process-knowledge/o2c/README.md §2 (first entries with measured shares)
+  - ICPM 2026 hackathon sales extract and stock movements, measured 2026-09-05
+  - OCEL 2.0 Order Management (simulated), vocabulary only
+  - SAP SD documentation (schedule lines, delivery and credit blocks, returns, billing, dunning)
+  - docs/panel/llm_knowledge_architecture.md §2.1 (typical O2C failure modes)
+  - docs/panel/process_panel.md §5 (O2C template pitfalls)
+layers:
+  - id: capture_completeness
+    name: {en: Capture and credit, de: Erfassung und Kredit}
+    template_layers: {o2c_baseline: capture}
+  - id: commitment_discipline
+    name: {en: Commitment discipline, de: Zusagedisziplin}
+    template_layers: {o2c_baseline: commitment}
+  - id: delivery_performance
+    name: {en: Delivery performance, de: Lieferleistung}
+    template_layers: {o2c_baseline: delivery}
+  - id: change_discipline
+    name: {en: Change discipline, de: Änderungsdisziplin}
+    template_layers: {o2c_baseline: changes}
+  - id: commercial
+    name: {en: Commercial integrity, de: Kaufmännische Integrität}
+    description: Commercial-risk indicators, not audit findings.
+    template_layers: {o2c_baseline: commercial}
+  - id: returns_exceptions
+    name: {en: Returns and reversals, de: Retouren und Storni}
+    template_layers: {o2c_baseline: returns}
+  - id: invoice_payment
+    name: {en: Invoice and payment, de: Rechnung und Zahlung}
+    template_layers: {o2c_baseline: invoice_payment}
+
+failure_modes:
+  # ------------------------------------------------------------- commit
+  - id: o2c.fm.delivery_date_postponed
+    version: 1
+    name: {en: Scheduled delivery date postponed after commitment, de: Geplanter Liefertermin nach Zusage verschoben}
+    stage: commit
+    signature: o2c.delivery_date_postpone after o2c.item_create
+    signature_activities: [o2c.delivery_date_postpone, o2c.item_create, o2c.avail_date_change]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.delivery_date_postpone], layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_no_postponement, calibration: uncalibrated, applicability: "not a return item and not rejected at capture"}
+    observed_share:
+      - {value: 0.032, of: order items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Material availability changed after the availability check
+      - Supplier delay on the purchase side for the same SKU
+      - Capacity shortfall in production or the warehouse
+      - Customer asked for a later date (legitimate; check changed_from and changed_to)
+    typical_remedies:
+      - Confirm from stock or firm supplier confirmations only; date tolerance in availability check
+      - Expedite purchase orders of SKUs with repeated postponements; safety stock review per planning type
+      - Record the reason for the date move so that customer-requested moves can be excluded
+    evidence_to_check:
+      - Co-occurrence with o2c.avail_date_change on the same item
+      - Purchase-order confirmation changes for the SKU and plant in the same period
+      - Whether the postponement precedes or follows a customer change of the requested quantity
+    owner_role: order_management
+    kpis: [o2c.kpi.postponement_rate, o2c.kpi.on_time_delivery_rate]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05, SAP SD schedule line documentation]
+    review_status: draft
+
+  - id: o2c.fm.customer_cancellation
+    version: 1
+    name: {en: Item cancelled according to customer after commitment, de: Position nach Zusage laut Kunde storniert}
+    stage: commit
+    signature: "o2c.rejection_change with reason 80 (1,425 items) after o2c.schedule_confirm"
+    signature_activities: [o2c.rejection_change, o2c.schedule_confirm]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.rejection_change], layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_no_rejection_after_confirmation, calibration: uncalibrated, applicability: "items with a confirmed schedule line (confirmed_quantity > 0) that are not return items"}
+    observed_share:
+      - {value: 0.0279, of: "order items with rejection reason 80 'cancelled according to customer' (1,425 items)", source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.031, of: order items with any rejection reason set, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Late confirmation or a postponed date made the customer cancel
+      - Price or lead-time change after ordering
+      - Duplicate orders cleaned up by cancellation (reason 82 double order)
+      - Handling errors corrected by cancellation and re-entry (reason 99)
+    typical_remedies:
+      - Confirm within a target time; proactive notice on postponements
+      - Duplicate-order check at capture; separate handling errors from customer cancellations by reason code
+    evidence_to_check:
+      - Reason code distribution (80, 82, 86, 99) per customer and period
+      - Postponements or confirmation removals preceding the cancellation on the same item
+      - Time from item creation to cancellation
+    owner_role: sales
+    kpis: [o2c.kpi.cancellation_rate]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.confirmation_withdrawn
+    version: 1
+    name: {en: Confirmed quantity removed, de: Bestätigte Menge entfernt}
+    stage: commit
+    signature: o2c.schedule_confirm_remove on the item
+    signature_activities: [o2c.schedule_confirm_remove, o2c.schedule_confirm]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.schedule_confirm_remove], layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_no_confirmation_removed, calibration: uncalibrated, applicability: "not a return item and not rejected at capture"}
+    observed_share:
+      - {value: 0.015, of: order items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Backorder processing reallocated stock to another order
+      - Supplier confirmation withdrawn on the purchase side
+      - Item blocked or rejected after confirmation
+    typical_remedies:
+      - Allocation rules that protect confirmed quantities; rescheduling only with sales approval
+      - Supplier confirmation stability in purchasing
+    evidence_to_check:
+      - Backorder rescheduling runs in the same period; purchase-side confirmation changes for the SKU
+      - Whether a new confirmation follows the removal and how much later
+    owner_role: supply_planning
+    kpis: [o2c.kpi.confirmation_withdrawal_rate]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.availability_date_changed
+    version: 1
+    name: {en: Material availability date changed, de: Materialbereitstellungsdatum geändert}
+    stage: commit
+    signature: o2c.avail_date_change on the item; 9.9 % of items
+    signature_activities: [o2c.avail_date_change]
+    wise_patterns:
+      - {type: singularity, activities: [o2c.avail_date_change], params: {k: 1, K: 2}, layer: change_discipline, template: o2c_baseline, constraint_ref: o_change_avail_date, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.099, of: order items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Rescheduling after supply changes; availability check rerun
+      - Requested date changed by the customer
+    typical_remedies:
+      - Stable planning parameters per SKU; fewer rescheduling runs during the confirmation window
+    evidence_to_check:
+      - Co-occurrence with postponements; SKU and plant concentration
+    owner_role: supply_planning
+    kpis: [o2c.kpi.change_churn_rate]
+    sources: [o2c/README.md §1, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.delivery_date_preponed
+    version: 1
+    name: {en: Scheduled delivery date preponed, de: Geplanter Liefertermin vorgezogen}
+    stage: commit
+    signature: o2c.delivery_date_prepone on the item; 7.8 % of items
+    signature_activities: [o2c.delivery_date_prepone]
+    wise_patterns:
+      - {type: singularity, activities: [o2c.delivery_date_prepone], params: {k: 1, K: 2}, layer: change_discipline, template: o2c_baseline, constraint_ref: o_change_prepone, calibration: uncalibrated, note: earlier delivery is not a shortfall for the customer; repeated moves are a change-churn signal}
+    observed_share:
+      - {value: 0.078, of: order items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Conservative first confirmation later improved by stock arrival
+      - Customer asked for an earlier date
+    typical_remedies:
+      - Confirm realistic dates first; review the lead-time buffers of the availability check
+    evidence_to_check:
+      - Whether a postponement precedes the preponement (date oscillation)
+    owner_role: order_management
+    kpis: [o2c.kpi.change_churn_rate]
+    sources: [o2c/README.md §1, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.change_churn
+    version: 1
+    name: {en: Repeated changes on one item, de: Wiederholte Änderungen an einer Position}
+    stage: commit
+    signature: more than one change event on the item (13.7 % of items carry changes, 2.3 each on average)
+    signature_activities: [o2c.schedule_confirm, o2c.schedule_confirm_remove, o2c.schedule_request_change, o2c.avail_date_change, o2c.delivery_date_postpone, o2c.delivery_date_prepone, o2c.incoterms_change, o2c.delivery_block_change, o2c.rejection_change]
+    wise_patterns:
+      - {type: metric, attribute: change_event_count, params: {threshold: 1.0, width: 3.0, direction: high}, layer: change_discipline, template: o2c_baseline, constraint_ref: o_change_churn, calibration: uncalibrated, note: change_event_count is a derived count recipe over the change activities}
+      - {type: singularity, activities: [o2c.schedule_request_change], params: {k: 0, K: 2}, layer: change_discipline, template: o2c_baseline, constraint_ref: o_change_requested_quantity, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.137, of: order items with at least one change event, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 2.3, unit: change events, of: mean number of change events among items with changes, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Date oscillation from repeated availability checks
+      - Customer changes of quantity or date after capture
+      - Manual corrections of capture errors
+    typical_remedies:
+      - Freeze windows for schedule line changes close to delivery; batch rescheduling
+      - "Capture quality: validation of quantities and dates at order entry"
+    evidence_to_check:
+      - Which change activities dominate per customer and SKU; changed_from and changed_to values
+      - Header replication of order-level changes onto items
+    owner_role: order_management
+    kpis: [o2c.kpi.change_churn_rate]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.incoterms_changed
+    version: 1
+    name: {en: Incoterms changed after capture, de: Incoterms nach Erfassung geändert}
+    stage: commit
+    signature: o2c.incoterms_change on the item; 0.8 % of items
+    signature_activities: [o2c.incoterms_change]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.incoterms_change], layer: commercial, template: o2c_baseline, constraint_ref: o_commercial_no_incoterms_change, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.008, of: order items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Customer master carries outdated delivery terms
+      - Terms negotiated per order instead of per customer
+    typical_remedies:
+      - Maintain incoterms in the customer master; approval for per-order deviations
+    evidence_to_check:
+      - Customer concentration; changed_from and changed_to pairs (DAP, CPT, FCA)
+    owner_role: sales
+    sources: [o2c/README.md §1, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.delivery_block
+    version: 1
+    name: {en: Delivery block set or released, de: Liefersperre gesetzt oder aufgehoben}
+    stage: commit
+    signature: o2c.delivery_block_change (0.1 % of items) or o2c.delivery_block_set followed by o2c.delivery_block_release
+    signature_activities: [o2c.delivery_block_change, o2c.delivery_block_set, o2c.delivery_block_release]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.delivery_block_change, o2c.delivery_block_set], layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_no_delivery_block, calibration: uncalibrated, applicability: not a return item}
+    observed_share:
+      - {value: 0.001, of: order items with a delivery block change, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Credit or compliance hold placed on the order
+      - Customer asked to hold the delivery
+      - Incomplete order data (missing texts, export documents)
+    typical_remedies:
+      - Reason code per block; time-boxed review of blocked items with the owner
+    evidence_to_check:
+      - Time from block to release; whether the block precedes a cancellation
+    owner_role: customer_service
+    sources: [o2c/README.md §1 and §2, SAP SD delivery block documentation]
+    review_status: draft
+
+  - id: o2c.fm.credit_block
+    version: 1
+    name: {en: Credit block on the order, de: Kreditsperre auf dem Auftrag}
+    stage: capture
+    signature: o2c.credit_block_set, released by o2c.credit_block_release after a lag
+    signature_activities: [o2c.credit_block_set, o2c.credit_block_release]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.credit_block_set], layer: capture_completeness, template: o2c_baseline, constraint_ref: o_capture_no_credit_block, calibration: uncalibrated}
+      - {type: lag, a: [o2c.credit_block_set], b: [o2c.credit_block_release], params: {delta: 1, width: 3, unit: D, missing_a: skip, missing_b: censor}, layer: capture_completeness, template: o2c_baseline, constraint_ref: o_capture_credit_release_days, calibration: uncalibrated}
+    evidence: none
+    typical_causes:
+      - Credit limit exhausted by open receivables; overdue items
+      - Credit master data outdated
+    typical_remedies:
+      - Credit limit review cadence; dunning before the limit is reached
+    evidence_to_check:
+      - Open receivables and dunning level of the customer at the time of the block
+    owner_role: credit_management
+    kpis: [o2c.kpi.credit_block_rate]
+    sources: [SAP SD credit management documentation, docs/panel/llm_knowledge_architecture.md §2.1]
+    review_status: draft
+    notes: Vocabulary entry; the hackathon extract has no credit events.
+
+  - id: o2c.fm.stockout_after_commitment
+    version: 1
+    name: {en: Item out of stock after commitment, de: Artikel nach Zusage nicht verfügbar}
+    stage: commit
+    signature: o2c.item_out_of_stock or confirmed quantity below ordered quantity
+    signature_activities: [o2c.item_out_of_stock, o2c.reorder_item, o2c.schedule_confirm]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.item_out_of_stock], layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_no_stockout, calibration: uncalibrated}
+      - {type: balance, activities: [o2c.item_create], attribute: order_quantity vs confirmed_quantity, params: {tau: 0.0, width: 0.5, agg: first}, layer: commitment_discipline, template: o2c_baseline, constraint_ref: o_commit_confirmed_equals_ordered, calibration: uncalibrated, note: "confirmed quantity equals ordered quantity for every item of the hackathon extract, so the shortfall is invisible there"}
+    evidence: none
+    typical_causes:
+      - Safety stock too low for the demand pattern
+      - Supplier delay on the purchase side
+      - Allocation to other orders (backorder processing)
+    typical_remedies:
+      - Safety stock and reorder point review per SKU; supplier lead-time agreements
+    evidence_to_check:
+      - Stock movements and purchase confirmations for the SKU in the period
+    owner_role: supply_planning
+    kpis: [o2c.kpi.fill_rate]
+    sources: [OCEL 2.0 Order Management vocabulary, docs/panel/llm_knowledge_architecture.md §2.1 ATP failures]
+    review_status: draft
+
+  # ------------------------------------------------------------- fulfil
+  - id: o2c.fm.late_goods_issue
+    version: 1
+    name: {en: Goods issue after the requested delivery date, de: Warenausgang nach dem Wunschliefertermin}
+    stage: fulfil
+    signature: o2c.goods_issue later than the case attribute requested_delivery_date
+    signature_activities: [o2c.goods_issue, o2c.item_create]
+    wise_patterns:
+      - {type: metric, attribute: days_late, params: {threshold: 0.0, width: 7.0, direction: high}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_days_late, calibration: uncalibrated, note: "days_late = goods issue date minus requested delivery date, prepared as a case attribute before scoring"}
+      - {type: lag, a: [o2c.item_create], b: [o2c.goods_issue], params: {delta: 14, width: 30, unit: D, missing_a: skip, missing_b: censor}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_order_to_issue_days, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.032, of: shipped items, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Late availability of the material
+      - Picking backlog in the warehouse
+      - Carrier scheduling and cut-off times
+      - Date postponed upstream so that the requested date was never feasible
+    typical_remedies:
+      - Confirm dates against capacity; wave planning and carrier cut-offs aligned with requested dates
+      - Escalate items whose requested date is within the pick-to-issue lead time
+    evidence_to_check:
+      - Pick-to-issue lag on the same items; postponement events; incoterms
+      - Whether the requested date was already infeasible at confirmation
+    owner_role: logistics
+    kpis: [o2c.kpi.on_time_delivery_rate]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.long_tail_fulfilment
+    version: 1
+    name: {en: Order items far beyond the typical order-to-issue time, de: Auftragspositionen weit jenseits der üblichen Durchlaufzeit}
+    stage: fulfil
+    signature: lag o2c.item_create -> o2c.goods_issue in the upper tail (median 1.9 days, p90 67 days in the extract)
+    signature_activities: [o2c.item_create, o2c.goods_issue]
+    wise_patterns:
+      - {type: lag, a: [o2c.item_create], b: [o2c.goods_issue], params: {delta: 14, width: 30, unit: D, missing_a: skip, missing_b: censor}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_order_to_issue_days, calibration: uncalibrated, applicability: "not a return item and not rejected at capture; make-to-order items need their own threshold"}
+    observed_share:
+      - {value: 1.9, unit: days, of: median order-to-issue lag, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 67, unit: days, of: p90 order-to-issue lag, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Make-to-order items with long production lead times
+      - Backorders waiting for replenishment
+      - Blocked items (delivery or credit block)
+      - Forgotten items on partially delivered orders
+    typical_remedies:
+      - Separate make-to-order planning types with their own thresholds
+      - Open-item review per customer with an age limit; backorder visibility for sales
+    evidence_to_check:
+      - Material planning type and lead time from the material master
+      - Open-item age at the extract end (censoring)
+      - Blocks and confirmation removals on the same items
+    owner_role: order_management
+    kpis: [o2c.kpi.order_to_issue_days]
+    sources: [o2c/README.md §2, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.item_not_shipped
+    version: 1
+    name: {en: Order item without delivery or goods issue, de: Auftragsposition ohne Lieferung oder Warenausgang}
+    stage: fulfil
+    signature: no o2c.goods_issue (4.8 % of items at the extract end, open or cancelled) or no o2c.delivery_create (4.7 %)
+    signature_activities: [o2c.delivery_create, o2c.goods_issue]
+    wise_patterns:
+      - {type: presence, activities: [o2c.delivery_create], params: {m: 1}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_delivery_present, calibration: uncalibrated, applicability: "not a return item and not rejected at capture"}
+      - {type: presence, activities: [o2c.goods_issue], params: {m: 1}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_goods_issue_present, calibration: uncalibrated, applicability: "not a return item and not rejected at capture"}
+    observed_share:
+      - {value: 0.048, of: order items without goods issue at the extract end (open or cancelled), source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.047, of: order items without a delivery item, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Item still open at the extract end (right-censoring)
+      - Item cancelled or rejected after capture
+      - Delivery created on another item (consolidation) or order-related billing without delivery
+    typical_remedies:
+      - Validation gate on censoring and rejection before reading the shortfall
+      - Open-order review with sales; automatic rejection of dead items after an agreed age
+    evidence_to_check:
+      - Rejection reason and return flag on the item; age at the extract end
+      - Delivery documents for the same order on other items
+    owner_role: order_management
+    kpis: [o2c.kpi.open_item_share]
+    sources: [o2c/README.md §1 and §4, ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  - id: o2c.fm.pick_to_issue_delay
+    version: 1
+    name: {en: Long lag from picking to goods issue, de: Lange Wartezeit von Kommissionierung bis Warenausgang}
+    stage: fulfil
+    signature: lag o2c.pick -> o2c.goods_issue beyond the shipping window
+    signature_activities: [o2c.pick, o2c.pack, o2c.goods_issue]
+    wise_patterns:
+      - {type: lag, a: [o2c.pick], b: [o2c.goods_issue], params: {delta: 1, width: 3, unit: D, missing_a: skip, missing_b: censor}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_pick_to_issue_days, calibration: uncalibrated}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Carrier pickup schedule; consolidation waits for the full order
+      - Packing capacity; missing export documents
+    typical_remedies:
+      - Carrier cut-offs per incoterm; ship-complete rules reviewed per customer
+    evidence_to_check:
+      - Incoterms and carrier; whether packing is logged (0.2 % of items in the extract)
+    owner_role: logistics
+    sources: [o2c/README.md §2 evidence_to_check, ICPM 2026 hackathon sales extract]
+    review_status: draft
+    notes: Activities are present in the extract; the lag distribution was not measured for the README.
+
+  - id: o2c.fm.partial_delivery_split
+    version: 1
+    name: {en: Order item split across deliveries, de: Auftragsposition auf mehrere Lieferungen verteilt}
+    stage: fulfil
+    signature: more than one o2c.delivery_create on the item outside the partial-delivery variant
+    signature_activities: [o2c.delivery_create, o2c.goods_issue]
+    wise_patterns:
+      - {type: singularity, activities: [o2c.delivery_create], params: {k: 1, K: 2}, layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_no_split, calibration: uncalibrated, applicability: standard and make-to-order variants only}
+    evidence: none
+    typical_causes:
+      - Partial availability shipped early to meet the requested date
+      - Multi-warehouse allocation
+      - Customer allows partial deliveries (legitimate; exclude by variant)
+    typical_remedies:
+      - Ship-complete indicator per customer; consolidation rules
+    evidence_to_check:
+      - Partial delivery indicator on customer and item; delivery quantities per delivery
+    owner_role: logistics
+    sources: [SAP SD partial delivery documentation, docs/panel/process_panel.md §5 O2C pitfalls]
+    review_status: draft
+
+  - id: o2c.fm.failed_delivery
+    version: 1
+    name: {en: Failed delivery attempt, de: Fehlgeschlagener Zustellversuch}
+    stage: fulfil
+    signature: o2c.failed_delivery between o2c.goods_issue and o2c.delivery_complete
+    signature_activities: [o2c.failed_delivery, o2c.goods_issue, o2c.delivery_complete]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.failed_delivery], layer: delivery_performance, template: o2c_baseline, constraint_ref: o_deliv_no_failed_delivery, calibration: uncalibrated}
+    evidence: none
+    typical_causes:
+      - Wrong or incomplete address; customer absent
+      - Carrier exception
+    typical_remedies:
+      - Address validation at capture; delivery notifications
+    evidence_to_check:
+      - Carrier and region concentration; whether a second attempt succeeds
+    owner_role: logistics
+    sources: [OCEL 2.0 Order Management vocabulary]
+    review_status: draft
+
+  # ------------------------------------------------------------- return
+  - id: o2c.fm.goods_issue_reversed
+    version: 1
+    name: {en: Goods issue reversed, de: Warenausgang storniert}
+    stage: return
+    signature: o2c.delivery_reversal after o2c.goods_issue (397 goods delivery reversal movements in the extract)
+    signature_activities: [o2c.delivery_reversal, o2c.goods_issue]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.delivery_reversal], layer: returns_exceptions, template: o2c_baseline, constraint_ref: o_return_no_reversal, calibration: uncalibrated, applicability: not a return item}
+    observed_share:
+      - {value: 397, unit: stock movements, of: goods delivery reversal movements in the stock movement extract (not per item), source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Goods issue posted before the truck left and the shipment was cancelled
+      - Wrong delivery or quantity posted
+      - Customer refused the delivery at the dock
+    typical_remedies:
+      - Post goods issue at physical departure; delivery checks before posting
+    evidence_to_check:
+      - Time between issue and reversal; whether a new goods issue follows
+      - Plant and customer concentration
+    owner_role: logistics
+    kpis: [o2c.kpi.reversal_rate]
+    sources: [o2c/README.md §1 return stage, ICPM 2026 hackathon stock movements]
+    review_status: draft
+
+  - id: o2c.fm.return_without_return_order
+    version: 1
+    name: {en: Return received without a return order, de: Retoure ohne Retourenauftrag erhalten}
+    stage: return
+    signature: o2c.return_delivery before or without o2c.return_order_create on a return item
+    signature_activities: [o2c.return_delivery, o2c.return_order_create, o2c.return_to_own_stock]
+    wise_patterns:
+      - {type: precedence, a: [o2c.return_order_create], b: [o2c.return_delivery], params: {k: 0, K: 1, missing_a: violate, missing_b: skip}, layer: returns_exceptions, template: o2c_baseline, constraint_ref: o_return_order_before_receipt, calibration: uncalibrated, applicability: return items only}
+      - {type: presence, activities: [o2c.return_delivery, o2c.return_to_own_stock], params: {m: 1}, layer: returns_exceptions, template: o2c_baseline, constraint_ref: o_return_receipt_present, calibration: uncalibrated, applicability: return items only}
+    evidence: none
+    typical_causes:
+      - Goods sent back by the customer without an authorisation
+      - Return order created after the goods arrived
+    typical_remedies:
+      - Return authorisation (RMA) before acceptance at the dock; return portal for customers
+    evidence_to_check:
+      - Return order dates vs returns delivery dates; customer concentration
+    owner_role: customer_service
+    kpis: [o2c.kpi.return_rate]
+    sources: [SAP SD returns documentation, docs/panel/llm_knowledge_architecture.md §2.1 returns without RMA]
+    review_status: draft
+    notes: The hackathon extract flags 20 return items and holds 59 returns-delivery movements; the join between them is a customer-side decision, so the entry stays vocabulary.
+
+  # ------------------------------------------------------------- invoice and pay
+  - id: o2c.fm.invoice_missing_or_late
+    version: 1
+    name: {en: Invoice missing or late after goods issue, de: Rechnung fehlt oder kommt spät nach Warenausgang}
+    stage: invoice
+    signature: no o2c.invoice_create after o2c.goods_issue, or a long lag between them
+    signature_activities: [o2c.invoice_create, o2c.goods_issue]
+    wise_patterns:
+      - {type: presence, activities: [o2c.invoice_create], params: {m: 1}, layer: invoice_payment, template: o2c_baseline, constraint_ref: o_invoice_present, calibration: uncalibrated, applicability: items with a goods issue that are not return items}
+      - {type: lag, a: [o2c.goods_issue], b: [o2c.invoice_create], params: {delta: 2, width: 5, unit: D, missing_a: skip, missing_b: censor}, layer: invoice_payment, template: o2c_baseline, constraint_ref: o_invoice_days_after_issue, calibration: uncalibrated}
+    evidence: none
+    typical_causes:
+      - Billing block on the item; billing due list not processed
+      - Order-related billing configured although a delivery exists
+      - Month-end batch billing
+    typical_remedies:
+      - Daily billing due list run; billing block review; order-related vs delivery-related billing per item category
+    evidence_to_check:
+      - Billing blocks; billing type per item category; day-of-month pattern
+    owner_role: accounts_receivable
+    kpis: [o2c.kpi.invoice_lead_time]
+    sources: [SAP SD billing documentation, docs/panel/process_panel.md §5 O2C template]
+    review_status: draft
+
+  - id: o2c.fm.invoice_correction
+    version: 1
+    name: {en: Invoice cancelled or corrected, de: Rechnung storniert oder korrigiert}
+    stage: invoice
+    signature: o2c.invoice_cancel, o2c.invoice_correction_request, o2c.credit_memo_create or o2c.debit_memo_create on the item
+    signature_activities: [o2c.invoice_cancel, o2c.invoice_correction_request, o2c.credit_memo_create, o2c.debit_memo_create]
+    wise_patterns:
+      - {type: exclusion, activities: [o2c.invoice_cancel, o2c.invoice_correction_request, o2c.credit_memo_create, o2c.debit_memo_create], layer: invoice_payment, template: o2c_baseline, constraint_ref: o_invoice_no_corrections, calibration: uncalibrated, applicability: not a return item}
+    evidence: none
+    typical_causes:
+      - Price or quantity wrong on the order (manual pricing, changed quantities after billing)
+      - Wrong bill-to or tax data in the customer master
+      - Returns settled by credit memo (legitimate on return items)
+    typical_remedies:
+      - Price validation at capture; customer master quality; credit memos only with return reference
+    evidence_to_check:
+      - Manual price changes and quantity changes before the correction; customer master changes
+    owner_role: accounts_receivable
+    kpis: [o2c.kpi.invoice_correction_rate]
+    sources: [SAP SD billing documentation, docs/panel/llm_knowledge_architecture.md §2.1 invoice corrections]
+    review_status: draft
+
+  - id: o2c.fm.manual_price_change
+    version: 1
+    name: {en: Manual price change on the item, de: Manuelle Preisänderung an der Position}
+    stage: capture
+    signature: o2c.price_change_manual on the item
+    signature_activities: [o2c.price_change_manual]
+    wise_patterns:
+      - {type: singularity, activities: [o2c.price_change_manual], params: {k: 0, K: 2}, layer: commercial, template: o2c_baseline, constraint_ref: o_commercial_no_manual_price_change, calibration: uncalibrated}
+    evidence: none
+    typical_causes:
+      - Price lists outdated; discounts negotiated per order
+      - Price condition records missing for the customer and material
+    typical_remedies:
+      - Condition maintenance; approval workflow for manual discounts above a limit
+    evidence_to_check:
+      - Condition records for the customer and material; invoice corrections on the same items
+    owner_role: sales
+    sources: [SAP SD pricing documentation, docs/panel/llm_knowledge_architecture.md §2.1 manual price changes]
+    review_status: draft
+
+  - id: o2c.fm.payment_after_due_date
+    version: 1
+    name: {en: Payment after the due date or dunning, de: Zahlung nach Fälligkeit oder Mahnung}
+    stage: pay
+    signature: lag o2c.invoice_create -> o2c.payment_receive beyond terms; o2c.dunning on the item; no payment
+    signature_activities: [o2c.invoice_create, o2c.payment_receive, o2c.dunning]
+    wise_patterns:
+      - {type: presence, activities: [o2c.payment_receive], params: {m: 1}, layer: invoice_payment, template: o2c_baseline, constraint_ref: o_pay_present, calibration: uncalibrated, applicability: items with an invoice}
+      - {type: lag, a: [o2c.invoice_create], b: [o2c.payment_receive], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: censor}, layer: invoice_payment, template: o2c_baseline, constraint_ref: o_pay_within_terms, calibration: uncalibrated, note: replace the fixed delta by days beyond the customer's payment terms where available}
+      - {type: exclusion, activities: [o2c.dunning], layer: invoice_payment, template: o2c_baseline, constraint_ref: o_pay_no_dunning, calibration: uncalibrated}
+    evidence: none
+    typical_causes:
+      - Customer payment behaviour; disputes on invoice content
+      - Dunning run late or dunning levels too lenient
+      - Invoice sent to the wrong address or channel
+    typical_remedies:
+      - Dunning cadence and levels per customer group; dispute management with a clock
+      - E-invoicing for the largest customers
+    evidence_to_check:
+      - Payment terms per customer; dispute cases; dunning level history
+      - "Censoring: invoices open at the window end"
+    owner_role: accounts_receivable
+    kpis: [o2c.kpi.dso_proxy, o2c.kpi.dunning_rate]
+    sources: [OCEL 2.0 Order Management vocabulary (pay order, payment reminder), SAP FI dunning documentation, docs/panel/llm_knowledge_architecture.md §2.1 late dunning]
+    review_status: draft

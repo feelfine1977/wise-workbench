@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wise-analytics"
+dynamic = ["version"]
+description = "Interpretable analytics on top of wise: uncertainty, contrast, readiness, headroom, provenance"
+readme = "README.md"
+license = "PolyForm-Noncommercial-1.0.0"
+requires-python = ">=3.11"
+authors = [{ name = "Urszula Jessen" }]
+dependencies = [
+  "wise-pm>=0.1,<0.2",
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "pyarrow>=16",
+]
+
+[project.optional-dependencies]
+stats = ["scipy>=1.10"]
+subgroups = ["scikit-learn>=1.4"]
+parallel = ["joblib>=1.3"]
+dev = ["pytest>=8", "hypothesis>=6", "ruff>=0.5", "mypy>=1.10"]
+
+[tool.uv.sources]
+wise-pm = { path = "../../wise-lib", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+wise_analytics = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = { attr = "wise_analytics._version.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error", "ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "NPY", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "SIM108", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+
+[tool.mypy]
+check_untyped_defs = true
+warn_unused_ignores = false
+ignore_missing_imports = true
+files = ["src/wise_analytics"]

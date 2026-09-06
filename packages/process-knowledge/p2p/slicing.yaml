@@ -1,0 +1,148 @@
+# Purchase-to-pay slicing guidance: roles, recommended slice keys, exposure,
+# identification pitfalls. Never slice by single users.
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - Jessen, Fahland, Zerbato, WISE, BPIC 2019 evaluation (company x spend area primary slice; vendor drill-down)
+  - BPI Challenge 2019 attribute inventory (1,975 vendors, 20 spend areas, 4 companies)
+  - ICPM 2026 hackathon purchase extract (vendor country, planned lead time, incoterms)
+  - docs/panel/process_panel.md §5 (P2P slice keys and pitfalls)
+roles:
+  - id: purchasing
+    name: {en: "Purchasing (buyer, purchasing group)", de: "Einkauf (Einkäufer, Einkäufergruppe)"}
+    description: Creates and changes orders, maintains info records and contracts, handles vendor confirmations.
+    systems: [SAP MM, Ariba, Coupa]
+  - id: requester
+    name: {en: Requester, de: Anforderer}
+    description: Raises requisitions or shopping carts and confirms receipt of services.
+    systems: [SAP SRM, Ariba, Coupa]
+  - id: approver
+    name: {en: Approver (budget owner), de: Genehmiger (Budgetverantwortlicher)}
+    description: Releases requisitions and orders through the release strategy.
+  - id: warehouse
+    name: {en: Warehouse and goods receipt, de: Lager und Wareneingang}
+    description: Posts goods receipts and reversals; accepts service entry sheets together with the requester.
+    systems: [SAP MM inventory management, WMS]
+  - id: accounts_payable
+    name: {en: Accounts payable, de: Kreditorenbuchhaltung}
+    description: Records invoices, resolves payment blocks, runs payments.
+    systems: [SAP FI, SAP MM invoice verification]
+  - id: finance_controlling
+    name: {en: Finance and controlling, de: Finanzen und Controlling}
+    description: Owns working-capital targets, payment terms policy and commercial-risk indicators.
+  - id: vendor_management
+    name: {en: Vendor management, de: Lieferantenmanagement}
+    description: Owns vendor performance, confirmations and lead-time agreements.
+  - id: master_data
+    name: {en: Master data, de: Stammdaten}
+    description: Owns vendor, material and info-record data, item categories and flow-type flags.
+  - id: it_process_owner
+    name: {en: IT process owner (interfaces), de: IT-Prozessverantwortlicher (Schnittstellen)}
+    description: Owns SRM, EDI and e-invoicing interfaces.
+slice_keys:
+  - id: vendor
+    name: {en: Vendor, de: Lieferant}
+    description: The supplier of the item; the paper's drill-down key (Table XI). Merge small vendors per purchasing organisation.
+    owner_role: vendor_management
+    recommended: true
+    attributes: {bpic2019: case Vendor, sap: LIFNR, icpm2026_hackathon: Vendor ID, ocel2_p2p: vendor object}
+    cardinality_hint: 1,975 vendors in BPIC 2019; 5 vendor countries in the hackathon extract
+    min_cases_hint: 30
+    pitfalls:
+      - Long tail of one-off vendors; stabilise with gamma or merge into 'other vendors'
+      - The same vendor appears under several vendor numbers per company code
+    combine_with: [purchasing_org, spend_area]
+  - id: purchasing_org
+    name: {en: Purchasing organisation, de: Einkaufsorganisation}
+    description: The negotiating unit; each has a named head.
+    owner_role: purchasing
+    recommended: true
+    attributes: {sap: EKORG, bpic2019: case Company, icpm2026_hackathon: n/a}
+    pitfalls:
+      - BPIC 2019 carries the company rather than the purchasing organisation; one company holds 99.6 % of events
+    combine_with: [spend_area]
+  - id: spend_area
+    name: {en: Spend area (material group), de: Ausgabenbereich (Warengruppe)}
+    description: What is bought; with the company the primary slice of the paper's evaluation.
+    owner_role: purchasing
+    recommended: true
+    attributes: {bpic2019: case Spend area text, sap: MATKL, icpm2026_hackathon: Material ID}
+    cardinality_hint: 20 spend areas in BPIC 2019
+    pitfalls:
+      - Sub spend areas fragment quickly; start with the spend area
+    combine_with: [company_code, vendor]
+  - id: item_category
+    name: {en: Item category (flow type), de: Positionstyp (Flusstyp)}
+    description: Three-way (invoice after or before receipt), two-way, consignment; an applicability attribute first and a slice key second.
+    owner_role: master_data
+    recommended: false
+    attributes: {bpic2019: case Item Category, sap: PSTYP with GR-based IV flag}
+    pitfalls:
+      - Comparing flow types with one another mixes legitimately different expectations; slice within a flow type
+  - id: company_code
+    name: {en: Company code, de: Buchungskreis}
+    description: The legal entity; owner is the local finance lead.
+    owner_role: finance_controlling
+    recommended: true
+    attributes: {bpic2019: case Company, sap: BUKRS}
+    cardinality_hint: 4 in BPIC 2019 (one with 99.6 % of events)
+    combine_with: [spend_area]
+  - id: document_type
+    name: {en: Purchasing document type, de: Belegart}
+    description: Standard PO, framework order, EC purchase order; separates limit orders from item orders.
+    owner_role: master_data
+    recommended: false
+    attributes: {bpic2019: case Document Type, sap: BSART}
+  - id: plant
+    name: {en: Plant, de: Werk}
+    description: Receiving site; owner is the site logistics lead.
+    owner_role: warehouse
+    recommended: true
+    attributes: {sap: WERKS}
+    pitfalls:
+      - Not in BPIC 2019
+  - id: vendor_country
+    name: {en: Vendor country, de: Lieferantenland}
+    description: Country of the vendor; explains lead-time and confirmation patterns.
+    owner_role: vendor_management
+    recommended: true
+    attributes: {icpm2026_hackathon: Vendor Country, sap: LAND1}
+    cardinality_hint: 5 in the hackathon extract
+  - id: period
+    name: {en: Period (order month or quarter), de: Periode (Bestellmonat oder Quartal)}
+    description: Case start month or quarter; for period comparison against a frozen baseline, not for ownership.
+    owner_role: finance_controlling
+    recommended: true
+    attributes: {bpic2019: case_start_quarter (derived), icpm2026_hackathon: Created On}
+    pitfalls:
+      - The last periods are right-censored; read them with the censoring diagnostics
+  - id: po_header
+    name: {en: Purchase order header (roll-up), de: Bestellkopf (Aggregation)}
+    description: Document roll-up of item scores; the governance unit of the paper's norm.
+    owner_role: purchasing
+    recommended: false
+    attributes: {bpic2019: case Purchasing Document, sap: EBELN}
+never_slice_by:
+  - key: user / org:resource
+    reason: Identifies individuals; performance conversations belong to line management, not to a backlog. Use manual-touch and hand-off attributes aggregated per slice instead.
+    alternative: manual_touch_count and distinct_human_resources as derived attributes
+  - key: purchasing group with fewer than min_cases items
+    reason: Small purchasing groups are one buyer; enforce min_cases and aggregate to the purchasing organisation.
+    alternative: purchasing_org
+  - key: requester or approver name
+    reason: Same as user; approval lags are reported per purchasing organisation and value band.
+    alternative: purchasing_org x value band
+exposure:
+  - id: net_worth
+    name: {en: Cumulative net worth, de: Kumulierter Nettowert}
+    attributes: {bpic2019: event Cumulative net worth (EUR), sap: NETWR}
+    note: Last value per item; negative values (memos) must be netted before exposure weighting.
+  - id: order_value
+    name: {en: Indexed order value, de: Indexierter Bestellwert}
+    attributes: {icpm2026_hackathon: Indexed order value}
+    note: Indexed, so only relative weights are meaningful.
+identification_pitfalls:
+  - Vendor numbers can identify sole traders; show vendor slices to purchasing and finance only.
+  - Item-level slices with fewer than min_cases cases are hidden or merged; the threshold is recorded in the run manifest.
+  - Resource columns are used only through derived attributes (touch counts), never as slice keys or in narratives.

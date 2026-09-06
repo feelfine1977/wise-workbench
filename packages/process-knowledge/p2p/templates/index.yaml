@@ -1,0 +1,36 @@
+# Norm templates shipped with the purchase-to-pay pack.
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - Jessen, Fahland, Zerbato, WISE, examples/bpic19_norm.json (wise-lib)
+  - failure_modes.yaml of this pack (one constraint pattern per failure mode)
+templates:
+  - id: p2p_bpic19
+    file: p2p_bpic19.json
+    name: WISE BPIC'19 norm (paper evaluation)
+    description: Verbatim copy of the paper's flow-aware BPIC 2019 norm, 29 constraints in seven layers with four role-based views; activity labels are the raw labels of the challenge CSV.
+    calibration: calibrated
+    activity_labels: log_labels
+    evidence: [bpic2019]
+    dataset: bpic2019
+    flow_type_attribute: flow_type
+    flow_types: {DF1: "3-way match, invoice after GR", DF2: "3-way match, invoice before GR", 2-way: 2-way match, Consignment: Consignment}
+    sources: [Jessen, Fahland, Zerbato, WISE, examples/bpic19_norm.json]
+    review_status: reviewed
+    notes: >
+      Thresholds are those of the paper's evaluation; treat them as calibrated
+      for BPIC 2019 only. Two activity labels of the norm do not occur in the
+      CSV ('Vendor creates credit memo', 'Change Payment Terms' vs the log's
+      'Change payment term'); Norm.check(log) reports them.
+  - id: p2p_baseline
+    file: p2p_baseline.json
+    name: P2P baseline (canonical ids, uncalibrated)
+    description: Generic purchase-to-pay norm derived from the failure-mode catalogue; activity parameters are canonical ids translated through the activity mapping; every threshold is flagged uncalibrated in metadata.meta.
+    calibration: uncalibrated
+    activity_labels: canonical_ids
+    evidence: [bpic2019, icpm2026_hackathon]
+    flow_type_attribute: flow_type
+    flow_types: {three_way_gr_first: three-way match with invoice after receipt, three_way_invoice_first: three-way match with invoice before receipt, two_way: two-way match, consignment: consignment, service: service procurement}
+    review_status: draft
+    notes: Calibrate every threshold on the empirical distribution (F8) before the norm is approved; the resource column of the derived attributes must be mapped.

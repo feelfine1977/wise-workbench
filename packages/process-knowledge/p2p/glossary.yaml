@@ -1,0 +1,231 @@
+# Purchase-to-pay glossary, English and German.
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - SAP MM and FI documentation and transaction names
+  - BPI Challenge 2019 attribute names
+  - Jessen, Fahland, Zerbato, WISE (flow types, case notion)
+terms:
+  - id: p2p.term.purchase_requisition
+    term: {en: purchase requisition, de: Bestellanforderung}
+    definition: {en: Internal request for goods or services that precedes and may release a purchase order; abbreviated PR (BANF in German SAP systems)., de: "Interne Anforderung von Waren oder Leistungen, die einer Bestellung vorausgeht und diese freigeben kann; Abkürzung BANF."}
+    aliases: [PR, BANF, requisition]
+    activities: [p2p.pr_create, p2p.pr_item_create, p2p.pr_release]
+    stages: [request, approve]
+    review_status: draft
+  - id: p2p.term.shopping_cart
+    term: {en: shopping cart (SRM), de: Einkaufswagen (SRM)}
+    definition: {en: "The requisition object of SAP SRM; its status changes (created, awaiting approval, complete, ordered, transferred) appear as header events on every resulting PO item.", de: Das Anforderungsobjekt von SAP SRM; seine Statuswechsel erscheinen als Kopfereignisse auf jeder daraus entstehenden Bestellposition.}
+    aliases: [SRM cart, cart]
+    activities: [p2p.srm_created, p2p.srm_awaiting_approval, p2p.srm_complete, p2p.srm_ordered, p2p.srm_transfer]
+    stages: [request, approve, order]
+    review_status: draft
+  - id: p2p.term.purchase_order
+    term: {en: purchase order, de: Bestellung}
+    definition: {en: "The commercial document sent to the vendor; header data (vendor, currency, payment terms) plus items.", de: "Der an den Lieferanten gesendete kaufmännische Beleg; Kopfdaten (Lieferant, Währung, Zahlungsbedingungen) und Positionen."}
+    aliases: [PO, order]
+    activities: [p2p.po_create, p2p.po_release, p2p.po_send]
+    stages: [order]
+    review_status: draft
+  - id: p2p.term.purchase_order_item
+    term: {en: purchase order item, de: Bestellposition}
+    definition: {en: "One line of a purchase order (material or service, quantity, price, delivery date); the case notion of the BPIC 2019 evaluation.", de: "Eine Zeile einer Bestellung (Material oder Leistung, Menge, Preis, Liefertermin); die Fallnotion der BPIC-2019-Auswertung."}
+    aliases: [PO item, PO line, Bestellzeile]
+    activities: [p2p.po_item_create]
+    stages: [order]
+    review_status: draft
+  - id: p2p.term.header_event
+    term: {en: header event, de: Kopfereignis}
+    definition: {en: "An event recorded once on the purchase order header but replicated onto every item case (order creation, SRM statuses, currency and payment-term changes); counting it per item inflates rework signals.", de: "Ein einmal am Bestellkopf erfasstes Ereignis, das auf jede Positionsfall kopiert wird; zählt man es je Position, werden Nacharbeitssignale überzeichnet."}
+    aliases: [replicated event]
+    activities: [p2p.po_create, p2p.po_change_currency, p2p.po_change_payment_terms]
+    review_status: draft
+  - id: p2p.term.goods_receipt
+    term: {en: goods receipt, de: Wareneingang}
+    definition: {en: Posting that records the arrival of ordered goods against the PO item (movement type 101); several partial receipts are legitimate., de: Buchung des Eingangs bestellter Ware zur Bestellposition (Bewegungsart 101); mehrere Teillieferungen sind zulässig.}
+    aliases: [GR, WE, MIGO]
+    activities: [p2p.gr, p2p.gr_cancel]
+    stages: [receive]
+    review_status: draft
+  - id: p2p.term.service_entry_sheet
+    term: {en: service entry sheet, de: Leistungserfassungsblatt}
+    definition: {en: The acceptance document for services rendered; plays the role of the goods receipt for service items., de: Der Abnahmebeleg für erbrachte Leistungen; übernimmt bei Dienstleistungspositionen die Rolle des Wareneingangs.}
+    aliases: [SES, LEB, ML81N]
+    activities: [p2p.ses]
+    stages: [receive]
+    review_status: draft
+  - id: p2p.term.invoice_receipt
+    term: {en: invoice receipt, de: Rechnungseingang}
+    definition: {en: Posting of the vendor invoice with reference to the PO item in logistics invoice verification., de: Buchung der Lieferantenrechnung mit Bezug zur Bestellposition in der Logistik-Rechnungsprüfung.}
+    aliases: [IR, MIRO, Rechnungserfassung]
+    activities: [p2p.ir, p2p.ir_cancel]
+    stages: [invoice]
+    review_status: draft
+  - id: p2p.term.invoice_verification
+    term: {en: invoice verification, de: Rechnungsprüfung}
+    definition: {en: The check of the invoice against order and receipt on price and quantity (three-way) or against the order only (two-way)., de: Die Prüfung der Rechnung gegen Bestellung und Wareneingang auf Preis und Menge (Dreiwege) oder nur gegen die Bestellung (Zweiwege).}
+    aliases: [LIV, match]
+    activities: [p2p.match_3way, p2p.match_2way]
+    stages: [match]
+    review_status: draft
+  - id: p2p.term.three_way_match
+    term: {en: three-way match, de: Dreiwege-Abgleich}
+    definition: {en: "Invoice, purchase order and goods receipt must agree before payment; with GR-based invoice verification the invoice is expected after the receipt.", de: "Rechnung, Bestellung und Wareneingang müssen vor Zahlung übereinstimmen; bei WE-bezogener Rechnungsprüfung wird die Rechnung nach dem Wareneingang erwartet."}
+    aliases: [3-way match, GR-based IV]
+    activities: [p2p.match_3way]
+    stages: [match]
+    failure_modes: [p2p.fm.invoice_before_goods_receipt]
+    review_status: draft
+  - id: p2p.term.two_way_match
+    term: {en: two-way match, de: Zweiwege-Abgleich}
+    definition: {en: "Invoice and purchase order must agree; no goods receipt is expected (services, limits, framework orders).", de: "Rechnung und Bestellung müssen übereinstimmen; ein Wareneingang wird nicht erwartet (Leistungen, Limits, Rahmenbestellungen)."}
+    aliases: [2-way match]
+    activities: [p2p.match_2way]
+    stages: [match]
+    failure_modes: [p2p.fm.goods_receipt_in_two_way]
+    review_status: draft
+  - id: p2p.term.flow_type
+    term: {en: flow type, de: Flusstyp}
+    definition: {en: "The variant an item follows (three-way with invoice after or before receipt, two-way, consignment, service); in BPIC 2019 derived from the item category and used as applicability attribute.", de: "Die Variante, der eine Position folgt (Dreiwege mit Rechnung nach oder vor Wareneingang, Zweiwege, Konsignation, Leistung); in BPIC 2019 aus der Positionstyp-Kategorie abgeleitet und als Anwendbarkeitsattribut genutzt."}
+    aliases: [item category, DF1, DF2]
+    review_status: draft
+  - id: p2p.term.payment_block
+    term: {en: payment block, de: Zahlsperre}
+    definition: {en: Indicator that stops an invoice from being paid until released; set automatically on variances or manually., de: "Kennzeichen, das die Zahlung einer Rechnung bis zur Freigabe verhindert; automatisch bei Abweichungen oder manuell gesetzt."}
+    aliases: [Zahlungssperre, blocked invoice]
+    activities: [p2p.payment_block_set, p2p.payment_block_remove]
+    stages: [match]
+    failure_modes: [p2p.fm.payment_block]
+    review_status: draft
+  - id: p2p.term.blocking_reason
+    term: {en: blocking reason, de: Sperrgrund}
+    definition: {en: "The reason code of a payment block (price, quantity, date, quality, manual); the first evidence to check on blocked invoices.", de: "Der Grundschlüssel einer Zahlsperre (Preis, Menge, Termin, Qualität, manuell); der erste Nachweis, der bei gesperrten Rechnungen zu prüfen ist."}
+    aliases: [block reason, Sperrgrund]
+    failure_modes: [p2p.fm.payment_block]
+    review_status: draft
+  - id: p2p.term.release
+    term: {en: release (approval), de: Freigabe}
+    definition: {en: Approval of a requisition or order through a release strategy with value-dependent levels., de: Genehmigung einer BANF oder Bestellung über eine Freigabestrategie mit wertabhängigen Stufen.}
+    aliases: [approval, release strategy, Freigabestrategie]
+    activities: [p2p.pr_release, p2p.po_release, p2p.po_change_approval]
+    stages: [approve]
+    failure_modes: [p2p.fm.late_or_repeated_approval]
+    review_status: draft
+  - id: p2p.term.clearing
+    term: {en: clearing (payment), de: Ausgleich (Zahlung)}
+    definition: {en: The invoice is settled by a payment run or manual payment; the closing milestone of an invoice-bearing item., de: Die Rechnung wird durch Zahllauf oder manuelle Zahlung ausgeglichen; der Abschlussmeilenstein einer rechnungsrelevanten Position.}
+    aliases: [payment run, Zahllauf, F110]
+    activities: [p2p.invoice_clear]
+    stages: [pay]
+    failure_modes: [p2p.fm.unpaid_or_late_invoice]
+    review_status: draft
+  - id: p2p.term.consignment
+    term: {en: consignment, de: Konsignation}
+    definition: {en: "Vendor-owned stock at the buyer's site; withdrawals are settled periodically, so no invoice clearing per item is expected.", de: "Lieferanteneigener Bestand beim Käufer; Entnahmen werden periodisch abgerechnet, ein Rechnungsausgleich je Position wird nicht erwartet."}
+    aliases: [consignment settlement, MRKO]
+    stages: [receive, pay]
+    failure_modes: [p2p.fm.consignment_cleared_per_item]
+    review_status: draft
+  - id: p2p.term.ers
+    term: {en: evaluated receipt settlement, de: Automatische Wareneingangsabrechnung}
+    definition: {en: Self-billing where the invoice is generated from the receipt; appears as vendor-created invoices without invoice receipt keying., de: "Gutschriftsverfahren, bei dem die Rechnung aus dem Wareneingang erzeugt wird; erscheint als lieferantenseitig erstellte Rechnung ohne manuelle Erfassung."}
+    aliases: [ERS, self-billing, Gutschriftsverfahren]
+    activities: [p2p.vendor_invoice]
+    stages: [invoice]
+    review_status: draft
+  - id: p2p.term.debit_memo
+    term: {en: debit memo, de: Lastschrift}
+    definition: {en: "A vendor document increasing the amount owed (price differences, surcharges).", de: "Ein Lieferantenbeleg, der den geschuldeten Betrag erhöht (Preisdifferenzen, Zuschläge)."}
+    aliases: [debit note, Belastungsanzeige]
+    activities: [p2p.vendor_debit_memo]
+    failure_modes: [p2p.fm.vendor_debit_memo]
+    review_status: draft
+  - id: p2p.term.credit_memo
+    term: {en: credit memo, de: Gutschrift}
+    definition: {en: "A vendor document reducing the amount owed (returns, claims, rebates).", de: "Ein Lieferantenbeleg, der den geschuldeten Betrag verringert (Retouren, Reklamationen, Boni)."}
+    aliases: [credit note, Gutschriftsanzeige]
+    activities: [p2p.vendor_credit_memo]
+    failure_modes: [p2p.fm.vendor_credit_memo]
+    review_status: draft
+  - id: p2p.term.subsequent_debit
+    term: {en: subsequent debit or credit, de: Nachbelastung oder Nachentlastung}
+    definition: {en: An invoice posting that changes the value of an already invoiced item without changing the quantity., de: "Eine Rechnungsbuchung, die den Wert einer bereits berechneten Position ändert, ohne die Menge zu ändern."}
+    aliases: [subsequent invoice]
+    activities: [p2p.subsequent_invoice, p2p.subsequent_invoice_cancel]
+    review_status: draft
+  - id: p2p.term.delivery_completed_indicator
+    term: {en: delivery completed indicator, de: Endlieferungskennzeichen}
+    definition: {en: Flag on the PO item declaring that no further goods receipt is expected; closes short deliveries., de: "Kennzeichen an der Bestellposition, dass kein weiterer Wareneingang erwartet wird; schließt Unterlieferungen ab."}
+    aliases: [delivery indicator]
+    activities: [p2p.po_change_delivery_indicator]
+    failure_modes: [p2p.fm.delivery_indicator_reopened]
+    review_status: draft
+  - id: p2p.term.final_invoice_indicator
+    term: {en: final invoice indicator, de: Endrechnungskennzeichen}
+    definition: {en: Flag on the PO item declaring that no further invoice is expected., de: "Kennzeichen an der Bestellposition, dass keine weitere Rechnung erwartet wird."}
+    activities: [p2p.final_invoice_indicator_change]
+    review_status: draft
+  - id: p2p.term.deletion_indicator
+    term: {en: deletion indicator, de: Löschkennzeichen}
+    definition: {en: Flag that marks a PO item as deleted; the item stays in the database and can be reactivated., de: "Kennzeichen, das eine Bestellposition als gelöscht markiert; die Position bleibt in der Datenbank und kann reaktiviert werden."}
+    aliases: [deleted flag]
+    activities: [p2p.po_item_delete, p2p.po_item_reactivate]
+    failure_modes: [p2p.fm.deleted_item]
+    review_status: draft
+  - id: p2p.term.framework_order
+    term: {en: framework order, de: Rahmenbestellung}
+    definition: {en: A limit order with a validity period and value limit against which invoices are posted without item-level receipts., de: "Eine Limitbestellung mit Gültigkeitszeitraum und Wertgrenze, gegen die Rechnungen ohne positionsbezogene Wareneingänge gebucht werden."}
+    aliases: [limit order, blanket order]
+    review_status: draft
+  - id: p2p.term.maverick_buying
+    term: {en: maverick buying, de: Maverick Buying}
+    definition: {en: "Purchases outside the agreed channels (no requisition, no contract, order after the invoice); a candidate reading for order-without-requisition and invoice-before-order signals, never a finding from the log alone.", de: "Einkauf am vereinbarten Prozess vorbei (keine BANF, kein Vertrag, Bestellung nach der Rechnung); eine mögliche Lesart für die Signale Bestellung-ohne-BANF und Rechnung-vor-Bestellung, nie ein Befund allein aus dem Log."}
+    aliases: [off-contract buying, Einkauf am Einkauf vorbei]
+    failure_modes: [p2p.fm.order_without_requisition, p2p.fm.invoice_before_order]
+    review_status: draft
+  - id: p2p.term.vendor_confirmation
+    term: {en: vendor confirmation, de: Lieferantenbestätigung}
+    definition: {en: The vendor's acknowledgement of quantity and delivery date on the PO item; repeated confirmations move the date or split the quantity., de: Die Bestätigung von Menge und Liefertermin durch den Lieferanten zur Bestellposition; wiederholte Bestätigungen verschieben den Termin oder teilen die Menge.}
+    aliases: [order acknowledgement, Auftragsbestätigung]
+    activities: [p2p.po_confirmation_receive, p2p.po_confirmation_update, p2p.confirmation_change_delivery_date]
+    failure_modes: [p2p.fm.vendor_confirmation_churn]
+    review_status: draft
+  - id: p2p.term.purchasing_organisation
+    term: {en: purchasing organisation, de: Einkaufsorganisation}
+    definition: {en: Organisational unit that negotiates and is responsible for purchasing; a recommended slice key with a named owner., de: "Organisationseinheit, die verhandelt und für den Einkauf verantwortlich ist; ein empfohlener Slice-Schlüssel mit benanntem Verantwortlichen."}
+    aliases: [purchasing org, EKORG]
+    review_status: draft
+  - id: p2p.term.purchasing_group
+    term: {en: purchasing group, de: Einkäufergruppe}
+    definition: {en: Buyer or group of buyers responsible for the order; slice with care because small groups identify people., de: "Einkäufer oder Einkäufergruppe, die für die Bestellung verantwortlich ist; mit Bedacht slicen, da kleine Gruppen Personen identifizieren."}
+    aliases: [EKGRP, buyer group]
+    review_status: draft
+  - id: p2p.term.spend_area
+    term: {en: spend area, de: Ausgabenbereich}
+    definition: {en: Category of what is bought (BPIC 2019 'Spend area text'); with the company the primary slice of the paper's evaluation., de: Kategorie des Beschafften (BPIC 2019 'Spend area text'); zusammen mit der Gesellschaft der primäre Slice der Auswertung im Paper.}
+    aliases: [material group, Warengruppe, spend classification]
+    review_status: draft
+  - id: p2p.term.company_code
+    term: {en: company code, de: Buchungskreis}
+    definition: {en: The legal entity that carries the purchase in accounting; in BPIC 2019 one of four companies holds 99.6 % of events., de: "Die rechtliche Einheit, die den Einkauf buchhalterisch trägt; in BPIC 2019 hält eine von vier Gesellschaften 99,6 % der Ereignisse."}
+    aliases: [company, BUKRS]
+    review_status: draft
+  - id: p2p.term.cumulative_net_worth
+    term: {en: cumulative net worth, de: Kumulierter Nettowert}
+    definition: {en: Running value of the PO item after each posting (BPIC 2019); its last value is the exposure used for exposure-weighted priorities., de: Laufender Wert der Bestellposition nach jeder Buchung (BPIC 2019); der letzte Wert ist die Exposition für expositionsgewichtete Prioritäten.}
+    aliases: [net worth, exposure]
+    failure_modes: [p2p.fm.networth_volatility]
+    review_status: draft
+  - id: p2p.term.touchless
+    term: {en: touchless processing, de: Dunkelverarbeitung}
+    definition: {en: An item processed without manual steps beyond a tolerated number; measured through the manual-touch derived attribute., de: "Eine Position, die ohne manuelle Schritte über eine tolerierte Zahl hinaus verarbeitet wird; gemessen über das abgeleitete Attribut der manuellen Bearbeitungen."}
+    aliases: [straight-through processing, no-touch]
+    failure_modes: [p2p.fm.manual_touch_load]
+    review_status: draft
+  - id: p2p.term.right_censoring
+    term: {en: right-censoring, de: Rechtszensierung}
+    definition: {en: Items still open at the end of the observation window look like missing milestones or long lags; the validation gate reads them before any hypothesis., de: Am Ende des Beobachtungsfensters noch offene Positionen erscheinen wie fehlende Meilensteine oder lange Wartezeiten; das Validierungstor liest sie vor jeder Hypothese.}
+    aliases: [open items, censoring]
+    failure_modes: [p2p.fm.unpaid_or_late_invoice, p2p.fm.missing_invoice, p2p.fm.missing_goods_receipt]
+    review_status: draft

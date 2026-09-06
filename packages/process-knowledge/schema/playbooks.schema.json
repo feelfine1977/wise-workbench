@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/playbooks.schema.json",
+  "title": "Playbooks per journey stage: questions, hypotheses per hotspot type, workshop scripts",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "playbooks"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "playbooks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "journey_stage", "title", "questions", "review_status"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "version": { "$ref": "common.schema.json#/$defs/version" },
+          "journey_stage": {
+            "type": "string",
+            "pattern": "^S(1[0-2]|[0-9])$",
+            "description": "Journey stage S0..S12 of docs/CUSTOMER_JOURNEY.md."
+          },
+          "title": { "$ref": "common.schema.json#/$defs/text" },
+          "audience": { "type": "array", "items": { "type": "string" } },
+          "questions": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "common.schema.json#/$defs/text" }
+          },
+          "hypotheses": {
+            "type": "object",
+            "description": "Candidate hypotheses per hotspot type of the paper's typology.",
+            "properties": {
+              "reservoir": { "type": "array", "items": { "type": "string" } },
+              "mechanism": { "type": "array", "items": { "type": "string" } },
+              "severity": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": false
+          },
+          "workshop_script": { "type": "array", "items": { "type": "string" } },
+          "failure_modes": { "$ref": "common.schema.json#/$defs/idList" },
+          "stages": { "$ref": "common.schema.json#/$defs/idList" },
+          "sources": { "$ref": "common.schema.json#/$defs/sources" },
+          "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

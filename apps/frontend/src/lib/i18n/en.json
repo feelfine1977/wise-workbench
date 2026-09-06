@@ -1,0 +1,107 @@
+{
+  "app": {
+    "name": "WISE Workbench",
+    "skipToContent": "Skip to content",
+    "loading": "Loading…",
+    "error": "Something did not load",
+    "retry": "Try again",
+    "notFound": "Nothing here",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "open": "Open",
+    "none": "none",
+    "all": "all",
+    "actions": "Actions",
+    "mocks": "mock data",
+    "backend": "live backend"
+  },
+  "ribbon": {
+    "project": "project",
+    "dataset": "dataset",
+    "mapping": "mapping",
+    "norm": "norm",
+    "run": "run",
+    "view": "view",
+    "perspective": "perspective",
+    "sliceKey": "by",
+    "grouping": "grouping",
+    "period": "period",
+    "vocabulary": "words",
+    "vocabularies": { "plain": "plain", "method": "method" },
+    "switch": "Switch {{what}}",
+    "noRun": "no run yet",
+    "help": "Help and glossary",
+    "palette": "Command palette",
+    "theme": "Theme",
+    "density": "Density"
+  },
+  "rail": {
+    "title": "Journey",
+    "state": { "not_started": "not started", "in_progress": "in progress", "gated": "gated", "done": "done" },
+    "whyGated": "Why gated",
+    "fixAt": "Fix at",
+    "stages": {
+      "S0": "Steering question and scope",
+      "S1": "Log intake and data readiness",
+      "S2": "Case notion, flow types, slice keys",
+      "S3": "Norm elicitation",
+      "S4": "View design",
+      "S5": "Scoring and calibration",
+      "S6": "Backlog review",
+      "S7": "Validation gate",
+      "S8": "Mechanism analysis",
+      "S9": "Action hypotheses",
+      "S10": "Intervention planning",
+      "S11": "Monitoring across periods",
+      "S12": "Institutionalisation"
+    }
+  },
+  "jobs": {
+    "title": "Jobs",
+    "transport": { "stream": "live", "poll": "polling" },
+    "empty": "No jobs yet",
+    "cancel": "Cancel job",
+    "openResult": "Open result",
+    "dismiss": "Dismiss",
+    "status": { "queued": "queued", "running": "running", "done": "done", "failed": "failed", "cancelled": "cancelled" },
+    "announce": "Job {{label}} is {{status}}",
+    "kind": { "ingest": "Ingest", "build_cases": "Case table", "score_run": "Run", "load_preset": "Public log preset", "job": "Job" }
+  },
+  "palette": {
+    "placeholder": "Jump to a screen… (search for slices, constraints and cases arrives in v1)",
+    "noResults": "No matching screen",
+    "hint": "⌘K opens the palette"
+  },
+  "help": {
+    "title": "Help",
+    "glossary": "Glossary",
+    "keyboard": "Keyboard",
+    "formulas": "Formulas",
+    "keys": {
+      "palette": "Command palette",
+      "help": "Help drawer",
+      "filter": "Focus the filter",
+      "pin": "Pin the active row",
+      "finding": "Open the finding form for the active row",
+      "open": "Open the active row",
+      "move": "Move between rows",
+      "escape": "Close the open dialog"
+    }
+  },
+  "explain": { "trigger": "Explain this number", "formula": "Formula", "inputs": "Inputs", "caveats": "Caveats" },
+  "empty": {
+    "nextStep": "Next step",
+    "alternative": "Or",
+    "noDatasets": "No log yet",
+    "noDatasetsReason": "The journey starts with an event log. Drop a CSV, Parquet or XES file to run the readiness report.",
+    "noRuns": "No run yet",
+    "noRunsReason": "A run scores the case table against a norm version. Create one to see a backlog.",
+    "noNorms": "No norm yet",
+    "noNormsReason": "A norm holds the expectations in layers and views. Import the reference norm of the process template.",
+    "noRows": "No groups match",
+    "noRowsReason": "Relax a filter or lower the minimum number of cases.",
+    "noConfidence": "Confidence in the rank has not been computed for this run",
+    "noConfidenceReason": "The resampling analysis arrives with the analytics package; until then every rank reads as \"confidence not computed\" and this filter hides everything."
+  }
+}

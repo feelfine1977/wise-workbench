@@ -1,0 +1,19 @@
+# Curated mapping of the 10 OCEL 2.0 Procure-to-Pay event types
+# (ocel2.ocel.events.csv, column 'type'; lifecycle 'complete' on every event).
+id: ocel2_p2p
+pack: p2p
+dataset: ocel2_p2p
+key: {label: type, lifecycle: lifecycle}
+sources:
+  - ocel2.ocel.events.csv, 10 distinct types counted on 2026-09-05
+labels:
+  - {label: Create Goods Receipt, activity: p2p.gr, lifecycle: complete}
+  - {label: Create Invoice Receipt, activity: p2p.ir, lifecycle: complete}
+  - {label: Perform Two-Way Match, activity: p2p.match_2way, lifecycle: complete}
+  - {label: Approve Purchase Order, activity: p2p.po_release, lifecycle: complete}
+  - {label: Create Purchase Order, activity: p2p.po_create, lifecycle: complete}
+  - {label: Execute Payment, activity: p2p.invoice_clear, lifecycle: complete}
+  - {label: Create Request for Quotation, activity: p2p.rfq_create, lifecycle: complete}
+  - {label: Create Purchase Requisition, activity: p2p.pr_create, lifecycle: complete}
+  - {label: Approve Purchase Requisition, activity: p2p.pr_release, lifecycle: complete}
+  - {label: Delegate Purchase Requisition Approval, activity: p2p.pr_approval_delegate, lifecycle: complete}

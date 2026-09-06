@@ -1,0 +1,845 @@
+# Purchase-to-pay ontology: canonical activities and system label packs.
+# Ids are stable; names and synonyms may grow. Every activity carries sources
+# and a review status; content is owned by the domain lead.
+pack: p2p
+version: 1
+review_status: draft
+process: purchase-to-pay
+description: >
+  Canonical activities of purchase-to-pay from requisition to payment, read
+  off the BPI Challenge 2019 log (SAP ECC MM/FI with SRM shopping carts),
+  the OCEL 2.0 Procure-to-Pay vocabulary, the ICPM 2026 hackathon purchase
+  extract and SAP MM documentation. Stage ids refer to stages.yaml.
+sources:
+  - BPI Challenge 2019, 4TU.ResearchData, doi:10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1
+  - OCEL 2.0 Procure-to-Pay (simulated from a real SAP system), Zenodo, doi:10.5281/zenodo.8412919
+  - ICPM 2026 hackathon purchase extract (SAP MM), use permitted by the owner on 2026-09-05, not redistributed
+  - SAP ERP MM documentation, purchasing (ME*), inventory management (MIGO) and logistics invoice verification (MIRO, MRBR, MR8M)
+  - Jessen, Fahland, Zerbato, WISE, Actionable Norm-Based Scoring for Process Mining, BPIC 2019 evaluation
+  - APQC Process Classification Framework, 4.2 Procure materials and services
+object_types:
+  - id: purchase_requisition
+    name: {en: purchase requisition, de: Bestellanforderung}
+  - id: shopping_cart
+    name: {en: SRM shopping cart, de: SRM-Einkaufswagen}
+  - id: quotation
+    name: {en: request for quotation, de: Anfrage}
+  - id: purchase_order
+    name: {en: purchase order (header), de: Bestellung (Kopf)}
+  - id: purchase_order_item
+    name: {en: purchase order item, de: Bestellposition}
+  - id: vendor_confirmation
+    name: {en: vendor confirmation, de: Lieferantenbestätigung}
+  - id: goods_receipt
+    name: {en: goods receipt document, de: Wareneingangsbeleg}
+  - id: service_entry_sheet
+    name: {en: service entry sheet, de: Leistungserfassungsblatt}
+  - id: invoice
+    name: {en: vendor invoice document, de: Eingangsrechnung}
+  - id: payment
+    name: {en: payment document, de: Zahlungsbeleg}
+  - id: vendor
+    name: {en: vendor, de: Lieferant}
+  - id: material
+    name: {en: material, de: Material}
+
+activities:
+  # ---------------------------------------------------------------- request
+  - id: p2p.pr_create
+    name: {en: Create purchase requisition, de: Bestellanforderung anlegen}
+    stage: request
+    description: A purchase requisition (header) is created by a requester or by MRP.
+    synonyms:
+      en: [Create Purchase Requisition, Create PR, Requisition created, Raise requisition]
+      de: [BANF anlegen, Bestellanforderung erstellen]
+    object_types: [purchase_requisition]
+    granularity: header
+    tags: [milestone]
+    tcodes: [ME51N]
+    sources: [OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.pr_item_create
+    name: {en: Create purchase requisition item, de: BANF-Position anlegen}
+    stage: request
+    description: A purchase requisition item is created; in BPIC 2019 it precedes 18.5 % of PO items.
+    synonyms:
+      en: [Create Purchase Requisition Item, PR item created, Requisition line created]
+      de: [Bestellanforderungsposition anlegen, BANF-Position erstellen]
+    object_types: [purchase_requisition]
+    granularity: item
+    tags: [milestone]
+    tcodes: [ME51N]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.rfq_create
+    name: {en: Create request for quotation, de: Anfrage anlegen}
+    stage: request
+    description: A request for quotation is sent to one or more vendors before ordering.
+    synonyms:
+      en: [Create Request for Quotation, Create RFQ, Send RFQ, Quotation requested]
+      de: [Anfrage erstellen, Angebot anfordern]
+    object_types: [quotation]
+    granularity: document
+    tcodes: [ME41]
+    sources: [OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.srm_created
+    name: {en: "SRM: shopping cart created", de: "SRM: Einkaufswagen angelegt"}
+    stage: request
+    description: A shopping cart is created in SAP SRM; the SRM status events are replicated onto every item of the resulting PO.
+    synonyms:
+      en: ["SRM: Created", Shopping cart created, SRM cart created]
+      de: [Einkaufswagen erstellt]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_incomplete
+    name: {en: "SRM: shopping cart incomplete", de: "SRM: Einkaufswagen unvollständig"}
+    stage: request
+    description: The shopping cart is saved with missing data and cannot be ordered yet.
+    synonyms:
+      en: ["SRM: Incomplete", Shopping cart incomplete]
+      de: [Einkaufswagen unvollständig]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, exception]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_held
+    name: {en: "SRM: shopping cart held", de: "SRM: Einkaufswagen zurückgestellt"}
+    stage: request
+    description: The shopping cart is parked by the requester.
+    synonyms:
+      en: ["SRM: Held", Shopping cart held, Cart on hold]
+      de: [Einkaufswagen gehalten, Einkaufswagen geparkt]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_document_completed
+    name: {en: "SRM: document completed", de: "SRM: Beleg vervollständigt"}
+    stage: request
+    description: The shopping cart document is complete and ready for the approval workflow.
+    synonyms:
+      en: ["SRM: Document Completed", Shopping cart document completed]
+      de: [Einkaufswagen vollständig]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_deleted
+    name: {en: "SRM: shopping cart deleted", de: "SRM: Einkaufswagen gelöscht"}
+    stage: request
+    description: The shopping cart or one of its items is deleted in SRM.
+    synonyms:
+      en: ["SRM: Deleted", Shopping cart deleted]
+      de: [Einkaufswagen gelöscht]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, cancellation]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  # ---------------------------------------------------------------- approve
+  - id: p2p.pr_release
+    name: {en: Release purchase requisition, de: Bestellanforderung freigeben}
+    stage: approve
+    description: The requisition is approved (released) by the responsible approver; in OCEL 2.0 P2P this is 'Approve Purchase Requisition'.
+    synonyms:
+      en: [Release Purchase Requisition, Approve Purchase Requisition, PR approved, Requisition released, PR release]
+      de: [BANF freigeben, Bestellanforderung genehmigen, BANF-Freigabe]
+    object_types: [purchase_requisition]
+    granularity: item
+    tags: [approval, milestone]
+    tcodes: [ME54N, ME55]
+    sources: [BPI Challenge 2019, OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.pr_approval_delegate
+    name: {en: Delegate purchase requisition approval, de: BANF-Genehmigung delegieren}
+    stage: approve
+    description: The approver forwards the requisition approval to a substitute.
+    synonyms:
+      en: [Delegate Purchase Requisition Approval, Forward PR approval, Approval delegated]
+      de: [Genehmigung weiterleiten, Freigabe delegieren]
+    object_types: [purchase_requisition]
+    granularity: item
+    tags: [approval]
+    sources: [OCEL 2.0 Procure-to-Pay]
+    review_status: draft
+  - id: p2p.srm_awaiting_approval
+    name: {en: "SRM: awaiting approval", de: "SRM: wartet auf Genehmigung"}
+    stage: approve
+    description: The shopping cart entered the approval workflow.
+    synonyms:
+      en: ["SRM: Awaiting Approval", Shopping cart awaiting approval, Cart in approval]
+      de: [Einkaufswagen in Genehmigung]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, approval]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_complete
+    name: {en: "SRM: shopping cart complete (approved)", de: "SRM: Einkaufswagen vollständig (genehmigt)"}
+    stage: approve
+    description: The approval workflow of the shopping cart is complete.
+    synonyms:
+      en: ["SRM: Complete", Shopping cart complete, Shopping cart approved]
+      de: [Einkaufswagen genehmigt]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, approval]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_release
+    name: {en: Release purchase order, de: Bestellung freigeben}
+    stage: approve
+    description: The purchase order is approved through the release strategy; in OCEL 2.0 P2P 'Approve Purchase Order'.
+    synonyms:
+      en: [Release Purchase Order, Approve Purchase Order, PO released, PO approved, PO approval, Release PO]
+      de: [Bestellung genehmigen, Bestellfreigabe, Bestellung freigegeben]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [approval, milestone]
+    tcodes: [ME29N, ME28]
+    sources: [BPI Challenge 2019, OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_change_approval
+    name: {en: Change approval for purchase order, de: Bestellfreigabe ändern}
+    stage: approve
+    description: The release status of the PO changes after a modification, i.e. the order is sent through approval again.
+    synonyms:
+      en: [Change Approval for Purchase Order, Re-approve purchase order, PO approval changed, Reset release]
+      de: [Freigabe der Bestellung ändern, Bestellung erneut freigeben]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [approval, change]
+    tcodes: [ME29N]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  # ---------------------------------------------------------------- order
+  - id: p2p.po_create
+    name: {en: Create purchase order, de: Bestellung anlegen}
+    stage: order
+    description: The purchase order header is created; header events are replicated onto every item when the case is the PO item.
+    synonyms:
+      en: [Create Purchase Order, PO created, Create PO, Purchase order created, Order placed]
+      de: [Bestellung erstellen, Bestellung angelegt, Bestellkopf anlegen]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [milestone]
+    tcodes: [ME21N]
+    sources: [OCEL 2.0 Procure-to-Pay, ICPM 2026 hackathon purchase extract, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_item_create
+    name: {en: Create purchase order item, de: Bestellposition anlegen}
+    stage: order
+    description: A purchase order item is created; the case notion of the BPIC 2019 evaluation.
+    synonyms:
+      en: [Create Purchase Order Item, PO item created, Create PO line, Purchase order line created]
+      de: [Bestellposition erstellen, Bestellposition angelegt]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [milestone]
+    tcodes: [ME21N]
+    sources: [BPI Challenge 2019, ICPM 2026 hackathon purchase extract]
+    review_status: draft
+  - id: p2p.po_send
+    name: {en: Send purchase order to vendor, de: Bestellung an Lieferanten senden}
+    stage: order
+    description: The purchase order is transmitted to the vendor (print, EDI, e-mail).
+    synonyms:
+      en: [Send Purchase order, Send PO, Transmit purchase order, PO sent, Output purchase order]
+      de: [Bestellung senden, Bestellung übermitteln, Bestellung ausgeben]
+    object_types: [purchase_order]
+    granularity: header
+    tcodes: [ME9F]
+    sources: [ICPM 2026 hackathon purchase extract, SAP MM documentation]
+    review_status: draft
+  - id: p2p.srm_ordered
+    name: {en: "SRM: shopping cart ordered", de: "SRM: Einkaufswagen bestellt"}
+    stage: order
+    description: The shopping cart is ordered in SRM and becomes a purchase order.
+    synonyms:
+      en: ["SRM: Ordered", Shopping cart ordered]
+      de: [Einkaufswagen bestellt]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, milestone]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_transfer
+    name: {en: "SRM: in transfer to execution system", de: "SRM: in Übertragung an das Ausführungssystem"}
+    stage: order
+    description: The SRM order is being transferred to the ERP (execution) system.
+    synonyms:
+      en: ["SRM: In Transfer to Execution Syst.", In transfer to execution system, SRM transfer to ERP]
+      de: [Übertragung an ERP, In Übertragung]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_transfer_failed
+    name: {en: "SRM: transfer to execution system failed", de: "SRM: Übertragung an das Ausführungssystem fehlgeschlagen"}
+    stage: order
+    description: The transfer of the SRM order to the ERP system failed and needs manual handling.
+    synonyms:
+      en: ["SRM: Transfer Failed (E.Sys.)", Transfer failed, SRM transfer error]
+      de: [Übertragung fehlgeschlagen, Übertragungsfehler]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, exception]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_change_transmitted
+    name: {en: "SRM: change was transmitted", de: "SRM: Änderung wurde übertragen"}
+    stage: order
+    description: A change to the SRM order was transmitted to the execution system.
+    synonyms:
+      en: ["SRM: Change was Transmitted", Change transmitted, SRM change sent]
+      de: [Änderung übertragen]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status, change]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.srm_transaction_completed
+    name: {en: "SRM: transaction completed", de: "SRM: Vorgang abgeschlossen"}
+    stage: order
+    description: The SRM transaction is closed.
+    synonyms:
+      en: ["SRM: Transaction Completed", Transaction completed]
+      de: [Vorgang abgeschlossen]
+    object_types: [shopping_cart]
+    granularity: header
+    tags: [status]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_confirmation_receive
+    name: {en: Receive order confirmation, de: Auftragsbestätigung erhalten}
+    stage: order
+    description: The vendor's order confirmation (quantity, date) is recorded on the PO item.
+    synonyms:
+      en: [Receive Order Confirmation, Created Purchase Vendor Confirmation, Vendor confirmation received, Order acknowledgement, Confirmation created]
+      de: [Auftragsbestätigung erfassen, Lieferantenbestätigung erhalten, Bestätigung angelegt]
+    object_types: [vendor_confirmation, purchase_order_item]
+    granularity: item
+    tags: [vendor_side, milestone]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, ICPM 2026 hackathon purchase extract]
+    review_status: draft
+  - id: p2p.po_confirmation_update
+    name: {en: Update order confirmation, de: Auftragsbestätigung aktualisieren}
+    stage: order
+    description: An existing vendor confirmation is changed.
+    synonyms:
+      en: [Update Order Confirmation, Confirmation updated, Change vendor confirmation]
+      de: [Auftragsbestätigung ändern, Bestätigung aktualisiert]
+    object_types: [vendor_confirmation]
+    granularity: item
+    tags: [vendor_side, change]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.confirmation_change_delivery_date
+    name: {en: Change delivery date in vendor confirmation, de: Lieferdatum in Lieferantenbestätigung ändern}
+    stage: order
+    description: The vendor confirms a delivery date that differs from the previous confirmation.
+    synonyms:
+      en: [Change Delivery date (Confirmation), Confirmed delivery date changed, Vendor moved delivery date]
+      de: [Bestätigtes Lieferdatum geändert, Lieferdatum Bestätigung ändern]
+    object_types: [vendor_confirmation]
+    granularity: item
+    tags: [vendor_side, change]
+    sources: [ICPM 2026 hackathon purchase extract]
+    review_status: draft
+  - id: p2p.po_change_delivery_date
+    name: {en: Change delivery date on schedule line, de: Lieferdatum der Einteilung ändern}
+    stage: order
+    description: The buyer changes the requested delivery date of the PO schedule line.
+    synonyms:
+      en: [Changed Delivery date (Schedule Line), Change delivery date, Schedule line date changed, Reschedule PO item]
+      de: [Lieferdatum ändern, Einteilung geändert, Liefertermin ändern]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [ICPM 2026 hackathon purchase extract, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_change
+    name: {en: Change purchase order, de: Bestellung ändern}
+    stage: order
+    description: A generic change to the purchase order (ME22N change document) whose field is not known; refine to price, quantity, date or indicator changes when the changed field is available.
+    synonyms:
+      en: [Change Purchase Order, Purchase order changed, PO changed, Modify purchase order, Change PO]
+      de: [Bestellung ändern, Bestellung geändert, Bestelländerung]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_change_price
+    name: {en: Change price, de: Preis ändern}
+    stage: order
+    description: The net price of the PO item is changed after creation.
+    synonyms:
+      en: [Change Price, Price changed, PO price change, Change net price, Price adjustment]
+      de: [Preisänderung, Bestellpreis ändern, Nettopreis ändern]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_change_quantity
+    name: {en: Change quantity, de: Menge ändern}
+    stage: order
+    description: The ordered quantity of the PO item is changed after creation (increase or decrease).
+    synonyms:
+      en: [Change Quantity, Quantity changed, Changed PO Quantity - Increase, Changed PO Quantity - Decrease, Change PO quantity, Order quantity changed]
+      de: [Mengenänderung, Bestellmenge ändern, Menge erhöht, Menge reduziert]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, ICPM 2026 hackathon purchase extract]
+    review_status: draft
+  - id: p2p.po_change_currency
+    name: {en: Change currency, de: Währung ändern}
+    stage: order
+    description: The currency of the PO is changed.
+    synonyms:
+      en: [Change Currency, Currency changed]
+      de: [Währungsänderung, Bestellwährung ändern]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [change]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_change_payment_terms
+    name: {en: Change payment terms, de: Zahlungsbedingungen ändern}
+    stage: order
+    description: The payment terms of the PO are changed. In the BPIC 2019 CSV the label is 'Change payment term' (7 events); the paper's norm refers to 'Change Payment Terms'.
+    synonyms:
+      en: [Change payment term, Change Payment Terms, Payment terms changed, Change terms of payment]
+      de: [Zahlungsbedingung ändern, Zahlungsziel ändern]
+    object_types: [purchase_order]
+    granularity: header
+    tags: [change]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_change_delivery_indicator
+    name: {en: Change delivery completed indicator, de: Kennzeichen Lieferung abgeschlossen ändern}
+    stage: order
+    description: The 'delivery completed' indicator of the PO item is set or reset, closing or reopening goods receipt.
+    synonyms:
+      en: [Change Delivery Indicator, Delivery completed indicator changed, Set delivery complete]
+      de: [Endlieferungskennzeichen ändern, Lieferung abgeschlossen setzen]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_change_rejection_indicator
+    name: {en: Change rejection indicator, de: Ablehnungskennzeichen ändern}
+    stage: order
+    description: The rejection indicator of the PO item is changed (2 events in BPIC 2019).
+    synonyms:
+      en: [Change Rejection Indicator, Rejection indicator changed]
+      de: [Ablehnungskennzeichen setzen]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_change_storage_location
+    name: {en: Change storage location, de: Lagerort ändern}
+    stage: order
+    description: The receiving storage location of the PO item is changed.
+    synonyms:
+      en: [Change Storage Location, Storage location changed]
+      de: [Lagerortänderung, Lagerort wechseln]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_item_block
+    name: {en: Block purchase order item, de: Bestellposition sperren}
+    stage: order
+    description: The PO item is blocked so that no goods receipt or invoice can be posted against it.
+    synonyms:
+      en: [Block Purchase Order Item, PO item blocked, Block PO line]
+      de: [Bestellposition gesperrt, Position sperren]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [exception]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.po_item_reactivate
+    name: {en: Reactivate purchase order item, de: Bestellposition reaktivieren}
+    stage: order
+    description: A blocked or deleted PO item is reactivated.
+    synonyms:
+      en: [Reactivate Purchase Order Item, PO item reactivated, Undelete PO item, Unblock PO item]
+      de: [Bestellposition reaktiviert, Position wieder aktivieren, Löschung zurücknehmen]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [exception]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.po_item_delete
+    name: {en: Delete purchase order item, de: Bestellposition löschen}
+    stage: order
+    description: The deletion indicator is set on the PO item; the hackathon extract logs this as a change of the deleted flag.
+    synonyms:
+      en: [Delete Purchase Order Item, Change PO Deleted Flag, PO item deleted, Set deletion indicator, Delete PO line]
+      de: [Bestellposition gelöscht, Löschkennzeichen setzen, Position löschen]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, ICPM 2026 hackathon purchase extract]
+    review_status: draft
+  # ---------------------------------------------------------------- receive
+  - id: p2p.gr
+    name: {en: Record goods receipt, de: Wareneingang buchen}
+    stage: receive
+    description: Goods are received against the PO item (movement type 101); several partial receipts are legitimate.
+    synonyms:
+      en: [Record Goods Receipt, Goods receipt, Create Goods Receipt, Post goods receipt, GR posted, Goods received, Receive goods, GR for purchase order]
+      de: [Wareneingang, Wareneingang erfassen, WE buchen, Wareneingang zur Bestellung, Ware erhalten]
+    object_types: [goods_receipt, purchase_order_item]
+    granularity: item
+    tags: [milestone]
+    tcodes: [MIGO, MB01]
+    sources: [BPI Challenge 2019, OCEL 2.0 Procure-to-Pay, ICPM 2026 hackathon purchase extract, SAP MM documentation]
+    review_status: draft
+  - id: p2p.gr_cancel
+    name: {en: Cancel goods receipt, de: Wareneingang stornieren}
+    stage: receive
+    description: A goods receipt is reversed (movement type 102).
+    synonyms:
+      en: [Cancel Goods Receipt, Reverse goods receipt, GR reversal, Goods receipt cancelled, Return delivery to vendor]
+      de: [Wareneingang storno, WE stornieren, Wareneingang rückgängig machen]
+    object_types: [goods_receipt]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [MIGO, MBST]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.ses
+    name: {en: Record service entry sheet, de: Leistungserfassungsblatt erfassen}
+    stage: receive
+    description: Services rendered are recorded and accepted on a service entry sheet, the receipt equivalent for service items.
+    synonyms:
+      en: [Record Service Entry Sheet, Service entry sheet, Create service entry sheet, Accept service entry, SES accepted, Service acceptance]
+      de: [Leistungserfassung, LEB erfassen, Leistung abnehmen, Leistungserfassungsblatt anlegen]
+    object_types: [service_entry_sheet, purchase_order_item]
+    granularity: item
+    tags: [milestone]
+    tcodes: [ML81N]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  # ---------------------------------------------------------------- invoice
+  - id: p2p.ir
+    name: {en: Record invoice receipt, de: Rechnungseingang buchen}
+    stage: invoice
+    description: The vendor invoice is entered against the PO item in logistics invoice verification.
+    synonyms:
+      en: [Record Invoice Receipt, Create Invoice Receipt, Invoice receipt, Enter incoming invoice, Post invoice, Invoice posted, Invoice received, Book invoice]
+      de: [Rechnung erfassen, Rechnungseingang, Eingangsrechnung buchen, Rechnung buchen, Logistik-Rechnungsprüfung]
+    object_types: [invoice, purchase_order_item]
+    granularity: item
+    tags: [milestone]
+    tcodes: [MIRO]
+    sources: [BPI Challenge 2019, OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.vendor_invoice
+    name: {en: Vendor creates invoice, de: Lieferant erstellt Rechnung}
+    stage: invoice
+    description: The invoice document is created on the vendor side or through self-billing (evaluated receipt settlement) before it is recorded in invoice verification; in BPIC 2019 present on 83.4 % of PO items.
+    synonyms:
+      en: [Vendor creates invoice, Vendor invoice created, Supplier invoice issued, Invoice issued by vendor, ERS invoice]
+      de: [Lieferantenrechnung erstellt, Rechnung vom Lieferanten, Gutschriftsverfahren]
+    object_types: [invoice]
+    granularity: item
+    tags: [vendor_side, milestone]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.ir_cancel
+    name: {en: Cancel invoice receipt, de: Rechnungseingang stornieren}
+    stage: invoice
+    description: A posted invoice document is cancelled.
+    synonyms:
+      en: [Cancel Invoice Receipt, Cancel invoice document, Invoice cancelled, Reverse invoice, Invoice reversal]
+      de: [Rechnung stornieren, Rechnungsstorno, Rechnungsbeleg stornieren]
+    object_types: [invoice]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [MR8M]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.subsequent_invoice
+    name: {en: Record subsequent invoice, de: Nachträgliche Rechnung buchen}
+    stage: invoice
+    description: A subsequent debit or credit is posted against an already invoiced PO item.
+    synonyms:
+      en: [Record Subsequent Invoice, Subsequent debit, Subsequent credit, Post subsequent invoice]
+      de: [Nachbelastung, Nachentlastung, Nachträgliche Belastung buchen]
+    object_types: [invoice]
+    granularity: item
+    tags: [exception]
+    tcodes: [MIRO]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.subsequent_invoice_cancel
+    name: {en: Cancel subsequent invoice, de: Nachträgliche Rechnung stornieren}
+    stage: invoice
+    description: A subsequent debit or credit document is cancelled.
+    synonyms:
+      en: [Cancel Subsequent Invoice, Subsequent invoice cancelled, Reverse subsequent debit]
+      de: [Nachbelastung stornieren, Nachträgliche Rechnung storno]
+    object_types: [invoice]
+    granularity: item
+    tags: [cancellation, exception]
+    tcodes: [MR8M]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.vendor_debit_memo
+    name: {en: Vendor creates debit memo, de: Lieferant erstellt Lastschrift}
+    stage: invoice
+    description: The vendor issues a debit memo that increases the amount owed.
+    synonyms:
+      en: [Vendor creates debit memo, Debit memo, Vendor debit note, Supplier debit memo]
+      de: [Lastschrift vom Lieferanten, Belastungsanzeige, Nachforderung Lieferant]
+    object_types: [invoice]
+    granularity: item
+    tags: [vendor_side, exception]
+    sources: [BPI Challenge 2019]
+    review_status: draft
+  - id: p2p.vendor_credit_memo
+    name: {en: Vendor creates credit memo, de: Lieferant erstellt Gutschrift}
+    stage: invoice
+    description: The vendor issues a credit memo that reduces the amount owed. Referenced by the paper's norm; the label does not occur in the BPIC 2019 CSV.
+    synonyms:
+      en: [Vendor creates credit memo, Credit memo, Vendor credit note, Supplier credit memo]
+      de: [Gutschrift vom Lieferanten, Gutschriftsanzeige, Lieferantengutschrift]
+    object_types: [invoice]
+    granularity: item
+    tags: [vendor_side, exception]
+    sources: [Jessen, Fahland, Zerbato, WISE, BPIC 2019 norm, SAP MM documentation]
+    review_status: draft
+  - id: p2p.final_invoice_indicator_change
+    name: {en: Change final invoice indicator, de: Endrechnungskennzeichen ändern}
+    stage: invoice
+    description: The final invoice indicator of the PO item is set or reset, declaring that no further invoice is expected.
+    synonyms:
+      en: [Change Final Invoice Indicator, Final invoice indicator set, Set final invoice]
+      de: [Endrechnung setzen, Kennzeichen Endrechnung ändern]
+    object_types: [purchase_order_item]
+    granularity: item
+    tags: [change]
+    tcodes: [ME22N]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  # ---------------------------------------------------------------- match
+  - id: p2p.match_3way
+    name: {en: Perform three-way match, de: Dreiwege-Abgleich durchführen}
+    stage: match
+    description: Invoice, purchase order and goods receipt are matched on price and quantity before payment is released.
+    synonyms:
+      en: [Perform Three-Way Match, Three-way match, 3-way match, Match invoice to GR and PO, Invoice verification with GR]
+      de: [Dreiwege-Abgleich, Rechnungsprüfung mit Wareneingangsbezug, 3-Wege-Abgleich]
+    object_types: [invoice]
+    granularity: item
+    tags: [milestone]
+    sources: [SAP MM documentation, APQC Process Classification Framework]
+    review_status: draft
+  - id: p2p.match_2way
+    name: {en: Perform two-way match, de: Zweiwege-Abgleich durchführen}
+    stage: match
+    description: Invoice and purchase order are matched without a goods receipt (services, consignment settlement, framework orders).
+    synonyms:
+      en: [Perform Two-Way Match, Two-way match, 2-way match, Match invoice to PO, Invoice verification without GR]
+      de: [Zweiwege-Abgleich, Rechnungsprüfung ohne Wareneingang, 2-Wege-Abgleich]
+    object_types: [invoice]
+    granularity: item
+    tags: [milestone]
+    sources: [OCEL 2.0 Procure-to-Pay, SAP MM documentation]
+    review_status: draft
+  - id: p2p.payment_block_set
+    name: {en: Set payment block, de: Zahlsperre setzen}
+    stage: match
+    description: The invoice is blocked for payment, typically because of a price or quantity variance or a missing goods receipt.
+    synonyms:
+      en: [Set Payment Block, Payment block set, Block invoice for payment, Invoice blocked, Block payment]
+      de: [Zahlungssperre setzen, Rechnung sperren, Zahlsperre gesetzt, Sperrgrund setzen]
+    object_types: [invoice]
+    granularity: item
+    tags: [exception]
+    tcodes: [MIRO, FB02]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  - id: p2p.payment_block_remove
+    name: {en: Remove payment block, de: Zahlsperre aufheben}
+    stage: match
+    description: The payment block is released after the variance is resolved or the goods receipt arrives; in DF2 the release is the match milestone (24.3 % of DF2 items in BPIC 2019).
+    synonyms:
+      en: [Remove Payment Block, Release blocked invoice, Payment block removed, Release invoice for payment, Unblock invoice, Release blocked invoices]
+      de: [Zahlungssperre aufheben, Rechnung freigeben, Gesperrte Rechnungen freigeben, Zahlsperre entfernen]
+    object_types: [invoice]
+    granularity: item
+    tags: [milestone]
+    tcodes: [MRBR]
+    sources: [BPI Challenge 2019, SAP MM documentation]
+    review_status: draft
+  # ---------------------------------------------------------------- pay
+  - id: p2p.invoice_clear
+    name: {en: Clear invoice (execute payment), de: Rechnung ausgleichen (Zahlung ausführen)}
+    stage: pay
+    description: The invoice is cleared by a payment run or manual payment; in OCEL 2.0 P2P 'Execute Payment'.
+    synonyms:
+      en: [Clear Invoice, Execute Payment, Invoice cleared, Payment run, Pay invoice, Post outgoing payment, Invoice paid, Payment executed, Automatic payment]
+      de: [Rechnung ausgleichen, Zahllauf, Zahlung ausführen, Rechnung bezahlen, Ausgangszahlung buchen, Rechnung ausgeglichen]
+    object_types: [payment, invoice]
+    granularity: item
+    tags: [milestone]
+    tcodes: [F110, F-53]
+    sources: [BPI Challenge 2019, OCEL 2.0 Procure-to-Pay, SAP FI documentation]
+    review_status: draft
+
+label_packs:
+  bpic2019:
+    system: SAP ECC MM/FI with SRM (BPI Challenge 2019 extract)
+    description: All 42 labels of column 'event concept:name' of BPI_Challenge_2019.csv.
+    dataset: bpic2019
+    language: en
+    sources: [BPI Challenge 2019]
+    labels:
+      - {label: Record Goods Receipt, activity: p2p.gr}
+      - {label: Create Purchase Order Item, activity: p2p.po_item_create}
+      - {label: Record Invoice Receipt, activity: p2p.ir}
+      - {label: Vendor creates invoice, activity: p2p.vendor_invoice}
+      - {label: Clear Invoice, activity: p2p.invoice_clear}
+      - {label: Record Service Entry Sheet, activity: p2p.ses}
+      - {label: Remove Payment Block, activity: p2p.payment_block_remove}
+      - {label: Create Purchase Requisition Item, activity: p2p.pr_item_create}
+      - {label: Receive Order Confirmation, activity: p2p.po_confirmation_receive}
+      - {label: Change Quantity, activity: p2p.po_change_quantity}
+      - {label: Change Price, activity: p2p.po_change_price}
+      - {label: Delete Purchase Order Item, activity: p2p.po_item_delete}
+      - {label: Change Approval for Purchase Order, activity: p2p.po_change_approval}
+      - {label: Cancel Invoice Receipt, activity: p2p.ir_cancel}
+      - {label: Vendor creates debit memo, activity: p2p.vendor_debit_memo}
+      - {label: Change Delivery Indicator, activity: p2p.po_change_delivery_indicator}
+      - {label: Cancel Goods Receipt, activity: p2p.gr_cancel}
+      - {label: "SRM: In Transfer to Execution Syst.", activity: p2p.srm_transfer}
+      - {label: "SRM: Awaiting Approval", activity: p2p.srm_awaiting_approval}
+      - {label: "SRM: Complete", activity: p2p.srm_complete}
+      - {label: "SRM: Ordered", activity: p2p.srm_ordered}
+      - {label: "SRM: Document Completed", activity: p2p.srm_document_completed}
+      - {label: "SRM: Created", activity: p2p.srm_created}
+      - {label: Release Purchase Order, activity: p2p.po_release}
+      - {label: "SRM: Change was Transmitted", activity: p2p.srm_change_transmitted}
+      - {label: Reactivate Purchase Order Item, activity: p2p.po_item_reactivate}
+      - {label: Block Purchase Order Item, activity: p2p.po_item_block}
+      - {label: Cancel Subsequent Invoice, activity: p2p.subsequent_invoice_cancel}
+      - {label: Release Purchase Requisition, activity: p2p.pr_release}
+      - {label: Change Storage Location, activity: p2p.po_change_storage_location}
+      - {label: Update Order Confirmation, activity: p2p.po_confirmation_update}
+      - {label: "SRM: Deleted", activity: p2p.srm_deleted}
+      - {label: Record Subsequent Invoice, activity: p2p.subsequent_invoice}
+      - {label: Set Payment Block, activity: p2p.payment_block_set}
+      - {label: "SRM: Transfer Failed (E.Sys.)", activity: p2p.srm_transfer_failed}
+      - {label: Change Currency, activity: p2p.po_change_currency}
+      - {label: Change Final Invoice Indicator, activity: p2p.final_invoice_indicator_change}
+      - {label: "SRM: Transaction Completed", activity: p2p.srm_transaction_completed}
+      - {label: Change payment term, activity: p2p.po_change_payment_terms}
+      - {label: "SRM: Incomplete", activity: p2p.srm_incomplete}
+      - {label: "SRM: Held", activity: p2p.srm_held}
+      - {label: Change Rejection Indicator, activity: p2p.po_change_rejection_indicator}
+      - {label: Vendor creates credit memo, activity: p2p.vendor_credit_memo, note: "referenced by the paper's norm, absent from the CSV"}
+      - {label: Change Payment Terms, activity: p2p.po_change_payment_terms, note: spelling used by the paper's norm; the CSV has 'Change payment term'}
+  ocel2_p2p:
+    system: OCEL 2.0 Procure-to-Pay (simulated from a real SAP system)
+    description: The ten event types of ocel2.ocel.events.csv (column 'type'); every event carries lifecycle 'complete'.
+    dataset: ocel2_p2p
+    language: en
+    sources: [OCEL 2.0 Procure-to-Pay]
+    labels:
+      - {label: Create Purchase Requisition, activity: p2p.pr_create, lifecycle: complete}
+      - {label: Approve Purchase Requisition, activity: p2p.pr_release, lifecycle: complete}
+      - {label: Delegate Purchase Requisition Approval, activity: p2p.pr_approval_delegate, lifecycle: complete}
+      - {label: Create Request for Quotation, activity: p2p.rfq_create, lifecycle: complete}
+      - {label: Create Purchase Order, activity: p2p.po_create, lifecycle: complete}
+      - {label: Approve Purchase Order, activity: p2p.po_release, lifecycle: complete}
+      - {label: Create Goods Receipt, activity: p2p.gr, lifecycle: complete}
+      - {label: Create Invoice Receipt, activity: p2p.ir, lifecycle: complete}
+      - {label: Perform Two-Way Match, activity: p2p.match_2way, lifecycle: complete}
+      - {label: Execute Payment, activity: p2p.invoice_clear, lifecycle: complete}
+  hackathon:
+    system: SAP S/4HANA MM (ICPM 2026 hackathon purchase extract)
+    description: The ten labels of column 'activity' of Purchase_Eventlog.csv; the extract is local only.
+    dataset: icpm2026_hackathon
+    language: en
+    sources: [ICPM 2026 hackathon purchase extract]
+    labels:
+      - {label: Create Purchase Order, activity: p2p.po_create}
+      - {label: Create Purchase Order Item, activity: p2p.po_item_create}
+      - {label: Send Purchase order, activity: p2p.po_send}
+      - {label: Created Purchase Vendor Confirmation, activity: p2p.po_confirmation_receive}
+      - {label: Goods receipt, activity: p2p.gr}
+      - {label: Change Delivery date (Confirmation), activity: p2p.confirmation_change_delivery_date}
+      - {label: Changed Delivery date (Schedule Line), activity: p2p.po_change_delivery_date}
+      - {label: Changed PO Quantity- Decrease, activity: p2p.po_change_quantity, note: direction in changed_from/changed_to}
+      - {label: Changed PO Quantity - Increase, activity: p2p.po_change_quantity, note: direction in changed_from/changed_to}
+      - {label: Change PO Deleted Flag, activity: p2p.po_item_delete}
+  sap_mm:
+    system: SAP ERP / S/4HANA MM and FI (transaction vocabulary)
+    description: Transaction-oriented labels as they appear in change documents, workflow logs and extraction tools; tcodes are part of the key.
+    language: mixed
+    sources: [SAP MM documentation, SAP FI documentation]
+    labels:
+      - {label: Create Purchase Requisition, activity: p2p.pr_create, tcode: ME51N}
+      - {label: Bestellanforderung anlegen, activity: p2p.pr_create, tcode: ME51N}
+      - {label: Release Purchase Requisition, activity: p2p.pr_release, tcode: ME54N}
+      - {label: Collective Release of Purchase Requisitions, activity: p2p.pr_release, tcode: ME55}
+      - {label: Create RFQ, activity: p2p.rfq_create, tcode: ME41}
+      - {label: Create Purchase Order, activity: p2p.po_create, tcode: ME21N}
+      - {label: Bestellung anlegen, activity: p2p.po_create, tcode: ME21N}
+      - {label: Change Purchase Order, activity: p2p.po_change, tcode: ME22N}
+      - {label: Bestellung ändern, activity: p2p.po_change, tcode: ME22N}
+      - {label: Release Purchase Order, activity: p2p.po_release, tcode: ME29N}
+      - {label: Bestellung freigeben, activity: p2p.po_release, tcode: ME29N}
+      - {label: Message Output Purchase Orders, activity: p2p.po_send, tcode: ME9F}
+      - {label: Maintain Vendor Confirmation, activity: p2p.po_confirmation_receive, tcode: ME22N}
+      - {label: Goods Receipt for Purchase Order, activity: p2p.gr, tcode: MIGO}
+      - {label: Wareneingang zur Bestellung, activity: p2p.gr, tcode: MIGO}
+      - {label: Goods Receipt Purchase Order, activity: p2p.gr, tcode: MB01}
+      - {label: Cancel Material Document, activity: p2p.gr_cancel, tcode: MBST}
+      - {label: Return Delivery to Vendor, activity: p2p.gr_cancel, tcode: MIGO, note: movement type 122}
+      - {label: Maintain Service Entry Sheet, activity: p2p.ses, tcode: ML81N}
+      - {label: Leistungserfassungsblatt pflegen, activity: p2p.ses, tcode: ML81N}
+      - {label: Enter Incoming Invoice, activity: p2p.ir, tcode: MIRO}
+      - {label: Eingangsrechnung erfassen, activity: p2p.ir, tcode: MIRO}
+      - {label: Enter Subsequent Debit, activity: p2p.subsequent_invoice, tcode: MIRO}
+      - {label: Cancel Invoice Document, activity: p2p.ir_cancel, tcode: MR8M}
+      - {label: Rechnungsbeleg stornieren, activity: p2p.ir_cancel, tcode: MR8M}
+      - {label: Release Blocked Invoices, activity: p2p.payment_block_remove, tcode: MRBR}
+      - {label: Gesperrte Rechnungen freigeben, activity: p2p.payment_block_remove, tcode: MRBR}
+      - {label: Automatic Payment Transactions, activity: p2p.invoice_clear, tcode: F110}
+      - {label: Zahllauf, activity: p2p.invoice_clear, tcode: F110}
+      - {label: Post Outgoing Payment, activity: p2p.invoice_clear, tcode: F-53}
+      - {label: Enter Vendor Invoice, activity: p2p.ir, tcode: FB60, note: FI invoice without PO reference; flags maverick buying when it dominates}
+      - {label: Block Invoice for Payment, activity: p2p.payment_block_set, tcode: MIRO}
+      - {label: Zahlsperre setzen, activity: p2p.payment_block_set}
+      - {label: Set Deletion Indicator, activity: p2p.po_item_delete, tcode: ME22N}
+      - {label: Löschkennzeichen setzen, activity: p2p.po_item_delete, tcode: ME22N}

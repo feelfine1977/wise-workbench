@@ -1,0 +1,140 @@
+# Purchase-to-pay stage model: stages, allowed loops, expected orderings, variants.
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - BPI Challenge 2019 (item categories as flow types; shares measured on 2026-09-05)
+  - Jessen, Fahland, Zerbato, WISE, BPIC 2019 norm (flow types DF1, DF2, 2-way, Consignment)
+  - SAP MM documentation (GR-based invoice verification, consignment settlement, service entry)
+  - APQC Process Classification Framework, 4.2 Procure materials and services
+case_notion:
+  default: purchase order item (purchasing document x item)
+  alternatives:
+    - purchase order header (governance roll-up; document/object roll-up in prioritize)
+    - invoice document (accounts-payable view; one invoice covers several items)
+    - purchase requisition (request-side view; most PO items have no requisition in BPIC 2019)
+  pitfalls:
+    - Header events (PO creation, SRM statuses, currency and payment-term changes, release) are replicated onto every item; type them as header events before counting rework.
+    - Flow types come from the item category and the GR-based invoice verification flag; every case needs a flow type or 'other'.
+    - Open items at the end of the window are right-censored; presence and lag constraints need the censoring diagnostics.
+    - Timestamp outliers (1948, 2020) in BPIC 2019 are sentinel values, not events.
+stages:
+  - id: request
+    name: {en: Request, de: Bedarf anfordern}
+    order: 1
+    description: A need is expressed as a requisition, a shopping cart or a request for quotation.
+    milestones: [p2p.pr_item_create, p2p.pr_create, p2p.srm_created]
+    loops_allowed_to: []
+  - id: approve
+    name: {en: Approve, de: Genehmigen}
+    order: 2
+    description: Requisition and purchase order pass their release strategies; approvals recur after changes.
+    milestones: [p2p.pr_release, p2p.po_release, p2p.srm_complete]
+    loops_allowed_to: [request]
+  - id: order
+    name: {en: Order, de: Bestellen}
+    order: 3
+    description: The purchase order item is created, sent and confirmed by the vendor; changes to price, quantity and dates happen here.
+    milestones: [p2p.po_item_create, p2p.po_create, p2p.srm_ordered]
+    loops_allowed_to: [approve]
+  - id: receive
+    name: {en: Receive, de: Wareneingang}
+    order: 4
+    description: Goods are received or services are accepted; partial receipts loop within the stage.
+    milestones: [p2p.gr, p2p.ses]
+    loops_allowed_to: [order, receive]
+  - id: invoice
+    name: {en: Invoice, de: Rechnung}
+    order: 5
+    description: The vendor invoice is created and recorded; corrections (cancellations, subsequent debits, memos) belong here.
+    milestones: [p2p.ir, p2p.vendor_invoice]
+    loops_allowed_to: [receive, invoice]
+  - id: match
+    name: {en: Match, de: Rechnungsprüfung}
+    order: 6
+    description: Invoice, order and receipt are matched; variances block payment until released.
+    milestones: [p2p.match_3way, p2p.match_2way, p2p.payment_block_remove]
+    loops_allowed_to: [invoice, receive]
+  - id: pay
+    name: {en: Pay, de: Zahlen}
+    order: 7
+    description: The invoice is cleared by a payment run.
+    milestones: [p2p.invoice_clear]
+    loops_allowed_to: [invoice]
+expected_orderings:
+  - {a: p2p.pr_item_create, b: p2p.pr_release, note: requisition before its release}
+  - {a: p2p.pr_create, b: p2p.pr_release}
+  - {a: p2p.pr_release, b: p2p.po_item_create, note: released requisition before the order item}
+  - {a: p2p.pr_release, b: p2p.po_create}
+  - {a: p2p.srm_created, b: p2p.srm_awaiting_approval}
+  - {a: p2p.srm_awaiting_approval, b: p2p.srm_complete}
+  - {a: p2p.srm_complete, b: p2p.srm_ordered}
+  - {a: p2p.srm_ordered, b: p2p.srm_transfer}
+  - {a: p2p.srm_transfer, b: p2p.po_item_create}
+  - {a: p2p.po_create, b: p2p.po_item_create, note: header before item when both are logged}
+  - {a: p2p.po_item_create, b: p2p.po_release}
+  - {a: p2p.po_create, b: p2p.po_release}
+  - {a: p2p.po_release, b: p2p.po_send}
+  - {a: p2p.po_send, b: p2p.po_confirmation_receive}
+  - {a: p2p.po_item_create, b: p2p.po_confirmation_receive}
+  - {a: p2p.po_confirmation_receive, b: p2p.gr, variants: [three_way_gr_first, three_way_invoice_first, consignment]}
+  - {a: p2p.po_item_create, b: p2p.gr, variants: [three_way_gr_first, three_way_invoice_first, consignment]}
+  - {a: p2p.po_item_create, b: p2p.ses, variants: [service]}
+  - {a: p2p.gr, b: p2p.ir, variants: [three_way_gr_first], note: invoice after goods receipt in GR-based invoice verification}
+  - {a: p2p.ses, b: p2p.ir, variants: [service]}
+  - {a: p2p.gr, b: p2p.payment_block_remove, variants: [three_way_invoice_first], note: the block on an early invoice is released once goods arrive}
+  - {a: p2p.ir, b: p2p.match_3way, variants: [three_way_gr_first, three_way_invoice_first]}
+  - {a: p2p.ir, b: p2p.match_2way, variants: [two_way]}
+  - {a: p2p.payment_block_set, b: p2p.payment_block_remove}
+  - {a: p2p.ir, b: p2p.invoice_clear}
+  - {a: p2p.vendor_invoice, b: p2p.ir}
+  - {a: p2p.match_3way, b: p2p.invoice_clear, variants: [three_way_gr_first, three_way_invoice_first]}
+  - {a: p2p.match_2way, b: p2p.invoice_clear, variants: [two_way]}
+  - {a: p2p.payment_block_remove, b: p2p.invoice_clear}
+variants:
+  - id: three_way_gr_first
+    name: {en: "Three-way match, invoice after goods receipt", de: "Dreiwege-Abgleich, Rechnung nach Wareneingang"}
+    description: GR-based invoice verification; the invoice is expected after the goods receipt and matched against it.
+    stage_sequence: [request, approve, order, receive, invoice, match, pay]
+    flow_type_codes: {p2p_bpic19: DF1, bpic2019_item_category: "3-way match, invoice after GR"}
+    applicability_hint: item category '3-way match, invoice after GR' or GR-based IV flag set
+    evidence: [bpic2019]
+    observed_share: {value: 0.0603, of: PO items, source: bpic2019, date: "2026-09-05"}
+  - id: three_way_invoice_first
+    name: {en: "Three-way match, invoice before goods receipt", de: "Dreiwege-Abgleich, Rechnung vor Wareneingang"}
+    description: The invoice may arrive before the goods; it is blocked until the receipt is posted and released afterwards.
+    stage_sequence: [request, approve, order, invoice, receive, match, pay]
+    flow_type_codes: {p2p_bpic19: DF2, bpic2019_item_category: "3-way match, invoice before GR"}
+    applicability_hint: item category '3-way match, invoice before GR'
+    evidence: [bpic2019]
+    observed_share: {value: 0.878, of: PO items, source: bpic2019, date: "2026-09-05"}
+  - id: two_way
+    name: {en: Two-way match, de: Zweiwege-Abgleich}
+    description: No goods receipt is expected; the invoice is matched against the order only.
+    stage_sequence: [request, approve, order, invoice, match, pay]
+    flow_type_codes: {p2p_bpic19: 2-way, bpic2019_item_category: 2-way match}
+    applicability_hint: item category '2-way match'
+    evidence: [bpic2019, ocel2_p2p]
+    observed_share: {value: 0.0041, of: PO items, source: bpic2019, date: "2026-09-05"}
+  - id: consignment
+    name: {en: Consignment, de: Konsignation}
+    description: Goods are received into consignment stock and settled periodically; no invoice clearing per item is expected.
+    stage_sequence: [order, receive, pay]
+    flow_type_codes: {p2p_bpic19: Consignment, bpic2019_item_category: Consignment}
+    applicability_hint: item category 'Consignment'
+    evidence: [bpic2019]
+    observed_share: {value: 0.0576, of: PO items, source: bpic2019, date: "2026-09-05"}
+  - id: service
+    name: {en: Service procurement, de: Dienstleistungsbeschaffung}
+    description: Services are accepted on a service entry sheet, which replaces the goods receipt as match evidence.
+    stage_sequence: [request, approve, order, receive, invoice, match, pay]
+    applicability_hint: item type 'Service' or presence of a service entry sheet; BPIC 2019 records the sheet on 2.2 % of items inside the 3-way categories
+    evidence: [bpic2019]
+    observed_share: {value: 0.0223, of: PO items with a service entry sheet, source: bpic2019, date: "2026-09-05"}
+  - id: framework_order
+    name: {en: Framework order, de: Rahmenbestellung}
+    description: A limit order against which invoices are posted without item-level receipts; document type 'Framework order' in BPIC 2019.
+    stage_sequence: [request, approve, order, invoice, match, pay]
+    applicability_hint: document type 'Framework order'
+    evidence: [bpic2019]
+    notes: Not separated in the paper's norm; treat as two-way unless the owners decide otherwise.

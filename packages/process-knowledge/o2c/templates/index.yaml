@@ -1,0 +1,25 @@
+# Norm templates shipped with the order-to-cash pack.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - failure_modes.yaml of this pack (one constraint pattern per failure mode)
+  - o2c/README.md §2 (first entries)
+templates:
+  - id: o2c_baseline
+    file: o2c_baseline.json
+    name: O2C baseline (canonical ids, uncalibrated)
+    description: Order-to-cash norm derived from the failure-mode catalogue; activity parameters are canonical ids; presence, lag with censoring, balance and applicability rules on return items; every threshold flagged uncalibrated in metadata.meta.
+    calibration: uncalibrated
+    activity_labels: canonical_ids
+    evidence: [icpm2026_hackathon]
+    dataset: icpm2026_hackathon
+    flow_type_attribute: flow_type
+    flow_types: {standard: delivery-related billing, make_to_order: make-to-order, partial_delivery: partial deliveries allowed, order_related_billing: order-related billing, returns: return items, rejected: rejected at capture}
+    review_status: draft
+    notes: >
+      Case attributes expected: return_item (X for return items), confirmed_quantity,
+      flow_type (recipe), days_late (goods issue date minus requested delivery date,
+      prepared before scoring); event attributes order_quantity and confirmed_quantity
+      for the balance constraint. Invoice and payment constraints are vocabulary
+      until a log covers those stages.

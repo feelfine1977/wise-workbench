@@ -1,0 +1,133 @@
+# Order-to-cash slicing guidance: roles, recommended slice keys, exposure,
+# identification pitfalls. Never slice by single users or sales representatives.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - o2c/README.md §3 (slice keys, exposure, applicability measured on the hackathon extract)
+  - docs/panel/process_panel.md §5 (O2C slice keys and pitfalls)
+  - docs/panel/llm_knowledge_architecture.md §2.1
+roles:
+  - id: sales
+    name: {en: Sales, de: Vertrieb}
+    description: Owns customer relationships, pricing and cancellations.
+    systems: [SAP SD, CRM]
+  - id: order_management
+    name: {en: Order management, de: Auftragsmanagement}
+    description: Captures orders, manages confirmations, dates and open items.
+    systems: [SAP SD]
+  - id: supply_planning
+    name: {en: Supply planning, de: Bedarfs- und Versorgungsplanung}
+    description: Owns availability, safety stock and backorder processing.
+    systems: [SAP MM/PP, APS]
+  - id: logistics
+    name: {en: Logistics and shipping, de: Logistik und Versand}
+    description: Creates deliveries, picks, packs, posts goods issue, handles carriers.
+    systems: [SAP SD shipping, WMS, TMS]
+  - id: customer_service
+    name: {en: Customer service, de: Kundenservice}
+    description: Handles blocks, returns authorisations and customer communication.
+  - id: credit_management
+    name: {en: Credit management, de: Kreditmanagement}
+    description: Sets and releases credit blocks; owns limits.
+    systems: [SAP FI-AR credit management]
+  - id: accounts_receivable
+    name: {en: Accounts receivable (billing and collection), de: Debitorenbuchhaltung (Fakturierung und Inkasso)}
+    description: Runs billing, cash application and dunning.
+    systems: [SAP SD billing, SAP FI-AR]
+  - id: finance_controlling
+    name: {en: Finance and controlling, de: Finanzen und Controlling}
+    description: Owns working-capital targets and commercial-risk indicators.
+  - id: master_data
+    name: {en: Master data, de: Stammdaten}
+    description: Owns customer, material and condition data, planning types and item categories.
+slice_keys:
+  - id: customer
+    name: {en: Customer, de: Kunde}
+    description: The sold-to party; the primary ownership slice for sales (68 customers in the extract).
+    owner_role: sales
+    recommended: true
+    attributes: {icpm2026_hackathon: Customer ID, sap: KUNNR, ocel2_order_management: customer object}
+    cardinality_hint: 68 in the hackathon extract
+    min_cases_hint: 30
+    pitfalls:
+      - Small customers identify a single contact; merge into customer groups below min_cases
+    combine_with: [sku, plant]
+  - id: sku
+    name: {en: Material (SKU), de: Material (SKU)}
+    description: The product; explains availability and make-to-order patterns (71 SKUs in the extract).
+    owner_role: supply_planning
+    recommended: true
+    attributes: {icpm2026_hackathon: SKU ID, sap: MATNR}
+    cardinality_hint: 71 in the hackathon extract
+    combine_with: [customer, material_group]
+  - id: material_group
+    name: {en: Material group and planning type, de: Warengruppe und Planungsart}
+    description: From the material master; separates make-to-order from stock items.
+    owner_role: master_data
+    recommended: true
+    attributes: {sap: MATKL / DISPO strategy group, icpm2026_hackathon: material master join}
+  - id: plant
+    name: {en: Plant, de: Werk}
+    description: The shipping site; owner is the site logistics lead.
+    owner_role: logistics
+    recommended: true
+    attributes: {sap: WERKS}
+  - id: incoterms
+    name: {en: Incoterms, de: Incoterms}
+    description: DAP 74 %, CPT 26 %, FCA 0.4 % in the extract; FCA is too small to slice alone.
+    owner_role: logistics
+    recommended: false
+    attributes: {icpm2026_hackathon: Incoterms (Part 1), sap: INCO1}
+    cardinality_hint: 3 in the hackathon extract
+    pitfalls:
+      - FCA below min_cases; merge with CPT or exclude
+  - id: sales_org
+    name: {en: Sales organisation and distribution channel, de: Verkaufsorganisation und Vertriebsweg}
+    description: The selling unit; each has a named head (vocabulary; not in the extract).
+    owner_role: sales
+    recommended: true
+    attributes: {sap: VKORG / VTWEG}
+  - id: customer_group
+    name: {en: Customer group, de: Kundengruppe}
+    description: Aggregation of customers for small slices (vocabulary).
+    owner_role: sales
+    recommended: false
+    attributes: {sap: KDGRP}
+  - id: period
+    name: {en: Period (order month), de: Periode (Auftragsmonat)}
+    description: Order creation month; for period comparison against a frozen baseline.
+    owner_role: finance_controlling
+    recommended: true
+    attributes: {icpm2026_hackathon: Order Item Created On, sap: ERDAT}
+    pitfalls:
+      - The last months are right-censored (4.8 % of items without goods issue at the extract end)
+  - id: order_header
+    name: {en: Sales order header (roll-up), de: Kundenauftragskopf (Aggregation)}
+    description: Document roll-up of item scores.
+    owner_role: order_management
+    recommended: false
+    attributes: {icpm2026_hackathon: Sales Document Number, sap: VBELN}
+never_slice_by:
+  - key: user / org:resource
+    reason: Identifies individuals; use hand-off and touch attributes aggregated per slice instead.
+    alternative: derived touch counts per customer or plant
+  - key: sales representative
+    reason: Same as user; commitment and cancellation shortfalls are reported per customer group and sales organisation.
+    alternative: sales_org x customer_group
+  - key: carrier driver or picker
+    reason: Identifies individuals in the warehouse; report per plant and shift only with min_cases.
+    alternative: plant
+exposure:
+  - id: order_quantity
+    name: {en: Order quantity, de: Bestellmenge}
+    attributes: {icpm2026_hackathon: Order Quantity, sap: KWMENG}
+    note: No value column in the sales extract; value joins are a customer-side decision.
+  - id: net_value
+    name: {en: Net order value, de: Nettoauftragswert}
+    attributes: {sap: NETWR}
+    note: Preferred exposure where available.
+identification_pitfalls:
+  - Customer numbers can identify sole traders; show customer slices to sales and finance only.
+  - Slices below min_cases are hidden or merged; the threshold is recorded in the run manifest.
+  - Resource columns are used only through derived attributes, never as slice keys or in narratives.

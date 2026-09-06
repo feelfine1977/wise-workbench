@@ -1,0 +1,62 @@
+"""Presets: public logs with a known mapping and norm, loaded in one job."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from wise_workbench.domain import Job, JobKind, JobStatus, NotFoundError, ValidationError
+from wise_workbench.jobs.handlers.load_preset import fit_mapping, preset_paths
+from wise_workbench.presets import PRESETS
+
+if TYPE_CHECKING:  # pragma: no cover
+    from wise_workbench.container import Container
+
+
+class PresetService:
+    def __init__(self, c: Container):
+        self.c = c
+
+    def list(self, project_id: str) -> list[dict[str, Any]]:
+        self.c.repos.get_project(project_id)
+        out = []
+        for preset in PRESETS.values():
+            csv, norm = preset_paths(self.c.settings, preset)
+            out.append(
+                {
+                    "id": preset.id,
+                    "name": preset.name,
+                    "description": preset.description,
+                    "available": csv.exists() and norm.exists(),
+                    "source": str(csv),
+                    "norm": str(norm),
+                    "mapping": fit_mapping(preset.mapping, set())
+                    | {"caseAttributes": list(preset.mapping["caseAttributes"])},
+                    "slicing": list(preset.slicing),
+                    "view": preset.view,
+                    "gamma": preset.gamma,
+                    "minCases": preset.min_cases,
+                    "process": preset.process,
+                }
+            )
+        return out
+
+    def load(self, project_id: str, preset_id: str) -> Job:
+        self.c.repos.get_project(project_id)
+        preset = PRESETS.get(preset_id)
+        if preset is None:
+            raise NotFoundError(f"unknown preset {preset_id!r}; known: {sorted(PRESETS)}", code="preset.not_found")
+        csv, norm = preset_paths(self.c.settings, preset)
+        missing = [str(p) for p in (csv, norm) if not p.exists()]
+        if missing:
+            raise ValidationError(
+                f"preset {preset_id!r} is not available on this machine; missing: {missing}",
+                code="preset.unavailable",
+                errors=[{"field": "path", "message": m} for m in missing],
+            )
+        for status in (JobStatus.QUEUED, JobStatus.RUNNING):
+            for job in self.c.queue.list(status=str(status), project_id=project_id):
+                if job.kind == str(JobKind.LOAD_PRESET) and job.payload.get("presetId") == preset_id:
+                    return job
+        return self.c.queue.enqueue(
+            str(JobKind.LOAD_PRESET), {"projectId": project_id, "presetId": preset_id}, project_id=project_id
+        )

@@ -1,0 +1,19 @@
+{
+  "name": "@wise/design-tokens",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Design tokens for the WISE Workbench: tokens.json compiled to CSS variables and ECharts themes.",
+  "main": "tokens.json",
+  "exports": {
+    ".": "./tokens.json",
+    "./tokens.json": "./tokens.json",
+    "./dist/*": "./dist/*"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

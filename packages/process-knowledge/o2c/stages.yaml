@@ -1,0 +1,128 @@
+# Order-to-cash stage model.
+pack: o2c
+version: 1
+review_status: draft
+sources:
+  - packages/process-knowledge/o2c/README.md §1 (stage table with measured coverage)
+  - ICPM 2026 hackathon sales extract, measured 2026-09-05
+  - SAP SD documentation (sales, shipping, billing), APQC PCF 5.0 and 9.2
+case_notion:
+  default: sales document item (Sales Document Number + Item)
+  alternatives:
+    - sales order header (governance roll-up; header events such as Create Order are replicated onto every item)
+    - delivery item (logistics view; one delivery may serve several order items and one item several deliveries)
+    - billing document item (accounts-receivable view; not in the hackathon extract)
+  pitfalls:
+    - "Header events (Create Order) are replicated onto every item; type them as header events before counting."
+    - "Returns are separate items flagged 'Returns Item' = X; exclude them from delivery-performance constraints."
+    - "Items rejected at capture (rejection reason set before any confirmation) never deliver; exclude them from delivery-performance constraints."
+    - "4.8 % of items have no goods issue at the extract end (open or cancelled); read presence and lag shortfalls with the censoring diagnostics."
+    - "Confirmation events are logged for 4 % of items only; a presence rule on them measures logging."
+stages:
+  - id: capture
+    name: {en: Capture, de: Auftragserfassung}
+    order: 1
+    description: The order and its items are captured and confirmed to the customer; credit checks and manual pricing happen here.
+    milestones: [o2c.order_create, o2c.item_create, o2c.confirmation_send]
+    loops_allowed_to: []
+  - id: commit
+    name: {en: Commit, de: Zusage}
+    order: 2
+    description: Availability check and schedule lines commit quantity and date; later changes to dates, quantities, blocks and rejections are commitment changes.
+    milestones: [o2c.schedule_confirm]
+    loops_allowed_to: [capture, commit]
+  - id: fulfil
+    name: {en: Fulfil, de: Erfüllung}
+    order: 3
+    description: Delivery creation, picking, packing and goods issue; partial deliveries loop within the stage.
+    milestones: [o2c.delivery_create, o2c.pick, o2c.goods_issue]
+    loops_allowed_to: [commit, fulfil]
+  - id: return
+    name: {en: Return, de: Retoure}
+    order: 4
+    description: Goods come back or the goods issue is reversed; returns are separate items linked to the original.
+    milestones: [o2c.return_delivery, o2c.return_to_own_stock]
+    loops_allowed_to: [fulfil, invoice]
+  - id: invoice
+    name: {en: Invoice, de: Fakturierung}
+    order: 5
+    description: The billing document is created from the delivery; corrections (cancellations, credit and debit memos) belong here.
+    milestones: [o2c.invoice_create]
+    loops_allowed_to: [invoice, return]
+  - id: pay
+    name: {en: Pay, de: Zahlung}
+    order: 6
+    description: The receivable is cleared by the customer's payment; dunning for overdue items.
+    milestones: [o2c.payment_receive]
+    loops_allowed_to: [invoice]
+expected_orderings:
+  - {a: o2c.inquiry_create, b: o2c.quotation_create}
+  - {a: o2c.quotation_create, b: o2c.order_create}
+  - {a: o2c.order_create, b: o2c.item_create, note: header before item when both are logged}
+  - {a: o2c.item_create, b: o2c.confirmation_send}
+  - {a: o2c.item_create, b: o2c.schedule_confirm}
+  - {a: o2c.credit_block_set, b: o2c.credit_block_release}
+  - {a: o2c.credit_block_release, b: o2c.delivery_create}
+  - {a: o2c.delivery_block_set, b: o2c.delivery_block_release}
+  - {a: o2c.delivery_block_release, b: o2c.delivery_create}
+  - {a: o2c.item_create, b: o2c.delivery_create, variants: [standard, make_to_order, partial_delivery]}
+  - {a: o2c.delivery_create, b: o2c.pick}
+  - {a: o2c.pick, b: o2c.pack}
+  - {a: o2c.pick, b: o2c.goods_issue}
+  - {a: o2c.pack, b: o2c.goods_issue}
+  - {a: o2c.goods_issue, b: o2c.delivery_complete}
+  - {a: o2c.goods_issue, b: o2c.invoice_create, variants: [standard, make_to_order, partial_delivery]}
+  - {a: o2c.item_create, b: o2c.invoice_create, variants: [order_related_billing]}
+  - {a: o2c.invoice_create, b: o2c.payment_receive}
+  - {a: o2c.invoice_create, b: o2c.dunning}
+  - {a: o2c.dunning, b: o2c.payment_receive}
+  - {a: o2c.goods_issue, b: o2c.delivery_reversal}
+  - {a: o2c.return_order_create, b: o2c.return_delivery, variants: [returns]}
+  - {a: o2c.return_delivery, b: o2c.return_to_own_stock, variants: [returns]}
+  - {a: o2c.return_delivery, b: o2c.credit_memo_create, variants: [returns]}
+variants:
+  - id: standard
+    name: {en: Standard delivery-related billing, de: Standard mit lieferbezogener Fakturierung}
+    description: Order, commitment, delivery, goods issue, delivery-related invoice, payment.
+    stage_sequence: [capture, commit, fulfil, invoice, pay]
+    flow_type_codes: {o2c_baseline: standard}
+    applicability_hint: items that are not return items and were not rejected at capture
+    evidence: [icpm2026_hackathon]
+    observed_share: {value: 0.952, of: order items with a goods issue, source: icpm2026_hackathon, date: "2026-09-05"}
+  - id: make_to_order
+    name: {en: Make-to-order, de: Kundeneinzelfertigung}
+    description: The item is produced after ordering; order-to-issue lags are structurally longer and need their own thresholds.
+    stage_sequence: [capture, commit, fulfil, invoice, pay]
+    flow_type_codes: {o2c_baseline: make_to_order}
+    applicability_hint: planning type from the material master
+    evidence: [icpm2026_hackathon]
+    notes: The extract's p90 order-to-issue lag of 67 days against a median of 1.9 days points to a make-to-order tail; confirm with the material master.
+  - id: partial_delivery
+    name: {en: Partial deliveries, de: Teillieferungen}
+    description: One order item is shipped in several deliveries; delivery counts above one are legitimate.
+    stage_sequence: [capture, commit, fulfil, fulfil, invoice, pay]
+    flow_type_codes: {o2c_baseline: partial_delivery}
+    applicability_hint: partial delivery indicator on the item or customer
+    evidence: none
+  - id: order_related_billing
+    name: {en: Order-related billing (services), de: Auftragsbezogene Fakturierung (Leistungen)}
+    description: Invoicing from the order without a delivery (services, down payments).
+    stage_sequence: [capture, commit, invoice, pay]
+    flow_type_codes: {o2c_baseline: order_related_billing}
+    applicability_hint: item category with order-related billing
+    evidence: none
+  - id: returns
+    name: {en: Returns, de: Retouren}
+    description: Return order, returns delivery, transfer to own stock, credit memo; a separate item linked to the original.
+    stage_sequence: [capture, return, invoice]
+    flow_type_codes: {o2c_baseline: returns}
+    applicability_hint: "'Returns Item' = X in the hackathon extract; order type RE in SAP SD"
+    evidence: [icpm2026_hackathon]
+    observed_share: {value: 0.0004, of: "order items flagged as return items (20 of 51,164)", source: icpm2026_hackathon, date: "2026-09-05"}
+  - id: rejected_at_capture
+    name: {en: Rejected at capture, de: Bei Erfassung abgesagt}
+    description: The item receives a rejection reason before any commitment; no delivery is expected.
+    stage_sequence: [capture]
+    flow_type_codes: {o2c_baseline: rejected}
+    applicability_hint: rejection reason set and no confirmed schedule line
+    evidence: [icpm2026_hackathon]

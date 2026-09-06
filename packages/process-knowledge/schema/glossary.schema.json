@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/glossary.schema.json",
+  "title": "Glossary in English and German",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "terms"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "terms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "term", "definition", "review_status"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "version": { "$ref": "common.schema.json#/$defs/version" },
+          "term": {
+            "type": "object",
+            "required": ["en", "de"],
+            "properties": { "en": { "type": "string", "minLength": 1 }, "de": { "type": "string", "minLength": 1 } },
+            "additionalProperties": false
+          },
+          "definition": {
+            "type": "object",
+            "required": ["en"],
+            "properties": { "en": { "type": "string", "minLength": 1 }, "de": { "type": "string", "minLength": 1 } },
+            "additionalProperties": false
+          },
+          "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "activities": { "$ref": "common.schema.json#/$defs/idList" },
+          "stages": { "$ref": "common.schema.json#/$defs/idList" },
+          "failure_modes": { "$ref": "common.schema.json#/$defs/idList" },
+          "sources": { "$ref": "common.schema.json#/$defs/sources" },
+          "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

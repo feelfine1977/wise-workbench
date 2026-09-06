@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/stages.schema.json",
+  "title": "Stage model: ordered stages, allowed loops, expected orderings, variants",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "stages"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "case_notion": {
+      "type": "object",
+      "required": ["default"],
+      "properties": {
+        "default": { "type": "string" },
+        "alternatives": { "type": "array", "items": { "type": "string" } },
+        "pitfalls": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "order", "description"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "order": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "loops_allowed_to": {
+            "$ref": "common.schema.json#/$defs/idList",
+            "description": "Stages the process may legitimately return to from this stage."
+          },
+          "milestones": {
+            "$ref": "common.schema.json#/$defs/idList",
+            "description": "Canonical activities that mark the stage as reached."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "expected_orderings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["a", "b"],
+        "properties": {
+          "a": { "$ref": "common.schema.json#/$defs/id" },
+          "b": { "$ref": "common.schema.json#/$defs/id" },
+          "variants": { "$ref": "common.schema.json#/$defs/idList", "description": "Variants in which the ordering holds; all when omitted." },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "stage_sequence"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "name": { "$ref": "common.schema.json#/$defs/text" },
+          "description": { "type": "string", "minLength": 1 },
+          "stage_sequence": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/id" } },
+          "flow_type_codes": {
+            "type": "object",
+            "description": "Codes used for this variant in known datasets or templates (e.g. DF1 in the BPIC 2019 norm).",
+            "additionalProperties": { "type": "string" }
+          },
+          "applicability_hint": { "type": "string" },
+          "evidence": { "$ref": "common.schema.json#/$defs/evidence" },
+          "observed_share": { "$ref": "#/$defs/observedShare" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "observedShare": {
+      "type": "object",
+      "required": ["value", "of", "source"],
+      "properties": {
+        "value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "of": { "type": "string" },
+        "source": { "type": "string" },
+        "date": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

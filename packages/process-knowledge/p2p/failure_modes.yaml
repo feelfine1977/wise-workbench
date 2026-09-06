@@ -1,0 +1,818 @@
+# Purchase-to-pay failure-mode catalogue.
+# Every entry names its signature in canonical activities, the WISE constraint
+# pattern that detects it (with the constraint id in the paper's BPIC 2019
+# norm where one exists), measured shares as seeds (never thresholds),
+# candidate causes and remedies for stages S8 and S9, the evidence to check
+# before acting, the owner role and sources. Shares were measured on
+# 2026-09-05 on the BPIC 2019 CSV (251,734 PO items) and on the hackathon
+# purchase extract (1,412 PO items).
+pack: p2p
+version: 1
+review_status: draft
+sources:
+  - BPI Challenge 2019 CSV, shares measured on 2026-09-05 (case = PO item)
+  - ICPM 2026 hackathon purchase extract, shares measured on 2026-09-05 (case = PO item)
+  - Jessen, Fahland, Zerbato, WISE, BPIC 2019 norm (examples/bpic19_norm.json, 29 constraints)
+  - docs/panel/llm_knowledge_architecture.md §2.1 (typical failure modes per process)
+  - SAP MM documentation (release strategy, GR-based invoice verification, tolerance keys, payment blocks)
+  - BPI Challenge 2019 winner reports (invoice-before-GR and change patterns)
+layers:
+  - id: closure_completeness
+    name: {en: Expected completion and closure, de: Erwartete Vollständigkeit und Abschluss}
+    template_layers: {p2p_bpic19: L1_closure_completeness, p2p_baseline: closure}
+  - id: flow_discipline
+    name: {en: Flow-conditioned control discipline, de: Flussabhängige Kontrolldisziplin}
+    template_layers: {p2p_bpic19: L2_flow_discipline, p2p_baseline: flow_discipline}
+  - id: approval_discipline
+    name: {en: Approval discipline, de: Genehmigungsdisziplin}
+    template_layers: {p2p_baseline: approval}
+  - id: timeliness_ageing
+    name: {en: Handovers and ageing, de: Übergaben und Alterung}
+    template_layers: {p2p_bpic19: L3_timeliness_ageing, p2p_baseline: timeliness}
+  - id: rework_instability
+    name: {en: Rework and instability, de: Nacharbeit und Instabilität}
+    template_layers: {p2p_bpic19: L4_rework_instability, p2p_baseline: rework}
+  - id: exceptions_corrections
+    name: {en: Exceptions and corrections, de: Ausnahmen und Korrekturen}
+    template_layers: {p2p_bpic19: L5_exceptions_corrections, p2p_baseline: exceptions}
+  - id: value_commercial
+    name: {en: Value and commercial integrity, de: Wert und kaufmännische Integrität}
+    description: Commercial-risk indicators, not audit findings.
+    template_layers: {p2p_bpic19: L6_value_commercial, p2p_baseline: value}
+  - id: effort_automation
+    name: {en: Effort and automation friction, de: Aufwand und Automatisierungsreibung}
+    template_layers: {p2p_bpic19: L7_effort_automation, p2p_baseline: effort}
+
+failure_modes:
+  # ------------------------------------------------------------- order stage
+  - id: p2p.fm.price_change_after_po
+    version: 1
+    name: {en: Price change after ordering, de: Preisänderung nach Bestellung}
+    stage: order
+    signature: p2p.po_change_price after p2p.po_item_create (99.6 % of price changes are after item creation; 29.6 % after the first goods receipt)
+    signature_activities: [p2p.po_change_price, p2p.po_item_create, p2p.gr]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_change_price], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_change_price, calibration: calibrated, applicability: all flow types}
+      - {type: metric, attribute: c_l6_high_exposure_price_change__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_high_exposure_price_change, calibration: calibrated, note: price change weighted by quantile-scaled exposure (derived attribute)}
+      - {type: singularity, activities: [p2p.po_change_price], after: [p2p.po_item_create], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_baseline, constraint_ref: b_value_price_change_after_po, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0446, of: PO items with at least one price change, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.9964, of: PO items with a price change whose first price change follows item creation, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.2961, of: PO items with a price change and a goods receipt whose first price change follows the first goods receipt, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Quotation or info record expired before the order was placed; the price was settled afterwards
+      - Order placed before the negotiation ended (order first, agree later)
+      - Vendor confirmation carries a different price and the buyer aligns the order to it
+      - Invoice price variance resolved by editing the order instead of disputing the invoice (changes after goods receipt)
+      - Condition or currency maintenance in the purchasing master data
+    typical_remedies:
+      - Maintain contracts and info records before ordering; block release until the price is confirmed
+      - Route invoice price variances through tolerance keys and dispute, not through order edits
+      - Vendor scorecard on confirmation price deviations; review catalogue refresh cadence
+    evidence_to_check:
+      - Timing of the price change relative to goods receipt and invoice (after-GR changes point to invoice-driven edits)
+      - Vendor and spend-area concentration of price changes; exposure of the affected items
+      - Whether a vendor confirmation with a different price precedes the change
+      - "Header replication: a header-level condition change lands on every item of the order"
+    owner_role: purchasing
+    kpis: [p2p.kpi.price_change_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l6_change_price, SAP MM documentation tolerance keys PE and PP]
+    review_status: draft
+
+  - id: p2p.fm.quantity_change_after_po
+    version: 1
+    name: {en: Quantity change after ordering, de: Mengenänderung nach Bestellung}
+    stage: order
+    signature: p2p.po_change_quantity after p2p.po_item_create; 10.9 % of quantity-changed items change after the first goods receipt
+    signature_activities: [p2p.po_change_quantity, p2p.po_item_create, p2p.gr]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_change_quantity], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_change_quantity, calibration: calibrated}
+      - {type: singularity, activities: [p2p.po_change_quantity], after: [p2p.gr], params: {k: 0, K: 2}, layer: value_commercial, template: p2p_baseline, constraint_ref: b_value_quantity_change_after_gr, calibration: uncalibrated, note: changes after receipt are the commercial-risk part; earlier changes belong to commitment discipline}
+    observed_share:
+      - {value: 0.0699, of: PO items with at least one quantity change, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.1094, of: PO items with a quantity change and a goods receipt whose first quantity change follows the first goods receipt, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.1048, of: PO items with a quantity decrease, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.0078, of: PO items with a quantity increase, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [bpic2019, icpm2026_hackathon]
+    typical_causes:
+      - Vendor confirms a smaller quantity or partial availability; the order is aligned to the confirmation
+      - Demand change on the requester side after ordering
+      - Order closed by reducing the quantity to the delivered amount instead of setting the delivery-completed indicator
+      - Packaging units and minimum order quantities not maintained in the material master
+    typical_remedies:
+      - Use the delivery-completed indicator for closing short deliveries
+      - Maintain rounding profiles and minimum quantities in the vendor info record
+      - Confirmation control so that vendor confirmations are recorded, not copied into the order
+    evidence_to_check:
+      - Direction of the change (decrease vs increase) from changed_from and changed_to where logged
+      - Whether a vendor confirmation precedes the change; planned lead time and vendor country
+      - Quantity changes after goods receipt vs before; delivery-completed indicator usage
+    owner_role: purchasing
+    kpis: [p2p.kpi.quantity_change_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, ICPM 2026 hackathon measurement 2026-09-05, WISE BPIC 2019 norm c_l6_change_quantity]
+    review_status: draft
+
+  - id: p2p.fm.deleted_item
+    version: 1
+    name: {en: Purchase order item deleted, de: Bestellposition gelöscht}
+    stage: order
+    signature: p2p.po_item_delete on the item (3.5 % of items in BPIC 2019); reactivations on 0.2 %
+    signature_activities: [p2p.po_item_delete, p2p.po_item_reactivate]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.po_item_delete], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_delete_item, calibration: calibrated}
+      - {type: exclusion, activities: [p2p.po_item_delete], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_delete_item, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0351, of: PO items with a deletion, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0021, of: PO items with a reactivation, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0127, of: PO items with the deleted flag changed, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [bpic2019, icpm2026_hackathon]
+    typical_causes:
+      - Duplicate orders or requirement withdrawn after ordering
+      - Vendor cannot deliver; the item is re-ordered elsewhere
+      - Delete-and-recreate used instead of a change (new item numbers for changed items)
+      - Cleanup of old open items at period end
+    typical_remedies:
+      - Change the item instead of deleting and recreating it; keep the change history on one item
+      - Vendor-availability check before ordering; confirmation control
+      - Periodic review of open items with owners instead of bulk deletions
+    evidence_to_check:
+      - "Deletion timing: before any receipt (cancellation) vs after receipt or invoice (cleanup)"
+      - Whether a replacement item appears on the same order shortly after
+      - Concentration by document type, vendor and purchasing organisation
+    owner_role: purchasing
+    kpis: [p2p.kpi.item_deletion_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, ICPM 2026 hackathon measurement 2026-09-05, WISE BPIC 2019 norm c_l5_delete_item]
+    review_status: draft
+
+  - id: p2p.fm.blocked_item
+    version: 1
+    name: {en: Purchase order item blocked, de: Bestellposition gesperrt}
+    stage: order
+    signature: p2p.po_item_block on the item
+    signature_activities: [p2p.po_item_block, p2p.po_item_reactivate]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.po_item_block], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_item_block, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.002, of: PO items with a block, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Quality or vendor issue while the item stays open
+      - Budget hold or dispute on the order
+      - Temporary stop pending a change or re-approval
+    typical_remedies:
+      - Record the blocking reason; time-box blocks and review them with the owner
+      - Route disputes through the vendor-management process
+    evidence_to_check:
+      - Time between block and reactivation; whether receipts or invoices were attempted in between
+      - Vendor and material group concentration
+    owner_role: purchasing
+    sources: [BPI Challenge 2019 measurement 2026-09-05]
+    review_status: draft
+
+  - id: p2p.fm.vendor_confirmation_churn
+    version: 1
+    name: {en: Repeated or changed vendor confirmations, de: Wiederholte oder geänderte Lieferantenbestätigungen}
+    stage: order
+    signature: more than one p2p.po_confirmation_receive per item, p2p.confirmation_change_delivery_date or p2p.po_confirmation_update
+    signature_activities: [p2p.po_confirmation_receive, p2p.po_confirmation_update, p2p.confirmation_change_delivery_date, p2p.po_change_delivery_date]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_confirmation_receive, p2p.po_confirmation_update], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_confirmation_churn, calibration: uncalibrated}
+      - {type: singularity, activities: [p2p.confirmation_change_delivery_date, p2p.po_change_delivery_date], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_confirmation_date_changes, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.4292, of: PO items with more than one vendor confirmation, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.2755, of: PO items with more than three vendor confirmations, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.0772, of: PO items with a changed confirmed delivery date, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.0177, of: PO items with a changed schedule-line delivery date, source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 0.1274, of: PO items with an order confirmation, source: bpic2019, date: "2026-09-05", note: confirmations are recorded on a minority of items}
+    evidence: [icpm2026_hackathon, bpic2019]
+    typical_causes:
+      - Vendor splits the delivery into several confirmed schedule lines (legitimate for large quantities)
+      - Vendor capacity or upstream supply moves the confirmed date repeatedly
+      - Buyer reschedules requested dates after material planning changes
+      - Confirmation interface posts every EDI update as a new confirmation
+    typical_remedies:
+      - Confirmation control with tolerance for date deviations and an alert for the third confirmation
+      - Vendor performance review on confirmation stability; agree lead times per vendor country
+      - Freeze windows for requested-date changes close to delivery
+    evidence_to_check:
+      - Whether repeated confirmations are splits (different quantities) or date moves (same quantity)
+      - Vendor country and planned lead time; incoterms
+      - Relation to late goods receipt on the same items
+    owner_role: vendor_management
+    kpis: [p2p.kpi.confirmation_churn]
+    sources: [ICPM 2026 hackathon measurement 2026-09-05, BPI Challenge 2019 measurement 2026-09-05]
+    review_status: draft
+
+  - id: p2p.fm.payment_terms_churn
+    version: 1
+    name: {en: Payment terms changed on the order, de: Zahlungsbedingungen der Bestellung geändert}
+    stage: order
+    signature: p2p.po_change_payment_terms (a header change replicated onto items); 7 events in BPIC 2019
+    signature_activities: [p2p.po_change_payment_terms]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_change_payment_terms], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_change_payment_terms_repeats, calibration: calibrated, note: "the norm names the activity 'Change Payment Terms'; the CSV label is 'Change payment term', so on the raw CSV the constraint never fires unless labels are mapped"}
+      - {type: singularity, activities: [p2p.po_change_payment_terms], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_payment_terms_changes, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.00003, of: PO items with a payment-term change (7 events), source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Vendor master terms changed after ordering and copied into open orders
+      - Negotiated early-payment discount applied after the fact
+      - Manual correction of wrong default terms
+    typical_remedies:
+      - Maintain terms in the vendor master and contracts; forbid manual term changes on orders above a value limit
+    evidence_to_check:
+      - Whether the change applies to the header (replicated) or one item; vendor concentration
+    owner_role: purchasing
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l4_change_payment_terms_repeats]
+    review_status: draft
+
+  - id: p2p.fm.srm_transfer_failed
+    version: 1
+    name: {en: SRM transfer to the execution system failed, de: SRM-Übertragung an das Ausführungssystem fehlgeschlagen}
+    stage: order
+    signature: p2p.srm_transfer_failed between p2p.srm_ordered and p2p.po_item_create
+    signature_activities: [p2p.srm_transfer_failed, p2p.srm_transfer, p2p.srm_ordered]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.srm_transfer_failed], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_transfer_failed, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0002, of: PO items with a failed SRM transfer (45 events), source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Master data missing in the execution system (vendor, material, account assignment)
+      - Interface outage or mapping error between SRM and ERP
+      - Cart changed while the transfer was in progress
+    typical_remedies:
+      - Interface monitoring with re-transfer; master-data completeness check before ordering in SRM
+    evidence_to_check:
+      - Error text in the SRM application log; time to recovery; whether the item was re-created manually
+    owner_role: it_process_owner
+    sources: [BPI Challenge 2019 measurement 2026-09-05]
+    review_status: draft
+
+  # ------------------------------------------------------------- approve stage
+  - id: p2p.fm.late_or_repeated_approval
+    version: 1
+    name: {en: Late or repeated approval, de: Späte oder wiederholte Genehmigung}
+    stage: approve
+    signature: long lag p2p.po_item_create -> p2p.po_release or p2p.pr_item_create -> p2p.pr_release; repeated p2p.po_change_approval
+    signature_activities: [p2p.po_release, p2p.pr_release, p2p.po_change_approval, p2p.srm_awaiting_approval, p2p.srm_held, p2p.srm_incomplete]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_change_approval], params: {k: 0, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_change_approval_repeats, calibration: calibrated}
+      - {type: lag, a: [p2p.pr_item_create, p2p.pr_create], b: [p2p.pr_release], params: {delta: 2, width: 5, unit: D, missing_a: skip, missing_b: skip}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_pr_release_days, calibration: uncalibrated}
+      - {type: lag, a: [p2p.po_item_create, p2p.po_create], b: [p2p.po_release], params: {delta: 2, width: 5, unit: D, missing_a: skip, missing_b: skip}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_po_release_days, calibration: uncalibrated}
+      - {type: singularity, activities: [p2p.po_change_approval], params: {k: 0, K: 2}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_change_repeats, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0174, of: PO items with a change of approval, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0035, of: PO items with two or more changes of approval, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.1415, of: PO items with a logged release whose release follows item creation by more than 5 days (n = 961; median 4.7 days), source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0038, of: PO items with a logged purchase order release, source: bpic2019, date: "2026-09-05", note: release is logged for a small minority; absence is not evidence of missing approval}
+    evidence: [bpic2019]
+    typical_causes:
+      - Approver absence without substitute; multi-level release strategies
+      - Changes to price or quantity reset the release and trigger re-approval
+      - Shopping carts saved incomplete or held by the requester before approval
+      - Value thresholds of the release strategy set too low for routine orders
+    typical_remedies:
+      - Substitute rules and escalation after a fixed number of days
+      - Release strategy thresholds reviewed with finance; batch approvals for catalogue items
+      - Lock commercially relevant fields after release or require a reason for changes
+    evidence_to_check:
+      - Approval lag distribution per purchasing group and value band; day-of-week pattern
+      - Which change (price, quantity, delivery date) precedes each re-approval
+      - Whether release events are logged at all for the purchasing organisation
+    owner_role: approver
+    kpis: [p2p.kpi.po_release_lead_time]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l4_change_approval_repeats, SAP MM documentation release strategy]
+    review_status: draft
+
+  # ------------------------------------------------------------- request stage
+  - id: p2p.fm.order_without_requisition
+    version: 1
+    name: {en: Order without requisition or shopping cart, de: Bestellung ohne Bestellanforderung oder Einkaufswagen}
+    stage: request
+    signature: p2p.po_item_create without preceding p2p.pr_item_create, p2p.pr_create or p2p.srm_created
+    signature_activities: [p2p.po_item_create, p2p.pr_item_create, p2p.pr_create, p2p.srm_created]
+    wise_patterns:
+      - {type: presence, activities: [p2p.pr_item_create, p2p.pr_create, p2p.srm_created], params: {m: 1}, layer: approval_discipline, template: p2p_baseline, constraint_ref: b_approval_requisition_present, calibration: uncalibrated, applicability: only where the organisation requires requisitions for the document type}
+    observed_share:
+      - {value: 0.8092, of: PO items without requisition or shopping-cart evidence (mostly direct orders from contracts and MRP; measures logging coverage rather than maverick buying), source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Direct orders from contracts, MRP or scheduling agreements that need no requisition (legitimate)
+      - Requisitions raised outside the system (e-mail, phone) and orders entered afterwards
+      - After-the-fact orders created to pay an invoice already received (maverick buying)
+    typical_remedies:
+      - Define which document types need a requisition and apply the presence constraint only there
+      - No-purchase-order-no-pay policy for the affected spend areas; catalogue buying
+    evidence_to_check:
+      - Document type and source (contract, MRP, manual) of the order; spend area
+      - Invoice-before-order share on the same slices (see p2p.fm.invoice_before_order)
+    owner_role: purchasing
+    sources: [BPI Challenge 2019 measurement 2026-09-05, docs/panel/llm_knowledge_architecture.md §2.1 maverick buying]
+    review_status: draft
+
+  # ------------------------------------------------------------- receive stage
+  - id: p2p.fm.missing_goods_receipt
+    version: 1
+    name: {en: Goods or service receipt missing in a three-way flow, de: Fehlender Waren- oder Leistungseingang im Dreiwege-Fluss}
+    stage: receive
+    signature: neither p2p.gr nor p2p.ses on a three-way item
+    signature_activities: [p2p.gr, p2p.ses]
+    wise_patterns:
+      - {type: presence, activities: [p2p.gr, p2p.ses], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_goods_or_ses_present, calibration: calibrated, applicability: "DF1, DF2"}
+      - {type: presence, activities: [p2p.gr, p2p.ses], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_goods_present, calibration: uncalibrated, applicability: "three_way_gr_first, three_way_invoice_first, service"}
+    observed_share:
+      - {value: 0.0643, of: three-way PO items without goods or service receipt, source: bpic2019, date: "2026-09-05", note: includes open items at the window end and deleted items}
+      - {value: 0.0567, of: PO items without goods receipt, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [bpic2019, icpm2026_hackathon]
+    typical_causes:
+      - Item still open at the end of the observation window (right-censoring)
+      - Item deleted or blocked before delivery
+      - "Wrong item category: receipt not expected (two-way, framework) but the item is typed three-way"
+      - Receipt posted on another item or order (mis-posting)
+    typical_remedies:
+      - "Validation gate: exclude censored and deleted items before reading the shortfall"
+      - Item category maintenance per vendor and material; goods receipt monitoring for overdue items
+    evidence_to_check:
+      - right_censored and observation window per slice; deletion and block events on the same items
+      - Delivery-completed indicator and invoice presence (invoice without receipt suggests category or posting issues)
+    owner_role: warehouse
+    kpis: [p2p.kpi.open_receipt_share]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, ICPM 2026 hackathon measurement 2026-09-05, WISE BPIC 2019 norm c_l1_goods_or_ses_present]
+    review_status: draft
+
+  - id: p2p.fm.cancelled_goods_receipt
+    version: 1
+    name: {en: Goods receipt cancelled, de: Wareneingang storniert}
+    stage: receive
+    signature: p2p.gr_cancel after p2p.gr
+    signature_activities: [p2p.gr_cancel, p2p.gr]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.gr_cancel], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_cancel_goods_receipt, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
+      - {type: exclusion, activities: [p2p.gr_cancel], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_cancel_gr, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0098, of: PO items with a cancelled goods receipt, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Wrong quantity, material or storage location posted at the dock
+      - Posting against the wrong order item (several open items for the same material)
+      - Quality rejection handled as reversal instead of return delivery
+      - Duplicate posting of one delivery note
+    typical_remedies:
+      - Scan-based receipt with delivery-note reference; quality inspection with return-delivery movement types
+      - Training on posting against the right item; consolidate open items per material
+    evidence_to_check:
+      - Time between receipt and cancellation; whether a corrected receipt follows
+      - Plant and storage location concentration; vendor concentration
+      - Fragmentation of receipts on the same items
+    owner_role: warehouse
+    kpis: [p2p.kpi.gr_cancellation_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l5_cancel_goods_receipt]
+    review_status: draft
+
+  - id: p2p.fm.goods_receipt_fragmentation
+    version: 1
+    name: {en: Fragmented goods receipts, de: Fragmentierte Wareneingänge}
+    stage: receive
+    signature: more than two p2p.gr or p2p.ses events on one item
+    signature_activities: [p2p.gr, p2p.ses]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.gr, p2p.ses], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_goods_fragmentation, calibration: calibrated, applicability: "DF1, DF2, Consignment"}
+      - {type: singularity, activities: [p2p.gr, p2p.ses], params: {k: 2, K: 3}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_gr_fragmentation, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0252, of: PO items (three-way and consignment) with more than two receipt events, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.2812, of: PO items with more than one goods receipt, source: icpm2026_hackathon, date: "2026-09-05"}
+    evidence: [bpic2019, icpm2026_hackathon]
+    typical_causes:
+      - Vendor delivers in several partial shipments (capacity, transport units)
+      - Large schedule lines against blanket items; call-offs booked separately
+      - Service entry sheets per period on one service item (legitimate)
+      - Receipts posted per pallet or per handling unit
+    typical_remedies:
+      - Agree delivery lot sizes and tolerances with the vendor; under-delivery tolerance in the info record
+      - Separate blanket and call-off items from one-off items in the applicability rule
+    evidence_to_check:
+      - Quantities per receipt vs order quantity; vendor and material group
+      - Whether the item is a service item or a blanket item
+    owner_role: warehouse
+    sources: [BPI Challenge 2019 measurement 2026-09-05, ICPM 2026 hackathon measurement 2026-09-05, WISE BPIC 2019 norm c_l4_goods_fragmentation]
+    review_status: draft
+
+  - id: p2p.fm.late_goods_receipt
+    version: 1
+    name: {en: Goods receipt after the scheduled delivery date, de: Wareneingang nach dem geplanten Liefertermin}
+    stage: receive
+    signature: first p2p.gr later than the scheduled delivery date of the item; long lag p2p.po_item_create -> p2p.gr
+    signature_activities: [p2p.gr, p2p.po_item_create, p2p.po_confirmation_receive]
+    wise_patterns:
+      - {type: lag, a: [p2p.po_item_create], b: [p2p.gr, p2p.ses], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: censor}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_po_to_gr, calibration: uncalibrated, note: replace the fixed delta by a derived days_late attribute (receipt date minus scheduled date) where the scheduled date is available}
+    observed_share:
+      - {value: 0.3848, of: "received PO items whose first goods receipt is after the scheduled delivery date (day precision, n = 1315)", source: icpm2026_hackathon, date: "2026-09-05"}
+      - {value: 31.1, unit: days, of: median order-to-receipt lag, source: icpm2026_hackathon, date: "2026-09-05", note: p90 86.1 days}
+    evidence: [icpm2026_hackathon]
+    typical_causes:
+      - Vendor lead time longer than the planned lead time in the material master
+      - Confirmed date moved by the vendor without rescheduling on the buyer side
+      - Transport and customs delays for distant vendor countries
+      - Receipt posted late at the dock although goods arrived on time (posting delay)
+    typical_remedies:
+      - Align planned lead times with confirmed lead times per vendor and country
+      - Confirmation control with date tolerance and expediting for overdue items
+      - "Dock posting discipline: receipt posted on the day of arrival"
+    evidence_to_check:
+      - Confirmed date vs scheduled date vs receipt date; vendor country and incoterms
+      - Posting delay from delivery note date to receipt posting where available
+      - "Censoring: open items at the extract end age without a receipt"
+    owner_role: vendor_management
+    kpis: [p2p.kpi.on_time_receipt_rate, p2p.kpi.order_to_receipt_days]
+    sources: [ICPM 2026 hackathon measurement 2026-09-05]
+    review_status: draft
+
+  # ------------------------------------------------------------- invoice stage
+  - id: p2p.fm.missing_invoice
+    version: 1
+    name: {en: Invoice missing on an invoice-bearing item, de: Fehlende Rechnung auf rechnungsrelevanter Position}
+    stage: invoice
+    signature: neither p2p.ir nor p2p.vendor_invoice on a three-way or two-way item
+    signature_activities: [p2p.ir, p2p.vendor_invoice]
+    wise_patterns:
+      - {type: presence, activities: [p2p.ir, p2p.vendor_invoice], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: presence, activities: [p2p.ir, p2p.vendor_invoice], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_invoice_present, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.1089, of: invoice-bearing PO items without invoice evidence, source: bpic2019, date: "2026-09-05", note: includes open items at the window end and deleted items}
+    evidence: [bpic2019]
+    typical_causes:
+      - Item open at the end of the window; invoice not yet received (right-censoring)
+      - Item deleted or delivery not completed
+      - Invoice posted without order reference (FI invoice) and therefore not linked to the item
+      - Consignment or framework items wrongly typed as invoice-bearing
+    typical_remedies:
+      - Validation gate on censoring before reading the shortfall
+      - Invoice capture with mandatory order reference; vendor communication on missing invoices for received goods
+    evidence_to_check:
+      - Goods receipt present without invoice (goods received, invoice outstanding) vs neither
+      - Age of the item at the window end; deletion events
+      - FI invoices without PO reference for the same vendor
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.open_invoice_share]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l1_invoice_present]
+    review_status: draft
+
+  - id: p2p.fm.duplicate_invoice
+    version: 1
+    name: {en: Repeated invoice receipts on one item, de: Wiederholte Rechnungseingänge auf einer Position}
+    stage: invoice
+    signature: two or more p2p.ir on the item (partial invoices and duplicates both count)
+    signature_activities: [p2p.ir, p2p.ir_cancel]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.ir], params: {k: 1, K: 2}, layer: rework_instability, template: p2p_bpic19, constraint_ref: c_l4_repeated_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: singularity, activities: [p2p.ir], params: {k: 1, K: 2}, layer: rework_instability, template: p2p_baseline, constraint_ref: b_rework_repeated_ir, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0407, of: invoice-bearing PO items with two or more invoice receipts, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Partial invoicing per partial delivery (legitimate when receipts are fragmented)
+      - Vendor sends the invoice twice (paper and electronic channel)
+      - Invoice cancelled and re-posted after a correction
+      - Split invoices for freight or surcharges
+    typical_remedies:
+      - Duplicate-invoice check on reference number, date and amount; one invoice channel per vendor
+      - Consolidated invoicing agreements with fragmenting vendors
+    evidence_to_check:
+      - Whether a cancellation accompanies the repeat; receipt count vs invoice count on the item
+      - Sum of invoiced amounts vs order value; vendor concentration
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l4_repeated_invoice_receipt]
+    review_status: draft
+
+  - id: p2p.fm.cancelled_invoice
+    version: 1
+    name: {en: Invoice receipt cancelled, de: Rechnungseingang storniert}
+    stage: invoice
+    signature: p2p.ir_cancel or p2p.subsequent_invoice_cancel after an invoice posting
+    signature_activities: [p2p.ir_cancel, p2p.subsequent_invoice_cancel, p2p.ir, p2p.subsequent_invoice]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.ir_cancel], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_cancel_invoice_receipt, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: exclusion, activities: [p2p.ir_cancel, p2p.subsequent_invoice_cancel], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_cancel_ir, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0257, of: PO items with a cancelled invoice receipt, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0019, of: PO items with a cancelled subsequent invoice, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0006, of: PO items with a subsequent invoice, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Invoice posted against the wrong order item or with wrong amounts and re-posted
+      - Duplicate invoice detected after posting
+      - Vendor re-issues the invoice with corrected data (tax, currency)
+      - Price or quantity dispute settled by cancellation instead of a credit memo
+    typical_remedies:
+      - Validation at capture (e-invoicing, OCR checks on reference and amount)
+      - Credit memo procedure for disputes; vendor master data quality (tax, bank, currency)
+    evidence_to_check:
+      - Time between posting and cancellation; whether a re-posting follows
+      - Vendor and company code concentration; share of cancellations on high-exposure items
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.invoice_cancellation_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l5_cancel_invoice_receipt]
+    review_status: draft
+
+  - id: p2p.fm.vendor_debit_memo
+    version: 1
+    name: {en: Vendor debit memo, de: Lastschrift des Lieferanten}
+    stage: invoice
+    signature: p2p.vendor_debit_memo on the item, weighted by exposure in the paper's norm
+    signature_activities: [p2p.vendor_debit_memo]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.vendor_debit_memo], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_debit_memo, calibration: calibrated}
+      - {type: metric, attribute: c_l6_high_exposure_memo__indicator_x_exposure_norm, params: {threshold: 0.0, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_high_exposure_memo, calibration: calibrated, note: memo indicator times quantile-scaled exposure}
+      - {type: exclusion, activities: [p2p.vendor_debit_memo, p2p.vendor_credit_memo], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_debit_credit_memo, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0238, of: PO items with a vendor debit memo, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Price difference claimed by the vendor after a lower invoice was accepted
+      - Freight, surcharges or currency differences invoiced separately
+      - Quantity disputes after partial deliveries
+    typical_remedies:
+      - Agree surcharge handling in contracts; settle differences through the dispute process before payment
+      - Vendor review for memo-heavy relationships; tolerance settings in invoice verification
+    evidence_to_check:
+      - Memo amount vs item exposure; whether a price change or invoice cancellation precedes the memo
+      - Vendor concentration; spend area
+    owner_role: accounts_payable
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l5_debit_memo and c_l6_high_exposure_memo]
+    review_status: draft
+
+  - id: p2p.fm.vendor_credit_memo
+    version: 1
+    name: {en: Vendor credit memo, de: Gutschrift des Lieferanten}
+    stage: invoice
+    signature: p2p.vendor_credit_memo on the item
+    signature_activities: [p2p.vendor_credit_memo]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.vendor_credit_memo], layer: exceptions_corrections, template: p2p_bpic19, constraint_ref: c_l5_credit_memo, calibration: calibrated, note: "the label 'Vendor creates credit memo' does not occur in the BPIC 2019 CSV; the constraint never fires there"}
+    evidence: none
+    typical_causes:
+      - Returns or quality claims settled by credit
+      - Price corrections in the vendor's favour reversed
+      - Volume rebates settled per item
+    typical_remedies:
+      - Credit memo procedure linked to return deliveries and claims; rebate agreements settled at header level
+    evidence_to_check:
+      - Whether the memo follows a goods receipt cancellation or a return delivery
+    owner_role: accounts_payable
+    sources: [WISE BPIC 2019 norm c_l5_credit_memo, SAP MM documentation]
+    review_status: draft
+    notes: Vocabulary entry; kept because the paper's norm references it.
+
+  - id: p2p.fm.invoice_before_order
+    version: 1
+    name: {en: Invoice created before the order item, de: Rechnung vor der Bestellposition erstellt}
+    stage: invoice
+    signature: p2p.vendor_invoice or p2p.ir before p2p.po_item_create
+    signature_activities: [p2p.vendor_invoice, p2p.ir, p2p.po_item_create, p2p.po_create]
+    wise_patterns:
+      - {type: precedence, a: [p2p.po_item_create, p2p.po_create], b: [p2p.vendor_invoice, p2p.ir], params: {k: 0, K: 1, missing_a: skip, missing_b: satisfy}, layer: value_commercial, template: p2p_baseline, constraint_ref: b_value_invoice_before_order, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.0176, of: PO items with a vendor-created invoice whose invoice precedes the item creation, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0, of: PO items with an invoice receipt posted before the item creation, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Order created after the fact to pay an invoice already received (maverick buying)
+      - Vendor invoice date is the document date on the vendor side, earlier than the order in the buyer's system
+      - Framework or limit orders where invoices reference an older agreement
+    typical_remedies:
+      - No-purchase-order-no-pay policy; return invoices without order reference
+      - Record the invoice receipt date separately from the vendor's document date
+    evidence_to_check:
+      - Which evidence precedes the order (vendor document vs receipt posting); document type; spend area
+      - Requisition evidence on the same items
+    owner_role: purchasing
+    sources: [BPI Challenge 2019 measurement 2026-09-05, docs/panel/llm_knowledge_architecture.md §2.1 vendor-created invoices without PO]
+    review_status: draft
+
+  # ------------------------------------------------------------- match stage
+  - id: p2p.fm.invoice_before_goods_receipt
+    version: 1
+    name: {en: Invoice before goods receipt in a GR-based flow, de: Rechnung vor Wareneingang im WE-bezogenen Fluss}
+    stage: match
+    signature: first p2p.ir or p2p.vendor_invoice before first p2p.gr or p2p.ses on a three_way_gr_first item
+    signature_activities: [p2p.ir, p2p.vendor_invoice, p2p.gr, p2p.ses]
+    wise_patterns:
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_df1_invoice_after_goods, calibration: calibrated, applicability: DF1}
+      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {delta: 10, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df1_goods_to_invoice_days, calibration: calibrated, applicability: DF1}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_invoice_after_goods, calibration: uncalibrated, applicability: "three_way_gr_first, service"}
+      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.ir, p2p.vendor_invoice], params: {delta: 10, width: 20, unit: D, missing_a: skip, missing_b: skip}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_goods_to_invoice, calibration: uncalibrated, applicability: "three_way_gr_first, service"}
+    observed_share:
+      - {value: 0.5167, of: "DF1 items with both goods and invoice evidence whose first invoice evidence (receipt or vendor invoice) precedes the first goods evidence (n = 11,129)", source: bpic2019, date: "2026-09-05"}
+      - {value: 0.3787, of: all DF1 items with invoice evidence before goods evidence, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.3837, of: "DF1 items with goods before invoice whose goods-to-invoice lag exceeds 10 days (median 5.0 days, p90 35.1 days, n = 5,379)", source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Vendor issues the invoice at dispatch; the vendor-side invoice date precedes the receipt (check which evidence)
+      - Receipt posted late at the dock although goods arrived before the invoice
+      - "Wrong item category: the item should be 'invoice before GR' (DF2)"
+      - Drop shipments and services where the receipt is a formality posted later
+    typical_remedies:
+      - Correct the GR-based invoice verification flag per vendor and material; separate the flows in the norm
+      - Dock posting discipline; invoice parking until the receipt is posted
+      - Evaluated receipt settlement for vendors with stable prices
+    evidence_to_check:
+      - Whether the early evidence is the vendor document or the receipt posting
+      - Posting delay of goods receipts vs delivery note dates; vendor concentration
+      - Item category correctness on the vendor's other items
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.three_way_match_first_time_rate, p2p.kpi.gr_to_invoice_days]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l2_df1_invoice_after_goods and c_l3_df1_goods_to_invoice_days]
+    review_status: draft
+
+  - id: p2p.fm.payment_block
+    version: 1
+    name: {en: Invoice blocked for payment, de: Rechnung zahlungsgesperrt}
+    stage: match
+    signature: p2p.payment_block_set or an implicit block released by p2p.payment_block_remove; in DF2 the release must follow the receipt
+    signature_activities: [p2p.payment_block_set, p2p.payment_block_remove, p2p.gr, p2p.ses, p2p.invoice_clear]
+    wise_patterns:
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_df2_release_after_goods, calibration: calibrated, applicability: DF2}
+      - {type: lag, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {delta: 2, width: 10, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df2_goods_to_rpb_days, calibration: calibrated, applicability: DF2}
+      - {type: lag, a: [p2p.payment_block_remove], b: [p2p.invoice_clear], params: {delta: 5, width: 20, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_df2_rpb_to_clear_days, calibration: calibrated, applicability: DF2}
+      - {type: exclusion, activities: [p2p.payment_block_set], layer: exceptions_corrections, template: p2p_baseline, constraint_ref: b_exc_payment_block, calibration: uncalibrated, note: only manual blocks are logged as events; automatic blocks show up as a release only}
+      - {type: precedence, a: [p2p.gr, p2p.ses], b: [p2p.payment_block_remove], params: {k: 0, K: 1, missing_a: skip, missing_b: skip}, layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_release_after_goods, calibration: uncalibrated, applicability: three_way_invoice_first}
+      - {type: lag, a: [p2p.payment_block_remove], b: [p2p.invoice_clear], params: {delta: 5, width: 20, unit: D, missing_a: skip, missing_b: censor}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_release_to_clear, calibration: uncalibrated}
+    observed_share:
+      - {value: 0.2218, of: PO items with a payment block release, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.2426, of: DF2 items with a payment block release, source: bpic2019, date: "2026-09-05"}
+      - {value: 0.0005, of: PO items with an explicit set-payment-block event, source: bpic2019, date: "2026-09-05", note: blocks set automatically at invoice posting are not logged as events}
+    evidence: [bpic2019]
+    typical_causes:
+      - Invoice posted before the receipt in an invoice-before-GR flow (block by design until the receipt)
+      - Price or quantity variance above the tolerance keys
+      - Receipt missing or posted on another item; quantity under-delivered
+      - Manual block for a dispute or a missing approval
+    typical_remedies:
+      - Review tolerance keys with finance; align order prices before invoicing
+      - Release run cadence (MRBR) and ownership per blocking reason
+      - Receipt discipline so that blocks release automatically when goods arrive
+    evidence_to_check:
+      - Blocking reason from the source system (price, quantity, date, manual)
+      - Lag from receipt to release and from release to clearing; vendor and purchasing organisation concentration
+      - Whether the flow type is invoice-before-GR (blocks expected) or GR-based (blocks are exceptions)
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.payment_block_rate, p2p.kpi.three_way_match_first_time_rate]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l2_df2_release_after_goods, c_l3_df2_goods_to_rpb_days, c_l3_df2_rpb_to_clear_days, SAP MM documentation payment blocks and MRBR]
+    review_status: draft
+
+  - id: p2p.fm.goods_receipt_in_two_way
+    version: 1
+    name: {en: Goods receipt on a two-way item, de: Wareneingang auf Zweiwege-Position}
+    stage: match
+    signature: p2p.gr or p2p.ses on a two_way item
+    signature_activities: [p2p.gr, p2p.ses]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.gr, p2p.ses], layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_2way_no_goods_expected, calibration: calibrated, applicability: 2-way}
+      - {type: exclusion, activities: [p2p.gr, p2p.ses], layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_no_goods_in_two_way, calibration: uncalibrated, applicability: two_way}
+    observed_share:
+      - {value: 0.0, of: "two-way PO items with a receipt (n = 1,044)", source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Item category set to two-way although goods are physically received
+      - Receipt posted by habit on a service or limit item
+    typical_remedies:
+      - Item category maintenance; receipt posting disabled for two-way item categories
+    evidence_to_check:
+      - Item type and material; whether the vendor's other items are three-way
+    owner_role: purchasing
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l2_2way_no_goods_expected]
+    review_status: draft
+
+  # ------------------------------------------------------------- pay stage
+  - id: p2p.fm.unpaid_or_late_invoice
+    version: 1
+    name: {en: Invoice not cleared or cleared late, de: Rechnung nicht oder spät ausgeglichen}
+    stage: pay
+    signature: no p2p.invoice_clear on an invoice-bearing item, or a long lag p2p.ir -> p2p.invoice_clear
+    signature_activities: [p2p.invoice_clear, p2p.ir, p2p.vendor_invoice]
+    wise_patterns:
+      - {type: presence, activities: [p2p.invoice_clear], params: {m: 1}, layer: closure_completeness, template: p2p_bpic19, constraint_ref: c_l1_clear_invoice_present, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: lag, a: [p2p.ir, p2p.vendor_invoice], b: [p2p.invoice_clear], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: skip, activation: first, response: first_overall}, layer: timeliness_ageing, template: p2p_bpic19, constraint_ref: c_l3_invoice_to_clear_days, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+      - {type: presence, activities: [p2p.invoice_clear], params: {m: 1}, layer: closure_completeness, template: p2p_baseline, constraint_ref: b_closure_clear_present, calibration: uncalibrated}
+      - {type: lag, a: [p2p.ir, p2p.vendor_invoice], b: [p2p.invoice_clear], params: {delta: 30, width: 60, unit: D, missing_a: skip, missing_b: censor}, layer: timeliness_ageing, template: p2p_baseline, constraint_ref: b_time_invoice_to_clear, calibration: uncalibrated, note: open invoices are scored by their age (censor) instead of as full violations}
+    observed_share:
+      - {value: 0.2258, of: invoice-bearing PO items without a clearing, source: bpic2019, date: "2026-09-05", note: includes open items at the window end}
+      - {value: 0.8892, of: "cleared items whose invoice-to-clearing lag exceeds 30 days (n = 183,301)", source: bpic2019, date: "2026-09-05", note: "payment terms are not in the log; the 30-day delta of the paper's norm is a target, not the contractual term"}
+      - {value: 0.2199, of: cleared items whose invoice-to-clearing lag exceeds 90 days, source: bpic2019, date: "2026-09-05"}
+      - {value: 63.6, unit: days, of: median invoice-to-clearing lag (p90 106.4 days), source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Long contractual payment terms (60 to 90 days) and payment runs on fixed dates
+      - Invoice blocked for a variance or a missing receipt
+      - Cash management holds payments at period end
+      - Open items at the window end (right-censoring), not late payment
+    typical_remedies:
+      - Payment terms per vendor as a derived attribute; score days beyond terms instead of a fixed delta
+      - Blocked-invoice review cadence; early-payment discounts where cash allows
+    evidence_to_check:
+      - Payment terms from the vendor master; blocking share on the same items
+      - Censoring at the window end; lag distribution per company code
+    owner_role: accounts_payable
+    kpis: [p2p.kpi.invoice_to_clear_days, p2p.kpi.open_invoice_share]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l1_clear_invoice_present and c_l3_invoice_to_clear_days]
+    review_status: draft
+
+  - id: p2p.fm.consignment_cleared_per_item
+    version: 1
+    name: {en: Consignment item settled through invoice clearing, de: Konsignationsposition über Rechnungsausgleich abgerechnet}
+    stage: pay
+    signature: p2p.invoice_clear on a consignment item (consignment is settled periodically, not per item)
+    signature_activities: [p2p.invoice_clear]
+    wise_patterns:
+      - {type: exclusion, activities: [p2p.invoice_clear], layer: flow_discipline, template: p2p_bpic19, constraint_ref: c_l2_consignment_no_clear_invoice, calibration: calibrated, applicability: Consignment}
+      - {type: exclusion, activities: [p2p.invoice_clear], layer: flow_discipline, template: p2p_baseline, constraint_ref: b_flow_consignment_no_clear, calibration: uncalibrated, applicability: consignment}
+    observed_share:
+      - {value: 0.0, of: "consignment PO items with an invoice clearing (n = 14,498)", source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Item category wrongly set to consignment for a normal purchase
+      - Vendor invoices consignment withdrawals directly instead of settlement
+    typical_remedies:
+      - Consignment settlement run (MRKO) as the only settlement path; item category maintenance
+    evidence_to_check:
+      - Settlement documents in the source system; vendor concentration
+    owner_role: accounts_payable
+    sources: [BPI Challenge 2019 measurement 2026-09-05, WISE BPIC 2019 norm c_l2_consignment_no_clear_invoice]
+    review_status: draft
+
+  # ------------------------------------------------------------- effort and value
+  - id: p2p.fm.manual_touch_load
+    version: 1
+    name: {en: Many manual touches and hand-offs, de: Viele manuelle Bearbeitungen und Übergaben}
+    stage: order
+    signature: derived attributes manual_touch_count, distinct_human_resources, total_events, manual_share above their thresholds
+    signature_activities: []
+    wise_patterns:
+      - {type: metric, attribute: manual_touch_count, params: {threshold: 4.0, width: 6.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_manual_touches, calibration: calibrated}
+      - {type: metric, attribute: distinct_human_resources, params: {threshold: 2.0, width: 4.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_distinct_human_resources, calibration: calibrated}
+      - {type: metric, attribute: total_events, params: {threshold: 10.0, width: 15.0, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_total_events, calibration: calibrated}
+      - {type: metric, attribute: manual_share, params: {threshold: 0.5, width: 0.5, direction: high}, layer: effort_automation, template: p2p_bpic19, constraint_ref: c_l7_manual_share, calibration: calibrated}
+      - {type: metric, attribute: manual_touch_count, params: {threshold: 4.0, width: 6.0, direction: high}, layer: effort_automation, template: p2p_baseline, constraint_ref: b_effort_manual_touches, calibration: uncalibrated, note: needs a resource column; batch users are excluded by the derived attribute's regex}
+      - {type: metric, attribute: total_events, params: {threshold: 10.0, width: 15.0, direction: high}, layer: effort_automation, template: p2p_baseline, constraint_ref: b_effort_total_events, calibration: uncalibrated}
+    evidence: [bpic2019]
+    typical_causes:
+      - Exceptions (changes, blocks, cancellations) each add manual steps
+      - No electronic vendor integration (confirmations and invoices keyed in)
+      - Replicated header events counted as touches on every item
+    typical_remedies:
+      - Touchless targets per spend area; EDI and e-invoicing with the largest vendors
+      - Exception reduction upstream (price and quantity alignment before ordering)
+    evidence_to_check:
+      - Replication diagnostics before reading touch counts; batch users excluded
+      - Which activities carry the manual touches (drivers by constraint and activity)
+    owner_role: purchasing
+    kpis: [p2p.kpi.touchless_rate]
+    sources: [WISE BPIC 2019 norm L7 constraints and derived attributes]
+    review_status: draft
+
+  - id: p2p.fm.networth_volatility
+    version: 1
+    name: {en: Volatile cumulative net worth across postings, de: Schwankender kumulierter Nettowert über die Buchungen}
+    stage: invoice
+    signature: high coefficient of variation of the cumulative net worth over the item's events (derived attribute networth_cv)
+    signature_activities: []
+    wise_patterns:
+      - {type: metric, attribute: networth_cv, params: {threshold: 0.5, width: 1.0, direction: high}, layer: value_commercial, template: p2p_bpic19, constraint_ref: c_l6_networth_volatility, calibration: calibrated, applicability: "DF1, DF2, 2-way"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Price and quantity changes after ordering
+      - Partial invoices and memos moving the cumulative value up and down
+      - Currency changes
+    typical_remedies:
+      - Address the underlying changes (price, quantity) and memo handling; the indicator itself is a commercial-risk signal, not a target
+    evidence_to_check:
+      - Which events move the value; relation to price changes and memos on the same items
+    owner_role: finance_controlling
+    sources: [WISE BPIC 2019 norm c_l6_networth_volatility]
+    review_status: draft
+
+  - id: p2p.fm.delivery_indicator_reopened
+    version: 1
+    name: {en: Delivery-completed indicator changed repeatedly, de: Endlieferungskennzeichen mehrfach geändert}
+    stage: receive
+    signature: two or more p2p.po_change_delivery_indicator on the item (set once is normal; twice means the item was reopened)
+    signature_activities: [p2p.po_change_delivery_indicator]
+    wise_patterns:
+      - {type: singularity, activities: [p2p.po_change_delivery_indicator], params: {k: 1, K: 2}, layer: rework_instability, calibration: uncalibrated, note: no template constraint yet; add to the baseline once calibrated}
+    observed_share:
+      - {value: 0.0118, of: PO items with a delivery-indicator change, source: bpic2019, date: "2026-09-05"}
+    evidence: [bpic2019]
+    typical_causes:
+      - Item closed and reopened when a further delivery arrived
+      - Indicator used to close short deliveries and reset for corrections
+    typical_remedies:
+      - Close items only after the vendor confirms the final quantity; under-delivery tolerance
+    evidence_to_check:
+      - Receipts between the two indicator changes; vendor concentration
+    owner_role: warehouse
+    sources: [BPI Challenge 2019 measurement 2026-09-05, SAP MM documentation delivery completed indicator]
+    review_status: draft
