@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import datasets, jobs, norms, notebook, projects, runs, system
+from . import datasets, jobs, knowledge, norms, notebook, projects, review, runs, system
 
 api_router = APIRouter()
 for r in (
@@ -10,7 +10,9 @@ for r in (
     projects.router,
     datasets.router,
     norms.router,
+    knowledge.router,
     runs.router,
+    review.router,
     notebook.router,
     jobs.router,
 ):

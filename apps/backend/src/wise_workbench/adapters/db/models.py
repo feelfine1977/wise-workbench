@@ -160,3 +160,25 @@ class SnapshotRow(Base):
     author: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ReviewItemRow(Base):
+    """Hypotheses, gates, findings and actions (R1-12, R1-15): one skeleton, a JSON body per kind."""
+
+    __tablename__ = "review_items"
+    __table_args__ = (Index("ix_review_items_project_kind", "project_id", "kind"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(Text, default="")
+    run_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    slicing: Mapped[str | None] = mapped_column(Text)
+    slice_key: Mapped[str | None] = mapped_column(Text)
+    view: Mapped[str | None] = mapped_column(String(128))
+    body: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    author: Mapped[str | None] = mapped_column(String(255))
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

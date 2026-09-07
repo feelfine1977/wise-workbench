@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from wise_workbench.domain import Job, JobKind, JobStatus, NotFoundError, ValidationError
 from wise_workbench.jobs.handlers.load_preset import fit_mapping, preset_paths
-from wise_workbench.presets import PRESETS
+from wise_workbench.presets import all_presets
 
 if TYPE_CHECKING:  # pragma: no cover
     from wise_workbench.container import Container
@@ -19,7 +19,7 @@ class PresetService:
     def list(self, project_id: str) -> list[dict[str, Any]]:
         self.c.repos.get_project(project_id)
         out = []
-        for preset in PRESETS.values():
+        for preset in all_presets(self.c.settings).values():
             csv, norm = preset_paths(self.c.settings, preset)
             out.append(
                 {
@@ -36,15 +36,22 @@ class PresetService:
                     "gamma": preset.gamma,
                     "minCases": preset.min_cases,
                     "process": preset.process,
+                    "kind": preset.source,
+                    "caseNoun": preset.case_noun,
+                    "labelPack": preset.label_pack,
+                    "pitfalls": list(preset.pitfalls),
+                    "extraSlicings": [list(x) for x in preset.extra_slicings],
+                    "note": preset.note,
                 }
             )
         return out
 
     def load(self, project_id: str, preset_id: str) -> Job:
         self.c.repos.get_project(project_id)
-        preset = PRESETS.get(preset_id)
+        known = all_presets(self.c.settings)
+        preset = known.get(preset_id)
         if preset is None:
-            raise NotFoundError(f"unknown preset {preset_id!r}; known: {sorted(PRESETS)}", code="preset.not_found")
+            raise NotFoundError(f"unknown preset {preset_id!r}; known: {sorted(known)}", code="preset.not_found")
         csv, norm = preset_paths(self.c.settings, preset)
         missing = [str(p) for p in (csv, norm) if not p.exists()]
         if missing:

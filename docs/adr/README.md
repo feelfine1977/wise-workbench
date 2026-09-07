@@ -11,3 +11,4 @@
 - `0009-knowledge-architecture.md`
 - `0010-packages-in-monorepo-split-later.md`
 - `0011-process-flow-visualisation.md`
+- `0012-optional-actionability-extension.md`

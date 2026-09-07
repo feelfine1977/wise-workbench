@@ -25,6 +25,8 @@ from wise_workbench.domain import (
     NotFoundError,
     Project,
     Readiness,
+    ReviewItem,
+    ReviewKind,
     Run,
     RunManifest,
     RunParams,
@@ -41,6 +43,7 @@ from .models import (
     MappingRow,
     NormVersionRow,
     ProjectRow,
+    ReviewItemRow,
     RunRow,
     SnapshotRow,
 )
@@ -156,6 +159,25 @@ def _job(row: JobRow) -> Job:
     )
 
 
+def _review(row: ReviewItemRow) -> ReviewItem:
+    return ReviewItem(
+        id=row.id,
+        project_id=row.project_id,
+        kind=ReviewKind(row.kind),
+        status=row.status,
+        title=row.title or "",
+        run_id=row.run_id,
+        slicing=row.slicing,
+        slice_key=row.slice_key,
+        view=row.view,
+        body=dict(row.body or {}),
+        author=row.author,
+        note=row.note,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
 def _decision(row: DecisionRow) -> Decision:
     pv = dict(row.preview or {})
     return Decision(
@@ -222,7 +244,7 @@ def _job_fields(job: Job) -> dict[str, Any]:
 
 # ----------------------------------------------------------------------------- repositories
 class Repositories:
-    """All repositories share one :class:`Database`; each call is its own transaction."""
+    """All repositories share one:class:`Database`; each call is its own transaction."""
 
     def __init__(self, db: Database):
         self.db = db
@@ -474,6 +496,77 @@ class Repositories:
                 )
             rows = s.scalars(stmt.order_by(DecisionRow.created_at)).all()
             return [_decision(r) for r in rows]
+
+    # ---- review records (hypotheses, gates, findings, actions)
+    def add_review_item(self, item: ReviewItem) -> ReviewItem:
+        with self.db.session() as s:
+            s.add(
+                ReviewItemRow(
+                    id=item.id,
+                    project_id=item.project_id,
+                    kind=str(item.kind),
+                    status=item.status,
+                    title=item.title,
+                    run_id=item.run_id,
+                    slicing=item.slicing,
+                    slice_key=item.slice_key,
+                    view=item.view,
+                    body=dict(item.body),
+                    author=item.author,
+                    note=item.note,
+                    created_at=item.created_at,
+                    updated_at=item.updated_at,
+                )
+            )
+        return item
+
+    def update_review_item(self, item: ReviewItem) -> ReviewItem:
+        with self.db.session() as s:
+            row = s.get(ReviewItemRow, item.id)
+            if row is None:
+                raise NotFoundError(f"review item {item.id!r} not found", code="review.not_found")
+            row.status = item.status
+            row.title = item.title
+            row.body = dict(item.body)
+            row.note = item.note
+            row.author = item.author
+            row.updated_at = item.updated_at
+        return item
+
+    def get_review_item(self, item_id: str) -> ReviewItem:
+        with self.db.session() as s:
+            row = s.get(ReviewItemRow, item_id)
+            if row is None:
+                raise NotFoundError(f"review item {item_id!r} not found", code="review.not_found")
+            return _review(row)
+
+    def list_review_items(
+        self,
+        project_id: str,
+        kind: str | None = None,
+        run_id: str | None = None,
+        slicing: str | None = None,
+        slice_key: str | None = None,
+    ) -> list[ReviewItem]:
+        with self.db.session() as s:
+            stmt = select(ReviewItemRow).where(ReviewItemRow.project_id == project_id)
+            if kind is not None:
+                stmt = stmt.where(ReviewItemRow.kind == kind)
+            if run_id is not None:
+                stmt = stmt.where(ReviewItemRow.run_id == run_id)
+            if slicing is not None:
+                stmt = stmt.where(ReviewItemRow.slicing == slicing)
+            if slice_key is not None:
+                stmt = stmt.where(ReviewItemRow.slice_key == slice_key)
+            rows = s.scalars(stmt.order_by(ReviewItemRow.created_at)).all()
+            return [_review(r) for r in rows]
+
+    def delete_review_item(self, item_id: str) -> None:
+        with self.db.session() as s:
+            row = s.get(ReviewItemRow, item_id)
+            if row is None:
+                raise NotFoundError(f"review item {item_id!r} not found", code="review.not_found")
+            s.delete(row)
 
     # ---- notebook snapshots
     def add_snapshot(self, snap: Snapshot) -> Snapshot:

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { WorkbenchContext } from "../context";
 import { computeStages, type StageInfo, type StageState } from "./journey";
 
-export type StepId = "data" | "norm" | "run" | "signals" | "why" | "act";
+export type StepId = "data" | "norm" | "run" | "signals" | "flow" | "why" | "act";
 
 interface Step {
   id: StepId;
@@ -31,6 +31,7 @@ interface Step {
  */
 export function currentStep(pathname: string, origin?: string): StepId | undefined {
   if (/\/slices\//.test(pathname)) return "why";
+  if (/\/(flow|board)$/.test(pathname)) return "flow";
   if (/\/backlog$/.test(pathname)) return "signals";
   if (/\/notebook$/.test(pathname)) return origin ? currentStep(origin) : undefined;
   if (/\/norms\/[^/]+$/.test(pathname) && origin && /\/slices\//.test(origin)) return "why";
@@ -156,10 +157,10 @@ function AllStages({ ctx }: { ctx: WorkbenchContext }) {
 }
 
 /**
- * The analysis path across the top of every screen: Data ▶ Norm ▶ Run ▶ Signals ▶ Why ▶ What to do. States
- * come from the data itself (a case table, a scored norm, a finished run, a group opened, a finding), the
- * current step carries the accent ring and "you are here", a sub-screen shows as a second line under its
- * step, and every step is a link to where its work happens. `Alt+1` … `Alt+6` press the steps.
+ * The analysis path across the top of every screen: Data ▶ Norm ▶ Run ▶ Signals ▶ Flow ▶ Why ▶ What to do.
+ * States come from the data itself (a case table, a scored norm, a finished run, a group opened, a finding),
+ * the current step carries the accent ring and "you are here", a sub-screen shows as a second line under its
+ * step, and every step is a link to where its work happens. `Alt+1` … `Alt+7` press the steps.
  */
 export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
   const { vocabulary } = useVocabulary();
@@ -181,8 +182,9 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
       { id: "norm", label: "Norm", state: normScored ? "done" : ctx.norms.length ? "in_progress" : "not_started", hint: plain ? "the expectations and the perspectives" : "constraints, layers and views" },
       { id: "run", label: "Run", state: doneRun ? "done" : failedRun ? "gated" : activeRun ? "in_progress" : "not_started", hint: "score the cases against the norm", caption: failedRun ? "last run failed" : undefined },
       { id: "signals", label: plain ? "Signals" : "Backlog", state: doneRun ? (lastSlice || findingCount ? "done" : "in_progress") : ctx.runs.length ? "gated" : "not_started", hint: plain ? "where is it worst?" : "ranked slices", caption: !doneRun && ctx.runs.length ? "needs a finished run" : undefined },
+      { id: "flow", label: "Flow", state: doneRun ? "in_progress" : ctx.runs.length ? "gated" : "not_started", hint: "the process map as the instrument; the board beside it", caption: !doneRun && ctx.runs.length ? "needs a finished run" : undefined },
       { id: "why", label: "Why", state: findingCount ? "done" : "not_started", hint: plain ? "the reasons behind one group" : "drivers, contrast, flow" },
-      { id: "act", label: "What to do", state: "not_started", later: "cycle 3", caption: "arrives in cycle 3" },
+      { id: "act", label: "What to do", state: "not_started", later: "not available yet", caption: "not available yet" },
     ];
   }, [findings, ctx.projectId, ctx.runs, ctx.norms, ctx.caseTable, ctx.datasets.length, doneRun, lastSlice, plain]);
 
@@ -199,6 +201,8 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
         return ctx.run ? { to: "/p/$projectId/runs/$runId" as const, params: { projectId: pid, runId: ctx.run.id }, search: { tab: "monitor" as const } } : { to: "/p/$projectId/runs" as const, params: { projectId: pid } };
       case "signals":
         return doneRun ? { to: "/p/$projectId/runs/$runId/backlog" as const, params: { projectId: pid, runId: doneRun.id }, search: { slicing: ctx.slicing, view: ctx.view } } : { to: "/p/$projectId/runs" as const, params: { projectId: pid } };
+      case "flow":
+        return doneRun ? { to: "/p/$projectId/runs/$runId/flow" as const, params: { projectId: pid, runId: doneRun.id }, search: { slicing: ctx.slicing, view: ctx.view, render: "map" as const } } : { to: "/p/$projectId/runs" as const, params: { projectId: pid } };
       default:
         return undefined;
     }
@@ -224,14 +228,14 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
                 <span data-step-label>{s.label}</span>
                 <span className="sr-only">
                   : {isCurrent ? "you are here" : s.state.replace("_", " ")}
-                  {s.later ? `, arrives in ${s.later}` : ""}
+                  {s.later ? `, ${s.later}` : ""}
                 </span>
               </>
             );
             const link = linkOf(s.id);
             const caption = isCurrent ? "you are here" : s.caption;
             return (
-              <li key={s.id} className="flex items-start" data-step={s.id} data-step-index={i + 1} aria-current={isCurrent ? "step" : undefined} title={s.later ? `${s.label}: arrives in ${s.later}` : s.hint}>
+              <li key={s.id} className="flex items-start" data-step={s.id} data-step-index={i + 1} aria-current={isCurrent ? "step" : undefined} title={s.later ? `${s.label}: ${s.later}` : s.hint}>
                 <div className="flex flex-col items-start">
                   {s.id === "why" ? (
                     lastSlice ? (

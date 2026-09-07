@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-# keep hypothesis' storage out of the repository (the root .gitignore is owned by the workbench)
+# keep hypothesis' storage out of the repository (the root.gitignore is owned by the workbench)
 os.environ.setdefault("HYPOTHESIS_STORAGE_DIRECTORY", os.path.join(tempfile.gettempdir(), "wise-workbench-hypothesis"))
 from hypothesis import settings as hypothesis_settings
 

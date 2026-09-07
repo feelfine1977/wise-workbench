@@ -63,6 +63,8 @@ export function returnTarget(visited: Visited[], currentPathname: string): Visit
 /** A plain name for a screen from its pathname. */
 export function screenLabel(pathname: string, plain = true): string {
   if (/\/slices\//.test(pathname)) return plain ? "Why?" : "Slice";
+  if (/\/flow$/.test(pathname)) return "Where in the flow";
+  if (/\/board$/.test(pathname)) return "Explore";
   if (/\/backlog$/.test(pathname)) return plain ? "Where is it worst?" : "Backlog";
   if (/\/runs\/[^/]+\/compare$/.test(pathname)) return "Flow types side by side";
   if (/\/runs\/[^/]+$/.test(pathname)) return "Run";

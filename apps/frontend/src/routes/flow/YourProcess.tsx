@@ -4,6 +4,7 @@ import { Suspense, lazy, useState } from "react";
 import type { Run } from "@wise/api-schema";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { flowTypeOf, flowTypesQuery, useCreateScopedRun, type FlowType } from "@/lib/api/cycle2";
+import { clauseForValue, filterHash, serializeFilter } from "@/lib/filter";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { ErrorBlock, LoadingBlock } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,26 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
     }
   };
 
+  /**
+   * The card is the entry into the flow (R3-O5): the map of that flow type opens full width on the Flow step
+   * — the flow type's own run when it has one, otherwise the whole run with the flow type as a chip, which
+   * the map, the board and every export carry.
+   */
+  const openMap = (t: FlowType) => {
+    const own = runFor(t.name);
+    if (own?.status === "done") {
+      void navigate({ to: "/p/$projectId/runs/$runId/flow", params: { projectId, runId: own.id }, search: { render: "map" as const } });
+      return;
+    }
+    if (!parent) return;
+    const filter = { and: [clauseForValue((t.scope as { attribute?: string }).attribute ?? flowTypes.data?.attribute ?? "flow_type", t.name)] };
+    void navigate({
+      to: "/p/$projectId/runs/$runId/flow",
+      params: { projectId, runId: parent.id },
+      search: { render: "map" as const, filter: serializeFilter(filter), fh: filterHash(filter), slicing: parent.slicings?.[0]?.id ?? undefined, view: parent.views?.[0] },
+    });
+  };
+
   const analyse = (t: FlowType) => {
     const existing = runFor(t.name);
     if (existing?.status === "done") {
@@ -110,9 +131,11 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
                     <div role="meter" aria-valuemin={0} aria-valuemax={1} aria-valuenow={t.share} aria-label={`${t.name}: ${fmtPct(t.share, 1)} of the ${noun}`} className="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken">
                       <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(2, t.share * 100)}%` }} />
                     </div>
-                    <Suspense fallback={<LoadingBlock rows={2} />}>
-                      <MiniMap graph={t.map} title={`Process map of the ${t.name} flow`} />
-                    </Suspense>
+                    <button type="button" className="rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent" onClick={() => openMap(t)} aria-label={`Open the map of the ${t.name} flow full width`}>
+                      <Suspense fallback={<LoadingBlock rows={2} />}>
+                        <MiniMap graph={t.map} title={`Process map of the ${t.name} flow`} />
+                      </Suspense>
+                    </button>
                     <p className="clamp-2 text-sm text-text-muted" title={t.readiness.headline}>
                       {t.readiness.headline}
                     </p>
@@ -122,10 +145,20 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
                         {fmtPct(t.readiness.censoredShare ?? 0, 0)} still open at the end of the data
                       </p>
                     )}
-                    <div className="mt-auto flex items-center gap-2">
-                      <Button size="sm" variant={run?.status === "done" ? "default" : "outline"} onClick={() => analyse(t)} disabled={!parent && !run} aria-label={`Analyse the ${t.name} flow`}>
+                    <div className="mt-auto flex flex-wrap items-center gap-2">
+                      <Button size="sm" onClick={() => openMap(t)} disabled={!parent && !run} aria-label={`Open the map of the ${t.name} flow`}>
+                        Open the map
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => analyse(t)} disabled={!parent && !run} aria-label={`Analyse the ${t.name} flow`}>
                         {run?.status === "done" ? "Open this flow" : run ? "Run in progress…" : "Analyse this flow"}
                       </Button>
+                      {parent && (
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to="/p/$projectId/runs/$runId" params={{ projectId, runId: parent.id }} search={{ tab: "compare" }} aria-label={`Compare the ${t.name} flow with the others`}>
+                            Compare
+                          </Link>
+                        </Button>
+                      )}
                       {run && (
                         <Badge variant={run.status === "done" ? "success" : "info"}>
                           <span className="font-mono">{run.id}</span>

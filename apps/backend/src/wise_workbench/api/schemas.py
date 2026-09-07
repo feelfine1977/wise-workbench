@@ -126,6 +126,13 @@ class ColumnMapping(BaseModel):
     flowTypeDefault: str = "other"
     closureActivities: list[str] = Field(default_factory=list)
     derivedAttributes: list[dict[str, Any]] = Field(default_factory=list, description="library derive recipes")
+    preparedAttributes: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "case attributes the workbench computes at build time next to the library's recipes: "
+            '{"name", "kind": "date_difference" | "period", "spec", "description"}'
+        ),
+    )
     dedupe: bool = False
     missingLabel: str | None = Field(
         default="(missing)", description="label for null case-attribute values; null keeps them as nulls"
@@ -173,6 +180,14 @@ class Preset(BaseModel):
     gamma: float
     minCases: int
     process: str
+    kind: Literal["builtin", "pack"] = Field(default="builtin", description="where the preset is defined")
+    caseNoun: str | None = Field(default=None, description='the business name of a case ("sales order items")')
+    labelPack: str | None = Field(
+        default=None, description="the curated label pack that translates the pack's template into this log's labels"
+    )
+    pitfalls: list[str] = Field(default_factory=list, description="what to read carefully on this log")
+    extraSlicings: list[list[str]] = Field(default_factory=list)
+    note: str | None = None
 
 
 class ReadinessItem(BaseModel):
@@ -260,13 +275,23 @@ class NormVersion(BaseModel):
         default_factory=list, description="Norm.check: activities or attributes the norm names that never occur"
     )
     guidance_complete: bool = Field(default=False, description="every layer and expectation has a plain name")
+    guidance_missing: list[str] = Field(
+        default_factory=list, description="layers that still have no guidance (the elicitation questions, RK-6)"
+    )
+    uncalibrated: list[str] = Field(
+        default_factory=list,
+        description="thresholds and weights the norm declares as not yet calibrated (metadata.meta, R2-09)",
+    )
+    calibration: str | None = Field(default=None, description="calibrated | mixed | uncalibrated, from the norm")
     createdAt: datetime
     normId: str
     name: str
     views: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_domain(cls, n: DomainNormVersion, guidance_complete: bool = False) -> NormVersion:
+    def from_domain(
+        cls, n: DomainNormVersion, guidance_complete: bool = False, guidance_missing: list[str] | None = None
+    ) -> NormVersion:
         return cls(
             id=n.id,
             version=n.version,
@@ -279,6 +304,9 @@ class NormVersion(BaseModel):
             validation=list(n.validation),
             warnings=list(n.validation),
             guidance_complete=guidance_complete,
+            guidance_missing=list(guidance_missing or []),
+            uncalibrated=n.uncalibrated,
+            calibration=n.calibration,
             createdAt=n.created_at,
             normId=n.norm_id,
             name=n.name,
@@ -405,6 +433,25 @@ class Run(RunCreate):
         )
 
 
+class ManifestRow(BaseModel):
+    label: str
+    value: str | None = None
+    note: str | None = None
+
+
+class RunManifestView(BaseModel):
+    """The run screen, plain first (R3-O7): what a person needs, and the fingerprints behind `technical`."""
+
+    runId: str
+    status: str
+    caseNoun: str
+    plain: list[ManifestRow] = Field(default_factory=list)
+    technical: dict[str, Any] = Field(default_factory=dict)
+    uncalibrated: list[dict[str, Any]] = Field(
+        default_factory=list, description="expectations whose threshold needs calibrating on this log (R2-09)"
+    )
+
+
 class Table(BaseModel):
     columns: list[str]
     rows: list[list[Any]]
@@ -480,12 +527,21 @@ class BacklogRow(BaseModel):
     )
     caveats: list[Caveat] = Field(default_factory=list)
     n_caveats: int | None = None
+    n_caveats_shown: int | None = Field(
+        default=None, description="caveats the page-wide rule leaves visible on the card (R2-06)"
+    )
     plain_layer: str | None = Field(default=None, description="the most-missed expectation area in plain words")
     layer_missed_label: str | None = Field(default=None, description="what it looks like when that area is missed")
     top_constraint_plain: str | None = None
     case_noun: str | None = Field(default=None, description='the business name of a case ("purchase order items")')
     points_below: str | None = Field(default=None, description='"0.9 points below the overall score of 84.4 (1 %)"')
     kind_source: Literal["analytics", "library"] | None = None
+    comparison_constraint: str | None = Field(
+        default=None, description="the expectation the comparison sentence is about"
+    )
+    comparison_reason: ComparisonReason | None = Field(
+        default=None, description="set exactly when `comparison` is null; never both (R2-05)"
+    )
     reading: str | None = None
     reading_plain: str | None = Field(default=None, description="the one-sentence card reading (three numbers)")
 
@@ -496,6 +552,26 @@ class Caveat(BaseModel):
     status: str | None = None
     text: str
     window_end: str | None = None
+    subgroup: dict[str, Any] | None = Field(
+        default=None, description="for a sub-group caveat: the attribute, value and cases it names"
+    )
+    suppressed: bool = Field(
+        default=False,
+        description=(
+            "true only when the page-wide rule may hide the chip: a warn caveat whose share is within the "
+            "page-wide range. A fail caveat, and any caveat whose own share exceeds the page-wide threshold, "
+            "is never suppressed (R2-06)"
+        ),
+    )
+    page_share: float | None = Field(default=None, description="the page-wide share of this caveat kind")
+    threshold: float | None = Field(default=None, description="the share above which the chip is always shown")
+
+
+class ComparisonReason(BaseModel):
+    code: Literal["no_scored_cases", "no_driver", "not_computed", "analytics_unavailable", "analytics_error"] = Field(
+        description="why there is no comparison sentence"
+    )
+    text: str = Field(description="the reason in plain words; the screens print this instead of a sentence")
 
 
 class BacklogPage(BaseModel):
@@ -547,6 +623,10 @@ class SliceDetail(BaseModel):
     subgroups: Table = Field(default_factory=_empty_table)
     guidance_refs: list[GuidanceRefOut] = Field(default_factory=list)
     comparison: str | None = None
+    comparison_reason: ComparisonReason | None = Field(
+        default=None, description="set exactly when `comparison` is null; never both (R2-05)"
+    )
+    scoredCases: int | None = Field(default=None, description="cases of the group with a score in this view")
     comparisons: Table = Field(default_factory=_empty_table)
     analytics: dict[str, Any] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
@@ -652,12 +732,21 @@ class FlowPath(BaseModel):
     violation_share: float | None = Field(
         default=None, description="share of the cases on the path missing any expectation"
     )
+    onMap: bool = Field(default=True, description="whether the current detail level draws this path")
     model_config = ConfigDict(extra="allow")
 
 
 class FlowPaths(BaseModel):
+    """Every path of the **full** directly-follows relation, with the ones the detail level hides counted (R3-O8)."""
+
     incoming: list[FlowPath] = Field(default_factory=list)
     outgoing: list[FlowPath] = Field(default_factory=list)
+    hiddenIncoming: int = 0
+    hiddenOutgoing: int = 0
+    hidden: int = Field(default=0, description="paths that exist below the detail level")
+    totalIncoming: int = 0
+    totalOutgoing: int = 0
+    note: str | None = Field(default=None, description='"n paths hidden by the detail level", in words')
 
 
 class FlowGraph(BaseModel):
@@ -708,6 +797,96 @@ class FlowTypeComparison(BaseModel):
     types: list[dict[str, Any]]
 
 
+# ---------------------------------------------------------------------------- explore board (R3-O12)
+FacetBy = Literal["attribute", "flow_type", "period"]
+
+
+class FacetValue(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    value: str
+    label: str
+    field: str | None = None
+    cases: int
+    share: float | None = Field(default=None, description="share of the selected cases carrying this value")
+    mean_score: float | None = None
+    cases_below: int | None = None
+    share_below_expectation: float | None = Field(
+        default=None, description="share of the value's scored cases that miss at least one expectation"
+    )
+    gap: float | None = None
+    stable_gap: float | None = None
+    PI: float | None = None
+    priority_at_stake: float | None = Field(
+        default=None, description="stabilised Priority Index of the value against the run's overall score"
+    )
+    open_cases: int | None = None
+    open_share: float | None = Field(default=None, description="share still open at the window end")
+    exposure: float | None = None
+
+
+class Facets(BaseModel):
+    by: FacetBy
+    field: str = Field(description="the case attribute, the flow-type attribute or 'case start'")
+    period: str | None = Field(default=None, description="month | quarter | year | week, for by=period")
+    values: list[FacetValue]
+    total: int = Field(description="how many values the facet has in this selection")
+    shown: int
+    cases: int = Field(description="cases the filter keeps")
+    casesTotal: int = Field(description="cases in the run")
+    belowMinCases: int = 0
+    other: dict[str, Any] = Field(
+        default_factory=dict, description="values not shown: how many, their cases and their priority"
+    )
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class KpiTile(BaseModel):
+    id: str
+    label: str
+    value: float | None = None
+    format: Literal["count", "share", "index", "points"] = "count"
+    unit: str | None = None
+    text: str = Field(description="the tile in one plain sentence")
+
+
+class Kpis(BaseModel):
+    tiles: list[KpiTile]
+    cases: int
+    casesTotal: int
+    casesScored: int
+    casesBelowExpectation: int
+    meanScore: float | None = None
+    baseline: float | None = None
+    priorityAtStake: float
+    groups: int
+    openCases: int | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class ConstraintTouching(BaseModel):
+    id: str
+    type: str
+    layer: str | None = None
+    description: str | None = None
+    plain_name: str | None = None
+    hub_node: str | None = None
+
+
+class ActivityProfile(BaseModel):
+    id: str
+    label: str
+    onMap: bool = Field(description="whether the current detail level draws this activity")
+    stage: str | None = None
+    cases: int
+    events: int
+    shareOfCases: float | None = None
+    metrics: dict[str, float] = Field(default_factory=dict)
+    paths: FlowPaths
+    constraintsTouching: list[ConstraintTouching] = Field(default_factory=list)
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
 class FilterPreview(BaseModel):
     cases_in: int
     cases_out: int
@@ -737,6 +916,325 @@ class AnalyticsStatus(BaseModel):
     jobId: str | None = None
     windowEnd: str | None = None
     manifest: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------- review records (R1-12, R1-15)
+GateStatus = Literal["pending", "passed", "failed", "waived"]
+
+
+class ReviewItem(BaseModel):
+    """A hypothesis, a gate decision, a finding or an action; the kind's own fields sit next to these."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    projectId: str
+    kind: Literal["hypothesis", "gate", "finding", "action"]
+    status: str
+    title: str = ""
+    runId: str | None = None
+    slicing: str | None = None
+    sliceKey: str | None = None
+    view: str | None = None
+    author: str | None = None
+    note: str | None = None
+    createdAt: str
+    updatedAt: str
+
+
+class ReviewItemUpdate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    status: str | None = None
+    title: str | None = None
+    note: str | None = None
+
+
+class HypothesisCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    runId: str | None = None
+    slicing: str | None = None
+    sliceKey: str | None = None
+    view: str | None = None
+    constraint_id: str = Field(description="the expectation the hypothesis is about")
+    comparison: Literal["group_vs_rest", "period", "subgroup"] = "group_vs_rest"
+    expected_direction: Literal["higher", "lower", "none"] = "higher"
+    statement_plain: str | None = Field(default=None, description="the hypothesis in the reader's own words")
+    evidence_links: list[str] = Field(default_factory=list)
+    outcome: Literal["open", "supported", "not_supported", "inconclusive"] = "open"
+    author: str | None = None
+    note: str | None = None
+
+
+class FindingCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    title: str
+    runId: str | None = None
+    slicing: str | None = None
+    sliceKey: str | None = None
+    view: str | None = None
+    status: str = "open"
+    evidence: list[str] = Field(default_factory=list)
+    author: str | None = None
+    note: str | None = None
+
+
+class ActionCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    title: str
+    runId: str | None = None
+    slicing: str | None = None
+    sliceKey: str | None = None
+    view: str | None = None
+    mechanism: str | None = Field(default=None, description="what produces the shortfall")
+    remedy: str | None = None
+    countermeasure: (
+        Literal[
+            "policy",
+            "system_setting",
+            "standard_work",
+            "training",
+            "catalogue",
+            "contract",
+            "master_data",
+            "automation",
+            "review",
+            "measurement",
+        ]
+        | None
+    ) = None
+    owner_role: str | None = None
+    due: str | None = None
+    status: Literal["proposed", "agreed", "in_progress", "done", "dropped"] = "proposed"
+    links: list[str] = Field(default_factory=list)
+    author: str | None = None
+    note: str | None = None
+
+
+class Gate(BaseModel):
+    id: str
+    kind: Literal["readiness", "censoring", "replication", "domain"]
+    status: GateStatus
+    computed_status: GateStatus | None = None
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    text: str
+    note: str | None = None
+    author: str | None = None
+    decidedAt: str | None = None
+
+
+class Gates(BaseModel):
+    runId: str
+    slicing: str
+    sliceKey: str
+    view: str | None = None
+    caseNoun: str | None = None
+    cases: int | None = None
+    gates: list[Gate] = Field(default_factory=list)
+    blocking: list[str] = Field(default_factory=list, description="gate ids that block saving a hypothesis or action")
+    passed: bool = True
+
+
+class GateUpdate(BaseModel):
+    status: GateStatus
+    note: str | None = Field(default=None, description="mandatory when passing or waiving")
+    author: str | None = None
+
+
+class WhatCanWeDoDriver(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    constraint_id: str
+    plain_name: str | None = None
+    hub_node: str | None = None
+    share_of_shortfall: float | None = None
+    comparison: str | None = None
+    headroom_points: float | None = Field(default=None, description="score points the group would gain")
+    headroom_percent: float | None = None
+    meaning_when_missed: str | None = None
+    why_it_matters: str | None = None
+    what_to_check_first: list[str] = Field(default_factory=list)
+    usual_reasons: list[dict[str, Any]] = Field(default_factory=list)
+    usual_actions: list[dict[str, Any]] = Field(default_factory=list)
+    kpis: list[str] = Field(default_factory=list)
+    note: str | None = None
+
+
+class WhatCanWeDo(BaseModel):
+    runId: str
+    slicing: str
+    sliceKey: str
+    view: str | None = None
+    caseNoun: str | None = None
+    reading: str | None = None
+    drivers: list[WhatCanWeDoDriver] = Field(default_factory=list)
+    gates: list[Gate] = Field(default_factory=list)
+    blocking: list[str] = Field(default_factory=list)
+    actions: list[ReviewItem] = Field(default_factory=list)
+    guidanceAvailable: bool = False
+
+
+# ---------------------------------------------------------------------------- norm builder (R3-O6)
+class AttributeValue(BaseModel):
+    value: str
+    cases: int
+    share: float
+
+
+class AttributeInventory(BaseModel):
+    name: str
+    kind: Literal["text", "number"]
+    distinct: int
+    missing: int = 0
+    total: int = Field(default=0, description="values that match the search")
+    values: list[AttributeValue] = Field(default_factory=list)
+    numeric: dict[str, float] | None = Field(default=None, description="min, p10, median, p90, max for numbers")
+
+
+class ActivityInventory(BaseModel):
+    label: str
+    events: int
+    cases: int
+    share: float | None = None
+    stage: str | None = None
+    canonicalId: str | None = None
+
+
+class Inventory(BaseModel):
+    """What a norm can be built from (R3-O6): the log's activities and every case attribute's values, with counts."""
+
+    caseTableId: str
+    cases: int
+    events: int
+    caseNoun: str | None = None
+    activities: list[ActivityInventory] = Field(default_factory=list)
+    attributes: list[AttributeInventory] = Field(default_factory=list)
+    attributeNames: list[str] = Field(default_factory=list)
+    stages: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ConstraintCheckRequest(BaseModel):
+    caseTableId: str
+    constraint: dict[str, Any] = Field(
+        description='the library shape: {"id", "layer", "type", "params", "weight", "applicability", "description"}'
+    )
+    normVersionId: str | None = Field(default=None, description="read plain names from this norm's guidance")
+
+
+class ConstraintActivity(BaseModel):
+    label: str
+    known: bool
+    cases: int
+
+
+class ConstraintCheck(BaseModel):
+    valid: bool
+    errors: list[dict[str, Any]] = Field(default_factory=list)
+    id: str | None = None
+    layer: str | None = None
+    type: str | None = None
+    sentence: str | None = Field(default=None, description="the expectation in one sentence, name and rule")
+    rule_sentence: str | None = None
+    applicability_sentence: str | None = Field(default=None, description="whom it applies to, in words")
+    activities: list[ConstraintActivity] = Field(default_factory=list)
+    casesInScope: int | None = None
+    casesEvaluated: int | None = None
+    casesMissing: int | None = None
+    shareMissing: float | None = None
+    note: str | None = None
+    caseTableId: str | None = None
+    caseNoun: str | None = None
+
+
+class GuidanceQuestion(BaseModel):
+    id: str
+    field: str
+    question: str
+    suggested: Any = Field(default=None, description="the pack's generic text, offered as a starting answer")
+    answer: Any = Field(default=None, description="what the project has already answered")
+
+
+class GuidanceQuestions(BaseModel):
+    kind: str
+    id: str | None = None
+    questions: list[GuidanceQuestion] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------- guidance and hub (RK-2, RK-3)
+class GuidanceOverlay(BaseModel):
+    """Your organisation's note on one entry; every field is optional and added to the generic tier."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = None
+    plain_name: str | None = None
+    expectation: str | None = None
+    meaning_when_missed: str | None = None
+    why_it_matters: str | None = None
+    usual_reasons: list[dict[str, Any]] | None = None
+    usual_actions: list[dict[str, Any]] | None = None
+    what_to_check_first: list[str] | None = None
+    owner_role: str | None = None
+    stakeholders: list[str] | None = None
+    examples: list[dict[str, Any]] | None = None
+    kpis: list[str] | None = None
+    author: str | None = None
+
+
+class Guidance(BaseModel):
+    kind: str
+    id: str
+    generic: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "the pack's generic tier: plain_name, missed_label, expectation, meaning_when_missed, why_it_matters, "
+            "how_detected, usual_reasons[], usual_actions[], what_to_check_first[], examples[], kpis[], owner_role, "
+            "stakeholders, sources[], review_status, version"
+        ),
+    )
+    overlay: dict[str, Any] | None = Field(default=None, description="the project's own note")
+    hub_node: str | None = Field(default=None, description="the hub page to open for this entry")
+
+
+class HubNode(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    kind: str
+    plain_name: str | None = None
+    method_name: str | None = None
+    hasOverlay: bool = False
+
+
+class HubEdge(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    from_: str = Field(alias="from")
+    to: str
+    kind: str
+
+
+class HubIndex(BaseModel):
+    pack: str | None = None
+    process: str | None = None
+    case_noun: str | None = None
+    nodes: list[HubNode] = Field(default_factory=list)
+    edges: list[HubEdge] = Field(default_factory=list)
+    overlays: int = 0
+
+
+class HubPage(BaseModel):
+    node: dict[str, Any]
+    guidance: dict[str, Any] | None = None
+    related: dict[str, Any] = Field(
+        default_factory=dict,
+        description="stage, expectations[], failure_modes[], kpis[], playbook[], reasons[], actions[]",
+    )
+    overlay: dict[str, Any] | None = None
+    process: str | None = None
 
 
 class DecisionRequest(BaseModel):
@@ -778,10 +1276,42 @@ class Decision(BaseModel):
         return cls(**{**d.to_dict(), "createdAt": d.created_at})
 
 
+class DecisionItem(BaseModel):
+    readinessItem: str
+    kind: str
+    label: str
+    params: list[str] = Field(default_factory=list)
+    options: dict[str, list[Any]] = Field(
+        default_factory=dict, description="the values a parameter accepts, for the 'decide again' dialog"
+    )
+    selected: dict[str, Any] | None = Field(default=None, description="the parameters of the decision in force")
+    currentValue: Any = Field(default=None, description="what the mapping carries for this item today")
+    decided: bool = False
+    canDecideAgain: bool = True
+    note: str | None = None
+    history: list[Decision] = Field(default_factory=list, description="every decision on this item, newest first")
+
+
+class DecisionItems(BaseModel):
+    """The readiness items with their full option set, the decision in force and its history (R3-O1)."""
+
+    caseTableId: str = Field(description="the head of the lineage: where a new decision is applied")
+    requestedCaseTableId: str
+    mappingId: str | None = None
+    version: int
+    lineage: list[dict[str, Any]] = Field(
+        default_factory=list, description="the chain of case tables the decisions built, oldest first"
+    )
+    items: list[DecisionItem] = Field(default_factory=list)
+
+
 class DecisionApplied(BaseModel):
     decision: Decision
     caseTable: CaseTable
     job: Job
+    appliedTo: str | None = Field(
+        default=None, description="the case table the decision was applied to: the head of the lineage (R3-O3)"
+    )
 
 
 class DecisionKind(BaseModel):
@@ -789,6 +1319,9 @@ class DecisionKind(BaseModel):
     item: str
     params: list[str]
     label: str
+    options: dict[str, list[Any]] = Field(default_factory=dict, description="the values a parameter accepts")
+    default: dict[str, Any] = Field(default_factory=dict)
+    note: str | None = None
 
 
 class SnapshotCreate(BaseModel):

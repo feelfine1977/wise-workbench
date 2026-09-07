@@ -13,6 +13,7 @@ import { flowTypeOf, notebookQuery } from "@/lib/api/cycle2";
 import { useMocks } from "@/lib/config";
 import { fmtDate, fmtInt, fmtNum } from "@/lib/format";
 import { projectsQuery } from "@/lib/queries";
+import { groupingLabel } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
 import { useUiStore } from "@/lib/stores/ui";
 import { VOCABULARIES, type Vocabulary } from "@/lib/vocabulary";
@@ -125,7 +126,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   );
   const perspective = <Switcher key="perspective" label={vocabulary === "plain" ? t("ribbon.perspective") : t("ribbon.view")} value={ctx.view} options={(ctx.run?.views ?? []).map((v) => ({ value: v, label: v }))} onChange={ctx.setView} />;
   const grouping = (
-    <Switcher key="grouping" label={vocabulary === "plain" ? t("ribbon.grouping") : t("ribbon.sliceKey")} value={ctx.slicing} options={(ctx.run?.slicings ?? []).map((s) => ({ value: s.id ?? "", label: (s.attributes ?? []).map((a) => a.replace(/^case /, "")).join(" × ") || (s.id ?? ""), title: s.id ?? undefined }))} onChange={ctx.setSlicing} />
+    <Switcher key="grouping" label={vocabulary === "plain" ? t("ribbon.grouping") : t("ribbon.sliceKey")} value={ctx.slicing} options={(ctx.run?.slicings ?? []).map((s) => ({ value: s.id ?? "", label: groupingLabel(s.id ?? undefined, s.attributes ?? undefined) || (s.id ?? ""), title: s.id ?? undefined }))} onChange={ctx.setSlicing} />
   );
   const scope = <Switcher key="scope" label={t("ribbon.scope")} value={scopeOptions.length ? ctx.run?.id : undefined} placeholder="all flows" options={scopeOptions} onChange={(v) => ctx.navigateRun(v)} disabled={scopeOptions.length <= 1} />;
   const words = (
@@ -153,6 +154,9 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
       shown = [project, run()];
       more = [norm(true), mapping(true), words];
       break;
+    // the Flow step and the board are one step of the analysis and need the same context as Signals and Why:
+    // a perspective or a grouping changed there re-reads the map and every panel without leaving the screen
+    case "flow":
     case "signals":
     case "why":
     case "act":

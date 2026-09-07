@@ -47,17 +47,32 @@ DECISION_KINDS: dict[str, dict[str, Any]] = {
         "item": "right_censored",
         "params": ["handling", "closure", "window"],
         "label": "Handle open cases: censor in lags, exclude, or keep",
+        "options": {"handling": ["keep", "censor", "exclude"]},
+        "default": {"handling": "censor", "window": "60D"},
     },
     "zero_exposure": {
         "item": "zero_exposure",
         "params": ["handling"],
         "label": "Handle cases with exposure 0",
+        "options": {"handling": ["keep", "exclude"]},
+        "default": {"handling": "exclude"},
     },
     "flow_type_assignment": {
         "item": "flow_types",
         "params": ["rules", "default"],
         "label": "Assign flow types",
+        "note": "without rules the mapping's own flow typing is used",
     },
+}
+
+# the mapping field that carries the answer of each decision kind, for "decide again" (R3-O1)
+DECISION_STATE_FIELD: dict[str, str] = {
+    "collapse_duplicates": "dedupe",
+    "day_precision": "dayPrecisionActivities",
+    "header_events": "headerEvents",
+    "open_cases": "openCases",
+    "zero_exposure": "zeroExposure",
+    "flow_type_assignment": "flowTyping",
 }
 
 
@@ -86,11 +101,11 @@ def validate_decision(kind: str, params: dict[str, Any] | None) -> dict[str, Any
             raise ValidationError("zero exposure handling must be keep or exclude", code="decision.params")
         p["handling"] = handling
     if kind == "flow_type_assignment":
-        rules = list(p.get("rules") or [])
-        if not rules:
-            raise ValidationError("decision 'flow_type_assignment' needs at least one rule", code="decision.params")
-        p["rules"] = rules
-        p["default"] = str(p.get("default") or "other")
+        # R3-O4: no rules means "use the flow typing the mapping already carries"; the preview says so and the
+        # apply refuses an assignment that would change nothing, instead of reporting "0 of 251,734 cases affected"
+        p["rules"] = list(p.get("rules") or [])
+        # no default given keeps the mapping's own (the preview and the fold read it there)
+        p["default"] = str(p["default"]) if p.get("default") else None
     for key in ("activities", "timestamps"):
         if key in p and p[key] is not None:
             p[key] = [str(x) for x in p[key]]

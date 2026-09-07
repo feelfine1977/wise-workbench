@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { SliceDetail, WorstCase } from "@wise/api-schema";
 import { useWorkbench } from "@/app/context";
+import { ApiError } from "@/lib/api";
 import { sliceRoute } from "@/app/router";
 import type { SliceTab } from "@/app/search";
 import { filterPreviewQuery, flowFocusedQuery, type BacklogRowC2, type Filter, type RunC2, type SliceDetailC2 } from "@/lib/api/cycle2";
-import { ConfidenceMark, GateBadge, KindBadge, type GateState } from "@/components/badges";
+import { runManifestQuery } from "@/lib/api/cycle3";
+import { CalibrationChip, ConfidenceMark, GateBadge, KindBadge, type GateState } from "@/components/badges";
 import { DistributionLens } from "@/components/DistributionLens";
 import { Metric, backlogExplain } from "@/components/explain";
 import { BackControl } from "@/components/guide/BackControl";
@@ -22,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addedClauses, describeClause, parseFilter, serializeFilter } from "@/lib/filter";
+import { addClause, addedClauses, describeClause, filterHash, parseFilter, serializeFilter } from "@/lib/filter";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { backlogQuery, distributionQuery, flowQuery, normQuery, sliceQuery, traceQuery } from "@/lib/queries";
 import { belowExpectation, comparisonSentence, groupLabel, missedPhrase, sharedKeyValues } from "@/lib/sentences";
@@ -112,6 +114,9 @@ export default function SlicePage() {
   const [pendingAdd, setPendingAdd] = useState<{ key: string; text: string }>();
   const [paneOpen, setPaneOpen] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
+  // the map of the Why screen is the same instrument in a smaller frame (§3.13): it can fill the window too
+  const [mapFull, setMapFull] = useState(false);
+  const [mapRender, setMapRender] = useState<"map" | "model" | "table">("map");
 
   useEffect(() => {
     if (run && (search.slicing !== slicing || search.view !== view)) void navigate({ to: ".", search: (s) => ({ ...s, slicing, view }), replace: true });
@@ -146,6 +151,9 @@ export default function SlicePage() {
   const keyCount = Object.keys(slice.data?.row.keys ?? {}).length;
   const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing && keyCount > 1 });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
+  // the run's uncalibrated expectations, so a driver that separates no group is flagged here too
+  const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId), enabled: !!run });
+  const uncalibrated = useMemo(() => new Map((manifest.data?.uncalibrated ?? []).map((u) => [u.id, u])), [manifest.data]);
   const [highlight, setHighlight] = useState<string>();
   const [showAll, setShowAll] = useState(false);
   const findings = useFindingStore((s) => s.findings);
@@ -161,7 +169,13 @@ export default function SlicePage() {
     },
     [filter, navigate],
   );
-  const announcement = pendingAdd && preview.data && (serializeFilter(filter) ?? "") === pendingAdd.key ? `Filter added: ${pendingAdd.text} — ${fmtInt(preview.data.cases_in)} of ${fmtInt(preview.data.cases_in + preview.data.cases_out)} remain.` : undefined;
+  // the announcement names what it counted: "234,479 of 251,734 purchase order items remain", never a bare
+  // pair of numbers — the reader hears it without seeing the screen (§2.4)
+  const announcedNoun = slice.data?.row.case_noun ?? ctx.caseTable?.readiness?.caseNoun ?? "cases";
+  const announcement =
+    pendingAdd && preview.data && (serializeFilter(filter) ?? "") === pendingAdd.key
+      ? `Filter added: ${pendingAdd.text} — ${fmtInt(preview.data.cases_in)} of ${fmtInt(preview.data.cases_in + preview.data.cases_out)} ${announcedNoun} remain.`
+      : undefined;
 
   // activities of the top drivers on the map, from the flow response's constraint descriptions
   const topDriverActivities = useMemo(() => {
@@ -228,6 +242,13 @@ export default function SlicePage() {
           plainOf: (id: string) => plainOf(id),
           noun,
           announce: announcement,
+          frame: "panel" as const,
+          // the Why screen's map is the same instrument in a smaller frame (§3.13): it keeps its legend
+          legendOpen: true,
+          full: mapFull,
+          onFullChange: setMapFull,
+          render: mapRender,
+          onRenderChange: setMapRender,
           onAction: (a: { id: string; ids: string[] }) => {
             if (a.id === "lens") {
               const c = constraintsOfActivity(a.ids[0] ?? "").find((id) => lensConstraints.includes(id)) ?? lensConstraints[0];
@@ -236,10 +257,29 @@ export default function SlicePage() {
             if (a.id === "worst-cases") void navigate({ to: ".", search: (s) => ({ ...s, tab: "cases" }) });
           },
         };
+        // §3.11: a group whose map cannot be drawn is told so in one sentence with one next step. The
+        // answer's status code and the server's own phrase never reach the screen.
+        const noMap = flowSlice.isError && flowSlice.error instanceof ApiError && flowSlice.error.status === 404;
         const mapBlock = (height: number, embedded: boolean) => (
           <>
             {(flowSlice.isPending || flowGlobal.isPending) && <LoadingBlock rows={6} />}
-            {flowSlice.isError && <ErrorBlock error={flowSlice.error} retry={() => void flowSlice.refetch()} />}
+            {noMap && (
+              <div className="rounded-md border border-border bg-surface-sunken p-3 text-sm" data-testid="no-map">
+                <p className="reading text-text">No map can be drawn for {name}.</p>
+                <p className="reading mt-1 text-text-muted">The run has no event of these {noun} left after the current chips, so there is no path to draw.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {filter?.and.length ? (
+                    <Button variant="outline" size="sm" onClick={() => changeFilter(undefined)}>
+                      Remove the chips
+                    </Button>
+                  ) : null}
+                  <Button variant="outline" size="sm" onClick={() => setTab("why")}>
+                    Read the reasons instead
+                  </Button>
+                </div>
+              </div>
+            )}
+            {flowSlice.isError && !noMap && <ErrorBlock error={flowSlice.error} retry={() => void flowSlice.refetch()} />}
             {flowSlice.data && (
               <Suspense fallback={<LoadingBlock rows={6} />}>
                 <FlowMap {...mapProps} graph={flowSlice.data} height={height} title={`Process map of ${name} with the expectations drawn on it`} />
@@ -372,13 +412,13 @@ export default function SlicePage() {
               </p>
             </header>
 
-            <div className="xl:hidden">
+            <div className={search.tab === "flow" ? "" : "xl:hidden"}>
               <Button variant="outline" size="sm" aria-expanded={paneOpen} onClick={() => setPaneOpen((v) => !v)}>
                 Decision{existingFinding?.disposition ? ` · ${existingFinding.disposition.replace("_", " ")}` : ""}
               </Button>
             </div>
 
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className={cn("grid gap-5", search.tab === "flow" ? "" : "xl:grid-cols-[minmax(0,1fr)_360px]")}>
               <div className="min-w-0">
                 <Tabs value={search.tab} onValueChange={(v) => setTab(v as SliceTab)}>
                   <TabsList aria-label="Reasons" underline>
@@ -393,7 +433,17 @@ export default function SlicePage() {
                   <TabsContent value="why" className="flex flex-col gap-4">
                     <Card>
                       <CardTitle>{plain ? "Which expectations are missed" : "Top drivers"}</CardTitle>
-                      {top.length === 0 && <p className="text-sm text-text-muted">No expectation is missed more here than in the whole log.</p>}
+                      {/* never a borrowed reading (R2-05): a group without a scored case says so, and a group whose
+                          header names a missed expectation never reads "no expectation is missed more here" alone */}
+                      {top.length === 0 && (
+                        <p className="reading text-sm text-text-muted" data-testid="no-drivers">
+                          {drivers.length === 0
+                            ? `No expectation was scored for these ${noun}, so nothing can be compared here. The data caveats below say what stands in the way.`
+                            : missed
+                              ? `${missed.charAt(0).toUpperCase()}${missed.slice(1)} is what these ${noun} miss most${row.top_constraint_share !== null && row.top_constraint_share !== undefined ? ` (${fmtPct(row.top_constraint_share, 0)} of them)` : ""}; still, no expectation is missed more here than in the whole log.`
+                              : "No expectation is missed more here than in the whole log."}
+                        </p>
+                      )}
                       <ol className="flex flex-col gap-4" data-testid="top-drivers">
                         {top.map((d) => {
                           const share = d.share_of_shortfall ?? (row.gap > 0 ? d.delta_gap / row.gap : 0);
@@ -402,6 +452,8 @@ export default function SlicePage() {
                               <p className="reading text-base">
                                 <strong title={plain ? `${plainConstraint(d)} (${d.constraint})` : plainConstraint(d)}>{plain ? plainOf(d.constraint) : plainConstraint(d)}</strong>
                                 {!plain && <span className="ml-2 font-mono text-[11px] text-text-subtle">{d.constraint}</span>}
+                                {/* an expectation almost every case misses separates no group  */}
+                                {uncalibrated.has(d.constraint) && <CalibrationChip className="ml-2 align-middle" text={uncalibrated.get(d.constraint)?.text} />}
                               </p>
                               <p className="text-sm text-text-muted">
                                 missed in <strong className="tnum text-text">{fmtPct(d.share_violated, 0)}</strong> of these {noun} · explains <strong className="tnum text-text">{fmtPct(share, 0)}</strong> of the shortfall
@@ -515,8 +567,8 @@ export default function SlicePage() {
                     </Card>
                     <Card className="border-dashed" data-testid="typical-causes">
                       <CardTitle>Typical causes for this pattern</CardTitle>
-                      <p className="reading text-sm text-text-muted">Typical causes arrive with the knowledge hub in cycle 3: candidate reasons for the missed expectations, each with what to check in the log and what to ask outside it.</p>
-                      <Button variant="outline" size="sm" className="mt-3" disabled title="What can we do? arrives in cycle 3">
+                      <p className="reading text-sm text-text-muted">Typical causes are not available yet: candidate reasons for the missed expectations, each with what to check in the log and what to ask outside it.</p>
+                      <Button variant="outline" size="sm" className="mt-3" disabled title="What can we do? is not available yet">
                         What can we do? →
                       </Button>
                     </Card>
@@ -555,12 +607,28 @@ export default function SlicePage() {
 
                   <TabsContent value="flow">
                     <Card className="flex flex-col">
-                      <CardTitle>
-                        <Term id="flow" primaryOnly={plain}>
-                          {plain ? `Where in the flow · ${name}` : "Process map"}
-                        </Term>
-                      </CardTitle>
-                      {mapBlock(560, false)}
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <CardTitle className="mb-0">
+                          <Term id="flow" primaryOnly={plain}>
+                            {plain ? `Where in the flow · ${name}` : "Process map"}
+                          </Term>
+                        </CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const scoped = addClause(filter, { kind: "slice", slicing, key: sliceKey });
+                            void navigate({
+                              to: "/p/$projectId/runs/$runId/flow",
+                              params: { projectId: ctx.projectId, runId },
+                              search: { view, slicing, render: "map" as const, filter: serializeFilter(scoped), fh: filterHash(scoped) } as never,
+                            });
+                          }}
+                        >
+                          Open full →
+                        </Button>
+                      </div>
+                      {mapBlock(520, false)}
                       {topDriverActivities.length > 0 && <p className="mt-2 text-xs text-text-muted">Tinted activities belong to the top expectations behind the shortfall.</p>}
                     </Card>
                   </TabsContent>
@@ -684,7 +752,7 @@ export default function SlicePage() {
                           )}
                         </dl>
                       </details>
-                      <p className="mt-3 text-xs text-text-muted">Passing, failing or waiving a check with a note arrives with the review endpoints (cycle 3).</p>
+                      <p className="mt-3 text-xs text-text-muted">Passing, failing or waiving a check with a note is not available yet; the checks are shown as they were computed.</p>
                     </Card>
                   </TabsContent>
 
@@ -723,14 +791,14 @@ export default function SlicePage() {
                   </TabsContent>
                 </Tabs>
               </div>
-              <div className={cn("flex flex-col gap-3", paneOpen ? "block" : "hidden xl:block")}>
+              <div className={cn("flex flex-col gap-3", paneOpen ? "block" : search.tab === "flow" ? "hidden" : "hidden xl:block")}>
                 <DecisionPane projectId={ctx.projectId} runId={runId} slicing={slicing} row={row} layerName={area} missed={missed} focus={search.focus === "finding"} onSaved={() => setPaneOpen(false)} />
                 {existingFinding && (
                   <NextStep
                     label="Freeze this screen for the notebook"
                     because="your reading is saved; a snapshot with a note keeps it for the report"
                     onClick={() => document.querySelector<HTMLElement>("[data-freeze-trigger]")?.click()}
-                    alternative={{ label: "Open What can we do? (arrives in cycle 3)" }}
+                    alternative={{ label: "Open What can we do? (not available yet)" }}
                   />
                 )}
               </div>

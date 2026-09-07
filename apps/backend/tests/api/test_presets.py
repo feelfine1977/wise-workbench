@@ -219,6 +219,9 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
         assert len(tables) == 1 and tables[0]["cases"] == 10 and "flow_type" in tables[0]["attributes"]
         mapping = client.get(f"/api/v1/projects/{pid}/case-tables/{tables[0]['id']}/mapping").json()
         assert mapping["headerEvents"] and mapping["closureActivities"] == ["Clear Invoice"]
+        # a preset names what one case is, and the case table it loads says the same
+        assert mapping["caseNoun"] == "purchase order items"
+        assert (tables[0].get("readiness") or {}).get("caseNoun") == "purchase order items"
         norms = client.get(f"/api/v1/projects/{pid}/norms").json()
         assert len(norms) == 1 and norms[0]["name"] == "WISE BPIC'19 norm"
         page = client.get(
@@ -226,6 +229,7 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
             params={"slicing": "case Company+case Spend area text", "view": "Automation", "minCases": 1},
         ).json()
         assert page["total"] == 4 and page["rows"][0]["keys"]["case Company"].startswith("companyID_")
+        assert page["params"]["case_noun"] == "purchase order items"
         assert all(row["kind"] in ("acute", "systematic", "widespread", None) for row in page["rows"])
         assert client.get(f"/api/v1/projects/{pid}").json()["latestRunId"] == run_id
         # loading again reuses everything and answers with a job that finishes on the same run

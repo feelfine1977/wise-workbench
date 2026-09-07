@@ -3,7 +3,7 @@ import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRout
 import { projectsQuery } from "@/lib/queries";
 import { AppShell } from "./shell/AppShell";
 import { NotFound } from "./NotFound";
-import { parseSearch, stringifySearch, validateBacklogSearch, validateDatasetSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { parseSearch, stringifySearch, validateBacklogSearch, validateBoardSearch, validateDatasetSearch, validateFlowSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
 import { LoadingBlock } from "@/components/states";
 
 export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -86,6 +86,20 @@ export const backlogRoute = createRoute({
   component: lazyRouteComponent(() => import("@/routes/backlog/BacklogPage")),
 });
 
+export const flowRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "runs/$runId/flow",
+  validateSearch: validateFlowSearch,
+  component: lazyRouteComponent(() => import("@/routes/flow/FlowPage")),
+});
+
+export const boardRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "runs/$runId/board",
+  validateSearch: validateBoardSearch,
+  component: lazyRouteComponent(() => import("@/routes/board/BoardPage")),
+});
+
 export const sliceRoute = createRoute({
   getParentRoute: () => projectRoute,
   path: "runs/$runId/slices/$sliceKey",
@@ -103,7 +117,7 @@ export const notebookRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   projectsRoute,
-  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, sliceRoute, notebookRoute]),
+  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, flowRoute, boardRoute, sliceRoute, notebookRoute]),
 ]);
 
 export function createAppRouter(queryClient: QueryClient, history?: Parameters<typeof createRouter>[0]["history"]) {

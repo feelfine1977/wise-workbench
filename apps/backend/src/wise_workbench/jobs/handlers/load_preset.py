@@ -9,6 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from wise_workbench.adapters.knowledge import translate_norm
 from wise_workbench.adapters.storage import sha256_file
 from wise_workbench.application.ports import ProgressFn
 from wise_workbench.domain import (
@@ -28,14 +29,19 @@ from wise_workbench.domain import (
 )
 from wise_workbench.ids import new_id
 from wise_workbench.jobs.worker import JobContext
-from wise_workbench.presets import PRESETS, Preset
+from wise_workbench.presets import Preset, all_presets
 
 from . import build_cases, ingest, score_run
 
 
 def preset_paths(settings: Any, preset: Preset) -> tuple[Path, Path]:
-    csv = Path(getattr(settings, preset.csv_setting)).expanduser()
-    norm = Path(getattr(settings, preset.norm_setting)).expanduser()
+    """The log file and the starting norm of a preset: from the settings (built-in) or resolved (pack presets)."""
+    csv = (
+        Path(getattr(settings, preset.csv_setting)) if preset.csv_setting else Path(preset.csv_path or "")
+    ).expanduser()
+    norm = (
+        Path(getattr(settings, preset.norm_setting)) if preset.norm_setting else Path(preset.norm_path or "")
+    ).expanduser()
     return csv, norm
 
 
@@ -48,11 +54,57 @@ def fit_mapping(doc: dict[str, Any], columns: set[str]) -> dict[str, Any]:
             out.pop(key, None)
     rules = []
     for rule in out.get("flowTyping", []):
-        attr = rule.get("rule", {}).get("attr")
-        if attr is None or attr in columns:
+        if _rule_columns(rule.get("rule") or {}) <= columns or not columns:
             rules.append(rule)
     out["flowTyping"] = rules
+    # a prepared attribute whose source column the file does not carry is dropped, not failed
+    prepared = []
+    for spec in out.get("preparedAttributes", []):
+        needed = _prepared_columns(spec)
+        if not columns or needed <= columns:
+            prepared.append(spec)
+    out["preparedAttributes"] = prepared
+    if columns:
+        known = columns | {str(p["name"]) for p in prepared}
+        out["flowTyping"] = [r for r in out["flowTyping"] if _rule_columns(r.get("rule") or {}) <= known]
     return out
+
+
+def _rule_columns(rule: dict[str, Any]) -> set[str]:
+    """The case-attribute columns a flow-typing rule reads, in either grammar."""
+    out: set[str] = set()
+    if rule.get("attr"):
+        out.add(str(rule["attr"]))
+    if rule.get("kind") == "attribute" and rule.get("field"):
+        out.add(str(rule["field"]))
+    for key in ("all", "any", "and", "or"):
+        for item in rule.get(key) or []:
+            if isinstance(item, dict):
+                out |= _rule_columns(item)
+    if isinstance(rule.get("not"), dict):
+        out |= _rule_columns(rule["not"])
+    for attr, value in rule.items():
+        if attr not in ("attr", "kind", "field", "all", "any", "and", "or", "not", "has", "lacks") and isinstance(
+            value, list
+        ):
+            out.add(str(attr))
+    return out
+
+
+def _prepared_columns(spec: dict[str, Any]) -> set[str]:
+    """The columns a prepared attribute reads."""
+    body = dict(spec.get("spec") or {})
+    out: set[str] = set()
+    if spec.get("kind") == "alias":
+        out.add(str(body.get("from") or body.get("attribute") or ""))
+        return {c for c in out if c}
+    for side in ("minuend", "subtrahend"):
+        part = body.get(side) or {}
+        if isinstance(part, dict) and part.get("attribute"):
+            out.add(str(part["attribute"]))
+    if body.get("attribute"):
+        out.add(str(body["attribute"]))
+    return {c for c in out if c}
 
 
 def _scaled(progress: ProgressFn, lo: float, hi: float, prefix: str) -> ProgressFn:
@@ -76,7 +128,7 @@ def run(ctx: JobContext) -> str:
 
 def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> str:
     try:
-        preset = PRESETS[preset_id]
+        preset = all_presets(c.settings)[preset_id]
     except KeyError:
         raise NotFoundError(f"unknown preset {preset_id!r}", code="preset.not_found") from None
     csv, norm_path = preset_paths(c.settings, preset)
@@ -116,6 +168,10 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
     # 2. mapping and case table: reuse a ready table built with the same mapping
     columns = {col.name for col in dataset.columns}
     mapping_doc = fit_mapping(preset.mapping, columns)
+    # The preset names what one case is ("purchase order items"); the mapping is what every screen reads it
+    # from, so a preset loaded here must produce the same noun as the workspace it reproduces.
+    if preset.case_noun and not mapping_doc.get("caseNoun"):
+        mapping_doc["caseNoun"] = preset.case_noun
     table: CaseTable | None = None
     for cand in c.repos.list_case_tables(project_id):
         if cand.dataset_id != dataset.id or cand.status != CaseTableStatus.READY:
@@ -147,23 +203,31 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
             raise
         table = c.repos.get_case_table(table.id)
 
-    # 3. norm version: reuse by fingerprint
+    # 3. norm version: the pack's template translated into this log's labels, reused by fingerprint
     progress(0.79, "norm version")
     doc = json.loads(norm_path.read_text(encoding="utf-8"))
+    note = preset.norm_note
+    if preset.label_pack:
+        doc, untranslated = translate_norm(doc, preset.process, preset.label_pack)
+        if untranslated:
+            note += f"; {len(untranslated)} canonical activities have no label in this log ({untranslated[0]}, …)"
     _canonical, fingerprint = c.engine.validate_norm(doc)
     norm = next((n for n in c.repos.list_norm_versions(project_id) if n.fingerprint == fingerprint), None)
     if norm is None:
-        norm = c.norms.create_version(project_id, doc, note=preset.norm_note)
+        norm = c.norms.create_version(project_id, doc, note=note)
 
     # 4. run: reuse identical parameters, else score in this job
     slicings = [Slicing(id=slicing_id(preset.slicing), attributes=tuple(preset.slicing))]
     for extra in preset.extra_slicings:
         if all(a in table.attributes for a in extra):
             slicings.append(Slicing(id=slicing_id(extra), attributes=tuple(extra)))
+    # every view is scored (the view comparison needs at least two); the preset's view leads, so it is the default
+    ordered = [preset.view, *[v for v in norm.view_names if v != preset.view]] if preset.view else norm.view_names
+    views = tuple(v for v in ordered if v in norm.view_names)
     params = RunParams(
         case_table_id=table.id,
         norm_version_id=norm.id,
-        views=tuple(norm.view_names),
+        views=views or tuple(norm.view_names),
         slicings=tuple(slicings),
         gamma=preset.gamma,
         min_cases=preset.min_cases,

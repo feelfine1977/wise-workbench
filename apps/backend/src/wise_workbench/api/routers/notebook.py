@@ -89,7 +89,7 @@ def reorder_snapshots(projectId: str, body: schemas.SnapshotOrder, c: ContainerD
 @router.get(
     "/export",
     operation_id="exportNotebook",
-    description="The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint arrives in cycle 4.",
+    description="The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint is not available yet.",
     responses={200: {"content": {"application/zip": {}}, "description": "a zip file"}, 422: {"model": schemas.Problem}},
 )
 def export_notebook(projectId: str, c: ContainerDep, format: Literal["markdown", "pptx"] = "markdown") -> Response:

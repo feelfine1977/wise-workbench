@@ -74,7 +74,11 @@ def test_upload_mapping_case_table_flow(client: TestClient) -> None:
     assert suggestion["mapping"]["caseId"] == "case" and suggestion["mapping"]["activity"] == "activity"
     assert suggestion["mapping"]["timestamp"] == "time" and "company" in suggestion["mapping"]["caseAttributes"]
     presets = client.get(f"/api/v1/projects/{pid}/datasets/presets").json()
-    assert [p["id"] for p in presets] == ["bpic2019"] and presets[0]["mapping"]["caseId"] == "case concept:name"
+    by_id = {p["id"]: p for p in presets}
+    # R2-04: the built-in preset plus every preset the installed knowledge packs carry
+    assert "bpic2019" in by_id and by_id["bpic2019"]["mapping"]["caseId"] == "case concept:name"
+    assert by_id["bpic2019"]["kind"] == "builtin"
+    assert all(p["kind"] == "pack" for i, p in by_id.items() if i != "bpic2019")
     assert client.post(f"/api/v1/projects/{pid}/datasets/presets/nope").status_code == 404
     # a mapping that names a missing column is refused with a stable code
     r = client.post(

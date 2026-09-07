@@ -72,6 +72,51 @@ def test_backlog_query_parameters(generated: dict, contract: dict) -> None:
     assert generated["servers"] == [{"url": "/api/v1"}]
 
 
+def test_cycle3_operations_are_in_the_contract(generated: dict) -> None:
+    """The board, the flow export and the review records (R3-O11, R3-O12, R1-12, R1-15, R2-01, RK-2, RK-3)."""
+    ops = {
+        op.get("operationId")
+        for path in generated["paths"].values()
+        for method, op in path.items()
+        if method != "parameters"
+    }
+    assert {
+        "getFacets",
+        "getKpis",
+        "exportFlowBpmn",
+        "getActivityProfile",
+        "getRunManifest",
+        "getGates",
+        "setGate",
+        "createHypothesis",
+        "createFinding",
+        "createAction",
+        "getWhatCanWeDo",
+        "getGuidance",
+        "setGuidanceOverlay",
+        "getKnowledgeHub",
+        "getKnowledgeHubPage",
+        "getNormInventory",
+        "checkConstraint",
+        "getGuidanceQuestions",
+        "getCaseTableDecisions",
+    } <= ops
+    facets = generated["paths"]["/projects/{projectId}/runs/{runId}/facets"]["get"]
+    names = {p["name"] for p in facets["parameters"]}
+    assert {"by", "attribute", "view", "period", "filter", "minCases", "limit", "sort"} <= names
+    kpis = generated["paths"]["/projects/{projectId}/runs/{runId}/kpis"]["get"]
+    assert {"filter", "view", "slicing", "sliceKey", "grouping"} <= {p["name"] for p in kpis["parameters"]}
+    bpmn = generated["paths"]["/projects/{projectId}/runs/{runId}/flow/bpmn"]["get"]
+    assert {"scope", "detail", "filter", "gateways"} <= {p["name"] for p in bpmn["parameters"]}
+    assert "application/xml" in bpmn["responses"]["200"]["content"]
+    paths = generated["components"]["schemas"]["FlowPaths"]["properties"]
+    assert {"hidden", "hiddenIncoming", "hiddenOutgoing", "note"} <= set(paths)
+    row = generated["components"]["schemas"]["BacklogRow"]["properties"]
+    assert {"comparison_reason", "comparison_constraint", "n_caveats_shown"} <= set(row)
+    caveat = generated["components"]["schemas"]["Caveat"]["properties"]
+    assert {"suppressed", "page_share", "threshold"} <= set(caveat)
+
+
 def test_committed_contract_equals_the_generated_document(generated: dict, contract: dict) -> None:
     """``packages/api-schema/openapi.yaml`` is regenerated from the backend and committed; any drift fails here.
 

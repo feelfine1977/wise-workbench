@@ -87,6 +87,36 @@ Then features:
 - Backend endpoints: filtered flow, activity profile, path analysis,
   sub-log creation.
 
+## B2b. Carried out of the third release — a readable map and a board that answers at once
+
+Three things were built, measured against their acceptance criterion on the
+released build, and **not met**; they are named here rather than closed.
+
+- **A readable label at the fitted zoom.** The rule is implemented
+  (`apps/frontend/src/components/flow/frame.ts`: `layersAt`,
+  `readableMaxLevel`), and the caption marks the levels that fall short, but
+  **no detail level of BPI Challenge 2019 reaches the 11 px the design asks
+  for**: a 12 px label is drawn at 3.0 to 5.8 px across the five levels and
+  the three reference windows (4.6 px at *more activities* on 1440 × 900,
+  3.0 px at 1024 × 768), and even *stages only* — six boxes and two markers
+  — does not reach it. Stopping the slider at the last readable level would
+  remove detail without making one label readable, so the slider was left
+  open. What this needs is a label drawn at a constant size on the screen
+  instead of one that scales with the drawing, or node boxes that shrink
+  with the zoom — a change in the flow library's canvas.
+- **A path list that is visible at once.** *Paths in / out* lists every path
+  of an activity from the full relation, inside the frame, with the ones the
+  detail level hides under their own divider. For an activity with 42 paths
+  (Change Quantity: 22 in, 20 out) the 264 px column holds 1,154 px of rows
+  in 586 px of height at 1440 × 900, so it **scrolls**. It needs a denser
+  row, a two-column arrangement, or grouping by the other end.
+- **The board's first filtered selection.** The count line, the ranked list
+  and the breakdown answer a click in 2 ms, 132 ms and 480 ms; the four
+  tiles are computed on the server for that filter the first time and take
+  about **8.3 s** on 251,734 items, against the one-second rule. Repeat
+  selections are immediate. The tiles need the same pre-computation or cache
+  as the ranked list.
+
 ## B3. Owner walkthroughs, deployment and authentication (owner request, 2026-09-06)
 
 - Owner walkthroughs W1–W5 after cycles 2, 4, 6, 8, 10 with the guide and
@@ -96,6 +126,27 @@ Then features:
   single-user install and Docker single profile (cycle 6), team server
   with OIDC, roles and audit (cycle 8), hosted pilot with invitations,
   user administration and backups (cycle 9), hardening (cycle 10).
+
+## B4. Optional actionability extension (owner decision, 2026-09-06; ADR 0012)
+
+Built in the application cycle that follows the extension's first stages,
+never before there is something to detect:
+
+- **R-EXT-1** capability probe and `WISE_ACTIONABILITY` setting
+  (`auto` / `off` / `on`), capabilities in the version endpoint and in every
+  run manifest.
+- **R-EXT-2** engine adapter: extension calls behind capability checks with
+  classic fallbacks that produce identical numbers.
+- **R-EXT-3** interface: a settings page naming the installed build and what
+  it adds; capability-dependent controls shown only when available; runs and
+  exports labelled with the capability set; a warning when runs made under
+  different capability sets are compared.
+- **R-EXT-4** deployment: the opt-in install documented in the deployment
+  guide (one package replaced, service restarted) and, later, a container
+  profile.
+- **R-EXT-5** the dual-build check in the local release routine: the
+  application suites and the reference reproduction run against both builds
+  and must agree.
 
 ## C. Increment 2 — the improvement loop
 

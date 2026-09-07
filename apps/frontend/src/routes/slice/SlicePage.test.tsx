@@ -44,7 +44,8 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(await screen.findByTestId("why-map", {}, T)).toBeInTheDocument();
     expect(await screen.findByTestId("flow-map", {}, T)).toBeInTheDocument();
     expect(screen.getByTestId("why-caveats")).toHaveTextContent(/14\s?% of purchase order items still open/);
-    expect(screen.getByTestId("typical-causes")).toHaveTextContent(/Typical causes arrive with the knowledge hub in cycle 3/);
+    expect(screen.getByTestId("typical-causes")).toHaveTextContent(/Typical causes are not available yet/);
+    expect(screen.getByTestId("typical-causes").textContent).not.toMatch(/cycle \d/);
     // the full picture stays behind "Show all"
     expect(screen.queryByTestId("drivers-table")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Show all \d+ expectations/ }));
@@ -75,10 +76,10 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     await screen.findByRole("heading", { level: 1, name: /Packaging/ }, T);
     const bar = screen.getByTestId("filter-bar");
     expect(bar).toHaveTextContent(/purchase order items in:/);
-    expect(within(bar).getByRole("list", { name: "Active filters" })).toHaveTextContent("cases with Remove Payment Block");
+    expect(within(bar).getByRole("list", { name: "Active filters" })).toHaveTextContent("with Remove Payment Block");
     await waitFor(() => expect(within(bar).getByTestId("filter-preview")).toHaveTextContent(/[\d,]+ of [\d,]+/), T);
     expect(screen.getByRole("tab", { name: "Gain" })).toHaveAttribute("aria-selected", "true");
-    await user.click(within(bar).getByRole("button", { name: /Remove filter: cases with Remove Payment Block/ }));
+    await user.click(within(bar).getByRole("button", { name: /Remove filter: with Remove Payment Block/ }));
     await waitFor(() => expect(within(screen.getByTestId("filter-bar")).queryByRole("list", { name: "Active filters" })).not.toBeInTheDocument());
   });
 

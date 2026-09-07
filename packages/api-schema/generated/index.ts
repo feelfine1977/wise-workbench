@@ -54,6 +54,13 @@ export type FlowGroup = S["FlowGroup"];
 export type FlowOverlay = S["FlowOverlay"];
 export type Job = S["Job"];
 export type JobStatus = Job["status"];
+/** The explore board (R3-O12): the breakdown bars, the four tiles and the run's plain manifest. */
+export type Facets = S["Facets"];
+export type FacetValue = S["FacetValue"];
+export type Kpis = S["Kpis"];
+export type KpiTile = S["KpiTile"];
+export type RunManifestView = S["RunManifestView"];
+export type ManifestRow = S["ManifestRow"];
 
 export type BacklogQuery = NonNullable<operations["getBacklog"]["parameters"]["query"]>;
 export type BacklogSort = NonNullable<BacklogQuery["sort"]>;

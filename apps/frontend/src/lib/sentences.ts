@@ -97,7 +97,7 @@ export function groupLabel(row: { key: string; keys?: Record<string, string> | n
 }
 
 /** Caveats that hold on nearly every row of a page (nine of ten) belong in the header once, with their median share. */
-export function pageWideCaveats(rows: BacklogRow[]): { id: string; share: number | undefined; text: string }[] {
+export function pageWideCaveats(rows: BacklogRow[]): { id: string; share: number | undefined; max: number | undefined; text: string }[] {
   if (rows.length < 3) return [];
   const byId = new Map<string, { shares: number[]; text: string; count: number }>();
   for (const r of rows) {
@@ -109,14 +109,34 @@ export function pageWideCaveats(rows: BacklogRow[]): { id: string; share: number
       byId.set(c.id, entry);
     }
   }
-  const out: { id: string; share: number | undefined; text: string }[] = [];
+  const out: { id: string; share: number | undefined; max: number | undefined; text: string }[] = [];
   for (const [id, e] of byId) {
     if (e.count / rows.length < 0.9) continue;
     const sorted = [...e.shares].sort((a, b) => a - b);
     const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : undefined;
-    out.push({ id, share: median, text: e.text });
+    out.push({ id, share: median, max: sorted.length ? sorted[sorted.length - 1] : undefined, text: e.text });
   }
   return out;
 }
 
 export const shareWord = (share: number | undefined) => (share === undefined ? "" : fmtPct(share, share < 0.1 ? 1 : 0));
+
+/**
+ * The grouping in words: `case Company+case Spend area text` reads *Company × Spend area*. The `case` prefix
+ * and the column's own suffix (`text`, `id`, `code`, `key`, `no`) are the log's column names, not the words
+ * a reader uses for the thing they name.
+ */
+export function groupingLabel(slicing: string | undefined, attributes?: (string | null | undefined)[]): string {
+  const parts = (attributes?.filter((a): a is string => !!a) ?? (slicing ? slicing.split("+") : [])).map((a) =>
+    a
+      .replace(/^case /i, "")
+      .replace(/[ _](text|id|code|key|no|nr|number)$/i, "")
+      .trim(),
+  );
+  return parts.filter(Boolean).join(" × ");
+}
+
+/** *no filter* · *1 filter* · *3 filters*. */
+export function filterCount(count: number): string {
+  return count === 0 ? "no filter" : count === 1 ? "1 filter" : `${count} filters`;
+}

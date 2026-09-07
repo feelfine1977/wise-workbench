@@ -13,15 +13,18 @@ printed in every caveat sentence.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 import wise
+from wise.constraints import in_units
 
 from wise_workbench.domain import (
     DECISION_KINDS,
+    DECISION_STATE_FIELD,
     FLOW_TYPE_ATTRIBUTE,
     ColumnMapping,
     DecisionPreview,
@@ -35,6 +38,7 @@ from .tables import jsonable
 
 # readiness item → the decision a reader can take on it (R2-O1)
 DECISION_FOR_ITEM: dict[str, str] = {spec["item"]: kind for kind, spec in DECISION_KINDS.items()}
+_LOG = logging.getLogger(__name__)
 DECISION_FOR_ITEM["event_replication"] = "header_events"
 EVENT_LEVEL_DECISIONS = ("drop_outside_window", "sentinel_as_missing")
 CASE_LEVEL_DECISIONS = ("open_cases", "zero_exposure")
@@ -270,11 +274,11 @@ def preview_decision(log: wise.EventLog, mapping: ColumnMapping, kind: str, para
             end = log._to_ts(params["end"])  # type: ignore[assignment]
         mask = _outside_window_mask(log, params)
         cases, events = by_events(mask)
-        counts = np.bincount(log._codes[mask], minlength=n_cases)
+        per_case = np.bincount(log._codes[mask], minlength=n_cases)
         detail = {
             "start": jsonable(start),
             "end": jsonable(end),
-            "casesDropped": int((counts == np.bincount(log._codes, minlength=n_cases)).sum()) if mask.any() else 0,
+            "casesDropped": int((per_case == np.bincount(log._codes, minlength=n_cases)).sum()) if mask.any() else 0,
         }
     elif kind == "sentinel_as_missing":
         cases, events = by_events(_sentinel_mask(log, params))
@@ -308,24 +312,48 @@ def preview_decision(log: wise.EventLog, mapping: ColumnMapping, kind: str, para
         events = int(log.cases.loc[z, "n_events"].sum())
         detail = {"handling": params.get("handling", "exclude")}
     elif kind == "flow_type_assignment":
+        # R3-O4: rules given by the reader, else the mapping's own flow typing. When the mapping already types the
+        # log with these rules nothing changes, and the preview says so instead of "0 of 251,734 cases affected".
         from wise_workbench.domain.mapping import FlowTypingRule
 
+        given = [{"name": str(r["name"]), "rule": dict(r["rule"])} for r in (params.get("rules") or [])]
+        from_mapping = not given
+        rules = given or [{"name": r.name, "rule": dict(r.rule)} for r in mapping.flow_typing]
+        if not rules:
+            raise ValidationError(
+                "no flow typing: give rules, or set flow typing on the mapping first", code="decision.params"
+            )
         probe = ColumnMapping.from_dict(
             "probe",
             mapping.dataset_id,
             {
                 **mapping.to_dict(),
-                "flowTyping": [{"name": str(r["name"]), "rule": dict(r["rule"])} for r in params["rules"]],
-                "flowTypeDefault": str(params.get("default") or "other"),
+                "flowTyping": rules,
+                "flowTypeDefault": str(params.get("default") or mapping.flow_type_default or "other"),
             },
         )
         assert all(isinstance(r, FlowTypingRule) for r in probe.flow_typing)
-        new = _flow_types(log, probe)
-        old = log.cases[FLOW_TYPE_ATTRIBUTE] if FLOW_TYPE_ATTRIBUTE in log.cases.columns else None
-        changed = (new != old.astype(object)) if old is not None else pd.Series(True, index=new.index)
+        assigned = _flow_types(log, probe)
+        current = log.cases[FLOW_TYPE_ATTRIBUTE] if FLOW_TYPE_ATTRIBUTE in log.cases.columns else None
+        changed = (assigned != current.astype(object)) if current is not None else pd.Series(True, index=assigned.index)
         cases = int(changed.sum())
         events = int(log.cases.loc[changed, "n_events"].sum())
-        detail = {"counts": {str(k): int(v) for k, v in new.value_counts(dropna=False).items()}}
+        type_counts: dict[str, int] = {str(k): int(v) for k, v in assigned.value_counts(dropna=False).items()}
+        already = cases == 0 and current is not None
+        detail = {
+            "counts": type_counts,
+            "rules": rules,
+            "rulesFrom": "mapping" if from_mapping else "request",
+            "alreadyTyped": already,
+            "typedCases": len(log) if current is not None else 0,
+            "message": (
+                "The mapping already types these {n} cases: {counts}. Nothing would change.".format(
+                    n=f"{len(log):,}", counts=", ".join(f"{k}: {v:,}" for k, v in type_counts.items())
+                )
+                if already
+                else f"{cases:,} of {n_cases:,} cases and {events:,} events would change flow type."
+            ),
+        }
     else:
         raise ValidationError(f"unknown decision kind {kind!r}", code="decision.kind")
     return DecisionPreview(cases=cases, events=events, total_cases=n_cases, total_events=n_events, detail=detail)
@@ -357,23 +385,113 @@ def apply_flow_typing(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series |
 
 
 def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
+    """The flow type of every case: the first matching rule wins, the mapping's default otherwise.
+
+    A rule written in the library's applicability grammar is evaluated by the library; one written in the
+    canonical filter grammar (the knowledge packs' presets) by the filter engine. A rule that names a column the
+    file does not have is dropped when the mapping is fitted to the file (``fit_mapping``), not here: a rule that
+    survives into the mapping and then names a missing attribute is a mistake and fails the build.
+    """
+    from .filters import clause_mask, filter_masks
+
     flow = pd.Series(mapping.flow_type_default, index=log.case_ids, dtype=object)
     assigned = pd.Series(False, index=log.case_ids)
     for rule in mapping.flow_typing:
         try:
-            probe = wise.NormConstraint(
-                id=f"flow_type:{rule.name}",
-                layer="flow_typing",
-                constraint=wise.Presence("__probe__"),
-                applicability=rule.rule,
-            )
-            mask = probe.applies_to(log.cases, log)
-        except wise.NormError as exc:
+            if rule.is_filter:
+                obj = rule.rule if ("and" in rule.rule) else {"and": [rule.rule]}
+                if "kind" in rule.rule:
+                    mask = clause_mask(log, rule.rule, censored=None)
+                else:
+                    mask, _parts = filter_masks(log, obj, censored=None)
+            else:
+                probe = wise.NormConstraint(
+                    id=f"flow_type:{rule.name}",
+                    layer="flow_typing",
+                    constraint=wise.Presence("__probe__"),
+                    applicability=rule.rule,
+                )
+                mask = probe.applies_to(log.cases, log)
+        except (wise.NormError, ValidationError) as exc:
             raise ValidationError(f"flow typing rule {rule.name!r}: {exc}", code="mapping.flow_typing") from exc
-        hit = mask.astype(bool) & ~assigned
+        hit = mask.reindex(log.case_ids, fill_value=False).astype(bool) & ~assigned
         flow[hit] = rule.name
         assigned |= hit
     return flow
+
+
+def apply_prepared_attributes(log: wise.EventLog, mapping: ColumnMapping) -> list[str]:
+    """The workbench's own case attributes (``date_difference``, ``period``), added before the library recipes."""
+    added: list[str] = []
+    for prepared in mapping.prepared_attributes:
+        spec = dict(prepared.spec)
+        if prepared.kind == "date_difference":
+            values = _date_difference(log, spec)
+        elif prepared.kind == "period":
+            values = _period_attribute(log, spec)
+        elif prepared.kind == "alias":
+            # a second name for a column a template expects under a canonical name; event columns are aliased in
+            # place (the balance constraints read them per event), case columns become case attributes
+            source = str(spec.get("from") or spec.get("attribute") or "")
+            if source in log.events.columns and prepared.name not in log.events.columns:
+                log.events[prepared.name] = log.events[source]
+                added.append(prepared.name)
+            values = log.cases[source] if source in log.cases.columns else None
+            if values is None:
+                continue
+        else:  # pragma: no cover - the domain validates the kind
+            continue
+        if values is None:
+            _LOG.warning("prepared attribute %r cannot be computed on this log; skipped", prepared.name)
+            continue
+        log.add_case_attribute(prepared.name, values)
+        added.append(prepared.name)
+    return added
+
+
+def _side_values(log: wise.EventLog, side: dict[str, Any]) -> pd.Series | None:
+    """One side of a date difference: the first or last timestamp of an activity, or a date case attribute."""
+    if side.get("activity"):
+        labels = [str(side["activity"])] if isinstance(side["activity"], str) else [str(a) for a in side["activity"]]
+        which = str(side.get("which") or "first")
+        stamps = log.last_ts(labels) if which == "last" else log.first_ts(labels)
+    elif side.get("attribute"):
+        name = str(side["attribute"])
+        if name not in log.cases.columns:
+            return None
+        stamps = pd.to_datetime(log.cases[name], errors="coerce")
+    else:
+        return None
+    stamps = pd.to_datetime(pd.Series(stamps).reindex(log.case_ids), errors="coerce")
+    if str(side.get("part") or "") == "date":
+        stamps = stamps.dt.normalize()
+    return stamps
+
+
+def _date_difference(log: wise.EventLog, spec: dict[str, Any]) -> pd.Series | None:
+    minuend = _side_values(log, dict(spec.get("minuend") or {}))
+    subtrahend = _side_values(log, dict(spec.get("subtrahend") or {}))
+    if minuend is None or subtrahend is None:
+        return None
+    unit = str(spec.get("unit") or "D")
+    if str(spec.get("part") or spec.get("granularity") or "") == "date":
+        minuend, subtrahend = minuend.dt.normalize(), subtrahend.dt.normalize()
+    delta = minuend - subtrahend
+    return pd.Series(in_units(delta, unit), index=log.case_ids)
+
+
+def _period_attribute(log: wise.EventLog, spec: dict[str, Any]) -> pd.Series | None:
+    source = _side_values(log, spec if ("attribute" in spec or "activity" in spec) else {"attribute": spec.get("of")})
+    if source is None:
+        return None
+    granularity = str(spec.get("granularity") or "month")
+    if granularity == "year":
+        labels = source.dt.strftime("%Y")
+    elif granularity == "quarter":
+        labels = source.dt.year.astype("Int64").astype(str) + "-Q" + source.dt.quarter.astype("Int64").astype(str)
+    else:
+        labels = source.dt.strftime("%Y-%m")
+    return pd.Series(labels, index=log.case_ids).where(source.notna(), None)
 
 
 def flow_type_column(log: wise.EventLog, attribute: str | None) -> tuple[str, pd.Series]:
@@ -404,11 +522,17 @@ def apply_mapping_recipes(log: wise.EventLog, mapping: ColumnMapping) -> list[st
 
 
 def typed_events(log: wise.EventLog, mapping: ColumnMapping) -> pd.DataFrame:
-    """The log's sorted, typed events plus the flow type broadcast per event."""
+    """The log's sorted, typed events plus the flow type and the prepared attributes broadcast per event.
+
+    The case table's ``events.parquet`` is the only artefact a later request reads, so anything the build computed
+    per case has to travel with it; otherwise a cold process would have to recompute it from the raw file.
+    """
     ev = log.events.copy()
-    if FLOW_TYPE_ATTRIBUTE in log.cases.columns and FLOW_TYPE_ATTRIBUTE not in ev.columns:
-        codes = log._codes
-        ev[FLOW_TYPE_ATTRIBUTE] = log.cases[FLOW_TYPE_ATTRIBUTE].to_numpy()[codes]
+    codes = log._codes
+    broadcast = [FLOW_TYPE_ATTRIBUTE, *(p.name for p in mapping.prepared_attributes)]
+    for name in dict.fromkeys(broadcast):
+        if name in log.cases.columns and name not in ev.columns:
+            ev[name] = log.cases[name].to_numpy()[codes]
     if mapping.exposure and mapping.exposure in ev.columns:
         ev[mapping.exposure] = pd.to_numeric(ev[mapping.exposure], errors="coerce")
     return ev
@@ -860,12 +984,31 @@ def readiness_report(
                 )
             )
     out: list[ReadinessItem] = []
+    doc = mapping.to_dict()
+    applied: dict[str, list[dict[str, Any]]] = {}
+    for d in doc.get("decisions") or []:
+        applied.setdefault(str(d.get("kind")), []).append(dict(d))
     for i in items:
         evidence = dict(i.evidence)
         kind = DECISION_FOR_ITEM.get(i.id)
         decision = None
         if kind is not None:
-            decision = {"kind": kind, "label": DECISION_KINDS[kind]["label"], "params": DECISION_KINDS[kind]["params"]}
+            spec = DECISION_KINDS[kind]
+            here = applied.get(kind) or []
+            state_field = DECISION_STATE_FIELD.get(kind)
+            # R3-O1: an item keeps its full option set after a decision; the one in force is marked, never removed
+            decision = {
+                "kind": kind,
+                "label": spec["label"],
+                "params": spec["params"],
+                "options": dict(spec.get("options") or {}),
+                "note": spec.get("note"),
+                "decided": bool(here),
+                "selected": here[-1].get("params") if here else None,
+                "currentValue": doc.get(state_field) if state_field else None,
+                "canDecideAgain": True,
+                "timesDecided": len(here),
+            }
         out.append(ReadinessItem(i.id, i.level, i.message, jsonable(evidence), decision=decision))
     return Readiness(items=tuple(out), window_end=jsonable(end), case_noun=noun)
 
@@ -881,7 +1024,7 @@ def _header_replication(log: wise.EventLog, header_events: list[str]) -> float:
 
 
 def censored_flags(log: wise.EventLog, mapping: ColumnMapping, window_end: Any = None) -> pd.Series | None:
-    """Alias of :func:`censored_mask` (the one censoring definition)."""
+    """Alias of:func:`censored_mask` (the one censoring definition)."""
     return censored_mask(log, mapping, window_end=window_end)
 
 

@@ -12,6 +12,7 @@ being edited; a warning names the reason.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from dataclasses import dataclass
@@ -146,6 +147,30 @@ def stage_model(process: str | None, labels: list[str]) -> StageModel | None:
     return StageModel(process=process, stages=stages, matches=matches, validated=validated)
 
 
+def stage_lanes(
+    process: str | None, *, mapping: str | None = None, variant: str | None = None
+) -> dict[str, Any] | None:
+    """The pack's stage model in the ``FlowGraph`` shape (``wise_knowledge.stage_lanes``); ``None`` without a pack.
+
+    The BPMN export uses it for ``scope=stages``: lanes become BPMN lanes, canonical activities become tasks and
+    the expected orderings become sequence flows.
+    """
+    if not process:
+        return None
+    loaded = _load(process)
+    if loaded is None:
+        return None
+    pack = loaded[0]
+    try:
+        import wise_knowledge as wk
+
+        lanes = wk.stage_lanes(pack, mapping=mapping, variant=variant, only_mapped=bool(mapping))
+    except Exception as exc:
+        log.warning("stage lanes of %r cannot be built: %s", process, exc)
+        return None
+    return dict(lanes)
+
+
 def case_noun(process: str | None, lang: str = "en") -> str | None:
     """The pack's business name of a case ("purchase order items"); ``None`` without a usable pack."""
     if not process:
@@ -246,6 +271,145 @@ def guidance_complete(process: str | None, document: dict[str, Any]) -> bool:
         if guidance_ref(process, "constraint", cid, document=document).plain_name is None:
             return False
     return True
+
+
+# ---------------------------------------------------------------------------- knowledge hub (RK-2, RK-3)
+def hub_index(process: str | None) -> dict[str, Any] | None:
+    """The hub's node and edge tables of a pack; ``None`` without a usable pack."""
+    hub = _hub(process) if process else None
+    if hub is None:
+        return None
+    try:
+        return dict(hub.index())
+    except Exception as exc:  # pragma: no cover - a pack whose graph cannot be built
+        log.warning("hub index of %r cannot be built: %s", process, exc)
+        return None
+
+
+def hub_page(process: str | None, node_id: str) -> dict[str, Any] | None:
+    """One hub page (node, guidance, related stage, expectations, failure modes, KPIs, playbook, reasons, actions)."""
+    hub = _hub(process) if process else None
+    if hub is None:
+        return None
+    try:
+        return dict(hub.page(node_id))
+    except KeyError:
+        return None
+    except Exception as exc:  # pragma: no cover
+        log.warning("hub page %r of %r cannot be built: %s", node_id, process, exc)
+        return None
+
+
+def hub_node_id(process: str | None, kind: str, entry_id: str, template: str | None = None) -> str | None:
+    hub = _hub(process) if process else None
+    if hub is None:
+        return None
+    try:
+        node = hub.node_for(kind, entry_id, template)
+    except Exception:
+        return None
+    return str(node) if node else None
+
+
+# ---------------------------------------------------------------------------- presets of the packs (R1-13, R2-04)
+def pack_presets(process: str | None = None) -> list[Any]:
+    """Every public-log preset the packs carry (``presets/*.yaml``); empty without the package."""
+    try:
+        import wise_knowledge as wk
+    except ImportError:
+        return []
+    processes = [process] if process else list(getattr(wk, "PACK_IDS", None) or ("p2p", "o2c"))
+    out: list[Any] = []
+    for name in processes:
+        loaded = _load(str(name))
+        if loaded is None:
+            continue
+        try:
+            out.extend(loaded[0].presets.values())
+        except Exception as exc:  # pragma: no cover - a pack without presets
+            log.warning("presets of %r cannot be read: %s", name, exc)
+    return out
+
+
+def pack_preset(preset_id: str) -> Any | None:
+    for preset in pack_presets():
+        if str(preset.id) == preset_id:
+            return preset
+    return None
+
+
+def template_path(process: str | None, template: str) -> Any | None:
+    """The file of a pack template (``templates/<id>.json``), the starting norm of a preset."""
+    loaded = _load(process) if process else None
+    if loaded is None:
+        return None
+    pack = loaded[0]
+    try:
+        entry = next(t for t in pack.templates if str(t.id) == template)
+    except (StopIteration, AttributeError):
+        return None
+    return getattr(entry, "path", None)
+
+
+ACTIVITY_PARAMS = ("activity", "a", "b", "after", "before", "activities_x", "activities_y")
+
+
+def label_map(process: str | None, mapping_name: str) -> dict[str, list[str]]:
+    """Canonical activity id → the labels a log uses for it, from a curated label pack."""
+    loaded = _load(process) if process else None
+    if loaded is None:
+        return {}
+    try:
+        entries = loaded[0].mappings[mapping_name].entries
+    except Exception as exc:
+        log.warning("label pack %r of %r is not available: %s", mapping_name, process, exc)
+        return {}
+    out: dict[str, list[str]] = {}
+    for entry in entries:
+        out.setdefault(str(entry.activity), []).append(str(entry.label))
+    return out
+
+
+def translate_norm(
+    document: dict[str, Any], process: str | None, mapping_name: str
+) -> tuple[dict[str, Any], list[str]]:
+    """A template written in canonical activity ids, rewritten in the labels of one log (R2-04).
+
+    The packs' templates name activities by their canonical id (``o2c.goods_issue``) so that one template serves
+    every system's vocabulary. A norm has to speak the log's own labels, or nothing matches — and the screens
+    have to keep the log's labels, or a reader cannot recognise the process. The template is therefore translated
+    once, when the preset creates norm v1, and the norm version stored with the project is the translated one.
+    Returns the document and the canonical ids the label pack does not cover.
+    """
+    labels = label_map(process, mapping_name)
+    if not labels:
+        return document, []
+    out = json.loads(json.dumps(document))
+    untranslated: list[str] = []
+
+    def rewrite(values: Any) -> Any:
+        items = [values] if isinstance(values, str) else list(values or [])
+        result: list[str] = []
+        for item in items:
+            hit = labels.get(str(item))
+            if hit:
+                result.extend(hit)
+            else:
+                if str(item).startswith(f"{process}."):
+                    untranslated.append(str(item))
+                result.append(str(item))
+        return list(dict.fromkeys(result))
+
+    for constraint in out.get("constraints") or []:
+        params = constraint.get("params") or {}
+        for key in ACTIVITY_PARAMS:
+            if params.get(key):
+                params[key] = rewrite(params[key])
+    for recipe in out.get("derived_attributes") or []:
+        for key in ("activities", "activity", "a", "b", "after", "before"):
+            if recipe.get(key):
+                recipe[key] = rewrite(recipe[key])
+    return out, sorted(set(untranslated))
 
 
 def knowledge_available() -> bool:

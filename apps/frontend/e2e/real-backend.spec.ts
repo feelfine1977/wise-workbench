@@ -144,15 +144,18 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(fullMap).toContainText("Record Goods Receipt", { timeout: 60_000 });
   await fullMap.locator(".react-flow__node", { hasText: "Record Goods Receipt" }).first().click();
   await expect(page.getByTestId("selected-activity")).toContainText("Record Goods Receipt", { timeout: 30_000 });
-  await page.getByTestId("selected-activity").getByRole("button", { name: "Filter to cases with it" }).click();
-  await expect(page.getByTestId("filter-bar").getByRole("list", { name: "Active filters" })).toContainText("cases with Record Goods Receipt");
+  await page.getByTestId("selected-activity").getByRole("button", { name: "Filter to", exact: true }).click();
+  await expect(page.getByTestId("filter-bar").getByRole("list", { name: "Active filters" })).toContainText("with Record Goods Receipt");
   await expect(page.getByTestId("filter-preview")).toContainText("234,479 of 251,734", { timeout: 60_000 });
-  await expect(page.getByTestId("filter-announcement")).toHaveText("Filter added: cases with Record Goods Receipt — 234,479 of 251,734 remain.");
+  await expect(page.getByTestId("filter-announcement")).toHaveText("Filter added: with Record Goods Receipt — 234,479 of 251,734 purchase order items remain.");
   expect(page.url()).toContain("filter=%7B%22and%22");
   expect(page.url()).not.toContain("filter=%22%7B");
-  // the chips stay on every tab; the cases tab lists the missed expectations as plain phrases
+  // the chips stay on every tab; the row counts in the run's own case noun; the cases tab lists the missed
+  // expectations as plain phrases
   await page.getByRole("tab", { name: "Cases" }).click();
-  await expect(page.getByTestId("filter-bar")).toContainText("cases with Record Goods Receipt");
+  await expect(page.getByTestId("filter-bar")).toContainText(`${noun} in:`);
+  await expect(page.getByTestId("filter-bar").getByTestId("filter-preview")).toHaveText("234,479 of 251,734");
+  await expect(page.getByTestId("filter-bar").getByRole("list", { name: "Active filters" })).toContainText("with Record Goods Receipt");
   await page.getByTestId("worst-cases").locator("tbody tr").first().getByRole("button").click();
   await expect(page.getByRole("img", { name: /^Timeline of case/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("worst-cases")).not.toContainText("c_l");
@@ -201,4 +204,68 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   } else {
     test.info().annotations.push({ type: "skipped", description: "notebook endpoint not served" });
   }
+});
+
+
+/**
+ * The third release on the live backend: the Flow step is the instrument (F1), the action the owner reported
+ * twice works end to end against the real filter endpoint (R3-O9, F2), and the board answers one click with
+ * every panel (B1) and restores on the chip's removal (B2). The board's own sources (facets, KPIs) are new in
+ * this cycle; where the backend does not serve them yet the panels fall back to the second-release endpoints,
+ * so the test asserts what must hold either way.
+ */
+test.describe("the flow as the instrument and the linked board", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("the map is the screen, its actions change the count, and the board moves with one click", async ({ page, request }) => {
+    const { pid, run } = await verifiedRun(request);
+    expect(run, "a done run grouped by company × spend area").toBeTruthy();
+    const runId = (run as Run).id;
+    const search = `slicing=${encodeURIComponent(SLICING)}&view=Automation`;
+
+    // F1: the map frame covers at least 60 % of a 1440 × 900 viewport, with the instrument's own chrome
+    await page.goto(`/p/${pid}/runs/${runId}/flow?${search}`);
+    await expect(page.getByTestId("flow-map")).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 90_000 });
+    await page.waitForTimeout(1500);
+    const frame = await page.getByTestId("map-frame").boundingBox();
+    const share = ((frame?.width ?? 0) * (frame?.height ?? 0)) / (1440 * 900);
+    expect(share, `the map frame covers ${(share * 100).toFixed(1)} % of the viewport`).toBeGreaterThanOrEqual(0.6);
+    await expect(page.getByTestId("count-line")).toContainText("251,734");
+    await expect(page.getByTestId("map-legend")).toBeVisible();
+
+    // F2 / R3-O9: filter to the items with this activity — the count changes, a chip appears, it is announced
+    const countBefore = await page.getByTestId("count-line").innerText();
+    await page.locator(".react-flow__node", { hasText: "Record Goods Receipt" }).first().click();
+    await expect(page.getByTestId("selected-activity")).toContainText("Record Goods Receipt", { timeout: 30_000 });
+    await page.getByTestId("selected-activity").getByRole("button", { name: "Filter to", exact: true }).click();
+    await expect(page.getByTestId("flow-bar").getByRole("list", { name: "Active filters" })).toContainText("with Record Goods Receipt", { timeout: 60_000 });
+    await expect(page.getByTestId("count-line")).not.toHaveText(countBefore, { timeout: 60_000 });
+    await expect(page.getByTestId("count-line")).toContainText("234,479");
+    await expect(page.getByTestId("filter-announcement")).toContainText("Filter added: with Record Goods Receipt");
+    expect(page.url()).toContain("filter=%7B%22and%22");
+
+    // F3: the paths of the activity, with the ones the detail level hides named
+    await page.getByTestId("selected-activity").getByRole("button", { name: "Paths in / out" }).click();
+    await expect(page.locator("[data-testid='flow-map']")).toContainText(/paths?/i, { timeout: 60_000 });
+
+    // B1 and B2 on the board: one click moves the count and the ranked list, the chip's removal restores them
+    await page.goto(`/p/${pid}/runs/${runId}/board?${search}`);
+    await expect(page.getByTestId("kpi-tiles")).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('[data-panel="flow-map"] .react-flow__node').first()).toBeVisible({ timeout: 90_000 });
+    await page.waitForTimeout(1500);
+    const boardCount = page.getByTestId("board-selectors").getByTestId("count-line");
+    const before = { count: await boardCount.innerText(), items: await page.getByTestId("kpi-items").innerText(), ranked: await page.getByTestId("ranked-count").innerText(), url: page.url() };
+    await page.locator('[data-panel="flow-map"] .react-flow__node', { hasText: "Record Goods Receipt" }).first().click();
+    await expect(boardCount).not.toHaveText(before.count, { timeout: 30_000 });
+    await expect(page.getByTestId("kpi-items")).not.toHaveText(before.items, { timeout: 30_000 });
+    const chips = page.getByRole("list", { name: "Active filters" });
+    await expect(chips.getByRole("listitem")).toHaveCount(1);
+    await expect(page.getByTestId("filter-announcement")).toContainText("panels updated");
+    await chips.getByRole("button", { name: /Remove filter/ }).click();
+    await expect(boardCount).toHaveText(before.count, { timeout: 30_000 });
+    await expect(page.getByTestId("kpi-items")).toHaveText(before.items, { timeout: 30_000 });
+    await expect(page.getByTestId("ranked-count")).toHaveText(before.ranked, { timeout: 30_000 });
+    expect(page.url()).toBe(before.url);
+  });
 });

@@ -51,7 +51,7 @@ const ANCHOR_GAMMA = 20;
 const gapForStablePI = (n: number, stablePI: number) => round((stablePI * (n + ANCHOR_GAMMA)) / (n * n), 8);
 
 const anchors: Record<string, Raw[]> = {
-  // Illustrative vendor slices (design panel, Finance view): 945 cases · gap .18 · PI 170; 294 · .21 · 62.
+  // Illustrative vendor slices (design panel, Finance view): 945 cases · gap.18 · PI 170; 294 ·.21 · 62.
   "case Vendor": [
     { values: ["vendorID_0128"], n: 945, gap: 0.18, layer: "L3_timeliness_ageing", anchorView: "Finance" },
     { values: ["vendorID_0093"], n: 294, gap: 0.21, layer: "L4_rework_instability", anchorView: "Finance" },
@@ -225,6 +225,43 @@ export function buildBacklog(slicing: string, view: string, gamma: number, minCa
   return { rows, globalMean: mu };
 }
 
+/**
+ * The expectations of this run whose threshold separates no group (R2-09): one missed by almost every case,
+ * two met by almost every case. The verified run answers the same three.
+ */
+export const UNCALIBRATED = [
+  {
+    id: "c_l7_manual_share",
+    layer: "L7_effort_automation",
+    plain_name: "Mostly automatic",
+    description: "High manual share indicates low straight-through processing.",
+    share_violated: 0.9208926883138551,
+    evaluated: 251734,
+    reason: "almost_always_missed",
+    text: "Mostly automatic is missed by 92 % of all purchase order items it applies to — a threshold to calibrate, not a difference between groups.",
+  },
+  {
+    id: "c_l5_cancel_goods_receipt",
+    layer: "L5_exceptions_corrections",
+    plain_name: "Receipt not cancelled",
+    description: "Goods receipt cancellations should be exceptional.",
+    share_violated: 0.009852806254736926,
+    evaluated: 250690,
+    reason: "almost_never_missed",
+    text: "Receipt not cancelled is met by 99 % of all purchase order items it applies to — it cannot fail on this log as it is set.",
+  },
+  {
+    id: "c_l2_df2_release_after_goods",
+    layer: "L2_flow_discipline",
+    plain_name: "Block released after the goods (invoice-first flow)",
+    description: "In DF2, payment-block release should happen after the first goods/service event.",
+    share_violated: 0.0065355805243445695,
+    evaluated: 53400,
+    reason: "almost_never_missed",
+    text: "Block released after the goods (invoice-first flow) is met by 99 % of all purchase order items it applies to — it cannot fail on this log as it is set.",
+  },
+];
+
 export function pageBacklog(all: BacklogRow[], globalMean: number, p: BacklogParams): BacklogPage {
   let rows = all;
   const hotspot = p.hotspotType ?? (p.kind ? ({ acute: "severity", systematic: "mechanism", widespread: "reservoir" } as const)[p.kind] : undefined);
@@ -249,7 +286,7 @@ export function pageBacklog(all: BacklogRow[], globalMean: number, p: BacklogPar
   return {
     rows: rows.slice(start, start + p.pageSize),
     total: rows.length,
-    params: { ...p, attributes: attributesOf(p.slicing), baseline: globalMean, volume: "cases", z: Z },
+    params: { ...p, attributes: attributesOf(p.slicing), baseline: globalMean, volume: "cases", z: Z, case_noun: "purchase order items", uncalibrated: UNCALIBRATED },
     globalMean,
     maxStablePI: all.reduce((m, r) => Math.max(m, r.stable_PI), 0),
   };

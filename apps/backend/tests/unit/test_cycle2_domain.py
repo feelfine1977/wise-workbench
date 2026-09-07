@@ -118,8 +118,8 @@ def test_decision_validation_and_mapping_round_trip() -> None:
         validate_decision("collapse_duplicates", {"x": 1})
     with pytest.raises(ValidationError, match="handling"):
         validate_decision("open_cases", {"handling": "drop"})
-    with pytest.raises(ValidationError, match="rule"):
-        validate_decision("flow_type_assignment", {"rules": []})
+    # R3-O4: an assignment without rules means "use the flow typing the mapping already carries"
+    assert validate_decision("flow_type_assignment", {"rules": []}) == {"rules": [], "default": None}
     doc = {
         "caseId": "c",
         "activity": "a",

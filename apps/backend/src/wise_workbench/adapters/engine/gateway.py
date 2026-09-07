@@ -24,15 +24,22 @@ import pyarrow as pa
 import wise
 
 from wise_workbench import __version__ as workbench_version
-from wise_workbench.adapters.knowledge import GuidanceRef, guidance_ref, stage_model
+from wise_workbench.adapters.knowledge import GuidanceRef, guidance_ref, stage_lanes, stage_model
 from wise_workbench.adapters.storage import Workspace, duck
 from wise_workbench.adapters.storage.parquet import read_frame, read_table, write_frame
 from wise_workbench.application.ports import ProgressFn, RunContext, Table
-from wise_workbench.domain import ColumnMapping, DecisionPreview, NotFoundError, Run, ValidationError
+from wise_workbench.domain import (
+    FLOW_TYPE_ATTRIBUTE,
+    ColumnMapping,
+    DecisionPreview,
+    NotFoundError,
+    Run,
+    ValidationError,
+)
 from wise_workbench.domain.readings import backlog_reading, hotspot_of, kind_of, kind_reading, slice_reading
 
 from . import analytics as an
-from . import compat
+from . import board, bpmn, compat, sentences
 from .bands import apply_bands, band_summary, effective_attributes
 from .cache import LRUCache
 from .filters import filter_masks, filter_preview
@@ -42,6 +49,7 @@ from .logs import (
     apply_case_decisions,
     apply_flow_typing,
     apply_mapping_recipes,
+    apply_prepared_attributes,
     build_log,
     censored_flags,
     flow_type_column,
@@ -92,6 +100,20 @@ def parse_slice_key(key: str, n_attributes: int) -> list[Any]:
     if n_attributes == 1:
         return [None if key == "(missing)" else key]
     raise ValidationError(f"slice key {key!r} must be a JSON array with {n_attributes} value(s)", code="slice.key")
+
+
+def _constraint_from_dict(spec: dict[str, Any]) -> wise.NormConstraint:
+    """One catalogue entry from the JSON shape the norm document uses (``id, layer, type, params,...``)."""
+    from wise.constraints import constraint_from_dict
+
+    return wise.NormConstraint(
+        id=str(spec.get("id") or ""),
+        layer=str(spec.get("layer") or ""),
+        constraint=constraint_from_dict(str(spec["type"]), spec.get("params") or {}),
+        weight=float(spec.get("weight", 1.0)),
+        applicability=dict(spec.get("applicability") or {}),
+        description=str(spec.get("description") or ""),
+    )
 
 
 def _norm_from(document: dict[str, Any]) -> wise.Norm:
@@ -168,6 +190,11 @@ class BacklogResult:
             out["caveats"] = json.loads(raw) if raw else []
         except (TypeError, ValueError):
             out["caveats"] = []
+        reason = out.pop("comparison_reason_json", None)
+        try:
+            out["comparison_reason"] = json.loads(reason) if reason else None
+        except (TypeError, ValueError):
+            out["comparison_reason"] = None
         return out
 
     def find(self, key: list[Any]) -> dict[str, Any] | None:
@@ -178,7 +205,7 @@ class BacklogResult:
 
 
 class EngineAdapter:
-    """Implements :class:`wise_workbench.application.ports.Engine`."""
+    """Implements:class:`wise_workbench.application.ports.Engine`."""
 
     def __init__(self, ws: Workspace, *, cache_size: int = 4, sample_events: int = 200_000):
         compat.check_library_version()
@@ -193,6 +220,7 @@ class EngineAdapter:
         self._global_drivers: LRUCache[pd.DataFrame] = LRUCache(16)
         self._sublogs: LRUCache[wise.EventLog] = LRUCache(max(cache_size, 2))
         self._flow_types: LRUCache[dict[str, Any]] = LRUCache(8)
+        self._uncalibrated: LRUCache[list[dict[str, Any]]] = LRUCache(16)
         self._guidance: dict[tuple[str | None, str, str, str], GuidanceRef] = {}
         self._lock = threading.RLock()
 
@@ -266,6 +294,7 @@ class EngineAdapter:
                 code="mapping.timestamp_format",
                 errors=[{"field": "timestampFormat", "message": "no value parses"}],
             )
+        apply_prepared_attributes(log, mapping)
         apply_flow_typing(log, mapping)
         apply_mapping_recipes(log, mapping)
         return {
@@ -290,9 +319,11 @@ class EngineAdapter:
         progress(0.2, "building the event log")
         log = build_log(df, mapping)
         del df
+        apply_prepared_attributes(log, mapping)
         apply_flow_typing(log, mapping)
         log, removed = apply_case_decisions(log, mapping)
         if removed:
+            apply_prepared_attributes(log, mapping)
             apply_flow_typing(log, mapping)
         apply_mapping_recipes(log, mapping)
         progress(0.45, "data-readiness report")
@@ -355,6 +386,148 @@ class EngineAdapter:
             del df
             apply_mapping_recipes(log, mapping)
             return self._logs.put(key, log)
+
+    # ------------------------------------------------------------------ norm builder (R3-O6)
+    def inventory(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        *,
+        process: str | None = None,
+        attribute: str | None = None,
+        q: str | None = None,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        """What a norm can be built from: the activities of the log and the values of every case attribute, with
+        counts. Without ``attribute`` every attribute is summarised with its top values; with one, that attribute's
+        values are listed (searchable, paged by ``limit``)."""
+        log = self._load_log(case_table_dir, mapping)
+        cases = log.cases
+        n_cases = max(len(log), 1)
+        reserved = {"n_events", "first_ts", "last_ts"}
+        names = [str(c) for c in cases.columns if str(c) not in reserved]
+        if attribute is not None and attribute not in names:
+            raise NotFoundError(
+                f"attribute {attribute!r} is not in the case table; available: {names}", code="inventory.attribute"
+            )
+
+        def values_of(name: str, top: int) -> dict[str, Any]:
+            col = cases[name]
+            numeric = pd.to_numeric(col, errors="coerce")
+            is_numeric = bool(numeric.notna().mean() > 0.95 and col.notna().any())
+            counts = col.astype(object).where(col.notna(), "(missing)").astype(str).value_counts()
+            if q:
+                counts = counts[[str(i).lower().find(q.lower()) >= 0 for i in counts.index]]
+            out: dict[str, Any] = {
+                "name": name,
+                "kind": "number" if is_numeric else "text",
+                "distinct": int(col.nunique(dropna=True)),
+                "missing": int(col.isna().sum()),
+                "total": len(counts),
+                "values": [
+                    {"value": str(v), "cases": int(n), "share": int(n) / n_cases} for v, n in counts.head(top).items()
+                ],
+            }
+            if is_numeric:
+                out["numeric"] = {
+                    "min": float(numeric.min()),
+                    "p10": float(numeric.quantile(0.10)),
+                    "median": float(numeric.median()),
+                    "p90": float(numeric.quantile(0.90)),
+                    "max": float(numeric.max()),
+                }
+            return out
+
+        activities = activity_inventory(log)
+        if q:
+            activities = [a for a in activities if q.lower() in str(a["label"]).lower()]
+        stages = stage_model(process, [str(a["label"]) for a in activities])
+        for a in activities:
+            match = stages.matches.get(str(a["label"])) if stages is not None else None
+            a["stage"] = match.stage if match else None
+            a["canonicalId"] = match.activity_id if match else None
+            a["share"] = int(a["cases"]) / n_cases
+        wanted = [attribute] if attribute else names
+        return {
+            "cases": len(log),
+            "events": len(log.events),
+            "caseNoun": mapping.case_noun,
+            "activities": activities if attribute is None else [],
+            "attributes": [values_of(name, limit if attribute else 10) for name in wanted],
+            "attributeNames": names,
+            "stages": [dict(s) for s in stages.stages] if stages is not None else [],
+        }
+
+    def validate_constraint(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        constraint: dict[str, Any],
+        *,
+        process: str | None = None,
+        document: dict[str, Any] | None = None,
+        case_noun: str = "cases",
+    ) -> dict[str, Any]:
+        """One expectation checked against the case table before it goes into a norm: is it well formed, does it
+        name activities and attributes that occur, how many cases does it apply to and how many miss it, and what
+        does it say in one sentence (R3-O6)."""
+        errors: list[dict[str, Any]] = []
+        try:
+            nc = _constraint_from_dict(dict(constraint))
+        except (wise.NormError, KeyError, TypeError, ValueError) as exc:
+            return {
+                "valid": False,
+                "errors": [{"field": "constraint", "message": str(exc)}],
+                "sentence": None,
+                "applicability_sentence": None,
+                "activities": [],
+                "casesInScope": None,
+                "casesEvaluated": None,
+                "casesMissing": None,
+                "shareMissing": None,
+            }
+        log = self._load_log(case_table_dir, mapping)
+        labels = set(log.activity_labels)
+        activities = [
+            {"label": str(a), "known": str(a) in labels, "cases": int((log.count([str(a)]) > 0).sum())}
+            for a in dict.fromkeys(nc.constraint.activities())
+        ]
+        for a in activities:
+            if not a["known"]:
+                errors.append({"field": "activities", "message": f"activity {a['label']!r} never occurs in this log"})
+        in_scope = evaluated = missing = None
+        share = None
+        try:
+            mask = nc.applies_to(log.cases, log) if nc.applicability else pd.Series(True, index=log.case_ids)
+            in_scope = int(mask.sum())
+            values = wise.evaluate_constraint(log, nc)
+            ok = values.notna()
+            evaluated = int(ok.sum())
+            missing = int((values[ok] > 0).sum())
+            share = (missing / evaluated) if evaluated else None
+        except (wise.NormError, wise.LogSchemaError) as exc:
+            errors.append({"field": "constraint", "message": str(exc)})
+        plain = guidance_ref(process, "constraint", nc.id, document=document).plain_name
+        return {
+            "valid": not errors,
+            "errors": errors,
+            "id": nc.id,
+            "layer": str(nc.layer),
+            "type": nc.constraint.type,
+            "sentence": sentences.full_sentence(nc, plain_name=plain, noun=case_noun),
+            "rule_sentence": sentences.constraint_sentence(nc, noun=case_noun),
+            "applicability_sentence": sentences.applicability_sentence(nc),
+            "activities": activities,
+            "casesInScope": in_scope,
+            "casesEvaluated": evaluated,
+            "casesMissing": missing,
+            "shareMissing": share,
+            "note": (
+                f"{missing:,} of the {evaluated:,} {case_noun} it applies to miss it ({share * 100:.0f} %)."
+                if share is not None
+                else None
+            ),
+        }
 
     def check_norm(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]:
         norm = _norm_from(document)
@@ -487,7 +660,8 @@ class EngineAdapter:
                     persist(_artefact_name("diagnostics/validation", s.id, view), validation)
                 conc = wise.concentration(backlog_frame_for_concentration(backlog))
                 summary_extra["concentration"].setdefault(s.id, {})[view] = table_from_frame(conc)
-            if not bands:
+            if not bands and len(views) > 1:
+                # the view comparison needs at least two views; a single-view run has nothing to compare
                 agreement = wise.view_agreement(result, attrs, k=20, gamma=gamma)
                 persist(_artefact_name("diagnostics/agreement", s.id), agreement)
                 summary_extra["agreement"][s.id] = table_from_frame(agreement)
@@ -609,10 +783,11 @@ class EngineAdapter:
         bands: list[dict[str, Any]] | None = None,
         baseline: float | None = None,
         scope: dict[str, Any] | None = None,
+        volume: str = "cases",
     ) -> BacklogResult:
         vf = _label_missing_keys(_view_frame(frame, view), attrs)
         try:
-            bl = wise.prioritize(vf, attrs, gamma=gamma, min_cases=1, z=Z_LOWER, baseline=baseline)
+            bl = wise.prioritize(vf, attrs, gamma=gamma, min_cases=1, z=Z_LOWER, baseline=baseline, volume=volume)
             drivers = wise.layer_drivers(vf, attrs)
         except wise.NotScoredError as exc:
             raise ValidationError(str(exc), code="backlog.unscored") from exc
@@ -676,6 +851,7 @@ class EngineAdapter:
         bands: list[dict[str, Any]] | None = None,
         drill: dict[str, Any] | None = None,
         filter_obj: dict[str, Any] | None = None,
+        volume: str = "cases",
     ) -> BacklogResult:
         """The backlog of a slicing (run slicing or ad hoc; banded numeric attributes; ``drill`` restricts the cases
         to one group of a coarser slicing, ``filter_obj`` to the canonical filter), enriched with the cached
@@ -686,8 +862,8 @@ class EngineAdapter:
         sid = ctx.slicing_id(list(attributes), bands)
         cache_id = sid or json.dumps([list(attributes), bands], sort_keys=True)
         scope_key = (
-            json.dumps({"drill": drill, "filter": filter_obj}, sort_keys=True, default=str)
-            if (drill or filter_obj)
+            json.dumps({"drill": drill, "filter": filter_obj, "volume": volume}, sort_keys=True, default=str)
+            if (drill or filter_obj or volume != "cases")
             else None
         )
         stamp = an.AnalyticsStore(self.ws, ctx.run_dir).manifest_stamp()
@@ -755,11 +931,31 @@ class EngineAdapter:
                 bands=bands,
                 baseline=baseline,
                 scope=scope,
+                volume=volume,
             )
         return self._backlogs.put(key, self._enrich_backlog(base, run, ctx, sid))
 
     def _censored(self, ctx: RunContext) -> pd.Series | None:
-        return censored_flags(self._run_log(ctx), ctx.mapping, window_end=ctx.window_end)
+        return censored_flags(self._run_log(ctx), ctx.mapping, window_end=self._window_end(ctx))
+
+    def resolved_window_end(self, ctx: RunContext) -> str | None:
+        """The one window end of a run, resolved for callers outside the engine."""
+        return self._window_end(ctx)
+
+    def _window_end(self, ctx: RunContext) -> str | None:
+        """The one window end: the case table's, else the analytics manifest's, else the log's (R1-02)."""
+        if ctx.window_end:
+            return str(ctx.window_end)
+        end = an.manifest_json(self.ws, ctx.run_dir).get("windowEnd")
+        if end:
+            return str(end)
+        end = self.case_table_window_end(ctx.case_table_dir)
+        if end:
+            return str(end)
+        try:
+            return str(jsonable(resolve_window_end(self._run_log(ctx))))
+        except Exception:  # pragma: no cover - a log without usable timestamps
+            return None
 
     def _guidance_for(self, ctx: RunContext, kind: str, entry_id: str) -> GuidanceRef:
         key = (ctx.process, kind, entry_id, str(ctx.document.get("name")))
@@ -848,6 +1044,18 @@ class EngineAdapter:
         df["points_below"] = [an.points_below(m, g) for m, g in zip(df["mean_score"], df["global_mean"])]
         df["comparison"] = lookup(ba.comparisons if ba else None, "comparison")
         df["comparison_kind"] = lookup(ba.comparisons if ba else None, "comparison_kind")
+        df["comparison_constraint"] = lookup(ba.comparisons if ba else None, "comparison_constraint")
+        # R2-05: a row without a sentence carries the reason, never a neighbour's sentence
+        codes = lookup(ba.comparisons if ba else None, "comparison_reason")
+        default_code = "analytics_unavailable" if not an.availability()["available"] else "not_computed"
+        df["comparison_reason_json"] = [
+            ""
+            if _text(text)
+            else json.dumps(
+                an.comparison_reason(_text(code) or default_code, items=noun, view=base.view), ensure_ascii=False
+            )
+            for text, code in zip(df["comparison"], codes)
+        ]
         top_plain = []
         for cid in df["top_constraint"]:
             ref = self._guidance_for(ctx, "constraint", str(cid)) if cid else None
@@ -878,9 +1086,15 @@ class EngineAdapter:
                             "window_end": None,
                         }
                     )
-            caveats_json.append(json.dumps(items, ensure_ascii=False))
-        df["caveats_json"] = caveats_json
-        df["n_caveats"] = [len(json.loads(c)) for c in caveats_json]
+            caveats_json.append(items)
+        # R2-06: the page-wide rule is computed here so that every screen hides the same chips and no group whose
+        # own share exceeds the page-wide threshold is ever silenced
+        weights = [float(n or 0) for n in df["n_cases"]] if len(df) else []
+        caveat_summary = an.caveat_page_summary(caveats_json, weights)
+        caveats_json = [an.apply_caveat_page_rule(row, caveat_summary) for row in caveats_json]
+        df["caveats_json"] = [json.dumps(row, ensure_ascii=False) for row in caveats_json]
+        df["n_caveats"] = [len(row) for row in caveats_json]
+        df["n_caveats_shown"] = [sum(1 for c in row if not c["suppressed"]) for row in caveats_json]
         readings = []
         method_readings = []
         for rec in df.to_dict("records"):
@@ -901,6 +1115,7 @@ class EngineAdapter:
             "layer_missed_label",
             "comparison",
             "comparison_kind",
+            "comparison_constraint",
             "top_constraint_plain",
             "points_below",
         ):
@@ -911,6 +1126,7 @@ class EngineAdapter:
             "recordIds": dict(ba.record_ids) if ba else {},
             "windowEnd": jsonable(window_end),
             "stabilityApplies": use_stability,
+            "caveatSummary": caveat_summary,
         }
         return BacklogResult(
             table=pa.Table.from_pandas(df, preserve_index=False),
@@ -1108,6 +1324,7 @@ class EngineAdapter:
         }
         subgroups: Table = {"columns": [], "rows": []}
         comparison: str | None = row.get("comparison")
+        comparison_reason: dict[str, Any] | None = row.get("comparison_reason")
         comparisons: Table = {"columns": [], "rows": []}
         if an.availability()["available"]:
             self._ensure_band_columns(run, ctx, result, bands)
@@ -1158,11 +1375,28 @@ class EngineAdapter:
             st = analytics_out.get("subgroups")
             if st is not None:
                 subgroups = _subgroups_table(st)
+                caveats.extend(_subgroup_caveats(subgroups, items=noun, window_end=window_end))
             if analytics_out.get("comparison"):
                 comparison = str(analytics_out["comparison"])
+            elif analytics_out:
+                comparison = None
+            comparison_reason = analytics_out.get("comparison_reason")
             cp = analytics_out.get("comparisons")
             if cp is not None:
                 comparisons = table_from_frame(cp)
+        # R2-05: no sentence without a reason, and no sentence at all when nothing in the group is scored
+        scored_here = int(result.scores[view][mask.reindex(result.scores.index, fill_value=False)].notna().sum())
+        if scored_here == 0:
+            comparison = None
+            comparison_reason = an.comparison_reason("no_scored_cases", items=noun, view=view)
+        elif comparison is None and comparison_reason is None:
+            comparison_reason = an.comparison_reason(
+                "analytics_unavailable" if not an.availability()["available"] else "not_computed",
+                items=noun,
+                view=view,
+            )
+        elif comparison is not None:
+            comparison_reason = None
         kind = row.get("kind")
         plain_layer = row.get("plain_layer") or row.get("dominant_layer_name")
         parts = [f"{' × '.join(key_label(v) for v in key)}: {int(row.get('n_cases') or 0):,} {noun}"]
@@ -1186,7 +1420,9 @@ class EngineAdapter:
             "guidance_refs": guidance_refs,
             "reading_plain": reading_plain,
             "comparison": comparison,
+            "comparison_reason": comparison_reason,
             "comparisons": comparisons,
+            "scoredCases": scored_here,
             "analytics": {
                 "available": an.availability()["available"],
                 "recordIds": record_ids,
@@ -1452,19 +1688,152 @@ class EngineAdapter:
                 case_ids=case_ids,
                 violated=violated,
             )
+            graph["paths"] = _mark_paths(paths, graph, label, noun=ctx.case_noun)
             ids_of = {n["label"]: n["id"] for n in graph["nodes"] if n["kind"] == "activity"}
-            for p in paths["incoming"]:
-                p["node"] = ids_of.get(p["from"], _node_id(p["from"]))
-            for p in paths["outgoing"]:
-                p["node"] = ids_of.get(p["to"], _node_id(p["to"]))
-            graph["paths"] = {"incoming": paths["incoming"], "outgoing": paths["outgoing"]}
             graph["meta"]["focus"] = {
                 "id": ids_of.get(label, _node_id(label)),
                 "label": label,
                 "cases": paths["cases"],
                 "events": paths["events"],
+                "onMap": label in ids_of,
+                "stage": stages.stage_of(label) if stages is not None else None,
             }
         return graph
+
+    def activity_profile(
+        self,
+        run: Run,
+        ctx: RunContext,
+        activity: str,
+        *,
+        abstraction: float,
+        process: str | None = None,
+        filter_obj: dict[str, Any] | None = None,
+        attributes: list[str] | None = None,
+        key: list[Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """One activity: its counts, its stage, every path in and out of the **full** directly-follows relation
+        (never only the edges above the detail level, R3-O8), how many of them the detail level hides, and the
+        expectations that name it."""
+        graph = self.flow(
+            run,
+            ctx,
+            attributes,
+            key,
+            abstraction,
+            process=process,
+            filter_obj=filter_obj,
+            focus=activity,
+            bands=bands,
+        )
+        focus = graph["meta"]["focus"]
+        norm = _norm_from(ctx.document)
+        touching = []
+        for nc in norm.constraints:
+            if focus["label"] in list(nc.constraint.activities()):
+                ref = self._guidance_for(ctx, "constraint", nc.id)
+                touching.append(
+                    {
+                        "id": nc.id,
+                        "type": nc.constraint.type,
+                        "layer": nc.layer,
+                        "description": nc.description,
+                        "plain_name": ref.plain_name,
+                        "hub_node": ref.hub_node,
+                    }
+                )
+        node = next((n for n in graph["nodes"] if n["id"] == focus["id"]), None)
+        cases = int(graph["meta"].get("cases") or 0)
+        return {
+            "id": focus["id"],
+            "label": focus["label"],
+            "onMap": focus["onMap"],
+            "stage": focus.get("stage"),
+            "cases": focus["cases"],
+            "events": focus["events"],
+            "shareOfCases": (focus["cases"] / cases) if cases else None,
+            "metrics": (node or {}).get("metrics", {}),
+            "paths": graph["paths"],
+            "constraintsTouching": touching,
+            "meta": graph["meta"],
+        }
+
+    def flow_bpmn(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        scope: str,
+        detail: float,
+        process: str | None,
+        filter_obj: dict[str, Any] | None = None,
+        attributes: list[str] | None = None,
+        key: list[Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+        gateways: bool = True,
+    ) -> tuple[str, dict[str, Any]]:
+        """The flow as a BPMN 2.0 document (R3-O11): ``scope=flow`` exports the observed map at ``detail``,
+        ``scope=stages`` the knowledge pack's stage model. Returns ``(xml, meta)``."""
+        if scope not in ("flow", "stages"):
+            raise ValidationError("scope must be flow or stages", code="flow.bpmn_scope")
+        noun = ctx.case_noun
+        if scope == "stages":
+            lanes = stage_lanes(process)
+            if lanes is None:
+                raise NotFoundError(
+                    f"no stage model for process {process!r}; install the knowledge pack or export scope=flow",
+                    code="flow.bpmn_stages",
+                )
+            graph = lanes
+            name = f"{str(process or 'process').upper()} stage model"
+            documentation = (
+                f"Stage model of the {process} knowledge pack: {len(lanes['groups'])} stages, "
+                f"{len(lanes['nodes'])} canonical activities, expected orderings as sequence flows. "
+                f"Case notion: {lanes['meta'].get('case_noun') or noun}."
+            )
+            meta: dict[str, Any] = {"scope": scope, "process": process, "stages": len(lanes["groups"]), "detail": None}
+        else:
+            graph = self.flow(
+                run,
+                ctx,
+                attributes,
+                key,
+                detail,
+                process=process,
+                filter_obj=filter_obj,
+                bands=bands,
+            )
+            name = f"Observed flow ({graph['meta'].get('cases', 0):,} {noun})"
+            documentation = (
+                f"Directly-follows model discovered from the log at detail level {detail:g} "
+                f"({len(graph['nodes']) - 2} activities of {graph['meta'].get('nodesTotal', 0)}, "
+                f"{graph['meta'].get('cases', 0):,} {noun}, {graph['meta'].get('events', 0):,} events). "
+                "Nodes and edges below the detail level are not in this model."
+            )
+            meta = {
+                "scope": scope,
+                "process": process,
+                "detail": detail,
+                "cases": graph["meta"].get("cases"),
+                "events": graph["meta"].get("events"),
+                "nodesTotal": graph["meta"].get("nodesTotal"),
+                "edgesTotal": graph["meta"].get("edgesTotal"),
+                "filter": filter_obj,
+                "slicing": attributes,
+                "sliceKey": key,
+            }
+        xml = bpmn.to_xml(
+            graph,
+            process_id=f"{run.id}_{scope}",
+            process_name=name,
+            gateways=gateways,
+            noun=noun,
+            documentation=documentation,
+        )
+        meta.update(bpmn.summary(xml))
+        meta["caseNoun"] = noun
+        return xml, meta
 
     # ------------------------------------------------------------------ flow types (R2-O10)
     def flow_types(
@@ -1712,6 +2081,290 @@ class EngineAdapter:
         manifest = an.manifest_json(self.ws, ctx.run_dir)
         return {"package": an.availability(), "status": manifest.get("status", "not_computed"), "manifest": manifest}
 
+    # ------------------------------------------------------------------ uncalibrated expectations (R2-09)
+    def uncalibrated(self, run: Run, ctx: RunContext) -> list[dict[str, Any]]:
+        """Expectations whose threshold says more about the threshold than about the groups.
+
+        An expectation missed by more than 90 % of the cases it applies to separates nothing — every group misses
+        it — and one met by more than 99 % cannot fail on this log. Both are flagged so that the list header and
+        the norm screen can say so instead of letting a card compare 98 % with 92 %.
+        """
+        key = (run.id, "uncalibrated")
+        hit = self._uncalibrated.get(key)
+        if hit is not None:
+            return hit
+        violations = self._get_violations(run, ctx)
+        norm = _norm_from(ctx.document)
+        meta = ((ctx.document.get("metadata") or {}).get("meta") or {}) if ctx.document else {}
+        declared = {str(x) for x in (meta.get("uncalibrated_parameters") or [])}
+        out: list[dict[str, Any]] = []
+        for nc in norm.constraints:
+            if nc.id not in violations.columns:
+                continue
+            column = violations[nc.id]
+            evaluated = column.notna()
+            n = int(evaluated.sum())
+            if n == 0:
+                continue
+            share = float((column[evaluated] > 0).mean())
+            ref = self._guidance_for(ctx, "constraint", nc.id)
+            name = ref.plain_name or str(nc.description or nc.id)
+            reason = None
+            if share > 0.90:
+                reason = "almost_always_missed"
+                text = (
+                    f"{name} is missed by {share * 100:.0f} % of all {ctx.case_noun} it applies to — a threshold "
+                    "to calibrate, not a difference between groups."
+                )
+            elif share < 0.01:
+                reason = "almost_never_missed"
+                text = (
+                    f"{name} is met by {(1 - share) * 100:.0f} % of all {ctx.case_noun} it applies to — it cannot "
+                    "fail on this log as it is set."
+                )
+            elif any(d.startswith(nc.id) for d in declared):
+                reason = "declared"
+                text = f"{name} carries an uncalibrated threshold in the norm; set it on the distribution lens."
+            if reason is None:
+                continue
+            out.append(
+                {
+                    "id": nc.id,
+                    "layer": str(nc.layer),
+                    "plain_name": ref.plain_name,
+                    "description": nc.description,
+                    "share_violated": share,
+                    "evaluated": n,
+                    "reason": reason,
+                    "text": text,
+                    "hub_node": ref.hub_node,
+                }
+            )
+        out.sort(key=lambda r: -float(r["share_violated"]))
+        return self._uncalibrated.put(key, out)
+
+    # ------------------------------------------------------------------ explore board (R3-O12)
+    def _selection(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        view: str,
+        filter_obj: dict[str, Any] | None,
+        attributes: list[str] | None = None,
+        key: list[Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """The cases a board request selects: the run's frame, the canonical filter, and one group when given.
+
+        ``baseline`` stays the mean of the whole run in that view so that priority keeps its meaning when the
+        board is filtered (the backlog does the same for ``drill`` and ``filter``).
+        """
+        frame = self._get_frame(run, ctx)
+        if view not in _views_in(frame):
+            raise ValidationError(
+                f"view {view!r} is not part of this run; available: {_views_in(frame)}", code="board.view"
+            )
+        bands = [dict(b) for b in bands or []]
+        frame_b = apply_bands(frame, bands) if bands else frame
+        score_col = f"score__{view}"
+        baseline = float(frame_b[score_col].mean())
+        mask = pd.Series(True, index=frame_b.index)
+        clause_counts: dict[str, int] | None = None
+        if attributes and key is not None:
+            mask &= _slice_mask(frame_b, effective_attributes(list(attributes), bands), key)
+        if filter_obj:
+            fmask, parts = filter_masks(self._run_log(ctx), filter_obj, censored=self._censored(ctx))
+            fmask = fmask.reindex(frame_b.index, fill_value=False).astype(bool)
+            clause_counts = {
+                str(i): int(p.reindex(frame_b.index, fill_value=False).astype(bool).sum()) for i, p in enumerate(parts)
+            }
+            mask &= fmask
+        selected = frame_b[mask.to_numpy()]
+        return {
+            "frame": frame_b,
+            "selected": selected,
+            "mask": mask,
+            "baseline": baseline,
+            "view": view,
+            "score_col": score_col,
+            "cases_total": len(frame_b),
+            "clause_cases": clause_counts,
+        }
+
+    def _flow_type_attribute(self, frame: pd.DataFrame) -> str:
+        if FLOW_TYPE_ATTRIBUTE in frame.columns:
+            return FLOW_TYPE_ATTRIBUTE
+        raise ValidationError(
+            "this case table has no flow typing; assign flow types on the readiness screen, or ask for "
+            "by=attribute with the attribute that holds them",
+            code="board.flow_type",
+        )
+
+    def facets(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        by: str,
+        attribute: str | None,
+        view: str | None,
+        gamma: float | None,
+        filter_obj: dict[str, Any] | None,
+        period: str = "month",
+        sort: str = "-priority",
+        limit: int = 50,
+        min_cases: int = 1,
+    ) -> dict[str, Any]:
+        """Counts, share below expectation and priority at stake per value of an attribute, flow type or period."""
+        view = view or (ctx.views[0] if ctx.views else self._first_view(ctx))
+        gamma = ctx.gamma if gamma is None else float(gamma)
+        sel = self._selection(run, ctx, view=view, filter_obj=filter_obj)
+        frame, selected = sel["frame"], sel["selected"]
+        field_source = attribute
+        if by == "flow_type":
+            field_source = self._flow_type_attribute(frame)
+        starts = frame["first_ts"] if "first_ts" in frame.columns else None
+        values, field = board.facet_values(
+            frame,
+            by=by,
+            attribute=field_source,
+            flow_type_attribute=FLOW_TYPE_ATTRIBUTE,
+            period=period,
+            starts=starts,
+        )
+        exposure = frame["exposure"] if "exposure" in frame.columns else None
+        table = board.facet_table(
+            selected,
+            values,
+            view=view,
+            gamma=gamma,
+            baseline=sel["baseline"],
+            censored=self._censored(ctx),
+            exposure=exposure,
+        )
+        total_values = len(table)
+        below = table[table["cases"] < int(min_cases)]
+        table = table[table["cases"] >= int(min_cases)]
+        table = board.order_facets(table, by=by, sort=sort)
+        shown = table.head(int(limit))
+        tail = table.iloc[int(limit) :]
+        values_out: list[dict[str, Any]] = []
+        for rec in shown.to_dict("records"):
+            row = {str(k): jsonable(v) for k, v in rec.items()}
+            row["label"] = key_label(row.get("value"))
+            row["field"] = field
+            values_out.append(row)
+        rest = pd.concat([tail, below]) if total_values else table
+        return {
+            "by": by,
+            "field": field,
+            "period": period if by == "period" else None,
+            "values": values_out,
+            "total": total_values,
+            "shown": len(values_out),
+            "cases": len(selected),
+            "casesTotal": sel["cases_total"],
+            "belowMinCases": len(below),
+            "other": {
+                "values": len(rest),
+                "cases": int(rest["cases"].sum()) if len(rest) else 0,
+                "priority_at_stake": float(rest["priority_at_stake"].sum()) if len(rest) else 0.0,
+            },
+            "params": {
+                "view": view,
+                "gamma": gamma,
+                "minCases": int(min_cases),
+                "sort": sort,
+                "limit": int(limit),
+                "filter": filter_obj,
+                "scope": ctx.scope,
+                "window_end": self._window_end(ctx),
+                "case_noun": ctx.case_noun,
+                "baseline": sel["baseline"],
+            },
+        }
+
+    def kpis(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        view: str | None,
+        gamma: float | None,
+        filter_obj: dict[str, Any] | None,
+        attributes: list[str] | None = None,
+        key: list[Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+        grouping: list[str] | None = None,
+        min_cases: int = 1,
+    ) -> dict[str, Any]:
+        """The board's KPI tiles for the current selection: items, share below expectation, priority, open share."""
+        view = view or (ctx.views[0] if ctx.views else self._first_view(ctx))
+        gamma = ctx.gamma if gamma is None else float(gamma)
+        sel = self._selection(run, ctx, view=view, filter_obj=filter_obj, attributes=attributes, key=key, bands=bands)
+        selected, frame = sel["selected"], sel["frame"]
+        score = selected[sel["score_col"]]
+        scored = int(score.notna().sum())
+        cases_below = int((score < 1.0).sum())
+        mean_score = float(score.mean()) if scored else None
+        group_attrs = [a for a in (grouping or []) if a in frame.columns]
+        if not group_attrs:
+            group_attrs = [a for a in (list(ctx.slicings[0][1]) if ctx.slicings else []) if a in frame.columns]
+        priority, groups, grouping_label = 0.0, 0, "groups"
+        if group_attrs and scored:
+            keyed = _label_missing_keys(selected, group_attrs)
+            labels = keyed[group_attrs].astype(str).agg(" × ".join, axis=1)
+            groups_table = board.facet_table(selected, labels, view=view, gamma=gamma, baseline=sel["baseline"])
+            groups_table = groups_table[groups_table["cases"] >= int(min_cases)]
+            priority = float(groups_table["priority_at_stake"].sum())
+            groups = len(groups_table)
+            grouping_label = "groups of " + " × ".join(group_attrs)
+        censored = self._censored(ctx)
+        open_cases = (
+            int(censored.reindex(selected.index, fill_value=False).astype(bool).sum()) if censored is not None else None
+        )
+        tiles = board.kpi_tiles(
+            cases=len(selected),
+            cases_total=sel["cases_total"],
+            mean_score=mean_score,
+            baseline=sel["baseline"],
+            cases_below=cases_below,
+            scored=scored,
+            priority_at_stake=priority,
+            groups=groups,
+            open_cases=open_cases,
+            censored_known=censored is not None,
+            noun=ctx.case_noun,
+            grouping_label=grouping_label,
+            window_end=self._window_end(ctx),
+        )
+        return {
+            "tiles": tiles,
+            "cases": len(selected),
+            "casesTotal": sel["cases_total"],
+            "casesScored": scored,
+            "casesBelowExpectation": cases_below,
+            "meanScore": mean_score,
+            "baseline": sel["baseline"],
+            "priorityAtStake": priority,
+            "groups": groups,
+            "openCases": open_cases,
+            "params": {
+                "view": view,
+                "gamma": gamma,
+                "grouping": group_attrs,
+                "minCases": int(min_cases),
+                "filter": filter_obj,
+                "slicing": attributes,
+                "sliceKey": key,
+                "scope": ctx.scope,
+                "window_end": self._window_end(ctx),
+                "case_noun": ctx.case_noun,
+                "clause_cases": sel["clause_cases"],
+            },
+        }
+
     # ------------------------------------------------------------------ previews (filters, slice designer)
     def filter_preview(self, run: Run, ctx: RunContext, filter_obj: dict[str, Any] | None) -> dict[str, Any]:
         result = self._get_result(run, ctx)
@@ -1755,6 +2408,45 @@ class EngineAdapter:
 
 
 # ---------------------------------------------------------------------------- helpers
+def _mark_paths(paths: dict[str, Any], graph: dict[str, Any], label: str, *, noun: str) -> dict[str, Any]:
+    """Paths of the **full** directly-follows relation, each marked with whether the detail level draws it (R3-O8).
+
+    The owner's report — "Change Quantity has no outgoing or incoming path" — comes from reading the paths off
+    the abstracted map. They are read off the whole relation here; ``hiddenIncoming`` / ``hiddenOutgoing`` count
+    the ones the current detail level leaves out, and ``note`` says so in one sentence.
+    """
+    ids_of = {n["label"]: n["id"] for n in graph["nodes"] if n["kind"] == "activity"}
+    drawn = {(e["source"], e["target"]) for e in graph["edges"] if e.get("kind") == "follows" and "payload" not in e}
+    focus_id = ids_of.get(label, _node_id(label))
+    out: dict[str, Any] = {}
+    for direction, key in (("incoming", "from"), ("outgoing", "to")):
+        rows = []
+        for p in paths[direction]:
+            other = str(p[key])
+            node_id = ids_of.get(other, _node_id(other))
+            pair = (node_id, focus_id) if direction == "incoming" else (focus_id, node_id)
+            p["node"] = node_id
+            p["onMap"] = other in ids_of and pair in drawn
+            rows.append(p)
+        out[direction] = rows
+    hidden_in = sum(1 for p in out["incoming"] if not p["onMap"])
+    hidden_out = sum(1 for p in out["outgoing"] if not p["onMap"])
+    out["hiddenIncoming"] = hidden_in
+    out["hiddenOutgoing"] = hidden_out
+    out["hidden"] = hidden_in + hidden_out
+    out["totalIncoming"] = len(out["incoming"])
+    out["totalOutgoing"] = len(out["outgoing"])
+    hidden_cases = sum(int(p.get("cases") or 0) for p in out["incoming"] + out["outgoing"] if not p["onMap"])
+    if out["hidden"]:
+        out["note"] = (
+            f"{out['hidden']} of {out['totalIncoming'] + out['totalOutgoing']} paths through {label} are hidden by "
+            f"the detail level ({hidden_cases:,} {noun} on them); they are listed here from the full relation."
+        )
+    else:
+        out["note"] = f"All {out['totalIncoming'] + out['totalOutgoing']} paths through {label} are drawn on the map."
+    return out
+
+
 def _text(value: Any) -> str | None:
     """A string, or ``None`` for None / NaN."""
     v = jsonable(value)
@@ -1887,6 +2579,41 @@ def _headroom_table(ht: pd.DataFrame, ref: Any) -> Table:
     }
 
 
+def _subgroup_caveats(
+    subgroups: Table, *, items: str, window_end: pd.Timestamp | None, min_share: float = 0.05, top: int = 3
+) -> list[dict[str, Any]]:
+    """Censoring caveats of the group's sub-groups (R2-06): a slice can be clean on average and still hold a
+    sub-group where half of the ``items`` are open, and the reader must see that on the slice detail."""
+    columns = subgroups.get("columns") or []
+    if not columns or "censored_share" not in columns:
+        return []
+    idx = {name: i for i, name in enumerate(columns)}
+    rows = []
+    for row in subgroups.get("rows") or []:
+        share = row[idx["censored_share"]]
+        if share is None or not np.isfinite(float(share)) or float(share) < min_share:
+            continue
+        rows.append((float(share), str(row[idx["attribute"]]), str(row[idx["value"]]), row[idx.get("cases", 0)]))
+    rows.sort(reverse=True)
+    when = f" ({pd.Timestamp(window_end).date()})" if window_end is not None else ""
+    out = []
+    for share, attribute, value, cases in rows[:top]:
+        out.append(
+            {
+                "id": "subgroup_censoring",
+                "share": share,
+                "status": "fail" if share >= 0.2 else "warn",
+                "text": (
+                    f"{share:.0%} of the {int(cases or 0):,} {items} with {attribute} = {value} are still open at "
+                    f"the end of the data{when}: late closure cannot be judged for that part of this group."
+                ),
+                "window_end": str(pd.Timestamp(window_end).date()) if window_end is not None else None,
+                "subgroup": {"attribute": attribute, "value": value, "cases": int(cases or 0)},
+            }
+        )
+    return out
+
+
 def _subgroups_table(st: pd.DataFrame) -> Table:
     frame = st.reset_index()
     rows = []
@@ -2017,7 +2744,11 @@ def _slice_mask(cases: pd.DataFrame, attributes: list[str], key: list[Any]) -> p
         else:
             raise ValidationError(f"unknown slice attribute {attr!r}", code="slice.attribute")
         if value is None or value == "(missing)":
-            mask &= col.isna()
+            # A group whose attribute has no value is keyed "(missing)". Depending on how the frame was
+            # written the absent value is a null or the label itself, and the filter already accepts both;
+            # a mask that only accepted nulls left the map of such a group empty, and the screen then showed
+            # the answer's status code instead of its numbers
+            mask &= col.isna() | col.astype(str).isin(("(missing)", ""))
         else:
             mask &= col.astype(str) == str(value)
     return mask

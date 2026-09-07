@@ -6,11 +6,20 @@
   html {
     /* scrollIntoView keeps targets clear of the fixed job tray */
     scroll-padding-bottom: 12rem;
+    /* The gutter is reserved at every height, so a page scrollbar that appears or disappears can never
+       change the available width; a width change would refit the map and change its height again (§3.2). */
+    scrollbar-gutter: stable;
     font-family: var(--font-ui);
     font-size: var(--text-base-size);
     line-height: var(--text-base-leading);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+  /* A screen that takes exactly the viewport and never scrolls needs no gutter: reserving one would only
+     narrow it, and the full window with it (§3.2, §3.8). */
+  html[data-fixed-viewport="1"] {
+    scrollbar-gutter: auto;
+    overflow: hidden;
   }
   body {
     background: var(--color-bg);

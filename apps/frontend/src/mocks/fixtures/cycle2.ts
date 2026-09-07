@@ -401,6 +401,27 @@ export function decisionPreviewFor(kind: string, params: Record<string, unknown>
       numbers = { cases, events: 0, ...total, detail: { handling: params.handling ?? "exclude" } };
       break;
     }
+    case "flow_type_assignment": {
+      // the verified mapping already types every case, so the answer is "nothing would change" (R3-O4)
+      const counts = { DF2: 221010, DF1: 15182, Consignment: 14498, "2-way": 1044 };
+      const typed = Object.values(counts).reduce((s, n) => s + n, 0);
+      numbers = {
+        cases: 0,
+        events: 0,
+        ...total,
+        detail: {
+          counts,
+          rules: params.rules ?? [],
+          rulesFrom: "mapping",
+          alreadyTyped: true,
+          typedCases: typed,
+          message: `The mapping already types these ${typed.toLocaleString("en")} cases: ${Object.entries(counts)
+            .map(([k, n]) => `${k} ${n.toLocaleString("en")}`)
+            .join(", ")}. Nothing would change.`,
+        },
+      };
+      break;
+    }
     default:
       numbers = { cases: 251734, events: 0, ...total, detail: { rules: params.rules ?? [], default: params.default ?? "other" } };
   }

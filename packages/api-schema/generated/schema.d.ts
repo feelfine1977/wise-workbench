@@ -337,6 +337,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/case-tables/{caseTableId}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Case Table Decisions
+         * @description Every readiness item with its full option set, the decision in force (its option marked) and the decision history, plus the lineage of case tables the decisions built. A decision never removes the options of its item: deciding again creates the next mapping version. A new decision is applied to `caseTableId` here, the head of the lineage, so decisions accumulate.
+         */
+        get: operations["getCaseTableDecisions"];
+        put?: never;
+        /**
+         * Apply Decision
+         * @description Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built from it (job) and its readiness report is the re-evaluation.
+         */
+        post: operations["applyDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/case-tables/{caseTableId}/decisions/preview": {
         parameters: {
             query?: never;
@@ -351,26 +375,6 @@ export interface paths {
          * @description Cases and events a decision would affect, before it is applied.
          */
         post: operations["previewDecision"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{projectId}/case-tables/{caseTableId}/decisions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Apply Decision
-         * @description Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built from it (job) and its readiness report is the re-evaluation.
-         */
-        post: operations["applyDecision"];
         delete?: never;
         options?: never;
         head?: never;
@@ -392,6 +396,66 @@ export interface paths {
          * @description Body is the library's norm JSON plus a note; a new immutable version is created and validated.
          */
         post: operations["createNormVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Norm Inventory
+         * @description The pickers of the norm builder: the log's activities with their event and case counts and their stage, and every case attribute with its distinct count and its values. Without `attribute` each attribute is summarised with its ten most frequent values; with one, that attribute's values are listed (searchable with `q`, up to `limit`).
+         */
+        get: operations["getNormInventory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/constraints/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Constraint
+         * @description One expectation checked against a case table before it goes into a norm: whether it is well formed, whether the activities it names occur, how many cases it applies to and how many miss it, and what it says in one plain sentence with its applicability in words.
+         */
+        post: operations["checkConstraint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/guidance-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Guidance Questions
+         * @description The five questions asked when an expectation area or an expectation is defined (knowledge-hub panel §4): what we call it, what we expect, what it means when missed, what usually causes it, what we do about it and who owns it. The pack's text is offered as a starting answer; answers are stored as the project's guidance overlay.
+         */
+        get: operations["getGuidanceQuestions"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -430,6 +494,70 @@ export interface paths {
         put?: never;
         /** Check Norm */
         post: operations["checkNorm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/knowledge/hub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Knowledge Hub
+         * @description The knowledge hub of the project's process pack as node and edge tables: stages, expectation areas, expectations, failure modes, usual reasons, usual actions and KPIs, each with its plain name and its method name. Nodes the project has written its own note on are marked `hasOverlay`.
+         */
+        get: operations["getKnowledgeHub"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/knowledge/hub/{nodeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Knowledge Hub Page
+         * @description One hub page: what it means, why it matters, how it is detected, the usual reasons with what to check in the log and whom to ask outside it, the usual actions with countermeasure type and owner role, what to check first, examples and KPIs, plus the related stage, expectations, failure modes and playbook.
+         */
+        get: operations["getKnowledgeHubPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/guidance/{kind}/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Guidance
+         * @description The guidance of one expectation area (`layer`), expectation (`constraint` or `expectation`) or failure mode: the pack's generic tier, the project's own note as `overlay`, and the hub node to open. Pass `normVersionId` to read the guidance a norm carries with it.
+         */
+        get: operations["getGuidance"];
+        /**
+         * Set Guidance Overlay
+         * @description Your organisation's note on this entry (RK-5). It is added to the generic tier, never instead of it.
+         */
+        put: operations["setGuidanceOverlay"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -485,6 +613,26 @@ export interface paths {
         put?: never;
         /** Cancel Run */
         post: operations["cancelRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Manifest
+         * @description The run in two blocks (R3-O7): `plain` is what a person needs — the log, the expectations, the perspective, the grouping, the parameters in words, the end of the data, when it ran and how long, and the data caveats; `technical` keeps the fingerprints, hashes and artefact checksums.
+         */
+        get: operations["getRunManifest"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -557,6 +705,46 @@ export interface paths {
          * @description Cases in and out of a filter, what each clause removes on its own, and cases in scope per expectation.
          */
         get: operations["previewFilter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Facets
+         * @description One row per value of a case attribute (`by=attribute&attribute=…`), of the flow type (`by=flow_type`) or of the case start period (`by=period`), under the canonical filter: how many cases carry it, how many of them miss at least one expectation, how much priority is at stake on it and how many are still open. Periods come back in time order, everything else by priority.
+         */
+        get: operations["getFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Kpis
+         * @description The board's KPI tiles for the cases the filter (and, when given, the group) keeps: items, share below expectation, priority at stake, still open and the mean score, each with a plain sentence.
+         */
+        get: operations["getKpis"];
         put?: never;
         post?: never;
         delete?: never;
@@ -677,6 +865,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/runs/{runId}/flow/bpmn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Flow Bpmn
+         * @description The flow as BPMN 2.0. `scope=flow` (default) exports the observed map at `detail` (the abstraction level of the map, so the file is what the screen shows, filter included); `scope=stages` exports the knowledge pack's stage model. Stages become lanes, activities tasks, branches exclusive gateways; counts travel in `bpmn:documentation` and in `wise:*` attributes. The response headers carry the element counts.
+         */
+        get: operations["exportFlowBpmn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/flow/activities/{activityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Activity Profile
+         * @description One activity of the map by node id or label: counts, stage, the expectations that name it, and every incoming and outgoing path of the **full** directly-follows relation with the count of the paths the detail level hides (R3-O8).
+         */
+        get: operations["getActivityProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/runs/{runId}/flow": {
         parameters: {
             query?: never;
@@ -689,6 +917,181 @@ export interface paths {
          * @description The process map of the run (its scope), of one group, or of the cases a filter keeps; with focus the incoming and outgoing paths of one activity.
          */
         get: operations["getFlow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gates
+         * @description The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. A hypothesis or an action on a group with a failed gate is refused with 409 until the gate is passed or waived with a note.
+         */
+        get: operations["getGates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/gates/{gateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Gate
+         * @description Pass, fail or waive one gate. Passing or waiving needs a note that says why.
+         */
+        post: operations["setGate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/hypotheses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Hypotheses */
+        get: operations["listHypotheses"];
+        put?: never;
+        /**
+         * Create Hypothesis
+         * @description Record a hypothesis about one group and one expectation. The backend computes its test from the run's contrast (risk difference with its interval, the real-unit shift) and refuses the record while a gate of that group has failed.
+         */
+        post: operations["createHypothesis"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/hypotheses/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis */
+        get: operations["getHypothesis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Hypothesis */
+        patch: operations["updateHypothesis"];
+        trace?: never;
+    };
+    "/projects/{projectId}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Findings */
+        get: operations["listFindings"];
+        put?: never;
+        /**
+         * Create Finding
+         * @description What the analysis concluded about a group, with the evidence it rests on.
+         */
+        post: operations["createFinding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/findings/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Finding */
+        patch: operations["updateFinding"];
+        trace?: never;
+    };
+    "/projects/{projectId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Actions */
+        get: operations["listActions"];
+        put?: never;
+        /**
+         * Create Action
+         * @description What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Refused with 409 while a gate of the group has failed.
+         */
+        post: operations["createAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/actions/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Action */
+        patch: operations["updateAction"];
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/what-can-we-do": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get What Can We Do
+         * @description The sixth step for one group: for its top expectations the usual reasons with what to check in the log and whom to ask outside it, the usual actions with a countermeasure type and an owner role, what to check first, and the headroom of each expectation in score points; plus the gates and the actions already saved.
+         */
+        get: operations["getWhatCanWeDo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -763,7 +1166,7 @@ export interface paths {
         };
         /**
          * Export Notebook
-         * @description The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint arrives in cycle 4.
+         * @description The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint is not available yet.
          */
         get: operations["exportNotebook"];
         put?: never;
@@ -873,6 +1276,46 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionCreate */
+        ActionCreate: {
+            /** Title */
+            title: string;
+            /** Runid */
+            runId?: string | null;
+            /** Slicing */
+            slicing?: string | null;
+            /** Slicekey */
+            sliceKey?: string | null;
+            /** View */
+            view?: string | null;
+            /**
+             * Mechanism
+             * @description what produces the shortfall
+             */
+            mechanism?: string | null;
+            /** Remedy */
+            remedy?: string | null;
+            /** Countermeasure */
+            countermeasure?: ("policy" | "system_setting" | "standard_work" | "training" | "catalogue" | "contract" | "master_data" | "automation" | "review" | "measurement") | null;
+            /** Owner Role */
+            owner_role?: string | null;
+            /** Due */
+            due?: string | null;
+            /**
+             * Status
+             * @default proposed
+             * @enum {string}
+             */
+            status?: "proposed" | "agreed" | "in_progress" | "done" | "dropped";
+            /** Links */
+            links?: string[];
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** ActivityCount */
         ActivityCount: {
             /** Label */
@@ -881,6 +1324,52 @@ export interface components {
             events: number;
             /** Cases */
             cases: number;
+        };
+        /** ActivityInventory */
+        ActivityInventory: {
+            /** Label */
+            label: string;
+            /** Events */
+            events: number;
+            /** Cases */
+            cases: number;
+            /** Share */
+            share?: number | null;
+            /** Stage */
+            stage?: string | null;
+            /** Canonicalid */
+            canonicalId?: string | null;
+        };
+        /** ActivityProfile */
+        ActivityProfile: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Onmap
+             * @description whether the current detail level draws this activity
+             */
+            onMap: boolean;
+            /** Stage */
+            stage?: string | null;
+            /** Cases */
+            cases: number;
+            /** Events */
+            events: number;
+            /** Shareofcases */
+            shareOfCases?: number | null;
+            /** Metrics */
+            metrics?: {
+                [key: string]: number;
+            };
+            paths: components["schemas"]["FlowPaths"];
+            /** Constraintstouching */
+            constraintsTouching?: components["schemas"]["ConstraintTouching"][];
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
         };
         /** AnalyticsStatus */
         AnalyticsStatus: {
@@ -903,6 +1392,47 @@ export interface components {
             manifest?: {
                 [key: string]: unknown;
             };
+        };
+        /** AttributeInventory */
+        AttributeInventory: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "number";
+            /** Distinct */
+            distinct: number;
+            /**
+             * Missing
+             * @default 0
+             */
+            missing?: number;
+            /**
+             * Total
+             * @description values that match the search
+             * @default 0
+             */
+            total?: number;
+            /** Values */
+            values?: components["schemas"]["AttributeValue"][];
+            /**
+             * Numeric
+             * @description min, p10, median, p90, max for numbers
+             */
+            numeric?: {
+                [key: string]: number;
+            } | null;
+        };
+        /** AttributeValue */
+        AttributeValue: {
+            /** Value */
+            value: string;
+            /** Cases */
+            cases: number;
+            /** Share */
+            share: number;
         };
         /** BacklogPage */
         BacklogPage: {
@@ -1045,6 +1575,11 @@ export interface components {
             /** N Caveats */
             n_caveats?: number | null;
             /**
+             * N Caveats Shown
+             * @description caveats the page-wide rule leaves visible on the card (R2-06)
+             */
+            n_caveats_shown?: number | null;
+            /**
              * Plain Layer
              * @description the most-missed expectation area in plain words
              */
@@ -1068,6 +1603,13 @@ export interface components {
             points_below?: string | null;
             /** Kind Source */
             kind_source?: ("analytics" | "library") | null;
+            /**
+             * Comparison Constraint
+             * @description the expectation the comparison sentence is about
+             */
+            comparison_constraint?: string | null;
+            /** @description set exactly when `comparison` is null; never both (R2-05) */
+            comparison_reason?: components["schemas"]["ComparisonReason"] | null;
             /** Reading */
             reading?: string | null;
             /**
@@ -1168,6 +1710,29 @@ export interface components {
             text: string;
             /** Window End */
             window_end?: string | null;
+            /**
+             * Subgroup
+             * @description for a sub-group caveat: the attribute, value and cases it names
+             */
+            subgroup?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Suppressed
+             * @description true only when the page-wide rule may hide the chip: a warn caveat whose share is within the page-wide range. A fail caveat, and any caveat whose own share exceeds the page-wide threshold, is never suppressed (R2-06)
+             * @default false
+             */
+            suppressed?: boolean;
+            /**
+             * Page Share
+             * @description the page-wide share of this caveat kind
+             */
+            page_share?: number | null;
+            /**
+             * Threshold
+             * @description the share above which the chip is always shown
+             */
+            threshold?: number | null;
         };
         /** ColumnMapping */
         ColumnMapping: {
@@ -1232,6 +1797,13 @@ export interface components {
              * @description library derive recipes
              */
             derivedAttributes?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Preparedattributes
+             * @description case attributes the workbench computes at build time next to the library's recipes: {"name", "kind": "date_difference" | "period", "spec", "description"}
+             */
+            preparedAttributes?: {
                 [key: string]: unknown;
             }[];
             /**
@@ -1350,6 +1922,13 @@ export interface components {
                 [key: string]: unknown;
             }[];
             /**
+             * Preparedattributes
+             * @description case attributes the workbench computes at build time next to the library's recipes: {"name", "kind": "date_difference" | "period", "spec", "description"}
+             */
+            preparedAttributes?: {
+                [key: string]: unknown;
+            }[];
+            /**
              * Dedupe
              * @default false
              */
@@ -1421,6 +2000,104 @@ export interface components {
             /** Sample */
             sample?: unknown[];
         };
+        /** ComparisonReason */
+        ComparisonReason: {
+            /**
+             * Code
+             * @description why there is no comparison sentence
+             * @enum {string}
+             */
+            code: "no_scored_cases" | "no_driver" | "not_computed" | "analytics_unavailable" | "analytics_error";
+            /**
+             * Text
+             * @description the reason in plain words; the screens print this instead of a sentence
+             */
+            text: string;
+        };
+        /** ConstraintActivity */
+        ConstraintActivity: {
+            /** Label */
+            label: string;
+            /** Known */
+            known: boolean;
+            /** Cases */
+            cases: number;
+        };
+        /** ConstraintCheck */
+        ConstraintCheck: {
+            /** Valid */
+            valid: boolean;
+            /** Errors */
+            errors?: {
+                [key: string]: unknown;
+            }[];
+            /** Id */
+            id?: string | null;
+            /** Layer */
+            layer?: string | null;
+            /** Type */
+            type?: string | null;
+            /**
+             * Sentence
+             * @description the expectation in one sentence, name and rule
+             */
+            sentence?: string | null;
+            /** Rule Sentence */
+            rule_sentence?: string | null;
+            /**
+             * Applicability Sentence
+             * @description whom it applies to, in words
+             */
+            applicability_sentence?: string | null;
+            /** Activities */
+            activities?: components["schemas"]["ConstraintActivity"][];
+            /** Casesinscope */
+            casesInScope?: number | null;
+            /** Casesevaluated */
+            casesEvaluated?: number | null;
+            /** Casesmissing */
+            casesMissing?: number | null;
+            /** Sharemissing */
+            shareMissing?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Casetableid */
+            caseTableId?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
+        };
+        /** ConstraintCheckRequest */
+        ConstraintCheckRequest: {
+            /** Casetableid */
+            caseTableId: string;
+            /**
+             * Constraint
+             * @description the library shape: {"id", "layer", "type", "params", "weight", "applicability", "description"}
+             */
+            constraint: {
+                [key: string]: unknown;
+            };
+            /**
+             * Normversionid
+             * @description read plain names from this norm's guidance
+             */
+            normVersionId?: string | null;
+        };
+        /** ConstraintTouching */
+        ConstraintTouching: {
+            /** Id */
+            id: string;
+            /** Type */
+            type: string;
+            /** Layer */
+            layer?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Hub Node */
+            hub_node?: string | null;
+        };
         /** DatasetVersion */
         DatasetVersion: {
             /** Id */
@@ -1491,6 +2168,84 @@ export interface components {
             decision: components["schemas"]["Decision"];
             caseTable: components["schemas"]["CaseTable"];
             job: components["schemas"]["Job"];
+            /**
+             * Appliedto
+             * @description the case table the decision was applied to: the head of the lineage (R3-O3)
+             */
+            appliedTo?: string | null;
+        };
+        /** DecisionItem */
+        DecisionItem: {
+            /** Readinessitem */
+            readinessItem: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Params */
+            params?: string[];
+            /**
+             * Options
+             * @description the values a parameter accepts, for the 'decide again' dialog
+             */
+            options?: {
+                [key: string]: unknown[];
+            };
+            /**
+             * Selected
+             * @description the parameters of the decision in force
+             */
+            selected?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Currentvalue
+             * @description what the mapping carries for this item today
+             */
+            currentValue?: unknown;
+            /**
+             * Decided
+             * @default false
+             */
+            decided?: boolean;
+            /**
+             * Candecideagain
+             * @default true
+             */
+            canDecideAgain?: boolean;
+            /** Note */
+            note?: string | null;
+            /**
+             * History
+             * @description every decision on this item, newest first
+             */
+            history?: components["schemas"]["Decision"][];
+        };
+        /**
+         * DecisionItems
+         * @description The readiness items with their full option set, the decision in force and its history (R3-O1).
+         */
+        DecisionItems: {
+            /**
+             * Casetableid
+             * @description the head of the lineage: where a new decision is applied
+             */
+            caseTableId: string;
+            /** Requestedcasetableid */
+            requestedCaseTableId: string;
+            /** Mappingid */
+            mappingId?: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Lineage
+             * @description the chain of case tables the decisions built, oldest first
+             */
+            lineage?: {
+                [key: string]: unknown;
+            }[];
+            /** Items */
+            items?: components["schemas"]["DecisionItem"][];
         };
         /** DecisionKind */
         DecisionKind: {
@@ -1502,6 +2257,19 @@ export interface components {
             params: string[];
             /** Label */
             label: string;
+            /**
+             * Options
+             * @description the values a parameter accepts
+             */
+            options?: {
+                [key: string]: unknown[];
+            };
+            /** Default */
+            default?: {
+                [key: string]: unknown;
+            };
+            /** Note */
+            note?: string | null;
         };
         /** DecisionPreviewOut */
         DecisionPreviewOut: {
@@ -1633,6 +2401,106 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** FacetValue */
+        FacetValue: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+            /** Field */
+            field?: string | null;
+            /** Cases */
+            cases: number;
+            /**
+             * Share
+             * @description share of the selected cases carrying this value
+             */
+            share?: number | null;
+            /** Mean Score */
+            mean_score?: number | null;
+            /** Cases Below */
+            cases_below?: number | null;
+            /**
+             * Share Below Expectation
+             * @description share of the value's scored cases that miss at least one expectation
+             */
+            share_below_expectation?: number | null;
+            /** Gap */
+            gap?: number | null;
+            /** Stable Gap */
+            stable_gap?: number | null;
+            /** Pi */
+            PI?: number | null;
+            /**
+             * Priority At Stake
+             * @description stabilised Priority Index of the value against the run's overall score
+             */
+            priority_at_stake?: number | null;
+            /** Open Cases */
+            open_cases?: number | null;
+            /**
+             * Open Share
+             * @description share still open at the window end
+             */
+            open_share?: number | null;
+            /** Exposure */
+            exposure?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Facets */
+        Facets: {
+            /**
+             * By
+             * @enum {string}
+             */
+            by: "attribute" | "flow_type" | "period";
+            /**
+             * Field
+             * @description the case attribute, the flow-type attribute or 'case start'
+             */
+            field: string;
+            /**
+             * Period
+             * @description month | quarter | year | week, for by=period
+             */
+            period?: string | null;
+            /** Values */
+            values: components["schemas"]["FacetValue"][];
+            /**
+             * Total
+             * @description how many values the facet has in this selection
+             */
+            total: number;
+            /** Shown */
+            shown: number;
+            /**
+             * Cases
+             * @description cases the filter keeps
+             */
+            cases: number;
+            /**
+             * Casestotal
+             * @description cases in the run
+             */
+            casesTotal: number;
+            /**
+             * Belowmincases
+             * @default 0
+             */
+            belowMinCases?: number;
+            /**
+             * Other
+             * @description values not shown: how many, their cases and their priority
+             */
+            other?: {
+                [key: string]: unknown;
+            };
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+        };
         /** FilterPreview */
         FilterPreview: {
             /** Cases In */
@@ -1651,6 +2519,32 @@ export interface components {
             filter?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** FindingCreate */
+        FindingCreate: {
+            /** Title */
+            title: string;
+            /** Runid */
+            runId?: string | null;
+            /** Slicing */
+            slicing?: string | null;
+            /** Slicekey */
+            sliceKey?: string | null;
+            /** View */
+            view?: string | null;
+            /**
+             * Status
+             * @default open
+             */
+            status?: string;
+            /** Evidence */
+            evidence?: string[];
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /** FlowEdge */
         FlowEdge: {
@@ -1757,15 +2651,55 @@ export interface components {
              * @description share of the cases on the path missing any expectation
              */
             violation_share?: number | null;
+            /**
+             * Onmap
+             * @description whether the current detail level draws this path
+             * @default true
+             */
+            onMap?: boolean;
         } & {
             [key: string]: unknown;
         };
-        /** FlowPaths */
+        /**
+         * FlowPaths
+         * @description Every path of the **full** directly-follows relation, with the ones the detail level hides counted (R3-O8).
+         */
         FlowPaths: {
             /** Incoming */
             incoming?: components["schemas"]["FlowPath"][];
             /** Outgoing */
             outgoing?: components["schemas"]["FlowPath"][];
+            /**
+             * Hiddenincoming
+             * @default 0
+             */
+            hiddenIncoming?: number;
+            /**
+             * Hiddenoutgoing
+             * @default 0
+             */
+            hiddenOutgoing?: number;
+            /**
+             * Hidden
+             * @description paths that exist below the detail level
+             * @default 0
+             */
+            hidden?: number;
+            /**
+             * Totalincoming
+             * @default 0
+             */
+            totalIncoming?: number;
+            /**
+             * Totaloutgoing
+             * @default 0
+             */
+            totalOutgoing?: number;
+            /**
+             * Note
+             * @description "n paths hidden by the detail level", in words
+             */
+            note?: string | null;
         };
         /** FlowType */
         FlowType: {
@@ -1854,6 +2788,169 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** Gate */
+        Gate: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "readiness" | "censoring" | "replication" | "domain";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "passed" | "failed" | "waived";
+            /** Computed Status */
+            computed_status?: ("pending" | "passed" | "failed" | "waived") | null;
+            /** Evidence */
+            evidence?: {
+                [key: string]: unknown;
+            };
+            /** Text */
+            text: string;
+            /** Note */
+            note?: string | null;
+            /** Author */
+            author?: string | null;
+            /** Decidedat */
+            decidedAt?: string | null;
+        };
+        /** GateUpdate */
+        GateUpdate: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "passed" | "failed" | "waived";
+            /**
+             * Note
+             * @description mandatory when passing or waiving
+             */
+            note?: string | null;
+            /** Author */
+            author?: string | null;
+        };
+        /** Gates */
+        Gates: {
+            /** Runid */
+            runId: string;
+            /** Slicing */
+            slicing: string;
+            /** Slicekey */
+            sliceKey: string;
+            /** View */
+            view?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Cases */
+            cases?: number | null;
+            /** Gates */
+            gates?: components["schemas"]["Gate"][];
+            /**
+             * Blocking
+             * @description gate ids that block saving a hypothesis or action
+             */
+            blocking?: string[];
+            /**
+             * Passed
+             * @default true
+             */
+            passed?: boolean;
+        };
+        /** Guidance */
+        Guidance: {
+            /** Kind */
+            kind: string;
+            /** Id */
+            id: string;
+            /**
+             * Generic
+             * @description the pack's generic tier: plain_name, missed_label, expectation, meaning_when_missed, why_it_matters, how_detected, usual_reasons[], usual_actions[], what_to_check_first[], examples[], kpis[], owner_role, stakeholders, sources[], review_status, version
+             */
+            generic?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Overlay
+             * @description the project's own note
+             */
+            overlay?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Hub Node
+             * @description the hub page to open for this entry
+             */
+            hub_node?: string | null;
+        };
+        /**
+         * GuidanceOverlay
+         * @description Your organisation's note on one entry; every field is optional and added to the generic tier.
+         */
+        GuidanceOverlay: {
+            /** Note */
+            note?: string | null;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Expectation */
+            expectation?: string | null;
+            /** Meaning When Missed */
+            meaning_when_missed?: string | null;
+            /** Why It Matters */
+            why_it_matters?: string | null;
+            /** Usual Reasons */
+            usual_reasons?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Usual Actions */
+            usual_actions?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** What To Check First */
+            what_to_check_first?: string[] | null;
+            /** Owner Role */
+            owner_role?: string | null;
+            /** Stakeholders */
+            stakeholders?: string[] | null;
+            /** Examples */
+            examples?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Kpis */
+            kpis?: string[] | null;
+            /** Author */
+            author?: string | null;
+        };
+        /** GuidanceQuestion */
+        GuidanceQuestion: {
+            /** Id */
+            id: string;
+            /** Field */
+            field: string;
+            /** Question */
+            question: string;
+            /**
+             * Suggested
+             * @description the pack's generic text, offered as a starting answer
+             */
+            suggested?: unknown;
+            /**
+             * Answer
+             * @description what the project has already answered
+             */
+            answer?: unknown;
+        };
+        /** GuidanceQuestions */
+        GuidanceQuestions: {
+            /** Kind */
+            kind: string;
+            /** Id */
+            id?: string | null;
+            /** Questions */
+            questions?: components["schemas"]["GuidanceQuestion"][];
+        };
         /** GuidanceRefOut */
         GuidanceRefOut: {
             /**
@@ -1874,6 +2971,148 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HubEdge */
+        HubEdge: {
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** Kind */
+            kind: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** HubIndex */
+        HubIndex: {
+            /** Pack */
+            pack?: string | null;
+            /** Process */
+            process?: string | null;
+            /** Case Noun */
+            case_noun?: string | null;
+            /** Nodes */
+            nodes?: components["schemas"]["HubNode"][];
+            /** Edges */
+            edges?: components["schemas"]["HubEdge"][];
+            /**
+             * Overlays
+             * @default 0
+             */
+            overlays?: number;
+        };
+        /** HubNode */
+        HubNode: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Method Name */
+            method_name?: string | null;
+            /**
+             * Hasoverlay
+             * @default false
+             */
+            hasOverlay?: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** HubPage */
+        HubPage: {
+            /** Node */
+            node: {
+                [key: string]: unknown;
+            };
+            /** Guidance */
+            guidance?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Related
+             * @description stage, expectations[], failure_modes[], kpis[], playbook[], reasons[], actions[]
+             */
+            related?: {
+                [key: string]: unknown;
+            };
+            /** Overlay */
+            overlay?: {
+                [key: string]: unknown;
+            } | null;
+            /** Process */
+            process?: string | null;
+        };
+        /** HypothesisCreate */
+        HypothesisCreate: {
+            /** Runid */
+            runId?: string | null;
+            /** Slicing */
+            slicing?: string | null;
+            /** Slicekey */
+            sliceKey?: string | null;
+            /** View */
+            view?: string | null;
+            /**
+             * Constraint Id
+             * @description the expectation the hypothesis is about
+             */
+            constraint_id: string;
+            /**
+             * Comparison
+             * @default group_vs_rest
+             * @enum {string}
+             */
+            comparison?: "group_vs_rest" | "period" | "subgroup";
+            /**
+             * Expected Direction
+             * @default higher
+             * @enum {string}
+             */
+            expected_direction?: "higher" | "lower" | "none";
+            /**
+             * Statement Plain
+             * @description the hypothesis in the reader's own words
+             */
+            statement_plain?: string | null;
+            /** Evidence Links */
+            evidence_links?: string[];
+            /**
+             * Outcome
+             * @default open
+             * @enum {string}
+             */
+            outcome?: "open" | "supported" | "not_supported" | "inconclusive";
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Inventory
+         * @description What a norm can be built from (R3-O6): the log's activities and every case attribute's values, with counts.
+         */
+        Inventory: {
+            /** Casetableid */
+            caseTableId: string;
+            /** Cases */
+            cases: number;
+            /** Events */
+            events: number;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Activities */
+            activities?: components["schemas"]["ActivityInventory"][];
+            /** Attributes */
+            attributes?: components["schemas"]["AttributeInventory"][];
+            /** Attributenames */
+            attributeNames?: string[];
+            /** Stages */
+            stages?: {
+                [key: string]: unknown;
+            }[];
         };
         /** Job */
         Job: {
@@ -1919,6 +3158,64 @@ export interface components {
              * @default false
              */
             cancelRequested?: boolean;
+        };
+        /** KpiTile */
+        KpiTile: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * Format
+             * @default count
+             * @enum {string}
+             */
+            format?: "count" | "share" | "index" | "points";
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Text
+             * @description the tile in one plain sentence
+             */
+            text: string;
+        };
+        /** Kpis */
+        Kpis: {
+            /** Tiles */
+            tiles: components["schemas"]["KpiTile"][];
+            /** Cases */
+            cases: number;
+            /** Casestotal */
+            casesTotal: number;
+            /** Casesscored */
+            casesScored: number;
+            /** Casesbelowexpectation */
+            casesBelowExpectation: number;
+            /** Meanscore */
+            meanScore?: number | null;
+            /** Baseline */
+            baseline?: number | null;
+            /** Priorityatstake */
+            priorityAtStake: number;
+            /** Groups */
+            groups: number;
+            /** Opencases */
+            openCases?: number | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ManifestRow */
+        ManifestRow: {
+            /** Label */
+            label: string;
+            /** Value */
+            value?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** MappingSuggestion */
         MappingSuggestion: {
@@ -2012,6 +3309,21 @@ export interface components {
              */
             guidance_complete?: boolean;
             /**
+             * Guidance Missing
+             * @description layers that still have no guidance (the elicitation questions, RK-6)
+             */
+            guidance_missing?: string[];
+            /**
+             * Uncalibrated
+             * @description thresholds and weights the norm declares as not yet calibrated (metadata.meta, R2-09)
+             */
+            uncalibrated?: string[];
+            /**
+             * Calibration
+             * @description calibrated | mixed | uncalibrated, from the norm
+             */
+            calibration?: string | null;
+            /**
              * Createdat
              * Format: date-time
              */
@@ -2079,6 +3391,32 @@ export interface components {
             minCases: number;
             /** Process */
             process: string;
+            /**
+             * Kind
+             * @description where the preset is defined
+             * @default builtin
+             * @enum {string}
+             */
+            kind?: "builtin" | "pack";
+            /**
+             * Casenoun
+             * @description the business name of a case ("sales order items")
+             */
+            caseNoun?: string | null;
+            /**
+             * Labelpack
+             * @description the curated label pack that translates the pack's template into this log's labels
+             */
+            labelPack?: string | null;
+            /**
+             * Pitfalls
+             * @description what to read carefully on this log
+             */
+            pitfalls?: string[];
+            /** Extraslicings */
+            extraSlicings?: string[][];
+            /** Note */
+            note?: string | null;
         };
         /** Problem */
         Problem: {
@@ -2174,6 +3512,57 @@ export interface components {
             decision?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * ReviewItem
+         * @description A hypothesis, a gate decision, a finding or an action; the kind's own fields sit next to these.
+         */
+        ReviewItem: {
+            /** Id */
+            id: string;
+            /** Projectid */
+            projectId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "hypothesis" | "gate" | "finding" | "action";
+            /** Status */
+            status: string;
+            /**
+             * Title
+             * @default
+             */
+            title?: string;
+            /** Runid */
+            runId?: string | null;
+            /** Slicing */
+            slicing?: string | null;
+            /** Slicekey */
+            sliceKey?: string | null;
+            /** View */
+            view?: string | null;
+            /** Author */
+            author?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ReviewItemUpdate */
+        ReviewItemUpdate: {
+            /** Status */
+            status?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Note */
+            note?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /** Run */
         Run: {
@@ -2298,6 +3687,31 @@ export interface components {
             /** Normwarnings */
             normWarnings?: string[];
         };
+        /**
+         * RunManifestView
+         * @description The run screen, plain first (R3-O7): what a person needs, and the fingerprints behind `technical`.
+         */
+        RunManifestView: {
+            /** Runid */
+            runId: string;
+            /** Status */
+            status: string;
+            /** Casenoun */
+            caseNoun: string;
+            /** Plain */
+            plain?: components["schemas"]["ManifestRow"][];
+            /** Technical */
+            technical?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Uncalibrated
+             * @description expectations whose threshold needs calibrating on this log (R2-09)
+             */
+            uncalibrated?: {
+                [key: string]: unknown;
+            }[];
+        };
         /** RunScope */
         RunScope: {
             /**
@@ -2372,6 +3786,13 @@ export interface components {
             guidance_refs?: components["schemas"]["GuidanceRefOut"][];
             /** Comparison */
             comparison?: string | null;
+            /** @description set exactly when `comparison` is null; never both (R2-05) */
+            comparison_reason?: components["schemas"]["ComparisonReason"] | null;
+            /**
+             * Scoredcases
+             * @description cases of the group with a score in this view
+             */
+            scoredCases?: number | null;
             comparisons?: components["schemas"]["Table"];
             /** Analytics */
             analytics?: {
@@ -2554,6 +3975,74 @@ export interface components {
             wise: string;
             /** Duckdb */
             duckdb?: string | null;
+        };
+        /** WhatCanWeDo */
+        WhatCanWeDo: {
+            /** Runid */
+            runId: string;
+            /** Slicing */
+            slicing: string;
+            /** Slicekey */
+            sliceKey: string;
+            /** View */
+            view?: string | null;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Reading */
+            reading?: string | null;
+            /** Drivers */
+            drivers?: components["schemas"]["WhatCanWeDoDriver"][];
+            /** Gates */
+            gates?: components["schemas"]["Gate"][];
+            /** Blocking */
+            blocking?: string[];
+            /** Actions */
+            actions?: components["schemas"]["ReviewItem"][];
+            /**
+             * Guidanceavailable
+             * @default false
+             */
+            guidanceAvailable?: boolean;
+        };
+        /** WhatCanWeDoDriver */
+        WhatCanWeDoDriver: {
+            /** Constraint Id */
+            constraint_id: string;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Hub Node */
+            hub_node?: string | null;
+            /** Share Of Shortfall */
+            share_of_shortfall?: number | null;
+            /** Comparison */
+            comparison?: string | null;
+            /**
+             * Headroom Points
+             * @description score points the group would gain
+             */
+            headroom_points?: number | null;
+            /** Headroom Percent */
+            headroom_percent?: number | null;
+            /** Meaning When Missed */
+            meaning_when_missed?: string | null;
+            /** Why It Matters */
+            why_it_matters?: string | null;
+            /** What To Check First */
+            what_to_check_first?: string[];
+            /** Usual Reasons */
+            usual_reasons?: {
+                [key: string]: unknown;
+            }[];
+            /** Usual Actions */
+            usual_actions?: {
+                [key: string]: unknown;
+            }[];
+            /** Kpis */
+            kpis?: string[];
+            /** Note */
+            note?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /** WorstCase */
         WorstCase: {
@@ -3229,7 +4718,7 @@ export interface operations {
             };
         };
     };
-    previewDecision: {
+    getCaseTableDecisions: {
         parameters: {
             query?: never;
             header?: never;
@@ -3239,11 +4728,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -3251,7 +4736,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DecisionPreviewOut"];
+                    "application/json": components["schemas"]["DecisionItems"];
                 };
             };
             /** @description Validation Error */
@@ -3288,6 +4773,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionApplied"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    previewDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionPreviewOut"];
                 };
             };
             /** @description Validation Error */
@@ -3363,6 +4884,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNormInventory: {
+        parameters: {
+            query: {
+                /** @description the case table the norm is written against */
+                caseTableId: string;
+                /** @description list this attribute's values in full */
+                attribute?: string | null;
+                /** @description search activities or values */
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Inventory"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkConstraint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConstraintCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConstraintCheck"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getGuidanceQuestions: {
+        parameters: {
+            query?: {
+                kind?: "layer" | "constraint" | "expectation" | "failure_mode";
+                /** @description the layer or expectation being defined */
+                id?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuidanceQuestions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3469,6 +5117,183 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getKnowledgeHub: {
+        parameters: {
+            query?: {
+                /** @description pack id; default: the project's process */
+                process?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HubIndex"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getKnowledgeHubPage: {
+        parameters: {
+            query?: {
+                process?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                nodeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HubPage"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getGuidance: {
+        parameters: {
+            query?: {
+                /** @description read metadata.guidance of this norm version */
+                normVersionId?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                kind: "layer" | "constraint" | "expectation" | "failure_mode";
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guidance"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setGuidanceOverlay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                kind: "layer" | "constraint" | "expectation" | "failure_mode";
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuidanceOverlay"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guidance"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -3607,6 +5432,38 @@ export interface operations {
             };
         };
     };
+    getRunManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunManifestView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getRunSummary: {
         parameters: {
             query?: never;
@@ -3665,6 +5522,8 @@ export interface operations {
                 drillKey?: string | null;
                 /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
                 filter?: string | null;
+                /** @description what the Priority Index weighs: the number of cases (default) or their exposure */
+                volume?: "cases" | "exposure";
                 page?: number;
                 pageSize?: number;
             };
@@ -3757,6 +5616,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FilterPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getFacets: {
+        parameters: {
+            query?: {
+                by?: "attribute" | "flow_type" | "period";
+                /** @description case attribute; required for by=attribute */
+                attribute?: string | null;
+                view?: string | null;
+                gamma?: number | null;
+                period?: "month" | "quarter" | "year" | "week";
+                sort?: "-priority" | "priority" | "-cases" | "cases" | "-share_below" | "share_below" | "period";
+                minCases?: number;
+                limit?: number;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facets"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getKpis: {
+        parameters: {
+            query?: {
+                view?: string | null;
+                gamma?: number | null;
+                /** @description restrict the tiles to one group of this slicing */
+                slicing?: string | null;
+                /** @description the group's key (JSON array) */
+                sliceKey?: string | null;
+                /** @description slicing whose groups carry the priority (default: the run's first slicing) */
+                grouping?: string | null;
+                minCases?: number;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Kpis"];
                 };
             };
             /** @description Validation Error */
@@ -4019,6 +5968,112 @@ export interface operations {
             };
         };
     };
+    exportFlowBpmn: {
+        parameters: {
+            query?: {
+                /** @description the observed flow or the pack's stage model */
+                scope?: "flow" | "stages";
+                /** @description detail level of the map (abstraction) */
+                detail?: number;
+                slicing?: string | null;
+                sliceKey?: string | null;
+                /** @description insert exclusive gateways where a task branches or joins */
+                gateways?: boolean;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+                /** @description offer the file as an attachment */
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A BPMN 2.0 document with lanes, gateways, sequence flows and a laid-out diagram. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getActivityProfile: {
+        parameters: {
+            query?: {
+                abstraction?: number;
+                slicing?: string | null;
+                sliceKey?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityProfile"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getFlow: {
         parameters: {
             query?: {
@@ -4048,6 +6103,535 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowGraph"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getGates: {
+        parameters: {
+            query: {
+                slicing: string;
+                /** @description the group's key (JSON array) */
+                key: string;
+                view?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Gates"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setGate: {
+        parameters: {
+            query: {
+                slicing: string;
+                /** @description the group's key (JSON array) */
+                key: string;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+                gateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Gates"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listHypotheses: {
+        parameters: {
+            query?: {
+                runId?: string | null;
+                slicing?: string | null;
+                key?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createHypothesis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HypothesisCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHypothesis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateHypothesis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listFindings: {
+        parameters: {
+            query?: {
+                runId?: string | null;
+                slicing?: string | null;
+                key?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listActions: {
+        parameters: {
+            query?: {
+                runId?: string | null;
+                slicing?: string | null;
+                key?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getWhatCanWeDo: {
+        parameters: {
+            query: {
+                slicing: string;
+                /** @description the group's key (JSON array) */
+                key: string;
+                view?: string | null;
+                top?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatCanWeDo"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Validation Error */

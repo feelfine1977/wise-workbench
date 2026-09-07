@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     bpic19_norm: Path = Field(
         default_factory=lambda: Path.home() / "code" / "PhD" / "WISE" / "wise-lib" / "examples" / "bpic19_norm.json"
     )
+    # Directories searched for the log file of a knowledge pack's preset (``presets/*.yaml`` names the file only;
+    # the raw extracts stay local and are never copied into the workspace). ``WISE_PRESET_DATA_DIRS`` overrides.
+    preset_data_dirs: list[Path] = Field(
+        default_factory=lambda: [
+            Path.home() / "code" / "PhD" / "WISE" / "WISE" / "hackathon_2026" / "outputs_icpm2026",
+            Path.home() / "code" / "PhD" / "WISE" / "WISE" / "Untitled" / "data",
+        ]
+    )
     # The built single-page application (``index.html`` and ``assets/``) served at ``/`` with history fallback.
     # ``WISE_STATIC_DIR`` names it explicitly; otherwise the package's own ``static`` directory is used, then
     # ``apps/frontend/dist`` of a source checkout. Without any of them only the API and ``/docs`` are served.
@@ -60,6 +68,13 @@ class Settings(BaseSettings):
     analytics_comparison_top: int = 12
     analytics_cluster_share: float = 0.20
     analytics_seed: int = 0
+
+    @field_validator("preset_data_dirs", mode="before")
+    @classmethod
+    def _split_dirs(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [Path(v.strip()) for v in value.split(",") if v.strip()]
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod

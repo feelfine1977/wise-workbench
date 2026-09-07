@@ -171,6 +171,21 @@ def list_decisions(projectId: str, c: ContainerDep, caseTableId: str | None = No
     return [schemas.Decision.from_domain(d) for d in c.decisions.list(projectId, caseTableId)]
 
 
+@router.get(
+    "/case-tables/{caseTableId}/decisions",
+    operation_id="getCaseTableDecisions",
+    response_model=schemas.DecisionItems,
+    description=(
+        "Every readiness item with its full option set, the decision in force (its option marked) and the decision "
+        "history, plus the lineage of case tables the decisions built. A decision never removes the options of its "
+        "item: deciding again creates the next mapping version. A new decision is applied to `caseTableId` here, "
+        "the head of the lineage, so decisions accumulate."
+    ),
+)
+def get_case_table_decisions(projectId: str, caseTableId: str, c: ContainerDep) -> schemas.DecisionItems:
+    return schemas.DecisionItems(**c.decisions.item_decisions(projectId, caseTableId))
+
+
 @router.post(
     "/case-tables/{caseTableId}/decisions/preview",
     operation_id="previewDecision",
@@ -203,6 +218,7 @@ def apply_decision(
         decision=schemas.Decision.from_domain(decision),
         caseTable=schemas.CaseTable.from_domain(table),
         job=schemas.Job.from_domain(job),
+        appliedTo=decision.case_table_id,
     )
 
 

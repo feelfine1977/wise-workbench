@@ -232,6 +232,7 @@ class RunService:
         drill_from: str | None = None,
         drill_key: str | None = None,
         filter_text: str | None = None,
+        volume: str = "cases",
     ) -> dict[str, Any]:
         from wise_workbench.adapters.engine.filters import parse_filter
 
@@ -240,7 +241,16 @@ class RunService:
         drill = self._drill(ctx, drill_from, drill_key)
         filter_obj = parse_filter(filter_text)
         result = self.c.engine.backlog(
-            run, ctx, attributes, view, gamma, min_cases, bands=specs, drill=drill, filter_obj=filter_obj
+            run,
+            ctx,
+            attributes,
+            view,
+            gamma,
+            min_cases,
+            bands=specs,
+            drill=drill,
+            filter_obj=filter_obj,
+            volume=volume,
         )
         rows, total = result.page(
             sort=sort,
@@ -268,7 +278,7 @@ class RunService:
                 "sort": sort,
                 "page": page,
                 "pageSize": page_size,
-                "volume": "cases",
+                "volume": volume,
                 "z": 1.96,
                 "normFingerprint": run.manifest.norm_fingerprint if run.manifest else None,
                 "window_end": analytics.get("windowEnd") or ctx.window_end,
@@ -280,6 +290,8 @@ class RunService:
                 "analytics_record_ids": analytics.get("recordIds", {}),
                 "analytics_available": analytics.get("available", False),
                 "stability_applies": analytics.get("stabilityApplies", True),
+                "caveat_summary": analytics.get("caveatSummary", {}),
+                "uncalibrated": self.c.engine.uncalibrated(run, ctx),
             },
         }
 
@@ -307,6 +319,260 @@ class RunService:
         run, ctx = self._ready(project_id, run_id)
         attributes, specs = self._slicing(ctx, slicing, bands)
         return self.c.engine.slicing_preview(run, ctx, attributes, specs, min_cases)
+
+    # ------------------------------------------------------------- run manifest, plain first (R3-O7)
+    def manifest(self, project_id: str, run_id: str) -> dict[str, Any]:
+        """What a person needs about a run, and the fingerprints behind it.
+
+        The owner's note was "manifest and provenance are full of fingerprints and hashes; chaos for a normal
+        user". The two blocks are separated here: ``plain`` is a list of label/value/note rows in words,
+        ``technical`` keeps every hash, fingerprint and artefact checksum for the reader who wants them.
+        """
+        run = self.get(project_id, run_id)
+        table = self.c.repos.get_case_table(run.params.case_table_id)
+        dataset = self.c.repos.get_dataset(table.dataset_id)
+        norm = self.c.repos.get_norm_version(run.params.norm_version_id)
+        project = self.c.repos.get_project(project_id)
+        m = run.manifest
+        readiness = table.readiness
+        noun = (
+            self.c.repos.get_mapping(table.mapping_id).case_noun
+            or (readiness.case_noun if readiness else None)
+            or pack_case_noun(project.process)
+            or "cases"
+        )
+        views = list(run.params.views) or norm.view_names
+        slicings = [" × ".join(s.attributes) for s in run.params.slicings]
+        duration = None
+        if m and m.started_at and m.finished_at:
+            from datetime import datetime as _dt
+
+            try:
+                duration = (_dt.fromisoformat(m.finished_at) - _dt.fromisoformat(m.started_at)).total_seconds()
+            except ValueError:  # pragma: no cover - a manifest written by an older version
+                duration = None
+        warn = [i for i in (readiness.items if readiness else ()) if str(i.level) in ("warn", "fail")]
+        plain = [
+            {"label": "Log", "value": dataset.name, "note": f"{table.cases or 0:,} {noun}"},
+            {
+                "label": "Expectations",
+                "value": f"{norm.name} v{norm.version}",
+                "note": f"{norm.status}; {len(norm.document.get('constraints') or [])} expectations"
+                + (f"; {len(norm.validation)} warning(s)" if norm.validation else ""),
+            },
+            {
+                "label": "Perspective",
+                "value": ", ".join(views) or "none",
+                "note": "the weighting of the expectation areas this run was read with",
+            },
+            {
+                "label": "Grouped by",
+                "value": "; ".join(slicings) or "nothing",
+                "note": f"groups of at least {run.params.min_cases} {noun}",
+            },
+            {
+                "label": "Small groups",
+                "value": f"γ = {run.params.gamma:g}",
+                "note": (
+                    f"a group of {run.params.gamma:g} {noun} keeps half of its shortfall; larger groups keep more"
+                    if run.params.gamma
+                    else "no discount: every group counts with its raw shortfall"
+                ),
+            },
+            {
+                "label": "Scope",
+                "value": (
+                    ", ".join(f"{k} = {v}" for k, v in (run.params.scope or {}).items())
+                    if run.params.scope
+                    else "the whole log"
+                ),
+                "note": None,
+            },
+            {
+                "label": "End of the data",
+                "value": (m.window_end if m and m.window_end else (readiness.window_end if readiness else None))
+                or self._resolved_window_end(project_id, run_id)
+                or "not resolved",
+                "note": "every open-case number in this run is counted at that moment",
+            },
+            {
+                "label": "Run",
+                "value": (m.finished_at[:19].replace("T", " ") if m and m.finished_at else str(run.status)),
+                "note": (f"took {duration:.0f} s" if duration is not None else None),
+            },
+            {
+                "label": "Data caveats",
+                "value": f"{len(warn)} to keep in mind" if warn else "none",
+                "note": "; ".join(i.message.split(";")[0] for i in warn[:3]) or None,
+            },
+        ]
+        technical = dict(m.to_dict()) if m else {}
+        technical["paramsHash"] = run.params_hash
+        technical["caseTableId"] = table.id
+        technical["datasetId"] = dataset.id
+        technical["datasetContentHash"] = dataset.content_hash
+        technical["normVersionId"] = norm.id
+        technical["normFingerprint"] = norm.fingerprint
+        return {
+            "runId": run.id,
+            "status": str(run.status),
+            "caseNoun": noun,
+            "plain": plain,
+            "technical": technical,
+            "uncalibrated": self._uncalibrated_or_empty(project_id, run_id),
+        }
+
+    def _resolved_window_end(self, project_id: str, run_id: str) -> str | None:
+        try:
+            _run, ctx = self._ready(project_id, run_id)
+        except ConflictError:
+            return None
+        return self.c.engine.resolved_window_end(ctx)
+
+    def _uncalibrated_or_empty(self, project_id: str, run_id: str) -> builtins.list[dict[str, Any]]:
+        try:
+            run, ctx = self._ready(project_id, run_id)
+        except ConflictError:
+            return []
+        return self.c.engine.uncalibrated(run, ctx)
+
+    # ------------------------------------------------------------- explore board (R3-O12)
+    def facets(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        by: str,
+        attribute: str | None,
+        view: str | None,
+        gamma: float | None,
+        filter_text: str | None,
+        period: str,
+        sort: str,
+        limit: int,
+        min_cases: int,
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        return self.c.engine.facets(
+            run,
+            ctx,
+            by=by,
+            attribute=attribute,
+            view=view,
+            gamma=gamma,
+            filter_obj=parse_filter(filter_text),
+            period=period,
+            sort=sort,
+            limit=limit,
+            min_cases=min_cases,
+        )
+
+    def kpis(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        view: str | None,
+        gamma: float | None,
+        filter_text: str | None,
+        slicing: str | None = None,
+        slice_key: str | None = None,
+        grouping: str | None = None,
+        bands: str | None = None,
+        min_cases: int = 1,
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes: builtins.list[str] | None = None
+        specs: builtins.list[dict[str, Any]] = []
+        if slicing:
+            attributes, specs = self._slicing(ctx, slicing, bands)
+        key = parse_slice_key(slice_key, len(attributes)) if (attributes and slice_key is not None) else None
+        group_attrs = ctx.slicing_attributes(grouping) if grouping else None
+        return self.c.engine.kpis(
+            run,
+            ctx,
+            view=view,
+            gamma=gamma,
+            filter_obj=parse_filter(filter_text),
+            attributes=attributes if key is not None else None,
+            key=key,
+            bands=specs,
+            grouping=group_attrs,
+            min_cases=min_cases,
+        )
+
+    def activity_profile(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        activity: str,
+        abstraction: float,
+        filter_text: str | None = None,
+        slicing: str | None = None,
+        slice_key: str | None = None,
+        bands: str | None = None,
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes: builtins.list[str] | None = None
+        specs: builtins.list[dict[str, Any]] = []
+        if slicing:
+            attributes, specs = self._slicing(ctx, slicing, bands)
+        key = parse_slice_key(slice_key, len(attributes)) if (attributes and slice_key is not None) else None
+        return self.c.engine.activity_profile(
+            run,
+            ctx,
+            activity,
+            abstraction=abstraction,
+            process=self.c.repos.get_project(project_id).process,
+            filter_obj=parse_filter(filter_text),
+            attributes=attributes if key is not None else None,
+            key=key,
+            bands=specs,
+        )
+
+    def flow_bpmn(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        scope: str,
+        detail: float,
+        filter_text: str | None = None,
+        slicing: str | None = None,
+        slice_key: str | None = None,
+        bands: str | None = None,
+        gateways: bool = True,
+    ) -> tuple[str, dict[str, Any]]:
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes: builtins.list[str] | None = None
+        specs: builtins.list[dict[str, Any]] = []
+        if slicing:
+            attributes, specs = self._slicing(ctx, slicing, bands)
+        key = parse_slice_key(slice_key, len(attributes)) if (attributes and slice_key is not None) else None
+        return self.c.engine.flow_bpmn(
+            run,
+            ctx,
+            scope=scope,
+            detail=detail,
+            process=self.c.repos.get_project(project_id).process,
+            filter_obj=parse_filter(filter_text),
+            attributes=attributes if key is not None else None,
+            key=key,
+            bands=specs,
+            gateways=gateways,
+        )
 
     def filter_preview(self, project_id: str, run_id: str, *, filter_text: str | None) -> dict[str, Any]:
         from wise_workbench.adapters.engine.filters import parse_filter

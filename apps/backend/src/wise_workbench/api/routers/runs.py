@@ -85,6 +85,20 @@ def cancel_run(projectId: str, runId: str, c: ContainerDep) -> schemas.Run:
     return schemas.Run.from_domain(c.runs.cancel(projectId, runId))
 
 
+@router.get(
+    "/{runId}/manifest",
+    operation_id="getRunManifest",
+    response_model=schemas.RunManifestView,
+    description=(
+        "The run in two blocks (R3-O7): `plain` is what a person needs — the log, the expectations, the "
+        "perspective, the grouping, the parameters in words, the end of the data, when it ran and how long, and "
+        "the data caveats; `technical` keeps the fingerprints, hashes and artefact checksums."
+    ),
+)
+def get_run_manifest(projectId: str, runId: str, c: ContainerDep) -> schemas.RunManifestView:
+    return schemas.RunManifestView(**c.runs.manifest(projectId, runId))
+
+
 @router.get("/{runId}/summary", operation_id="getRunSummary", response_model=schemas.RunSummary)
 def get_run_summary(projectId: str, runId: str, c: ContainerDep) -> schemas.RunSummary:
     return schemas.RunSummary(**c.runs.summary(projectId, runId))
@@ -116,6 +130,10 @@ def get_backlog(
     ] = None,
     drillKey: Annotated[str | None, Query(description="the group's key (JSON array) in drillFrom")] = None,
     filter: FilterParam = None,
+    volume: Annotated[
+        Literal["cases", "exposure"],
+        Query(description="what the Priority Index weighs: the number of cases (default) or their exposure"),
+    ] = "cases",
     page: Annotated[int, Query(ge=1)] = 1,
     pageSize: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> schemas.BacklogPage:
@@ -138,6 +156,7 @@ def get_backlog(
         drill_from=drillFrom,
         drill_key=drillKey,
         filter_text=filter,
+        volume=volume,
     )
     return schemas.BacklogPage(**page_dict)
 
@@ -169,6 +188,91 @@ def preview_slicing(
 )
 def preview_filter(projectId: str, runId: str, c: ContainerDep, filter: FilterParam = None) -> schemas.FilterPreview:
     return schemas.FilterPreview(**c.runs.filter_preview(projectId, runId, filter_text=filter))
+
+
+# ---------------------------------------------------------------------------- explore board (R3-O12)
+@router.get(
+    "/{runId}/facets",
+    operation_id="getFacets",
+    response_model=schemas.Facets,
+    description=(
+        "One row per value of a case attribute (`by=attribute&attribute=…`), of the flow type (`by=flow_type`) or "
+        "of the case start period (`by=period`), under the canonical filter: how many cases carry it, how many of "
+        "them miss at least one expectation, how much priority is at stake on it and how many are still open. "
+        "Periods come back in time order, everything else by priority."
+    ),
+)
+def get_facets(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    by: Annotated[Literal["attribute", "flow_type", "period"], Query()] = "attribute",
+    attribute: Annotated[str | None, Query(description="case attribute; required for by=attribute")] = None,
+    view: str | None = None,
+    gamma: float | None = None,
+    period: Annotated[Literal["month", "quarter", "year", "week"], Query()] = "month",
+    sort: Annotated[
+        Literal["-priority", "priority", "-cases", "cases", "-share_below", "share_below", "period"], Query()
+    ] = "-priority",
+    minCases: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    filter: FilterParam = None,
+) -> schemas.Facets:
+    return schemas.Facets(
+        **c.runs.facets(
+            projectId,
+            runId,
+            by=by,
+            attribute=attribute,
+            view=view,
+            gamma=gamma,
+            filter_text=filter,
+            period=period,
+            sort=sort,
+            limit=limit,
+            min_cases=minCases,
+        )
+    )
+
+
+@router.get(
+    "/{runId}/kpis",
+    operation_id="getKpis",
+    response_model=schemas.Kpis,
+    description=(
+        "The board's KPI tiles for the cases the filter (and, when given, the group) keeps: items, share below "
+        "expectation, priority at stake, still open and the mean score, each with a plain sentence."
+    ),
+)
+def get_kpis(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    view: str | None = None,
+    gamma: float | None = None,
+    slicing: Annotated[str | None, Query(description="restrict the tiles to one group of this slicing")] = None,
+    sliceKey: Annotated[str | None, Query(description="the group's key (JSON array)")] = None,
+    grouping: Annotated[
+        str | None, Query(description="slicing whose groups carry the priority (default: the run's first slicing)")
+    ] = None,
+    minCases: Annotated[int, Query(ge=1)] = 1,
+    bands: BandsParam = None,
+    filter: FilterParam = None,
+) -> schemas.Kpis:
+    return schemas.Kpis(
+        **c.runs.kpis(
+            projectId,
+            runId,
+            view=view,
+            gamma=gamma,
+            filter_text=filter,
+            slicing=slicing,
+            slice_key=sliceKey,
+            grouping=grouping,
+            bands=bands,
+            min_cases=minCases,
+        )
+    )
 
 
 @router.get(
@@ -262,6 +366,99 @@ def get_signal_distribution(
             slice_key=sliceKey,
             filter_text=filter,
             scale=scale,
+            bands=bands,
+        )
+    )
+
+
+@router.get(
+    "/{runId}/flow/bpmn",
+    operation_id="exportFlowBpmn",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"application/xml": {"schema": {"type": "string"}}},
+            "description": "A BPMN 2.0 document with lanes, gateways, sequence flows and a laid-out diagram.",
+        },
+        404: {"model": schemas.Problem},
+        422: {"model": schemas.Problem},
+    },
+    description=(
+        "The flow as BPMN 2.0. `scope=flow` (default) exports the observed map at `detail` (the abstraction level "
+        "of the map, so the file is what the screen shows, filter included); `scope=stages` exports the knowledge "
+        "pack's stage model. Stages become lanes, activities tasks, branches exclusive gateways; counts travel in "
+        "`bpmn:documentation` and in `wise:*` attributes. The response headers carry the element counts."
+    ),
+)
+def export_flow_bpmn(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    scope: Annotated[Literal["flow", "stages"], Query(description="the observed flow or the pack's stage model")] = (
+        "flow"
+    ),
+    detail: Annotated[float, Query(ge=0.0, le=1.0, description="detail level of the map (abstraction)")] = 0.05,
+    slicing: str | None = None,
+    sliceKey: str | None = None,
+    gateways: Annotated[bool, Query(description="insert exclusive gateways where a task branches or joins")] = True,
+    bands: BandsParam = None,
+    filter: FilterParam = None,
+    download: Annotated[bool, Query(description="offer the file as an attachment")] = False,
+) -> Response:
+    xml, meta = c.runs.flow_bpmn(
+        projectId,
+        runId,
+        scope=scope,
+        detail=detail,
+        filter_text=filter,
+        slicing=slicing,
+        slice_key=sliceKey,
+        bands=bands,
+        gateways=gateways,
+    )
+    headers = {
+        "X-Wise-Bpmn-Tasks": str(meta.get("tasks", 0)),
+        "X-Wise-Bpmn-Gateways": str(meta.get("gateways", 0)),
+        "X-Wise-Bpmn-Sequence-Flows": str(meta.get("sequenceFlows", 0)),
+        "X-Wise-Bpmn-Lanes": str(meta.get("lanes", 0)),
+        "X-Wise-Bpmn-Scope": str(meta.get("scope", scope)),
+    }
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="{runId}_{scope}.bpmn"'
+    return Response(content=xml, media_type="application/xml", headers=headers)
+
+
+@router.get(
+    "/{runId}/flow/activities/{activityId:path}",
+    operation_id="getActivityProfile",
+    response_model=schemas.ActivityProfile,
+    responses={404: {"model": schemas.Problem}},
+    description=(
+        "One activity of the map by node id or label: counts, stage, the expectations that name it, and every "
+        "incoming and outgoing path of the **full** directly-follows relation with the count of the paths the "
+        "detail level hides (R3-O8)."
+    ),
+)
+def get_activity_profile(
+    projectId: str,
+    runId: str,
+    activityId: str,
+    c: ContainerDep,
+    abstraction: Annotated[float, Query(ge=0.0, le=1.0)] = 0.05,
+    slicing: str | None = None,
+    sliceKey: str | None = None,
+    bands: BandsParam = None,
+    filter: FilterParam = None,
+) -> schemas.ActivityProfile:
+    return schemas.ActivityProfile(
+        **c.runs.activity_profile(
+            projectId,
+            runId,
+            activity=activityId,
+            abstraction=abstraction,
+            filter_text=filter,
+            slicing=slicing,
+            slice_key=sliceKey,
             bands=bands,
         )
     )

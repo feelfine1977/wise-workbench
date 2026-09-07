@@ -25,17 +25,19 @@ describe("the analysis path (R2-O6)", () => {
     expect(currentStep("/p/x/notebook")).toBeUndefined();
   });
 
-  it("shows six steps with states from the data, the current one with 'you are here', and links every step to its screen", async () => {
+  it("shows seven steps with states from the data, the current one with 'you are here', and links every step to its screen", async () => {
     const user = userEvent.setup();
     renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance`);
     await screen.findByRole("list", { name: "Signals" }, T);
     const stepper = screen.getByRole("navigation", { name: "Analysis path" });
     const steps = within(stepper).getAllByRole("listitem").filter((li) => li.hasAttribute("data-step"));
     const text = (li: HTMLElement) => `${li.querySelector("[data-step-glyph]")?.textContent}${li.querySelector("[data-step-label]")?.textContent}`;
-    expect(steps.map((s) => text(s as HTMLElement))).toEqual(["●Data", "●Norm", "●Run", "◉Signals", "○Why", "○What to do"]);
+    expect(steps.map((s) => text(s as HTMLElement))).toEqual(["●Data", "●Norm", "●Run", "◉Signals", "◐Flow", "○Why", "○What to do"]);
     expect(steps[3]).toHaveAttribute("aria-current", "step");
     expect(within(steps[3] as HTMLElement).getByTestId("you-are-here")).toHaveTextContent("you are here");
-    expect(within(steps[5] as HTMLElement).getAllByText(/arrives in cycle 3/).length).toBeGreaterThan(0);
+    expect(within(steps[6] as HTMLElement).getAllByText(/not available yet/).length).toBeGreaterThan(0);
+    // no user-visible string names a release
+    expect(stepper.textContent).not.toMatch(/cycle \d/);
     // the twelve stages of the method sit behind "All stages"
     await user.click(within(stepper).getByRole("button", { name: "All stages of the method" }));
     expect(await screen.findByRole("list", { name: "All stages" })).toHaveTextContent(/Institutionalisation/);

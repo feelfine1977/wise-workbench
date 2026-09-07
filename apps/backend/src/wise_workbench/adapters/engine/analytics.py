@@ -447,12 +447,20 @@ def run_analytics(
                         )
                     sentence = top_comparison(table, items=case_noun)
                     top = table.index[0] if len(table) else None
+                    scored_here = int(result.scores[view][_where_mask(result.cases, where)].notna().sum())
                     rows.append(
                         {
                             **where,
                             "comparison": sentence,
                             "comparison_kind": str(table["kind"].iloc[0]) if len(table) else None,
                             "comparison_constraint": top,
+                            "comparison_reason": None
+                            if sentence
+                            else comparison_reason(
+                                "no_scored_cases" if scored_here == 0 else "no_driver",
+                                items=case_noun,
+                                view=view,
+                            )["code"],
                             "share_of_gap": float(table["share_of_gap"].iloc[0]) if len(table) else np.nan,
                             "contrast_record_id": c.record.record_id,
                         }
@@ -464,6 +472,7 @@ def run_analytics(
                             "comparison": None,
                             "comparison_kind": None,
                             "comparison_constraint": None,
+                            "comparison_reason": "analytics_error",
                             "share_of_gap": np.nan,
                             "contrast_record_id": None,
                             "error": str(exc),
@@ -584,11 +593,39 @@ def readable_comparisons(
     return out
 
 
-def top_comparison(table: pd.DataFrame | None, *, items: str) -> str:
-    """The card's comparison sentence: the first driver's sentence, capitalised, with a full stop."""
+def top_comparison(table: pd.DataFrame | None, *, items: str) -> str | None:
+    """The card's comparison sentence: the first driver's sentence, capitalised, with a full stop.
+
+    ``None`` when there is nothing to compare (R2-05): a group with no scored case must print no sentence at all,
+    never a neighbour's and never "No expectation is missed more here" under a header that names a missed one.
+    The caller pairs the ``None`` with :func:`comparison_reason`.
+    """
     if table is None or table.empty:
-        return f"No expectation is missed more often by these {items} than elsewhere."
+        return None
     return capitalised(str(table["sentence"].iloc[0]))
+
+
+COMPARISON_REASONS: dict[str, str] = {
+    "no_scored_cases": (
+        "No {items} in this group has a score in the {view} perspective, so there is nothing to compare with the rest."
+    ),
+    "no_driver": "No expectation is missed materially more often by these {items} than by the rest.",
+    "not_computed": (
+        "No comparison was computed for this group in this run (the analytics compute the top groups first); "
+        "open the group to compute it."
+    ),
+    "analytics_unavailable": "Comparisons are not computed in this installation (the analytics package is missing).",
+    "analytics_error": "The comparison could not be computed for this group.",
+}
+
+
+def comparison_reason(code: str, *, items: str, view: str | None = None, detail: str | None = None) -> dict[str, str]:
+    """Why a card or a reason screen carries no comparison sentence, in plain words (R2-05)."""
+    template = COMPARISON_REASONS.get(code, COMPARISON_REASONS["not_computed"])
+    text = template.format(items=items, view=view or "chosen")
+    if detail:
+        text = f"{text} {detail}"
+    return {"code": code, "text": text}
 
 
 # ---------------------------------------------------------------------------- read side: backlog enrichment
@@ -694,6 +731,63 @@ def caveat_texts(
     return out
 
 
+CAVEAT_PAGE_FACTOR = 1.5  # a warn chip is hidden only while the group's share stays within 1.5 x the page's
+
+
+def caveat_page_summary(
+    per_row: list[list[dict[str, Any]]], weights: list[float], *, factor: float = CAVEAT_PAGE_FACTOR
+) -> dict[str, dict[str, float]]:
+    """Per caveat kind: the page-wide share (cases-weighted mean over the groups), the largest share on the page,
+    how many groups carry it and the share above which a chip is always shown (R2-06)."""
+    out: dict[str, dict[str, float]] = {}
+    total = float(sum(weights)) or 1.0
+    for kind in CAVEAT_KINDS:
+        shares = [
+            (float(c["share"]), float(w))
+            for row, w in zip(per_row, weights)
+            for c in row
+            if c.get("id") == kind and c.get("share") is not None
+        ]
+        if not shares:
+            continue
+        weighted = sum(sh * w for sh, w in shares) / total
+        out[kind] = {
+            "page_share": weighted,
+            "max_share": max(sh for sh, _ in shares),
+            "groups": float(len(shares)),
+            "threshold": weighted * factor,
+        }
+    return out
+
+
+def apply_caveat_page_rule(row: list[dict[str, Any]], summary: dict[str, dict[str, float]]) -> list[dict[str, Any]]:
+    """Mark the chips the page-wide rule may hide (R2-06).
+
+    A ``fail`` caveat is never suppressed; a ``warn`` caveat is suppressed only while the group's own share stays
+    within the page-wide threshold. Real Estate's 44 % censoring against a page-wide 16 % therefore keeps its chip.
+    """
+    out = []
+    for caveat in row:
+        stats = summary.get(str(caveat.get("id"))) or {}
+        share = caveat.get("share")
+        threshold = stats.get("threshold")
+        suppressed = (
+            str(caveat.get("status")) == "warn"
+            and share is not None
+            and threshold is not None
+            and float(share) <= float(threshold)
+        )
+        out.append(
+            {
+                **caveat,
+                "suppressed": bool(suppressed),
+                "page_share": stats.get("page_share"),
+                "threshold": threshold,
+            }
+        )
+    return out
+
+
 def kind_reading(kind: str | None, *, items: str, plain_layer: str | None = None) -> str | None:
     if kind is None:
         return None
@@ -749,7 +843,7 @@ def slice_analytics(
     where = {a: (None if v == "(missing)" else v) for a, v in zip(attrs, key)}
     mask = _where_mask(result.cases, where)
     base = {"view": view, "by": attrs, "key": [jsonable(v) for v in key], "gamma": gamma}
-    out: dict[str, Any] = {"record_ids": {}, "readings": []}
+    out: dict[str, Any] = {"record_ids": {}, "readings": [], "comparison_reason": None}
 
     # contrast with intervals
     c_params = {**base, "B": bootstrap_b}
@@ -793,9 +887,15 @@ def slice_analytics(
             items=case_noun,
         )
         out["comparison"] = top_comparison(out["comparisons"], items=case_noun)
-    except Exception:
+        if out["comparison"] is None:
+            code = "no_scored_cases" if int(result.scores[view][mask].notna().sum()) == 0 else "no_driver"
+            out["comparison_reason"] = comparison_reason(code, items=case_noun, view=view)
+    except Exception as exc:
         out["comparisons"] = None
         out["comparison"] = None
+        out["comparison_reason"] = comparison_reason(
+            "analytics_error", items=case_noun, view=view, detail=str(exc).splitlines()[0][:160]
+        )
 
     # headroom
     h_params = dict(base)

@@ -94,7 +94,8 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByRole("tab", { name: "Why" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("top-drivers")).toContainText("explains");
   await expect(page.getByTestId("why-map").getByTestId("flow-map")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("typical-causes")).toContainText("cycle 3");
+  await expect(page.getByTestId("typical-causes")).toContainText("not available yet");
+  await expect(page.getByTestId("typical-causes")).not.toContainText("cycle");
   // the how-to-read paragraph is collapsed and opens from the ? beside the title
   await expect(page.getByTestId("how-to-read")).toHaveCount(0);
   await page.getByRole("button", { name: "Show how to read this screen" }).click();

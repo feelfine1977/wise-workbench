@@ -124,3 +124,20 @@ export function LayerChip({ id, name, className }: { id: string | null | undefin
     </span>
   );
 }
+
+/**
+ * An expectation whose threshold says more about the threshold than about the groups (R2-09): one
+ * missed by almost every case separates nothing, one met by almost every case cannot fail. The chip carries
+ * the server's own sentence, so a reader who compares two groups on it knows what they are comparing.
+ */
+export function CalibrationChip({ text, className }: { text?: string | null; className?: string }) {
+  return (
+    <span
+      className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-warning/50 bg-warning-subtle px-2 py-0.5 text-[11px] font-medium text-warning", className)}
+      title={text ?? "This expectation's threshold needs calibrating on this log."}
+      data-testid="calibration-chip"
+    >
+      <span aria-hidden>⚠</span>a threshold to calibrate
+    </span>
+  );
+}

@@ -5,10 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useWorkbench } from "@/app/context";
 import { backlogRoute } from "@/app/router";
 import { stripBacklogDefaults, type BacklogSearch, type BacklogTab } from "@/app/search";
-import { filterPreviewQuery, type BacklogParamsC2, type RunC2, type Within } from "@/lib/api/cycle2";
+import { filterPreviewQuery, uncalibratedById, type BacklogParamsC2, type RunC2, type Within } from "@/lib/api/cycle2";
 import { Explain } from "@/components/explain";
 import { FreezeButton } from "@/components/guide/Freeze";
-import { CaveatChips } from "@/components/guide/CaveatChips";
+import { CaveatChips, caveatShort } from "@/components/guide/CaveatChips";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
 import { Term, useVocabulary } from "@/components/Term";
@@ -18,9 +18,9 @@ import { Card, CardTitle } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { parseFilter } from "@/lib/filter";
-import { fmtInt, fmtNum } from "@/lib/format";
+import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { backlogQuery, normQuery } from "@/lib/queries";
-import { groupLabel, pageWideCaveats, sharedKeyValues } from "@/lib/sentences";
+import { groupLabel, groupingLabel, pageWideCaveats, sharedKeyValues } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
 import { rankingRule } from "@/lib/vocabulary";
 import { drillAttributeFor, sliceLabel } from "@/lib/utils";
@@ -48,7 +48,6 @@ const Charts = lazy(() =>
   })),
 );
 
-const groupingLabel = (attributes: string[] | undefined, id: string | null | undefined) => (attributes ?? []).map((a) => a.replace(/^case /, "")).join(" × ") || (id ?? "");
 
 function parseWithin(raw: string | undefined): Within | undefined {
   if (!raw) return undefined;
@@ -161,12 +160,15 @@ export default function BacklogPage() {
   const pageCount = Math.max(1, Math.ceil(total / search.pageSize));
   const maxPI = backlog.data?.maxStablePI ?? Math.max(0, ...rows.map((r) => r.stable_PI));
   const grouping = run.slicings?.find((s) => s.id === slicing);
-  const groupingText = groupingLabel(grouping?.attributes ?? (params.attributes as string[] | undefined) ?? slicing.split("+"), slicing);
+  const groupingText = groupingLabel(slicing, grouping?.attributes ?? (params.attributes as string[] | undefined));
+  // the run's uncalibrated expectations, so every card that names one flags it
+  const uncalibrated = uncalibratedById(params);
   const noConfidenceComputed = confident && rows.length === 0 && (backlog.data?.rows ?? []).length > 0 && (backlog.data?.rows ?? []).every((r) => (r.stability ?? "unknown") === "unknown");
   const scope = run.scope?.flow_type;
   // caveats that hold on nearly every group of the page are stated once here, not on every card
   const pageCaveats = pageWideCaveats(rows);
-  const hideCaveats = new Set(pageCaveats.map((c) => c.id));
+  // a group whose share lies far outside the page-wide range keeps its own chip (R2-06)
+  const hideCaveats = new Map(pageCaveats.map((c) => [c.id, c.share]));
 
   const footer = (
     <footer className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
@@ -212,7 +214,7 @@ export default function BacklogPage() {
           <SelectContent>
             {[...(run.slicings ?? []), ...(within && !run.slicings?.some((s) => s.id === slicing) ? [{ id: slicing, attributes: slicing.split("+") }] : [])].map((s) => (
               <SelectItem key={s.id ?? s.attributes.join("+")} value={s.id ?? s.attributes.join("+")}>
-                {groupingLabel(s.attributes, s.id)}
+                {groupingLabel(s.id ?? undefined, s.attributes)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -267,6 +269,12 @@ export default function BacklogPage() {
           <p className="flex flex-wrap items-center gap-2 text-sm text-text-muted" data-testid="page-caveats">
             <span>On nearly every group here:</span>
             <CaveatChips caveats={pageCaveats.map((c) => ({ id: c.id, share: c.share ?? null, status: "warn", text: c.text }))} max={4} />
+            <span className="text-xs text-text-subtle" data-testid="page-caveat-range">
+              {pageCaveats
+                .filter((c) => c.share !== undefined && c.max !== undefined)
+                .map((c) => `${caveatShort(c.id)}: ${fmtPct(c.share ?? 0, (c.share ?? 0) < 0.1 ? 1 : 0)} on average, up to ${fmtPct(c.max ?? 0, (c.max ?? 0) < 0.1 ? 1 : 0)}`)
+                .join(" · ")}
+            </span>
           </p>
         )}
         {!plain && backlog.data && (
@@ -313,7 +321,7 @@ export default function BacklogPage() {
                   <EmptyState title={t("empty.noRows")} reason={t("empty.noRowsReason")} action={{ label: "Reset filters", onClick: reset }} />
                 )
               ) : (
-                <SignalsList rows={rows} maxPI={maxPI} view={view} layerNames={layerNames} caseNoun={caseNoun} hideCaveats={hideCaveats} pins={pins} activeKey={activeKey} onActive={setActiveKey} onTogglePin={togglePin} onOpen={open} onDrill={within ? undefined : drill} onFocusFilter={() => filterRef.current?.focus()} />
+                <SignalsList uncalibrated={uncalibrated} rows={rows} maxPI={maxPI} view={view} layerNames={layerNames} caseNoun={caseNoun} hideCaveats={hideCaveats} pins={pins} activeKey={activeKey} onActive={setActiveKey} onTogglePin={togglePin} onOpen={open} onDrill={within ? undefined : drill} onFocusFilter={() => filterRef.current?.focus()} />
               )}
               {footer}
             </TabsContent>

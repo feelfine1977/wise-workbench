@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from wise_workbench.api import schemas
 from wise_workbench.api.deps import ContainerDep
@@ -32,6 +32,67 @@ def list_norms(projectId: str, c: ContainerDep) -> list[schemas.NormVersion]:
 )
 def create_norm_version(projectId: str, body: schemas.NormVersionCreate, c: ContainerDep) -> schemas.NormVersion:
     return _out(c, c.norms.create_version(projectId, body.norm, body.note, body.parentId, body.author))
+
+
+# ---------------------------------------------------------------------------- norm builder (R3-O6)
+@router.get(
+    "/inventory",
+    operation_id="getNormInventory",
+    response_model=schemas.Inventory,
+    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "The pickers of the norm builder: the log's activities with their event and case counts and their stage, "
+        "and every case attribute with its distinct count and its values. Without `attribute` each attribute is "
+        "summarised with its ten most frequent values; with one, that attribute's values are listed (searchable "
+        "with `q`, up to `limit`)."
+    ),
+)
+def get_norm_inventory(
+    projectId: str,
+    c: ContainerDep,
+    caseTableId: Annotated[str, Query(description="the case table the norm is written against")],
+    attribute: Annotated[str | None, Query(description="list this attribute's values in full")] = None,
+    q: Annotated[str | None, Query(description="search activities or values")] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 25,
+) -> schemas.Inventory:
+    return schemas.Inventory(**c.norms.inventory(projectId, caseTableId, attribute=attribute, q=q, limit=limit))
+
+
+@router.post(
+    "/constraints/check",
+    operation_id="checkConstraint",
+    response_model=schemas.ConstraintCheck,
+    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "One expectation checked against a case table before it goes into a norm: whether it is well formed, "
+        "whether the activities it names occur, how many cases it applies to and how many miss it, and what it "
+        "says in one plain sentence with its applicability in words."
+    ),
+)
+def check_constraint(projectId: str, body: schemas.ConstraintCheckRequest, c: ContainerDep) -> schemas.ConstraintCheck:
+    return schemas.ConstraintCheck(
+        **c.norms.validate_constraint(projectId, body.caseTableId, body.constraint, norm_version_id=body.normVersionId)
+    )
+
+
+@router.get(
+    "/guidance-questions",
+    operation_id="getGuidanceQuestions",
+    response_model=schemas.GuidanceQuestions,
+    description=(
+        "The five questions asked when an expectation area or an expectation is defined (knowledge-hub panel §4): "
+        "what we call it, what we expect, what it means when missed, what usually causes it, what we do about it "
+        "and who owns it. The pack's text is offered as a starting answer; answers are stored as the project's "
+        "guidance overlay."
+    ),
+)
+def get_guidance_questions(
+    projectId: str,
+    c: ContainerDep,
+    kind: Annotated[Literal["layer", "constraint", "expectation", "failure_mode"], Query()] = "layer",
+    id: Annotated[str | None, Query(description="the layer or expectation being defined")] = None,
+) -> schemas.GuidanceQuestions:
+    return schemas.GuidanceQuestions(**c.knowledge.questions(projectId, kind, id))
 
 
 @router.get(

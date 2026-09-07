@@ -344,3 +344,42 @@ steps above:
   (*Back to Where is it worst? (page 1, widespread only)*).
 - The notebook card has a 160 px thumbnail (the full picture in a lightbox with *Open this screen again*)
   and never scrolls sideways; the context line names the screen and the run's note, not ids.
+
+## Cycle 3 (2026-09-06) — the flow as the instrument and the linked explore board
+
+Observed on 2026-09-06 on the mocks (`npm run dev -- --port 5199`) and on a live backend on port 8011
+(`apps/backend/.venv/bin/wise-workbench serve --port 8011` on the default workspace, after
+`POST /projects/{id}/datasets/presets/bpic2019` had run through). The board's sources — `GET …/runs/{id}/facets`
+and `GET …/runs/{id}/kpis` — are the third-release contract's own operations; where a backend does not serve
+them yet the panels fall back to the second-release endpoints and say so with the lock chip and *all items*.
+
+### CP-3.1 — the Flow step (R3-O11)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | open `…/runs/{run}/flow?slicing=case Company+case Spend area text&view=Automation` | the stepper reads **Data → Norm → Run → Signals → Flow → Why → What to do** with *you are here* on Flow; the header carries the back control, *Where in the flow · all flows · 251,734 purchase order items, 1,595,923 events*, the `Flow | Board` switch and the camera; under it one 44 px filter bar (items in / out, chips, detail slider with *8 of 42 activities*, `Map | Model | Table`, ⤢, ⋯) and then the map frame | the map frame covers ≥ 60 % of a 1440 × 900 viewport (measured 1360 × 620 = 65 %); nothing floats over the drawing except the zoom controls bottom-left |
+| 2 | click an activity | its card opens **under** the map: name · stage · items (share) · events each · worst expectation here, then *Filter to · Exclude · Paths in / out · Distribution · Worst cases · Pin*, `≡` and `×` | the address gains `sel=activity:…`; `Escape` clears the selection, a second `Escape` leaves the full window |
+| 3 | **Filter to** | the count line changes (*in 234,479 of 251,734 purchase order items · 17,255 out*), a chip *with Record Goods Receipt* appears, the live region says *Filter added: with Record Goods Receipt — 234,479 of 251,734 purchase order items remain.*, the address holds `filter={"and":…}&fh=…` | an action that removes no item still adds its chip and the count line says *no purchase order items removed* for two seconds |
+| 4 | **Paths in / out** | the path list beside the map from the response's `paths` block, and under the frame *n paths are below this detail level* with **Show them** | an activity whose paths are all weak never reports "no paths" (R3-O8) |
+| 5 | `Model` | the same scene as a BPMN diagram through the flow library's `BpmnView`, the same overlays and the same selection, with the chip *model from the log · generated* and the activities that have no task named under it; `⋯ → BPMN 2.0 (.bpmn)` downloads the file (`GET …/flow/bpmn` when the backend serves it, else generated in the browser) | switching back to `Map` leaves the chips, the selection and the detail level untouched |
+| 6 | `⤢` or `F` | the map fills the browser window (`full=1` in the address), the filter bar stays, the card becomes a strip | `Escape` returns and the zoom is kept |
+
+### CP-3.2 — the explore board (R3-O12)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | press **Board** in the header | the same step with *Board* as its second line: the four selectors (flow type, period, expectation area, group) with **Reset all**, the chips row with the count, the four tiles, then *Where in the flow* and *Where is it worst* side by side and *How far off* and *How does it split* below, with the source line and *Save as… · Why? Packaging →* at the foot | context, chips and selection survive the switch |
+| 2 | click an activity on the board's map | within a second the count line, the four tiles, the ranked list's count, the distribution's caption and the breakdown's numbers all show the filtered values; one chip appeared; the live region says *… ; 6 panels updated* | no panel blanks and no panel moves |
+| 3 | remove the chip | every panel returns to the number it had, and the address returns to the pre-click one | measured on the mocks and on the live backend |
+| 4 | click **DF2**, then **DF1** in the breakdown | one chip *flow type: DF1 or DF2*; clicking DF2 again leaves *flow type: DF1* | two values of one field read as OR |
+| 5 | **Save as…** | the board is kept per project with its context and chips (in the browser until the backend keeps boards) | reopening it restores the address |
+
+### CP-3.3 — the owner's defects
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | Data → *Your process* | every flow-type card offers **Open the map** (the map of that flow type full width on the Flow step, with the flow type as a chip), **Analyse this flow** and **Compare**; the small map itself opens the same screen | R3-O5: no flow type is unreachable behind a tab |
+| 2 | Data → data caveats → *Mark day-precise activities* | one dialog, at most 85 % of the window high, listing the activities measured to the day (1 of 42) with their precision and event counts, *select all · none · show every activity*, the preview, the note | R3-O2: one dialog, never one per activity |
+| 3 | *Decide again* on a decided item | the dialog says which version is in force and with which choice, keeps every option (the current one marked *current*), and the list under it shows every decision with *in force* / *replaced* | R3-O1, R3-O3 |
+| 4 | Why → Flow | the decision pane collapses to its button, the map takes all twelve columns, `⤢` fills the window, **Open full →** carries the chips and the group as a chip into the Flow step | R3-O10 |
+| 5 | a card of a group whose caveat is far above the page-wide range | the chip stays on the card (*44 % still open at the end*) and the header prints the range (*still open at the end: 16 % on average, up to 44 %*) | R2-06 |

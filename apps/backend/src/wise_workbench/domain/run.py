@@ -205,7 +205,7 @@ class RunParams:
             "minCases": self.min_cases,
             "baselineRunId": self.baseline_run_id,
         }
-        # keys added in cycle 2 enter the hash only when set, so that earlier runs keep their hash
+        # keys added later enter the hash only when set, so that earlier runs keep their hash
         bands = sorted(
             json.dumps([list(s.attributes), list(s.bands)], sort_keys=True) for s in self.slicings if s.bands
         )

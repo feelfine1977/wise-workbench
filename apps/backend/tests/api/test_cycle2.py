@@ -463,7 +463,8 @@ def test_notebook_snapshots_reorder_export(world: dict[str, Any]) -> None:
     assert "![Top vendors (Finance)](images/02-top-vendors-finance.png)" in md and "edited note" in md
     assert f"run_id = {world['run']['id']}" in md and "Data: `data/02-top-vendors-finance.json`" in md
     r = c.get(f"{base}/export", params={"format": "pptx"})
-    assert r.status_code == 422 and r.json()["code"] == "notebook.format" and "cycle 4" in r.json()["detail"]
+    assert r.status_code == 422 and r.json()["code"] == "notebook.format"
+    assert "not available yet" in r.json()["detail"] and "cycle" not in r.json()["detail"]
     assert c.delete(f"{base}/snapshots/{s1['id']}").status_code == 204
     assert c.get(f"{base}/snapshots/{s1['id']}").status_code == 404
     left = c.get(base).json()["snapshots"]
@@ -577,8 +578,9 @@ def test_decision_preview_apply_and_rebuild(world: dict[str, Any]) -> None:
     assert [d["kind"] for d in listed] == ["sentinel_as_missing", "open_cases"] and listed[1][
         "caseTableId"
     ] == new_table["id"]
+    # R3-O3: a case table's list is its whole lineage, so both decisions stay visible after the rebuild
     only = c.get(f"/api/v1/projects/{pid}/decisions", params={"caseTableId": ct}).json()
-    assert [d["id"] for d in only] == [decision["id"]]
+    assert [d["id"] for d in only] == [decision["id"], second["decision"]["id"]]
 
 
 # ---------------------------------------------------------------------------- R2-O2 slice designer

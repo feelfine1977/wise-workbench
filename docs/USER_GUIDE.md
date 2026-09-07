@@ -1,4 +1,4 @@
-# User guide — WISE Workbench, cycle 2
+# User guide — WISE Workbench
 
 For an analyst who has an event log of a purchase-to-pay (or similar) process
 and wants to know where it falls short of expectations, without knowing the
@@ -8,12 +8,12 @@ numbers are those of the BPI Challenge 2019 log in the verified workspace.
 
 ## Workflow
 
-The stepper across the top of every screen names the six steps of an
-analysis — **Data → Norm → Run → Signals → Why → What to do** — and shows
-where you are (*you are here*), what is done (●), what is in progress (◐)
-and what is still waiting (○, with the reason in a tooltip: *needs a
+The stepper across the top of every screen names the seven steps of an
+analysis — **Data → Norm → Run → Signals → Flow → Why → What to do** — and
+shows where you are (*you are here*), what is done (●), what is in progress
+(◐) and what is still waiting (○, with the reason in a tooltip: *needs a
 finished run*). Every step is a link to where its work happens; `Alt+1` …
-`Alt+6` jump to them; **Back to …** and `Alt+←` return to where you came
+`Alt+7` jump to them; **Back to …** and `Alt+←` return to where you came
 from, with its filters.
 
 **Data.** You give the application an event log (one row per event: which
@@ -48,6 +48,14 @@ else, the kind of problem, the confidence in the rank and at most one caveat
 chip. **Refine** narrows the list by group, size, expectation area, kind and
 confidence; every filter is a chip and lives in the address.
 
+**Flow.** The process map as an instrument, not a picture: the whole log
+or the current selection drawn as activities and paths, with one filter bar
+above it and every action — filter to an activity, exclude it, list its
+paths, open its distribution, open its worst cases — changing the count in
+front of you. Beside it, under `Flow | Board`, the **explore board**: one
+selection moves the map, the ranked list, the distribution, the breakdown
+and the four numbers together. Section 9.
+
 **Why.** One click on **Why?** opens the group's reasons: which expectations
 are missed and how much of the shortfall each explains, the comparison with
 everyone else, where in the flow it happens (the group's map with actions on
@@ -56,10 +64,13 @@ and the possible gain. The decision pane asks **What next?** — investigate,
 defer, accept the shortfall, not a problem — with a note. **Freeze this**
 keeps any screen in the notebook with its context and your remark.
 
-**What to do.** The step exists on the stepper and arrives in cycle 3 with
-the knowledge hub: typical causes for a pattern, what to check in the log
-and outside it, and the actions that fit. Until then the Why screen ends
-with a placeholder that says so.
+**What to do.** The step is on the stepper and reads *not available yet*.
+The server already answers it — for the group's top drivers, the usual
+reasons with *in the log: check …* and *outside the log: ask …*, the usual
+actions with their countermeasure type and owner role, and what to check
+first — and so does the knowledge hub behind it; the screens that would show
+them are the next piece of work. Section 11 says what can be read today and
+how.
 
 Priorities are evidence for hypotheses, not verdicts. The application never
 says what causes a shortfall; it shows where the shortfall sits and which
@@ -116,7 +127,7 @@ screen as you left it.
 **Freeze this** on every analysis screen (dashboard, signals, Why, norm,
 run, dataset) opens a small dialog — a prefilled **title**, a **note** — and
 stores a picture of the screen, the numbers behind it and where you were
-(run, grouping, perspective, filters) in the project's notebook (section 9).
+(run, grouping, perspective, filters) in the project's notebook (section 14).
 
 **The job tray** (bottom right, **Jobs**) appears when something runs: each
 job with its status (*queued*, *running*, *done*, *failed*, *cancelled*), a
@@ -129,9 +140,9 @@ problem, confidence in rank, purchase order items for the cases). The
 method's own terms (slice, constraint, layer, view, gap, PI, hotspot type,
 stability) appear behind **more**, in tooltips and with the **words** switch
 (**plain** | **method**) in **⋯**; the choice is remembered in your browser.
-Section 11 lists all pairs.
+Section 17 lists all pairs.
 
-**Keyboard.** `Alt+1` … `Alt+6` the steps, `Alt+←` back, `⌘K` the palette,
+**Keyboard.** `Alt+1` … `Alt+7` the steps, `Alt+←` back, `⌘K` the palette,
 `?` the help; on the signals list `↑` `↓` move between cards, `↵` opens
 **Why?**, `p` pins, `f` opens the decision pane, `/` opens **Refine**; on the
 map the arrow keys move between activities, `Space` selects, `Enter` opens
@@ -395,7 +406,7 @@ Three tabs: **Parameters and manifest** (the parameters, and the manifest:
 norm fingerprint, content hash, mapping, params hash, window end, scope,
 library version, started, finished — "Same content hash + norm fingerprint +
 params hash → identical ranked list."), **Flow** — the process map of the
-whole log with the expectations drawn on it (section 8 explains the map)
+whole log with the expectations drawn on it (section 9 explains the map)
 —, and **Flow types side by side** (section 4).
 
 ## 8. Read the signals list
@@ -413,7 +424,7 @@ at least how many cases, only problems about one expectation area, only one
 kind of problem, only high-confidence ranks, caution against small groups
 (γ), per page — beside the **perspective** and **grouping** switchers. Every
 active filter is a chip with × under the drawer button, and **clear all**
-removes them; every filter lives in the address (section 10).
+removes them; every filter lives in the address (section 15).
 
 **Three tabs: Signals, Table, All groups at once.**
 
@@ -460,7 +471,7 @@ reads, from the top:
   the confidence reason (*P(stays in top-10) = 1.00* and the rank interval),
   the expectation area (*On time*), the full caveat texts, the reading
   sentence — and **Drill into this group**;
-- **Why?** opens the group's reasons (section 9) on the first click.
+- **Why?** opens the group's reasons (section 10) on the first click.
 
 **Drill into this group** ranks a finer grouping inside the group — the
 vendors inside Packaging — with the overall score as baseline: the sentence
@@ -498,9 +509,120 @@ on the first click.
 of problem; size = priority") and **how much of the priority the top groups
 carry**. Clicking a point opens its reasons.
 
-## 9. Why? — the group's reasons
+## 9. Where in the flow: the map as the instrument, and the board
 
-**Why** (step 5) opens with **Back to Where is it worst? (page 1)**, the
+**Flow** (step 5) is the process map with nothing around it. It opens from
+the stepper (`Alt+5`), from the **where in the flow** tab of the Run screen,
+from any flow-type card on the dashboard, and — smaller, in the same shape —
+as the **Flow** tab of the Why screen, where **Open full →** carries the
+group and the chips into the step.
+
+**The header** holds **Back to …**, the title with one reading sentence, the
+`Flow | Board` switch (two arrangements of one step: the context, the
+filter, the chips and the selection survive the switch) and **Freeze this**.
+
+**One filter bar, 44 px,** and nothing else above the drawing:
+
+- the count line in the run's own case noun — *in 251,734 of 251,734
+  purchase order items*, and under a filter *in 234,479 of 251,734 purchase
+  order items · 17,255 out*;
+- the chips, one per clause, in the order you added them, each with a ×;
+- the **detail slider** from *stages only* to *all that fit*, with its
+  caption *more activities · 8 of 42 activities* (`[` and `]`);
+- **map | model | table** (`M`);
+- the full window (`⤢`, or `F`);
+- **⋯** with **BPMN 2.0 (.bpmn)** and the keyboard map.
+
+**The frame is the page.** No card, no title over the drawing: a 1 px
+border, the legend as a column beside the canvas (**Hide the legend** folds
+it into a button), and the zoom controls (**+**, **−**, **Fit the map to the
+frame**, **Fill the window**) as the only thing over it. At 1440 × 900 the
+frame is 1,360 × 588 px — 61.7 % of the window — and the step never grows a
+page scrollbar: opening the activity card, adding a filter or entering the
+full window leaves the frame the size it was.
+
+**Click an activity** and a card appears under the map with its counts and
+six actions, each with a key:
+
+| Action | Key | What it does |
+|---|---|---|
+| **Filter to** | `f` | only the items that pass through it |
+| **Exclude** | `x` | drops the items that pass through it |
+| **Paths in / out** | `i` | every path in and out, from the full relation |
+| **Distribution** | `d` | the distribution behind this activity, over the screen |
+| **Worst cases** | `w` | the worst cases through here |
+| **Pin** | `p` | keeps the scene in the strip above the filter bar |
+
+A `≡` menu adds *analyse only the items that start here* and *add an
+expectation here*; `×` clears the selection, and so does the first `Escape`.
+Paths, stages, start and end markers and expectation arcs can be selected in
+the same way and add their own clause.
+
+**Nothing happens silently.** Every action says what it did — *Filter added:
+with Record Goods Receipt — 234,479 of 251,734 purchase order items
+remain.* — and an action that removes nothing says *no purchase order items
+removed* rather than leaving you to wonder. **Record Goods Receipt** takes
+the log from 251,734 to 234,479 items; the chip, the count line, the map and
+the address all move together.
+
+**Paths in / out** answers from the whole directly-follows relation, not
+only from what is drawn. **Change Quantity** has 22 paths in and 20 out; at
+the default detail the map draws none of them, so all 42 are listed under
+*hidden at this detail level (42)* with **Show them**, each with its other
+end, the items on it and the median wait in days. An activity that the
+current level does not draw says so under the frame, with **Raise the
+detail**.
+
+**Full window** (`⤢` or `F`) fills 95 % of the window and keeps the filter
+bar; the first `Escape` clears the selection, the second leaves.
+
+**model** draws the same scene as a BPMN 2.0 diagram — the same overlays,
+the same selection, one lane per stage — without asking the server for
+anything, and names the activities that have no task in the model. **⋯ →
+BPMN 2.0 (.bpmn)** downloads the file (on BPIC 2019 at the default detail: 9
+tasks, 10 gateways, 29 sequence flows, 6 lanes). **table** lists the same
+activities and paths as rows.
+
+### The explore board
+
+**Board** in the page header arranges the same step as linked panels, so one
+selection answers everywhere at once:
+
+- **four selectors** — flow type, period, expectation area, group — which
+  are views on the filter itself, so removing a chip clears the selector;
+- **Where in the flow?** (the map: a click filters the whole board);
+- **Where is it worst?** (the ranked groups: a click filters, **Why?**
+  leaves the board);
+- **How far off?** (one expectation's distribution with its expectation
+  line);
+- **How does it split?** (the breakdown, with *flow type · period ·
+  attribute* tabs);
+- **four tiles** — items, average score, priority at stake, still open.
+
+Every panel has a one-line question as its title, a sentence under it, and
+an `ⓘ` that prints where its numbers come from. A filtered number is never
+shown alone: each tile carries its *all items* twin (*234,479 · all items
+251,734*), bars keep the unfiltered order and mark a changed rank (`▲2`)
+instead of moving, bin edges and map positions come from the unfiltered
+population, and the ranked list — which is a ranking — says *ranked within
+the filter*. Removing the last chip restores the board and the address
+exactly.
+
+At the foot: the source line in words (*Run of Sep 5, 2026 · Finance ·
+Company × Spend area · all flows · no filter · 251,734 purchase order items
+· computed …*) with no id and no hash in it, **Freeze this**, **Save as…**
+(the dialog reads *Save this board*; boards are kept per project in your
+browser) and one primary action, *Why? Packaging →*.
+
+**What to expect of the speed.** The count line, the ranked list and the
+breakdown answer a click in well under a second. The **four tiles** are
+computed on the server for that filter the first time you ask for it, which
+on this log takes about eight seconds; the same selection made again is
+immediate.
+
+## 10. Why? — the group's reasons
+
+**Why** (step 6) opens with **Back to Where is it worst? (page 1)**, the
 group's name with the kind chip and the confidence word, **Freeze this**,
 the sentence — *109,199 purchase order items · 0.9 % below expectation ·
 invoices cleared late in 97 % of them; the shortfall is 93 % this one
@@ -536,8 +658,9 @@ Gain** — and the **Decision** pane on the right.
   late clearing cannot be judged*; *17 % started within the lag horizon of
   the window end*; *no duplicated header events in this group*), **All
   checks →**.
-- **Typical causes for this pattern**: a placeholder until the knowledge
-  hub arrives in cycle 3, with **What can we do? →** disabled.
+- **Typical causes for this pattern**: still a placeholder, with **What can
+  we do? →** disabled. The server answers it already; section 11 says what
+  it holds and why there is no screen for it yet.
 
 **Compared** shows the lens for any expectation with a threshold (the select
 lists them by plain name); ϑ and W are not moved here — the line under the
@@ -545,33 +668,30 @@ chart says that committing a threshold happens on the **norm's calibration
 lens** (*Recalibrate in the norm →*), which opens the norm with **Back to
 Why?**.
 
-**Flow** is the group's map full size: activities as boxes inside their
-stages (Request, Order, Receive, Invoice, Match, Pay), paths as arrows whose
-width is the number of cases and whose colour is the share of cases missing
-an expectation, badges for presence and count expectations, arcs for
-durations and order, hatching outside an expectation's scope, a tint on the
-activities of the top expectations. Above it: *purchase order items in:
-109,199 of 109,199*, a **detail** slider (stages only → nearly all
-activities → all), **compare with everyone else** (recolours the paths by
-the difference to the whole log) and **table alternative**; a legend lists
-only the encodings in use; expectations about case attributes are listed
-under the map as having no place on it. A single click opens the activity's
-card (*Record Goods Receipt — 102,829 purchase order items (94 %) · worst
-expectation touching it: Goods or service received (missed in 6 %)*) with
-its four actions as buttons; a right click, or `Enter`, opens the same
-actions menu on any activity or path:
+**Flow** is the group's map, and it is the same instrument as the Flow step
+(section 9) in a smaller frame: the decision pane folds to its button, the
+map takes the full width at 520 px with its own filter bar, legend column
+and activity card, and **Open full →** carries the chips and the group into
+the Flow step. Activities are boxes inside their stages (Request, Order,
+Receive, Invoice, Match, Pay), paths are arrows whose width is the number of
+cases and whose colour is the share of cases missing an expectation, with
+badges for presence and count expectations, arcs for durations and order,
+hatching outside an expectation's scope and a tint on the activities of the
+top expectations. Above it: *purchase order items in: 109,199 of 109,199*,
+the **detail** slider, **compare with everyone else** (recolours the paths
+by the difference to the whole log) and `map | model | table`; the legend
+lists only the encodings in use, and expectations about case attributes are
+listed under the map as having no place on it.
 
-- **Filter to cases with this activity** / **exclude** add a clause: the
-  count changes (*234,479 of 251,734* for Record Goods Receipt over the
-  whole log), a chip appears, the map re-renders, and the screen announces
-  *Filter added: cases with Record Goods Receipt — 234,479 of 251,734
-  remain.* The filter scopes the map, the list and the analytics, and lives
-  in the address, so the ranked list opened from here carries it.
-- **paths** focuses the activity: its incoming and outgoing paths with
-  count, cases, median lag and the share of cases on the path that miss an
-  expectation.
-- **lens** opens the Compared tab on the expectation touching the activity;
-  **worst cases** opens the Cases tab.
+A click opens the activity's card with the six actions of section 9.
+**Filter to** and **Exclude** add a clause: the count changes (*234,479 of
+251,734* for Record Goods Receipt over the whole log), a chip appears, the
+map re-renders, and the screen announces *Filter added: with Record Goods
+Receipt — 234,479 of 251,734 purchase order items remain.* The filter scopes
+the map, the list and the analytics and lives in the address, so the ranked
+list opened from here carries it. **Paths in / out** lists every path from
+the full relation, the ones the detail level hides included; **Distribution**
+opens the lens over the screen; **Worst cases** opens the Cases tab.
 
 **Cases**. **What kind of cases carry it** — the sub-groups by flow type,
 by start quarter and by the drill-down keys with their share of the
@@ -605,7 +725,112 @@ kind** and **Method terms** are disclosures. After a save the next step is
 suggested: *Freeze this screen for the notebook*. Findings are stored in
 your browser in this release.
 
-## 10. The notebook
+## 11. What can we do?, hypotheses and gates, and the knowledge hub
+
+These three are **answered by the server and have no screen yet**. The
+stepper's last step reads *not available yet*, and the Why screen's *typical
+causes* block is still a placeholder. What exists can be read from the API
+of the running server (`http://127.0.0.1:8000/api/v1`, and `…/docs` for the
+browsable contract); the screens are the next piece of work.
+
+**What can we do?** — `GET /projects/{p}/runs/{r}/what-can-we-do?slicing=…&key=…`
+answers, for the group's top drivers: the expectation in plain words, the
+share of the shortfall it carries, the **headroom in score points**, the
+comparison sentence, **what to check first**, the usual reasons split into
+*in the log: check …* and *outside the log: ask …*, and the usual actions
+with their **countermeasure type** and **owner role**. For Real Estate on
+the verified run the first driver is *Approved once* — 95 % of the
+shortfall, 8.67 points of headroom (96 % of the group's priority) — with
+*Commercially relevant fields locked after release or a reason required*
+(system setting, purchasing) and *Release strategy reviewed so that routine
+changes do not reset it* (policy, finance and controlling).
+
+**Gates and hypotheses.** `GET …/runs/{r}/gates?slicing=…&key=…` computes
+three gates for a group — **readiness** (from the log's own readiness),
+**censoring** and **replication** (from the group's caveat shares; a warning
+at 20 %, a failure at 40 to 50 %) — each with its evidence and a plain
+sentence. `POST …/gates/{id}` records *passed*, *failed* or *waived*, and
+refuses to pass or waive one without a note. A hypothesis or an action
+written on a group with a failed gate is refused until the gate is waived
+with a note: on Real Estate both readiness and censoring fail (*44 % of
+these purchase order items are still open at the end of the data*). A
+hypothesis records the group, the perspective, the expectation, the
+comparison and the direction you expect; the **test is computed, not
+typed** — for Real Estate the risk difference is 0.985 [0.980, 0.985], 100 %
+here against 2 % elsewhere, medians 3 against 0. Findings and actions are
+stored on the server with their mechanism, remedy, countermeasure type,
+owner role, due date and status.
+
+**The knowledge hub.** `GET /projects/{p}/knowledge/hub` returns the pack's
+node and edge tables — for purchase-to-pay **597 nodes and 1,123 edges**: 7
+stages, 8 layers, 92 expectations, 29 failure modes, 266 reasons, 177
+actions and 18 KPIs — and `…/hub/{node}` one page of it (what it means, why
+it matters, how it is detected, the usual reasons and actions, what to check
+first, the KPIs). `GET /projects/{p}/guidance/{kind}/{id}` (kind *layer*,
+*constraint*, *expectation* or *failure_mode*) returns the pack's generic
+text with your project's own note as an **overlay**; `PUT` on the same path
+stores that note, which is added to the generic text and never replaces it.
+
+## 12. Building a norm without writing JSON
+
+The norm screen already shows a version's **uncalibrated thresholds**, its
+warnings and which layers have no guidance, and the run screen lists the
+expectations whose threshold says more about the threshold than about the
+groups (*Mostly automatic is missed by 92 % of all purchase order items it
+applies to — a threshold to calibrate, not a difference between groups*).
+
+The **builder's own three helpers are on the server and have no form yet**:
+
+- `GET /projects/{p}/norms/inventory?caseTableId=…` — what a rule may be
+  written on: 42 activities with their events, cases, share, stage and
+  canonical id (*Record Goods Receipt · 314,097 events · 234,479 items ·
+  93 % · receive*), and 18 case attributes with their distinct and missing
+  counts and their values (*case Spend area text: 21 values, Packaging
+  109,199 · 43 %*); numeric attributes also carry their minimum, p10,
+  median, p90 and maximum for the calibration lens.
+- `POST /projects/{p}/norms/constraints/check` — one expectation checked
+  against a case table before it joins a norm: whether it is well formed,
+  whether the activities it names occur, how many cases it applies to and
+  how many miss it, and **what it says in one plain sentence** with its
+  applicability in words.
+- `GET /projects/{p}/norms/guidance-questions?kind=layer&id=…` — the five
+  questions to ask a stakeholder about a layer, each with the pack's text as
+  a suggested starting answer; answers are stored through the guidance
+  overlay.
+
+Until the forms exist, a norm still comes from a preset, from the
+calibration lens, or as JSON through the API.
+
+## 13. The order-to-cash preset
+
+**Data → Load public log preset** lists every preset the server offers,
+which now includes the packs' own. Beside **BPI Challenge 2019
+(purchase-to-pay)** there is **ICPM 2026 hackathon sales extract
+(order-to-cash)**, read in place from its path and loadable with the same
+button. Loading it takes about four minutes and produces 51,164 **sales
+order items** over 267,071 events and 16 activities, with *Create Order*
+typed as a header event, `days_late` and `order_month` prepared at
+case-table build, the flow types *standard* 49,486 · *rejected* 1,568 ·
+*partial delivery* 110, a readiness report (186 events outside the window,
+137 duplicates, 84.1 % header replication of *Create Order*, 639 items still
+open) and `o2c_baseline` as norm v1 with its uncalibrated flags visible.
+
+Two things to know before using it:
+
+- **The norm is a template, not a calibration.** Every threshold in
+  `o2c_baseline` is a placeholder, and 32 of its canonical activities do not
+  occur in this extract (they are reported as norm warnings, not dropped
+  silently). The population of the customer backlog matches the hackathon's
+  own output — 69 customers and a `(missing)` group against 71, item counts
+  exact for 52 of 68 and within 2 % for 66 — but **the scores do not**, and
+  the reason is the uncalibrated template. Calibrating it on the
+  distribution lens is the work an order-management expert has to do first.
+- **The preset card is the generic one.** The pack's own information — the
+  case noun, the label pack, the six pitfalls, the extra slicings — is
+  served by the API but not yet drawn on the card, and the map does not yet
+  show the pack's capture / commit / fulfil lanes.
+
+## 14. The notebook
 
 **Freeze this** (or the camera in the ribbon) on the dashboard, the signals
 list, the Why screen, the norm, the run and its tabs, and the dataset screen
@@ -625,7 +850,7 @@ delete. **Export Markdown** downloads a zip with `notebook.md`, the images
 and the numbers behind every screen. The notebook shows under the step it
 was opened from; **Back to …** returns there.
 
-## 11. Filters and the URL
+## 15. Filters and the URL
 
 Every filter, tab and selection lives in the address bar, so a link
 reproduces exactly what you saw and reloading keeps it. The ranked list:
@@ -658,7 +883,29 @@ activity), `filter`, `case` (the open trace). A pasted Why address with
 Where is it worst?** leads to the list, and the stepper marks Why. Runs
 scoped to one flow type carry the scope on the run, not in the address.
 
-## 12. The command palette and help
+The Flow step and the board share one address, because they are two
+arrangements of one step:
+
+| Parameter | Flow and board |
+|---|---|
+| `view`, `slicing`, `scope` | the perspective, the grouping, all flow types or one |
+| `filter` | the canonical filter as JSON (`f` is accepted as its short name) |
+| `fh` | the short hash of that filter, for share links and caches |
+| `detail` | the detail level, 0 (*stages only*) to 4 (*all that fit*) |
+| `sel` | the selected element, `activity:<label>` or `path:<a>→<b>` |
+| `activity` | the activity whose paths are listed |
+| `render` | `map`, `model` or `table` |
+| `full` | the full window |
+| `lens` | the expectation the distribution shows |
+| `period`, `area`, `group` | the board's other three selectors |
+| `breakdown`, `attribute` | which dimension the breakdown shows, and which attribute in its third tab |
+| `panel`, `board` | the panel opened full window; the saved board this screen came from |
+
+Two people who click the same things send byte-identical filters: the chips
+read in the order you added the clauses, while the form that goes to the
+server and into `fh` is sorted and de-duplicated.
+
+## 16. The command palette and help
 
 `⌘K` (`Ctrl K` on Windows and Linux) opens the **Command palette**: type to
 filter, `↑` `↓` `↵` to jump. It lists the screens, the context switches
@@ -671,7 +918,7 @@ readers found clearer, and a search box), **Formulas** (Gap, Priority Index,
 Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
 **Keyboard**. `Esc` closes it.
 
-## 13. The two vocabularies
+## 17. The two vocabularies
 
 | Plain label | Method term | Meaning |
 |---|---|---|
@@ -707,27 +954,82 @@ Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
 | where in the flow | process map | activities and paths with the expectations drawn on them |
 | what happened in the case | trace | the events of one case in time order with the expectations it missed |
 | cases furthest off | worst cases | the cases with the lowest score in the group |
+| detail level | abstraction | how much of the process the map draws, from the stages only to all activities that fit |
+| path | directly-follows edge | one activity followed directly by another, with the items on it and the median wait |
+| board | linked panels | one selection answered by the map, the ranked list, the distribution, the breakdown and the four numbers at once |
+| gate | validation gate | a check that must pass, fail or be waived with a note before a group carries a hypothesis or an action |
+| what can we do? | remedy set | the usual reasons and actions for the expectations a group misses, with a countermeasure type and an owner role |
+| knowledge hub | process knowledge graph | the pack's stages, layers, expectations, failure modes, reasons, actions and KPIs, and the pages that join them |
 
-## 14. Known limits of this release
+## 18. Known limits of this release
 
-- **What to do** is a step on the stepper without a screen; **Typical
-  causes** and **What can we do?** arrive with the knowledge hub in cycle 3.
-- **Findings** (the decision pane) live in your browser, not on the server,
-  and the checks under **Data trust** cannot be passed, failed or waived yet.
+**On the map**
+
+- **Activity labels are too small to read at the fitted zoom.** The design
+  asks for at least 11 px; on this log no detail level reaches it — a 12 px
+  label is drawn at 3.0 to 5.8 px, depending on the level and the window
+  (4.6 px at *more activities* on a 1440 × 900 window, 3.0 px at 1024 × 768).
+  The slider therefore still offers every level and the caption marks the
+  ones that fall short; use the full window (`F`) or zoom in to read a name.
+  Making this right needs a label drawn at a constant size on the screen, or
+  node boxes that shrink with the zoom.
+- **A long path list scrolls.** *Paths in / out* on an activity with 42
+  paths lists all of them inside the frame, in a 264 px column, but the
+  column holds 1,154 px of rows in 586 px of height, so about half of them
+  are visible at once.
+- **Two pinned scenes are kept, not compared**; the legend has no *show only
+  this*; a range cannot be dragged across bars or bins; the breakdown draws
+  twelve bars and drops the rest instead of offering a *top ten and other*
+  row; a saved board does not show *modified*.
+- The map needs the flow library checkout next to the repository; without it
+  the map shows a notice.
+
+**On the board**
+
+- **The first filtered selection is slow.** The count line, the ranked list
+  and the breakdown answer in well under a second, but the four tiles are
+  computed on the server for that filter the first time and take about eight
+  seconds on this log; the same selection made again is immediate.
+- Saved boards and pinned scenes live in your browser, not on the server;
+  **Freeze this** goes to the notebook on the server as everywhere else.
+
+**Steps and screens that do not exist yet**
+
+- **What to do** is a step on the stepper without a screen, and the Why
+  screen's *typical causes* block is still a placeholder. The server answers
+  *What can we do?*, the gates, hypotheses, findings, actions, the knowledge
+  hub and the guidance overlay (section 11), and the norm builder's
+  inventory, constraint check and guidance questions (section 12).
+- **Findings** written in the decision pane still live in your browser, not
+  on the server, and the checks under **Data trust** cannot be passed,
+  failed or waived from a screen.
+- **Norm builder forms** do not exist: norms come from a preset, from the
+  calibration lens or from the API as JSON.
+- The **order-to-cash preset** loads from the generic preset card
+  (section 13); its pack information is not drawn on the card, its stage
+  lanes are not on the map, and its norm is an uncalibrated template.
+
+**Numbers and data**
+
 - **Confidence** is not computed inside a drill-in, and the comparison
-  sentence covers the top twelve groups of every grouping and perspective.
+  sentence is computed for the top twelve groups of every grouping and
+  perspective; the other rows say why they have none instead of borrowing
+  one.
+- Three gates are computed — readiness, censoring and replication; the
+  *domain* gate exists in the vocabulary and nothing computes it.
 - The analytics of a run take about 50 s after scoring on BPIC 2019; the
   first **Why?** and the first group map after the server starts take about
   13 s (the run is re-scored in memory once).
 - **Why?** on a drilled row opens the sub-group's reasons over the whole
   log, not inside its parent group.
+- A **what-if** scenario cannot be run.
+
+**Platform**
+
 - Snapshots are pictures taken in the browser; when the capture fails the
-  entry is stored without a picture. PowerPoint export arrives in cycle 4.
-- **Norm builder forms** do not exist: norms come from the preset, from the
-  calibration lens or from the API as JSON.
+  entry is stored without a picture. PowerPoint export is not available yet.
 - **XES** files need `pm4py`, which is not installed; **Postgres** and a
   login do not exist; the server listens on `127.0.0.1` only.
-- The process map needs the flow library checkout next to the repository;
-  without it the map shows a notice.
-- One language (English), one process preset (purchase-to-pay); the
-  order-to-cash pack exists but has no preset in the interface yet.
+- One language (English), two process packs (purchase-to-pay and
+  order-to-cash), and the interface's own vocabulary is written for
+  purchase-to-pay.

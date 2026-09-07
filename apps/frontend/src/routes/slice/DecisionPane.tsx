@@ -135,7 +135,7 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, missed
         )}
       </div>
       <p className="text-xs text-text-subtle" aria-live="polite" data-testid="decision-status">
-        {saved ? `Saved ${fmtDateTime(saved)}` : existing ? `Last saved ${fmtDateTime(existing.updatedAt)}` : "Nothing saved yet. Findings stay in this browser until the review endpoints arrive."}
+        {saved ? `Saved ${fmtDateTime(saved)}` : existing ? `Last saved ${fmtDateTime(existing.updatedAt)}` : "Nothing saved yet. Findings stay in this browser until they can be saved with the run."}
       </p>
 
       <details className="text-xs">

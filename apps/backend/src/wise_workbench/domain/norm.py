@@ -49,6 +49,23 @@ class NormVersion:
     def view_names(self) -> list[str]:
         return [str(v["name"]) for v in self.document.get("views", [])]
 
+    @property
+    def meta(self) -> dict[str, Any]:
+        """``metadata.meta`` of the document (the knowledge packs put calibration there; the library rejects
+        unknown top-level keys, so the block sits inside ``metadata``)."""
+        meta = (self.document.get("metadata") or {}).get("meta")
+        return dict(meta) if isinstance(meta, dict) else {}
+
+    @property
+    def calibration(self) -> str | None:
+        value = self.meta.get("calibration")
+        return str(value) if value else None
+
+    @property
+    def uncalibrated(self) -> list[str]:
+        """Thresholds and weights the norm itself declares as not yet calibrated (R2-09)."""
+        return [str(x) for x in (self.meta.get("uncalibrated_parameters") or [])]
+
     def with_status(self, status: NormStatus) -> NormVersion:
         if status == self.status:
             return self

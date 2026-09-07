@@ -42,6 +42,14 @@ export const fmtSig = (v: unknown, sig = 2): string =>
 export const fmtPct = (v: unknown, digits = 0): string =>
   isNum(v) ? nf({ style: "percent", maximumFractionDigits: digits, minimumFractionDigits: digits }).format(v) : "–";
 
+/**
+ * A share of something, with the precision the number needs: near either end one number rounded to
+ * whole percent says something that is not true — 99.945 % of items is not "100 %", and neither is 0.4 %
+ * "0 %". Away from the ends the decimals only add noise.
+ */
+export const fmtShare = (v: unknown): string =>
+  !isNum(v) ? "–" : v >= 1 || v <= 0 ? fmtPct(v, 0) : v > 0.99 || v < 0.01 ? fmtPct(v, 2) : v > 0.9 || v < 0.1 ? fmtPct(v, 1) : fmtPct(v, 0);
+
 /** Compact numbers for axes: 1.6M */
 export const fmtCompact = (v: unknown): string =>
   isNum(v) ? nf({ notation: "compact", maximumFractionDigits: 1 }).format(v) : "–";

@@ -1,8 +1,9 @@
 # Start here — running the application
 
-Updated at the end of every cycle by the release step. State: cycle 2
-released on 2026-09-06 (analytics and knowledge wired in, clean interface,
-flow-type fork, notebook, readiness decisions, slice designer).
+Updated with every release. State: release of 2026-09-07 (the
+process flow as the instrument, the explore board beside it, the run screen
+in plain words, revisable data decisions, and the knowledge and review
+endpoints on the server).
 
 ## Start
 
@@ -40,85 +41,120 @@ After every scoring run the server computes the run's analytics (about 50 s
 on BPIC 2019: confidence in rank, kinds of problem, caveat shares,
 comparison sentences); until then the cards read *confidence not computed*.
 
-## What is new in cycle 2
+## What is new in this release
 
-- **A clean interface.** Three bands — the ribbon with the switchers of the
-  current step, the stepper, the page — and one dominant element per screen.
-  A card is one sentence with three numbers (*109,199 purchase order items ·
-  0.9 % below expectation · waiting too long between steps in 97 % of
-  them*), the real-unit comparison under it, at most one caveat chip, the
-  priority bar and **Why?**. No ids, no method terms and no γ in plain mode;
-  *How to read this* sits behind the `?` beside every title; the method's
-  numbers are behind **more** and the **words** switch.
-- **The flow-type fork.** *Your process* on the dashboard and on the data
-  screen: one card per flow type with its share, a small map and its
-  readiness; **Compare everything together** or **Analyse per flow type**
-  (one scoped run per type), a flow-type switcher in the ribbon and **Flow
-  types side by side**.
-- **The analysis notebook.** **Freeze this** on every analysis screen stores
-  a picture of the screen with its context, a title and a note; the
-  **Notebook** keeps the snapshots in order, reopens any screen and exports
-  Markdown with the pictures.
-- **The stepper and the way back.** **Data → Norm → Run → Signals → Why →
-  What to do** across the top of every screen, with the state of each step
-  and *you are here*; sub-screens show a second line; **Back to …** returns
-  to where you came from with its filters (`Alt+←`; `Alt+1` … `Alt+6` jump
-  to the steps); the browser's back button always works.
-- **Caveat actions.** Every data caveat that allows a decision has one:
-  open cases (censor, exclude, keep), placeholder dates, duplicates,
-  day-precise activities, header events, items without a value, flow-type
-  assignment — with **Preview the effect** (cases and events affected), a
-  mandatory note, and **Apply and rebuild the case table**. Decisions are
-  listed with their resulting case table.
-- **The slice designer.** One to three attributes per grouping, numeric
-  attributes in bands (quartiles or cut points), a preview of the group
-  count on the run's case table, and **Drill into this group** behind
-  **more** on every card.
-- **Confidence.** Every rank carries its confidence from a bootstrap (high,
-  medium, not enough cases to be sure); the kind of problem follows the
-  analytics rule; caveat chips carry the share and the window end; every
-  top group has a comparison in real units (*Paid within terms: 83 days here
-  against 55 elsewhere (+25 days)*); the Why screen shows the missed
-  expectations with the share of the shortfall, the sub-groups that carry
-  it, and the possible gain.
-- **Flow first on Why.** The Why tab holds the top three expectations, the
-  comparison lens and the group's map; right-click or Enter on an activity
-  offers *filter to*, *exclude*, *paths*, *lens* and *worst cases*; the
-  filter scopes the map, the list and the analytics and lives in the URL.
+- **Flow is a step of its own.** **Data → Norm → Run → Signals → Flow → Why
+  → What to do**, with `Alt+1` … `Alt+7`. The map has no card around it: one
+  44 px filter bar (items in and out, the chips, the detail slider with its
+  count, `Map | Model | Table`, the full window and a `⋯` menu), a legend
+  column beside the canvas, and the drawing filling the rest of the screen —
+  1,360 × 588 px, 61.7 % of a 1440 × 900 window, with no empty band wider
+  than 5.5 % on any side and no page scrollbar. The frame keeps one size
+  while you work: opening the activity card, adding a filter or entering the
+  full window no longer resizes it.
+- **Every action on the map does something, and says so.** Click an activity
+  and the card underneath offers *Filter to · Exclude · Paths in / out ·
+  Distribution · Worst cases · Pin*, with `f x i d w p` on the keyboard.
+  *Filter to* **Record Goods Receipt** moves the count from 251,734 to
+  234,479 purchase order items, adds a chip and announces the change; an
+  action that removes nothing says *no purchase order items removed* instead
+  of looking broken. `⤢` or `F` fills the window (over 95 % of it) and
+  `Escape` leaves.
+- **Every path is reachable.** *Paths in / out* lists the paths of an
+  activity from the full directly-follows relation, not only the ones drawn:
+  **Change Quantity** has 22 in and 20 out, and at the default detail all 42
+  sit under *hidden at this detail level (42)* with **Show them**.
+- **`Map | Model | Table`.** The same scene as a BPMN 2.0 diagram with the
+  same overlays and the same selection, without a request; `⋯ → BPMN 2.0
+  (.bpmn)` downloads the file (9 tasks, 10 gateways, 29 sequence flows, 6
+  lanes on BPIC 2019 at the default detail).
+- **The explore board.** `Flow | Board` in the page header opens a board of
+  linked panels: four selectors (flow type, period, expectation area,
+  group), the map, the ranked list, the distribution, a breakdown with three
+  tabs and four tiles. One click on the map filters every panel at once;
+  every filtered number carries its *all items* twin; bars keep the
+  unfiltered order and mark a changed rank instead of moving; removing the
+  chip restores the board and the address exactly. **Freeze this**, **Save
+  as…** and one primary action *Why? Packaging →* at the foot.
+- **The defects of the last round.** Data decisions can be taken again and
+  accumulate on one case table (*decided twice · in force: v3*); the
+  day-precision dialog is one dialog with the activities *measured to the
+  day* preselected (1 of 42); every flow-type card offers **Open the map ·
+  Analyse this flow · Compare**; the flow-typing dialog says *The mapping
+  already types these 251,734 cases … Nothing would change.* instead of
+  reporting 0 of 251,734 affected.
+- **The Run step in plain words.** Nine rows — log, expectations,
+  perspective, grouping, small groups, scope, end of the data, run, data
+  caveats — with the expectations that still need calibrating under them.
+  Every fingerprint, hash, mapping id and job id is behind **Technical
+  details**, closed on arrival.
+- **Numbers that do not overstate.** A group with no contrast prints no
+  comparison sentence and says why instead of borrowing one; the caveat rule
+  is computed once on the server, so **Real Estate** keeps its *44 % still
+  open* chip under a 14 % page-wide line while **Solvents** at 14 % does not
+  get one; an expectation whose threshold separates no group carries *⚠ a
+  threshold to calibrate* wherever it is named; a share is printed with the
+  precision it needs, so 99.945 % never reads as 100 %.
+
+**On the server, not yet on a screen.** The API answers **What can we do?**
+(the group's drivers with their usual reasons, usual actions, countermeasure
+type and owner role), hypotheses with readiness / censoring / replication
+gates, findings and actions, the knowledge hub (597 nodes and 1,123 edges
+for purchase-to-pay), the guidance overlay, the norm builder's inventory and
+constraint check, and the order-to-cash preset for the ICPM 2026 extract.
+The screens for them are the next piece of work; until then those steps read
+*not available yet* in the interface.
 
 ## Five things to try
 
-1. On the dashboard, read the sentence under **Where is it worst?** and the
-   four cards of **Your process** (DF2 carries 88 % of the 251,734 purchase
-   order items). Press **Open the ranked list**: Packaging, Logistics and
-   Real Estate at ranks 1, 2 and 5 in the Automation perspective are the
-   paper's Table XI; every card says *confidence high* except the small
-   groups, and the second line compares the group with everyone else in real
-   units.
-2. Press **Why?** on Packaging — the reason screen opens on the first click.
-   Read the three expectations with *missed in 97 % · explains 93 %*, the
-   comparison lens with *everyone else*, and the map. Right-click **Record
-   Goods Receipt** → *filter to*: the count changes to 234,479 of 251,734
-   and a chip appears; press **Back to Where is it worst?** (or `Alt+←`).
-3. Open **Data** → **Data caveats**. On *still open at the end of the data*
-   press **Decide how open cases count**, choose *censor*, **Preview the
-   effect** (34,947 of 251,734 purchase order items), write a note and
-   **Apply and rebuild the case table**; the tray follows the rebuild and
-   **Decisions taken** lists it. (This adds a case table to the workspace;
-   the runs and the ranked list of the original table are unchanged.)
-4. On any analysis screen press **Freeze this**, give it a title and a
-   one-line note, then open the **Notebook** from the ribbon: the picture,
-   the note, *Open this screen again*, move up and down, **Export
-   Markdown**.
-5. On **Runs** → **New run**, add a grouping *Vendor × exposure in
-   quartiles* and read its preview (3,778 groups; 2,662 below 20 cases stay
-   unranked); or, on the ranked list, open **more** on Packaging and press
-   **Drill into this group** to rank its vendors inside it (135 vendors with
-   at least 20 items; vendorID_0136 first).
+1. **Open the flow.** From the dashboard press **Flow** in the stepper (or
+   `Alt+5`). Read the count line — *in 251,734 of 251,734 purchase order
+   items* — then click **Record Goods Receipt** and press **Filter to** on
+   the card underneath: the count becomes 234,479 of 251,734 · 17,255 out, a
+   chip appears and the change is announced. Remove the chip to get the
+   screen back.
+2. **Find the paths the map does not draw.** Move the detail slider to *most
+   activities*, click **Change Quantity** and press **Paths in / out**: the
+   column beside the map lists all 42 paths with the other end, the items on
+   them and the median wait, under *hidden at this detail level (42)* with
+   **Show them**. This is the activity that looked path-less.
+3. **Use the board.** Press **Board** in the page header. Click **Record
+   Goods Receipt** on the board's map: the count line, the ranked list (30
+   groups → 21) and the breakdown answer at once, and the four tiles follow
+   with their *all items* twins (234,479 against 251,734; still open 12 %
+   against 14 %). Remove the chip and every number returns to what it was.
+   The first filtered selection on a fresh screen takes several seconds for
+   the tiles; a selection made again is instant.
+4. **Read the run in plain words.** Open **Run** in the stepper: nine rows
+   with no hash among them, the log, the norm with its warnings, the
+   perspective, the grouping and the end of the data, then the expectations
+   flagged *a threshold to calibrate* — *Mostly automatic is missed by 92 %
+   of all purchase order items it applies to*. **Technical details** holds
+   the fingerprints for when they are needed.
+5. **Decide about the data twice.** Open **Data** → **Data caveats**, decide
+   how open cases count, then press **Decide again** on the same item: every
+   option is still offered, the choice in force is marked *current*, and the
+   line reads *decided twice · in force: v3*. The earlier decision stays
+   visible and the second one lands on the case table the first one built.
+   (This adds a case table to the workspace; the existing runs are
+   unchanged.)
 
 `docs/USER_GUIDE.md` walks through the workflow and every screen; the
 checkpoint files (`apps/backend/CHECKPOINT.md`, `apps/frontend/CHECKPOINT.md`)
 list the steps with pass criteria and observed output.
+
+## Known rough edges in this release
+
+- On the process map the activity labels are **too small to read at the
+  fitted zoom** — 3.0 to 5.8 px against the 11 px the design asks for — at
+  every detail level of this log. The slider therefore still offers all five
+  levels and the caption marks the ones that fall short; use the full window
+  (`F`) or zoom in to read a name.
+- The path list of an activity with 42 paths **scrolls** inside its 264 px
+  column: all 42 are there and inside the frame, but not all at once.
+- The **first** filtered selection on the board takes about eight seconds
+  for the four tiles (the count line, the ranked list and the breakdown
+  answer in under half a second); the same selection made again is instant.
 
 ## Where to write remarks
 

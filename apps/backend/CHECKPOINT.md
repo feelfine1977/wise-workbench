@@ -607,17 +607,310 @@ images under `images/`; `format=pptx` answers 422 "PowerPoint arrives in
 cycle 4" (the exporter registry `EXPORTERS` in
 `application/services/notebook.py` is the extension point).
 
+## Cycle 3 — CP-3.1 … CP-3.8 (the explore board, the flow as an instrument, decisions, the review, the O2C preset)
+
+Everything below was observed on 2026-09-06 against the verified workspace
+(`WISE_WORKSPACE=~/code/PhD/WISE/wise-workbench-data/workspace_verify`,
+project `prj_0mtoq2jvx8mcfcg6j`, run `run_0mtoq44vd14f208ur`, case table
+`ct_0mtoq3xcgajce13jv`) on port 8091, unless another workspace is named:
+
+```bash
+WISE_WORKSPACE=~/code/PhD/WISE/wise-workbench-data/workspace_verify .venv/bin/wise-workbench serve --port 8091
+API=http://127.0.0.1:8091/api/v1; P=prj_0mtoq2jvx8mcfcg6j; R=run_0mtoq44vd14f208ur; CT=ct_0mtoq3xcgajce13jv
+# stop it again by port:  kill $(lsof -t -nP -iTCP:8091 -sTCP:LISTEN)
+```
+
+### CP-3.1 — facets under the canonical filter (R3-O12)
+
+```bash
+curl -s "$API/projects/$P/runs/$R/facets?by=attribute&attribute=case%20Spend%20area%20text&view=Automation&limit=6"
+curl -s "$API/projects/$P/runs/$R/facets?by=flow_type&view=Automation"
+curl -s "$API/projects/$P/runs/$R/facets?by=period&view=Automation&sort=period&limit=20"
+```
+
+Observed (4.6 s cold, then from the frame cache): by spend area, Packaging
+109,199 items, 99.97 % below expectation, priority 945.7, 14.4 % still open,
+exposure 162,021,028; Logistics 5,242 / 100 % / 294.2 / 12.6 %; Additives
+18,318 / 99.9 % / 177.8 / 16.5 % — the same numbers the backlog prints for
+the same grouping. By flow type: DF1 15,182 (priority 545.7, 14.2 % open),
+DF2 221,010 (331.1), 2-way 1,044 (71.6, 39.2 % open), Consignment 14,498
+(0.0). By period: 37 case-start months in time order, from 1948-01 (5 items,
+the planted outliers) through 2018.
+
+Pass: every facet value carries `cases`, `share`, `share_below_expectation`,
+`priority_at_stake` (the stabilised Priority Index against the run's overall
+score) and `open_share`; `by=period` groups by case start month and comes
+back in time order; the priority of a facet value equals the backlog's
+`stable_PI` for the same grouping to 1e-6.
+
+### CP-3.2 — KPI tiles (R3-O12)
+
+```bash
+curl -s "$API/projects/$P/runs/$R/kpis?view=Automation"
+```
+
+```
+items                     251,734 purchase order items in this selection (all 251,734).
+share_below_expectation   99.9 % of the 251,734 scored purchase order items miss at least one expectation.
+priority_at_stake         1,674.9 priority carried by the 30 groups of case Company × case Spend area text in this
+                          selection (shortfall against the overall score of 84.4, small groups discounted).
+open_share                14 % of these purchase order items are still open at the end of the data (2019-01-17).
+mean_score                84.4 points on average against 84.4 over the whole run (+0.0).
+```
+
+Pass: four tiles plus the score, each with a plain sentence; the priority
+tile is the sum of the backlog's bars for the same grouping.
+
+### CP-3.3 — one activity filter moves every panel by the same number (R3-O9, R3-O11)
+
+```bash
+F='{"and":[{"kind":"activity","op":"contains","activity":"Change Quantity"}]}'
+Q=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$F")
+curl -s "$API/projects/$P/runs/$R/filters/preview?filter=$Q"
+curl -s "$API/projects/$P/runs/$R/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1&filter=$Q"
+curl -s "$API/projects/$P/runs/$R/kpis?view=Automation&filter=$Q"
+curl -s "$API/projects/$P/runs/$R/facets?by=flow_type&view=Automation&filter=$Q"
+curl -s "$API/projects/$P/runs/$R/flow?abstraction=0.05&filter=$Q"
+```
+
+Observed: the filter keeps **17,590** of 251,734 purchase order items, and
+every panel says so — `filters/preview` 17,590 in / 234,144 out; the backlog
+19 groups instead of 30 with `params.cases` 17,590 (Packaging 8,073 items,
+priority 507.6 instead of 109,199 / 945.7); the KPI tiles 17,590 ("7.0 % of
+all 251,734"), 3,144 still open, priority 878.3 over 19 groups; the flow-type
+facet DF2 15,596 + DF1 858 + Consignment 1,136 = 17,590; the map
+`meta.cases` 17,590 with `filterCases {in: 17590, out: 234144}`, 13 nodes and
+34 edges. Pass: one filter, one number, on every panel.
+
+### CP-3.4 — paths from the full directly-follows relation (R3-O8)
+
+```bash
+curl -s "$API/projects/$P/runs/$R/flow/activities/Change%20Quantity?abstraction=0.05"
+curl -s "$API/projects/$P/runs/$R/flow?abstraction=0.05&focus=a_change_quantity"
+```
+
+Observed for **Change Quantity** — the owner's "no outgoing or incoming
+path": the activity is on the map (17,590 items, 7.0 % of the log, stage
+*Order*), and at detail level 0.05 **every one of its 42 paths is below the
+level**, so the map draws none of them. The endpoint answers with all 42 from
+the full relation and says so: *"42 of 42 paths through Change Quantity are
+hidden by the detail level (40,459 purchase order items on them); they are
+listed here from the full relation."* Incoming: Create Purchase Order Item
+11,760 items, Vendor creates invoice 2,483, Change Quantity 1,628, Record
+Goods Receipt 1,404. Outgoing: Record Goods Receipt 8,997, Vendor creates
+invoice 5,918, Change Quantity 1,628, Change Delivery Indicator 1,080. At
+`abstraction=0.01` 39 of 42 are hidden, at 0.005 35 of 42, and each path
+carries `onMap`. The profile also lists the expectations that name the
+activity (`c_l6_change_quantity`). Pass: the paths never depend on the detail
+level, and what the level hides is counted and named.
+
+### CP-3.5 — BPMN export of the flow (R3-O11)
+
+```bash
+curl -s -D - -o flow.bpmn "$API/projects/$P/runs/$R/flow/bpmn?scope=flow&detail=0.05"
+curl -s -o stages.bpmn  "$API/projects/$P/runs/$R/flow/bpmn?scope=stages"
+```
+
+Observed: `content-type: application/xml`, 35 KB, with the counts in the
+response headers (`X-Wise-Bpmn-Tasks: 9`, `Gateways: 10`,
+`Sequence-Flows: 29`, `Lanes: 6`). The document is a collaboration with one
+participant, one process, six lanes (Request, Order, Receive, Invoice, Match,
+Pay from the P2P pack), nine tasks in the map's order, one start and one end
+event, exclusive gateways where a task branches or joins, and a
+`BPMNDiagram` with a shape for every flow node and waypoints on every edge,
+so it opens laid out. Counts travel as `bpmn:documentation` ("314,097 events;
+93 % of the purchase order items") and as `wise:cases` / `wise:events` /
+`wise:violationShare` attributes. `scope=stages` exports the pack's stage
+model instead: 7 lanes, 53 tasks, 44 sequence flows from the expected
+orderings. `?gateways=false` gives a plain follows model, `?download=true`
+adds the attachment header, `?filter=` exports what the filter keeps.
+Pass: `xml.etree` parses both; every sequence flow points at an existing node
+and every node has a shape and sits in a lane.
+
+### CP-3.6 — decisions accumulate, stay revisable, and say when nothing changes (R3-O1, R3-O3, R3-O4)
+
+```bash
+curl -s $API/projects/$P/case-tables/$CT/decisions          # the option set, the decision in force, the history
+curl -s -X POST $API/projects/$P/case-tables/$CT/decisions -H 'content-type: application/json' \
+     -d '{"kind":"collapse_duplicates","author":"data steward"}'
+curl -s -X POST $API/projects/$P/case-tables/$CT/decisions -H 'content-type: application/json' \
+     -d '{"kind":"open_cases","params":{"handling":"exclude"}}'   # from the same screen: still accumulates
+curl -s -X POST $API/projects/$P/case-tables/$CT/decisions/preview -H 'content-type: application/json' \
+     -d '{"kind":"flow_type_assignment"}'
+```
+
+`GET …/decisions` answers with the lineage of case tables the decisions
+built, and for every readiness item its **full** option set, the decision in
+force with its option marked (`selected`, `currentValue`), whether it can be
+decided again (always) and its history. A second decision applied from the
+first screen is applied to the **head** of the lineage (`appliedTo` in the
+response), so `mapping.decisions` reads `["collapse_duplicates",
+"open_cases"]` and the second does not undo the first; deciding `open_cases`
+again appends a third decision and leaves both earlier ones in the history.
+`GET …/decisions?caseTableId=` lists the whole lineage.
+
+The flow-type preview no longer reports "0 of 251,734 cases affected": with
+no rules it uses the mapping's own flow typing and answers `alreadyTyped:
+true` with *"The mapping already types these 251,734 cases: DF2: 221,010,
+DF1: 15,182, Consignment: 14,498, 2-way: 1,044. Nothing would change."*;
+applying it answers 409 `decision.already_typed`. A different rule set is a
+real assignment and reports the cases and events that would change.
+
+### CP-3.7 — truthfulness: comparison reasons and the caveat rule (R2-05, R2-06)
+
+```bash
+curl -s "$API/projects/$P/runs/$R/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1&pageSize=8"
+```
+
+Every row now carries either a `comparison` **or** a `comparison_reason`
+(`{code, text}`), never both and never neither; the codes are
+`no_scored_cases`, `no_driver`, `not_computed`, `analytics_unavailable`,
+`analytics_error`. On this run 12 of 30 rows have a sentence and 18 the
+reason *"No comparison was computed for this group in this run (the analytics
+compute the top groups first); open the group to compute it."* The slice
+detail says the same and adds `scoredCases`; a group with no scored case
+prints no sentence at all.
+
+`params.caveat_summary` carries the page-wide share, the largest share and
+the always-show threshold (1.5 × the page-wide share) per caveat kind —
+censoring 13.9 % page-wide, up to 90.6 %, threshold 20.8 %. Every caveat is
+marked `suppressed` by that rule, and a `fail` caveat never is:
+
+```
+1 Packaging            censoring 0.144 warn  suppressed
+2 Logistics            replication 0.725 fail SHOWN · duplicates 0.727 fail SHOWN
+5 Real Estate          censoring 0.437 fail  SHOWN  ⚠ 44 % still open at the end of the data (2019-01-17)
+6 (missing)            censoring 0.353 fail  SHOWN  ⚠ 35 % still open
+7 Solvents             censoring 0.142 warn  suppressed        ← the review's acceptance, exactly
+9 Workforce Services   replication 0.346 warn SHOWN (above the 2.5 % threshold of its kind)
+```
+
+The slice detail adds `subgroup_censoring` caveats from the sub-group table
+(attribute, value, cases and the share still open) so that a group that is
+clean on average but holds a censored sub-group says so.
+
+### CP-3.8 — the run screen plain first, the norm builder, the hub and the review
+
+```bash
+curl -s $API/projects/$P/runs/$R/manifest                       # R3-O7
+curl -s "$API/projects/$P/norms/inventory?caseTableId=$CT"      # R3-O6 pickers
+curl -s -X POST $API/projects/$P/norms/constraints/check -H 'content-type: application/json' -d @constraint.json
+curl -s "$API/projects/$P/norms/guidance-questions?kind=layer&id=timeliness_ageing"
+curl -s $API/projects/$P/knowledge/hub                          # RK-3
+curl -s $API/projects/$P/knowledge/hub/layer:timeliness_ageing
+curl -s $API/projects/$P/guidance/constraint/c_l3_invoice_to_clear_days   # RK-2
+Q='slicing=case%20Company%2Bcase%20Spend%20area%20text&key=%5B%22companyID_0003%22%2C%22Real%20Estate%22%5D'
+curl -s "$API/projects/$P/runs/$R/gates?$Q&view=Automation"     # R1-12
+curl -s "$API/projects/$P/runs/$R/what-can-we-do?$Q&view=Automation"      # R2-01
+```
+
+Observed:
+
+* **run manifest** — nine plain rows and no hash among them (*Log:
+  BPI_Challenge_2019.csv (251,734 purchase order items) · Expectations: WISE
+  BPIC'19 norm v1 (draft; 29 expectations; 3 warnings) · Perspective: Finance,
+  Logistics, Compliance, Automation · Grouped by: case Company × case Spend
+  area text (groups of at least 1) · Small groups: γ = 20 (a group of 20
+  purchase order items keeps half of its shortfall) · Scope: the whole log ·
+  End of the data: 2019-01-17T15:44:00 · Run: 2026-09-05 18:36:02 (took 13 s)
+  · Data caveats: 6 to keep in mind*), and `technical` with every fingerprint,
+  hash and artefact checksum next to it.
+* **inventory** — 42 activities with events, cases, share and their stage
+  (Record Goods Receipt 314,097 / 234,479 / 93 % / receive / `p2p.gr`), and
+  ten case attributes with their distinct counts and values (case Spend area
+  text: 21 values, Packaging 109,199 / 43 %).
+* **constraint check** — *"Paid within terms: after Record Invoice Receipt,
+  Clear Invoice follows within 30 days (still partly counted up to 90 days).
+  Applies when case Item Category is one of 3-way match, invoice after GR."*
+  with 15,182 items in scope, 9,740 of them missing it (64 %); an activity
+  the log does not carry is reported as an error and still rendered.
+* **hub** — 597 nodes and 1,123 edges for `p2p` (7 stages, 8 layers, 92
+  expectations, 29 failure modes, 266 reasons, 177 actions, 18 KPIs); a page
+  carries the guidance block and the related expectations; a project's own
+  note is stored per entry and marks its hub node.
+* **gates** — Real Estate: readiness `failed` (the log's gate is fail),
+  censoring `failed` (*44 % of these purchase order items are still open at
+  the end of the data*), replication `passed`. A hypothesis on that group is
+  refused with 409 `review.gate_failed`; waiving both with a note lets it
+  through and the record keeps the computed status next to the decision.
+* **hypothesis test** — computed from the run's contrast: risk difference
+  0.985 [0.980, 0.985], 100 % here against 2 % elsewhere, medians 3 against
+  0, 95 % of the shortfall.
+* **What can we do?** — for Real Estate: *Approved once* (95 % of the
+  shortfall, headroom 8.67 points = 96 % of the priority) with the reasons
+  *in the log: which change event precedes each approval change* and the
+  actions *Commercially relevant fields locked after release or a reason
+  required* (system_setting, purchasing) and *Release strategy reviewed*
+  (policy, finance_controlling); then *Few manual touches* (3.16 points) and
+  *Mostly automatic* (6.00 points).
+* **uncalibrated (R2-09)** — `c_l7_manual_share` is flagged on this run:
+  *"Mostly automatic is missed by 92 % of all purchase order items it applies
+  to — a threshold to calibrate, not a difference between groups."*, and six
+  expectations are flagged as *cannot fail on this log as it is set*.
+
+### CP-3.9 — the O2C preset end to end (R2-04)
+
+On a fresh workspace, with the extract at its configured place
+(`WISE_PRESET_DATA_DIRS`, default `~/code/PhD/WISE/WISE/hackathon_2026/outputs_icpm2026`):
+
+```bash
+WISE_WORKSPACE=/tmp/ws_o2c .venv/bin/wise-workbench serve --port 8092
+API=http://127.0.0.1:8092/api/v1
+P=$(curl -s -X POST $API/projects -H 'content-type: application/json' -d '{"name":"O2C","process":"o2c"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+curl -s $API/projects/$P/datasets/presets            # bpic2019 (builtin) and icpm2026_o2c (pack)
+curl -s -X POST $API/projects/$P/datasets/presets/icpm2026_o2c
+```
+
+Observed (about 4 minutes from the request to `done`): the preset list now
+carries every preset the installed knowledge packs ship, with their case
+noun, label pack, slicings and pitfalls; `icpm2026_o2c` resolves
+`Sales_Eventlog.csv` and `o2c/templates/o2c_baseline.json`. The job builds
+
+```
+51,164 sales order items · 267,071 events · 16 activities · window end 2026-01-26
+attributes: … days_late, order_month, return_item, confirmed_quantity, order_quantity, flow_type, header_event_count
+flow types: standard 49,486 · rejected 1,568 · partial_delivery 110
+readiness: 186 events outside the window, 137 duplicates, 84.1 % header replication of Create Order,
+           639 items (1.2 %) still open at the end of the data
+```
+
+and scores a run with the pack's four views (Logistics first, from the
+preset), the four slicings of the preset (Customer ID, SKU ID, Incoterms
+(Part 1), order_month), γ = 20 and min cases 20. The template is translated
+into this log's labels before it becomes norm v1 (`o2c.goods_issue` →
+`Goods issue`); the 32 canonical activities the extract does not carry are
+reported as norm warnings instead of failing. The flow map places the
+activities in the pack's O2C lanes (Capture, Commit, Fulfil) and every
+sentence says "sales order items".
+
+Against the hackathon's own `WISE_backlog_sales_by_customer.csv` (71
+customers, order quantity as volume, no shrinkage), with
+`?volume=exposure&gamma=0&minCases=1`:
+
+| What | Reference | This run | Why |
+|---|---|---|---|
+| customers | 71 | 69 + `(missing)` | three customers with 1, 3 and 2 items are not in the extract's case table; two items carry no customer id and form the `(missing)` group |
+| items | 51,317 | 51,164 | the extract's own count is 51,164 (`cycle-02/GOAL.md`); the reference counts 153 more, spread over 16 customers (852213500 +65, 902158000 +29) |
+| exposure per customer | — | agrees within 2 % for 65 of 68 | the same order quantity |
+| mean score, priority | 852203000 0.943 / 1168.9 | 0.907 / 0.0 | **the norms differ**: the reference used the hackathon's own norm, this run the pack's `o2c_baseline` with placeholder thresholds and 32 activities that never occur here. The order therefore does not agree (Spearman ρ = 0.05 over the 68 common customers) and will not until the template is calibrated on the distribution lens. |
+
+Pass: the population agrees, the scores do not, and the reason is named.
+`tests/golden/test_o2c_preset.py` (3 tests, ~50 s) asserts exactly that and
+skips when the extract is not on the machine.
+
 ## Tests, lint, types
 
 ```bash
-.venv/bin/python -m pytest -q                        # 100 passed, 4 skipped (BPIC opt-in) in ~34 s
+.venv/bin/python -m pytest -q                        # 144 passed, 4 skipped (BPIC opt-in) in ~106 s
 WISE_BPIC19_CSV=~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv .venv/bin/python -m pytest tests/golden/test_bpic19.py -q
                                                      # 4 passed in ~4 min: readiness (251,734 cases, 1948/2020 stamps, header replication,
                                                      # minute vs day precision), Table XI focus slices at ranks 1, 2 and 5, Section V means,
                                                      # and the cycle 2 checks (Packaging stable, 14 % / 44 % still open at 2019-01-17,
                                                      # "97 % beyond 30 days", the four flow types, the norm warnings)
+WISE_PRESET_DATA_DIRS=~/code/PhD/WISE/WISE/hackathon_2026/outputs_icpm2026 \
+  .venv/bin/python -m pytest tests/golden/test_o2c_preset.py -q             # 3 passed in ~51 s (CP-3.9)
 .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests   # clean
-.venv/bin/mypy                                                             # clean (71 files)
+.venv/bin/mypy                                                             # clean (92 files)
 .venv/bin/wise-workbench openapi --yaml --out ../../packages/api-schema/openapi.yaml   # regenerate the contract, then `npm run generate` in apps/frontend
 ```
 
@@ -632,6 +925,14 @@ fork, the notebook, the caveat actions, the slice designer and the flow
 filter and focus; `tests/unit/test_cycle2_domain.py` the slicing bands, the
 run scope, the decision validation, the band edges, the filter parser and the
 robust bins.
+`tests/api/test_cycle3.py` (24 tests on the same synthetic log) covers the
+explore board (facets by attribute, flow type and case start period, KPI
+tiles, one filter moving every panel by the same number), the paths from the
+full relation with the hidden-path count, the BPMN export, the run manifest,
+the uncalibrated flags, the guidance and hub endpoints, the norm builder's
+pickers and constraint check, the decision lineage and the review records;
+`tests/unit/test_cycle3_domain.py` the facet and KPI arithmetic, the BPMN
+writer and the path marking.
 `tests/api/test_presets.py` runs the BPIC 2019 preset on a ten-item log with
 the challenge's column names and checks that a second load reuses everything;
 `tests/unit/test_readings.py` pins the plain vocabulary of the reading
@@ -656,6 +957,20 @@ load, no pack at all, and the stage groups of the flow payload.
   placeholder table and every rank reads "confidence in rank: not computed
   for this run" (`stability: "unknown"`); with the package the numbers come
   from CP-2.1.
+- **The O2C run is not calibrated.** The preset loads the pack's
+  `o2c_baseline` template as norm v1 with its placeholder thresholds; its
+  backlog therefore does not reproduce the hackathon's own priority order
+  (CP-3.9 names every difference). Calibration on the distribution lens is the
+  next step and needs the SD expert, not the backend.
+- **The what-if job (R1-11)** is P2 and not implemented; `POST
+  /runs/{r}/whatif` does not exist.
+- **Comparison sentences are computed for the top groups only** (12 per
+  backlog by default, `WISE_ANALYTICS_COMPARISON_TOP`); every other row
+  carries `comparison_reason` `not_computed` rather than a sentence. Opening
+  the group computes its own contrast.
+- **The gates are three**, computed from the run (readiness, censoring,
+  replication); the `domain` gate of the contract exists in the vocabulary
+  but nothing computes it yet.
 - **XES import** is wired through pm4py but untested here (pm4py is not
   installed in this environment; the API answers 422 `dataset.xes_unavailable`).
 - **Postgres** claim path (`FOR UPDATE SKIP LOCKED`) is implemented but only

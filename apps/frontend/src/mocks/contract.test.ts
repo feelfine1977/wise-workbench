@@ -123,6 +123,13 @@ const params: Record<string, string> = {
   jobId: "job_41",
   presetId: "bpic2019",
   snapshotId: "snap_1",
+  // the third release's operations
+  nodeId: "c_l3_invoice_to_clear_days",
+  kind: "constraint",
+  entryId: "c_l3_invoice_to_clear_days",
+  activityId: "a_record_goods_receipt",
+  gateId: "censoring",
+  itemId: "item_1",
 };
 const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/backlog": `?slicing=${encodeURIComponent("case Vendor")}&view=Finance`,
@@ -132,6 +139,12 @@ const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/filters/preview": `?filter=${encodeURIComponent(JSON.stringify({ and: [{ kind: "activity", op: "contains", activity: "Remove Payment Block" }] }))}`,
   "/projects/{projectId}/runs/{runId}/flow": "?focus=a_record_goods_receipt",
   "/projects/{projectId}/decisions": "?caseTableId=ct_1",
+  "/projects/{projectId}/runs/{runId}/gates": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
+  "/projects/{projectId}/runs/{runId}/gates/{gateId}": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
+  "/projects/{projectId}/runs/{runId}/what-can-we-do": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
+  "/projects/{projectId}/norms/inventory": "?caseTableId=ct_1",
+  "/projects/{projectId}/runs/{runId}/facets": `?by=flow_type&view=Automation`,
+  "/projects/{projectId}/runs/{runId}/kpis": `?view=Automation&grouping=${encodeURIComponent("case Company+case Spend area text")}`,
 };
 const bodies: Record<string, unknown> = {
   "post /projects": { name: "New project", process: "p2p" },
@@ -144,7 +157,29 @@ const bodies: Record<string, unknown> = {
   "post /projects/{projectId}/case-tables/{caseTableId}/decisions": { kind: "open_cases", params: { handling: "exclude" }, note: "contract test", author: "tester" },
   "post /projects/{projectId}/notebook/reorder": { ids: ["snap_1"] },
   "patch /projects/{projectId}/notebook/snapshots/{snapshotId}": { title: "renamed", note: "edited" },
+  "post /projects/{projectId}/norms/constraints/check": { caseTableId: "ct_1", constraint: { id: "c_l3_invoice_to_clear_days", type: "lag", layer: "L3_timeliness_ageing", activities: ["Record Invoice Receipt", "Clear Invoice"] } },
+  "post /projects/{projectId}/runs/{runId}/gates/{gateId}": { status: "waived", note: "contract test" },
+  "post /projects/{projectId}/hypotheses": { constraint_id: "c_l3_invoice_to_clear_days", run_id: "run_41", slicing: "case Vendor", slice_key: '["vendorID_0136"]', note: "contract test" },
+  "post /projects/{projectId}/findings": { title: "contract test finding", run_id: "run_41" },
+  "post /projects/{projectId}/actions": { title: "contract test action", run_id: "run_41" },
+  "patch /projects/{projectId}/hypotheses/{itemId}": { status: "supported", note: "contract test" },
+  "patch /projects/{projectId}/findings/{itemId}": { status: "closed", note: "contract test" },
+  "patch /projects/{projectId}/actions/{itemId}": { status: "accepted", note: "contract test" },
 };
+
+/** The review entities are created before the operations that read or change one are called. */
+const REVIEW_COLLECTIONS = ["hypotheses", "findings", "actions"] as const;
+const needsReviewItem = (path: string) => path.includes("{itemId}");
+async function createReviewItems(path: string) {
+  for (const collection of REVIEW_COLLECTIONS) {
+    const body = collection === "hypotheses" ? { constraint_id: "c_l3_invoice_to_clear_days" } : { title: `contract test ${collection}` };
+    const res = await fetch(`${base}/projects/p2p2018/${collection}`, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
+    expect(res.status).toBe(201);
+    const item = (await res.json()) as { id: string };
+    // the id of the collection this operation belongs to
+    if (path.includes(`/${collection}/`)) params.itemId = item.id;
+  }
+}
 /** Operations whose path names a snapshot first need one (the database is reset between tests). */
 const needsSnapshot = (path: string) => path.includes("{snapshotId}") || path.endsWith("/notebook/reorder") || path.endsWith("/notebook/export");
 async function createSnapshot() {
@@ -169,6 +204,7 @@ describe("OpenAPI contract vs MSW mocks", () => {
     it(`${method.toUpperCase()} ${path} (${op.operationId})`, async () => {
       const key = `${method} ${path}`;
       if (needsSnapshot(path)) await createSnapshot();
+      if (needsReviewItem(path)) await createReviewItems(path);
       let init: RequestInit = { method: method.toUpperCase() };
       if (key === "post /projects/{projectId}/datasets") {
         const form = new FormData();

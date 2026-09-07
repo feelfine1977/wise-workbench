@@ -76,7 +76,7 @@ def export_markdown(service: NotebookService, project_id: str, snapshots: list[S
 
 
 EXPORTERS: dict[str, Exporter] = {"markdown": export_markdown}
-# "pptx": one slide per snapshot (title, image, note, context footer) arrives in cycle 4 (python-pptx).
+# "pptx": one slide per snapshot (title, image, note, context footer) is not available yet (python-pptx).
 
 
 class NotebookService:
@@ -198,7 +198,7 @@ class NotebookService:
         exporter = EXPORTERS.get(fmt)
         if exporter is None:
             raise ValidationError(
-                f"export format {fmt!r} is not available; formats: {sorted(EXPORTERS)} (PowerPoint arrives in cycle 4)",
+                f"export format {fmt!r} is not available; formats: {sorted(EXPORTERS)} (PowerPoint is not available yet)",
                 code="notebook.format",
             )
         return exporter(self, project_id, self.list(project_id))

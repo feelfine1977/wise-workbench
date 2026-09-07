@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Readiness, ReadinessItem } from "@wise/api-schema";
 import { useTrackJob } from "@/app/shell/JobTray";
-import { decisionKindsQuery, decisionsQuery, useApplyDecision, usePreviewDecision, type DecisionKind, type DecisionPreviewNumbers, type DecisionPreviewOut } from "@/lib/api/cycle2";
+import { decisionKindsQuery, decisionsQuery, useApplyDecision, usePreviewDecision, type Decision, type DecisionKind, type DecisionPreviewNumbers, type DecisionPreviewOut } from "@/lib/api/cycle2";
 import { GateBadge } from "@/components/badges";
 import { ErrorBlock } from "@/components/states";
 import { Button } from "@/components/ui/button";
@@ -45,10 +45,25 @@ const PLAIN_LABEL: Record<string, string> = {
   flow_type_assignment: "Assign the flow types",
 };
 
-function activitiesOf(item: ReadinessItem, kind: DecisionKind): string[] {
+/** One row of the activity list a decision asks about, with what the readiness report knows about it. */
+interface ActivityRow {
+  activity: string;
+  /** True for the activities the item is actually about (day-precision timestamps, header events). */
+  concerned: boolean;
+  note?: string;
+}
+
+function activitiesOf(item: ReadinessItem, kind: DecisionKind): ActivityRow[] {
   const ev = item.evidence ?? {};
-  if (kind.kind === "day_precision") return ((ev.activities as { activity: string }[] | undefined) ?? []).map((a) => a.activity);
-  if (kind.kind === "header_events") return (ev.headerEvents as string[] | undefined) ?? [];
+  if (kind.kind === "day_precision") {
+    const rows = (ev.activities as { activity: string; precision?: string; events?: number; dayShare?: number }[] | undefined) ?? [];
+    return rows.map((a) => ({
+      activity: a.activity,
+      concerned: a.precision === "day",
+      note: [a.precision ? `${a.precision} precision` : "", a.events !== undefined ? `${fmtInt(a.events)} events` : ""].filter(Boolean).join(" · "),
+    }));
+  }
+  if (kind.kind === "header_events") return ((ev.headerEvents as string[] | undefined) ?? []).map((a) => ({ activity: a, concerned: true }));
   return [];
 }
 
@@ -71,11 +86,37 @@ function defaultParams(item: ReadinessItem, kind: DecisionKind, choice: string, 
   }
 }
 
-function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onApplied }: { item: ReadinessItem; kind: DecisionKind; projectId: string; caseTableId: string; open: boolean; onClose: () => void; onApplied: (caseTableId: string, jobId: string) => void }) {
+function DecisionDialog({
+  item,
+  kind,
+  projectId,
+  caseTableId,
+  current,
+  history,
+  open,
+  onClose,
+  onApplied,
+}: {
+  item: ReadinessItem;
+  kind: DecisionKind;
+  projectId: string;
+  caseTableId: string;
+  /** The decision in force for this item, when one was taken: its options stay open (R3-O1). */
+  current?: Decision;
+  history: Decision[];
+  open: boolean;
+  onClose: () => void;
+  onApplied: (caseTableId: string, jobId: string) => void;
+}) {
   const choices = CHOICES[kind.kind];
-  const activities = activitiesOf(item, kind);
-  const [choice, setChoice] = useState(choices?.options[0]?.id ?? "");
-  const [chosenActivities, setChosenActivities] = useState<string[]>(activities);
+  const rows = activitiesOf(item, kind);
+  const concerned = rows.filter((r) => r.concerned);
+  const currentChoice = (current?.params as Record<string, unknown> | undefined)?.[choices?.param ?? ""];
+  const [choice, setChoice] = useState(typeof currentChoice === "string" ? currentChoice : (choices?.options[0]?.id ?? ""));
+  const [chosenActivities, setChosenActivities] = useState<string[]>(
+    ((current?.params as { activities?: string[] } | undefined)?.activities ?? (concerned.length ? concerned : rows).map((r) => r.activity)),
+  );
+  const [showAll, setShowAll] = useState(concerned.length === 0);
   const [note, setNote] = useState("");
   const [author, setAuthor] = useState("");
   const [preview, setPreview] = useState<DecisionPreviewOut>();
@@ -83,8 +124,21 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
   const apply = useApplyDecision(projectId, caseTableId);
   const params = defaultParams(item, kind, choice, chosenActivities);
   const numbers = preview?.preview as DecisionPreviewNumbers | undefined;
+  const listed = showAll ? rows : concerned;
+  // The mapping may already type every case: the server says so and refuses the change, so the dialog says
+  // it first and offers no apply that would be refused (R3-O4, 14).
+  const detail = (numbers?.detail ?? {}) as { alreadyTyped?: boolean; message?: string; counts?: Record<string, number>; typedCases?: number };
+  const alreadyTyped = kind.kind === "flow_type_assignment" && detail.alreadyTyped === true;
 
-  const runPreview = () => previewMutation.mutate({ kind: kind.kind, params }, { onSuccess: setPreview });
+  const runPreview = useCallback(() => previewMutation.mutate({ kind: kind.kind, params }, { onSuccess: setPreview }), [previewMutation, kind.kind, params]);
+  // the flow types are the one decision whose answer may be "nothing would change": ask at once, so the
+  // dialog opens with the sentence rather than with an apply the server will refuse
+  const asked = useRef(false);
+  useEffect(() => {
+    if (kind.kind !== "flow_type_assignment" || asked.current) return;
+    asked.current = true;
+    runPreview();
+  }, [kind.kind, runPreview]);
   const submit = () =>
     apply.mutate(
       { kind: kind.kind, params, note: note.trim(), author: author.trim() || null },
@@ -98,16 +152,24 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] w-full max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{PLAIN_LABEL[kind.kind] ?? kind.label}</DialogTitle>
           <DialogDescription>{item.message}</DialogDescription>
         </DialogHeader>
+        {current && (
+          <p className="rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm" data-testid="decision-current">
+            Decided already in version {current.version}
+            {typeof currentChoice === "string" ? ` as "${choices?.options.find((o) => o.id === currentChoice)?.label ?? currentChoice}"` : ""}
+            {current.note ? ` — ${current.note}` : ""}. Every option stays open: changing it creates a new version and rebuilds the case table.
+            {history.length > 1 ? ` This item has been decided ${history.length} times.` : ""}
+          </p>
+        )}
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (preview && note.trim()) submit();
+            if (preview && note.trim() && !alreadyTyped) submit();
           }}
         >
           {choices && (
@@ -126,31 +188,54 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
                   {choices.options.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.label}
+                      {currentChoice === c.id ? " · current" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
           )}
-          {activities.length > 0 && (
-            <fieldset>
-              <legend className="text-xs font-medium text-text-muted">{kind.kind === "day_precision" ? "activities measured to the day" : "header events, counted once per order"}</legend>
-              <ul className="mt-1 flex flex-col gap-1">
-                {activities.map((a) => (
-                  <li key={a} className="flex items-center gap-2 text-sm">
-                    <input
-                      id={`act-${a}`}
-                      type="checkbox"
-                      checked={chosenActivities.includes(a)}
-                      onChange={(e) => {
-                        setChosenActivities((list) => (e.target.checked ? [...list, a] : list.filter((x) => x !== a)));
-                        setPreview(undefined);
-                      }}
-                    />
-                    <label htmlFor={`act-${a}`}>{a}</label>
-                  </li>
-                ))}
-              </ul>
+          {rows.length > 0 && (
+            <fieldset data-testid="decision-activities">
+              <legend className="text-xs font-medium text-text-muted">
+                {kind.kind === "day_precision" ? `activities measured to the day (${concerned.length} of ${rows.length})` : "header events, counted once per order"}
+              </legend>
+              <div className="mt-1 max-h-56 overflow-y-auto rounded-md border border-border p-2">
+                <ul className="flex flex-col gap-1">
+                  {listed.map((r) => (
+                    <li key={r.activity} className="flex items-center gap-2 text-sm">
+                      <input
+                        id={`act-${r.activity}`}
+                        type="checkbox"
+                        checked={chosenActivities.includes(r.activity)}
+                        onChange={(e) => {
+                          setChosenActivities((list) => (e.target.checked ? [...list, r.activity] : list.filter((x) => x !== r.activity)));
+                          setPreview(undefined);
+                        }}
+                      />
+                      <label htmlFor={`act-${r.activity}`} className="min-w-0 flex-1">
+                        {r.activity}
+                        {r.note ? <span className="ml-2 text-xs text-text-subtle">{r.note}</span> : null}
+                      </label>
+                    </li>
+                  ))}
+                  {listed.length === 0 && <li className="text-sm text-text-muted">No activity of this log is measured to the day.</li>}
+                </ul>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
+                <span className="text-text-muted">{chosenActivities.length} chosen</span>
+                <button type="button" className="text-accent-text underline" onClick={() => setChosenActivities(listed.map((r) => r.activity))}>
+                  select all
+                </button>
+                <button type="button" className="text-accent-text underline" onClick={() => setChosenActivities([])}>
+                  none
+                </button>
+                {concerned.length > 0 && concerned.length < rows.length && (
+                  <button type="button" className="text-accent-text underline" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? "only the day-precise ones" : `show every activity (${rows.length})`}
+                  </button>
+                )}
+              </div>
             </fieldset>
           )}
           <div className="flex flex-wrap items-center gap-3">
@@ -163,6 +248,16 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
               </span>
             )}
           </div>
+          {alreadyTyped && (
+            <p className="rounded-md border border-warning/50 bg-warning-subtle px-3 py-2 text-sm text-warning" data-testid="decision-already-typed">
+              {detail.message ?? "The mapping already types these cases. Nothing would change."}
+            </p>
+          )}
+          {!alreadyTyped && detail.message && kind.kind === "flow_type_assignment" && (
+            <p className="reading text-sm text-text-muted" data-testid="decision-effect">
+              {detail.message}
+            </p>
+          )}
           {previewMutation.isError && <ErrorBlock error={previewMutation.error} />}
           <Field label="note *" htmlFor="decision-note" hint="Why this decision; who agreed. It travels with the case table as a versioned mapping decision.">
             <Textarea id="decision-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="One line" />
@@ -175,7 +270,7 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!preview || !note.trim() || apply.isPending}>
+            <Button type="submit" disabled={!preview || !note.trim() || apply.isPending || alreadyTyped} title={alreadyTyped ? "Nothing would change: choose a different set of rules first" : undefined}>
               {apply.isPending ? "Applying…" : "Apply and rebuild the case table"}
             </Button>
           </DialogFooter>
@@ -194,7 +289,9 @@ function DecisionDialog({ item, kind, projectId, caseTableId, open, onClose, onA
 export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuilt, className }: { readiness: Readiness | null | undefined; projectId: string; caseTableId: string; onRebuilt: (caseTableId: string) => void; className?: string }) {
   const [openItem, setOpenItem] = useState<{ item: ReadinessItem; kind: DecisionKind }>();
   const kinds = useQuery(decisionKindsQuery(projectId));
-  const decisions = useQuery(decisionsQuery(projectId, caseTableId));
+  // every decision of the project, not only the ones of this case table: decisions accumulate on one
+  // lineage, so the list must show them all and "decide again" must know the one in force (R3-O1, R3-O3)
+  const decisions = useQuery(decisionsQuery(projectId));
   const track = useTrackJob(projectId);
   const items = readiness?.items ?? [];
   const kindOf = (item: ReadinessItem): DecisionKind | undefined => {
@@ -202,7 +299,10 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
     if (own?.kind) return { kind: own.kind, item: item.id, params: own.params ?? [], label: own.label ?? own.kind };
     return (kinds.data ?? []).find((k) => k.item === item.id);
   };
-  const decided = new Set((decisions.data ?? []).map((d) => d.kind));
+  const applied = [...(decisions.data ?? [])].sort((a, b) => a.version - b.version);
+  const decided = new Set(applied.map((d) => d.kind));
+  const historyOf = (kindId: string) => applied.filter((d) => d.kind === kindId);
+  const currentOf = (kindId: string) => historyOf(kindId)[historyOf(kindId).length - 1];
   return (
     <div className={cn("flex flex-col gap-4", className)} data-testid="readiness-decisions">
       <Card>
@@ -216,9 +316,16 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
                 <GateBadge state={it.level === "fail" ? "failed" : it.level === "warn" ? "pending" : "passed"} label={it.level} className="mt-0.5" />
                 <span className="reading min-w-0 flex-1 text-sm">{it.message}</span>
                 {kind && (
-                  <Button size="sm" variant="outline" onClick={() => setOpenItem({ item: it, kind })} aria-label={`${PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
-                    {done ? "Decide again" : (PLAIN_LABEL[kind.kind] ?? kind.label)}
-                  </Button>
+                  <span className="flex flex-col items-end gap-0.5">
+                    <Button size="sm" variant="outline" onClick={() => setOpenItem({ item: it, kind })} aria-label={`${PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
+                      {done ? "Decide again" : (PLAIN_LABEL[kind.kind] ?? kind.label)}
+                    </Button>
+                    {done && (
+                      <span className="text-[11px] text-text-subtle" data-testid={`decision-state-${kind.kind}`}>
+                        decided {historyOf(kind.kind).length === 1 ? "once" : `${historyOf(kind.kind).length} times`} · in force: v{currentOf(kind.kind)?.version}
+                      </span>
+                    )}
+                  </span>
                 )}
               </li>
             );
@@ -228,16 +335,17 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
       <Card>
         <CardTitle>Decisions taken</CardTitle>
         {decisions.isError && <ErrorBlock error={decisions.error} />}
-        {(decisions.data ?? []).length === 0 ? (
-          <p className="text-sm text-text-muted">No decision yet. Each decision is a versioned mapping decision: it names its author, keeps its note and rebuilds the case table so the readiness report is re-evaluated.</p>
+        {applied.length === 0 ? (
+          <p className="text-sm text-text-muted">No decision yet. Each decision is a versioned mapping decision: it names its author, keeps its note and rebuilds the case table so the readiness report is re-evaluated. Decisions accumulate: a new one starts from the case table the last one produced, and every item keeps its full set of options.</p>
         ) : (
           <ul className="divide-y divide-border text-sm" data-testid="decisions-list">
-            {(decisions.data ?? []).map((d) => {
+            {applied.map((d) => {
               const n = d.preview as unknown as Partial<DecisionPreviewNumbers>;
               return (
                 <li key={d.id} className="flex flex-wrap items-center gap-3 py-2">
                   <strong>{PLAIN_LABEL[d.kind] ?? d.kind}</strong>
                   <span className="text-xs text-text-subtle">v{d.version}</span>
+                  {currentOf(d.kind)?.id === d.id ? <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-text-muted">in force</span> : <span className="text-[11px] text-text-subtle">replaced</span>}
                   <span className="tnum text-text-muted">
                     {fmtInt(n.cases)} cases · {fmtInt(n.events)} events
                   </span>
@@ -257,6 +365,8 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
           kind={openItem.kind}
           projectId={projectId}
           caseTableId={caseTableId}
+          current={currentOf(openItem.kind.kind)}
+          history={historyOf(openItem.kind.kind)}
           open
           onClose={() => setOpenItem(undefined)}
           onApplied={(nextCaseTable, jobId) => {

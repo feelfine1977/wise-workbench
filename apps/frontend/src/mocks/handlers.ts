@@ -2,8 +2,10 @@ import { http, HttpResponse, delay } from "msw";
 import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
 import type { DecisionRequest, Snapshot, SnapshotContext, Within } from "@/lib/api/cycle2";
 import { parseFilter } from "@/lib/filter";
-import { pageBacklog } from "./fixtures/backlog";
+import { UNCALIBRATED, pageBacklog } from "./fixtures/backlog";
 import { applyFilter, backlogParamsC2, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";
+import { facetsFor, kpisFor, pathsForFocus, scaleDistribution } from "./fixtures/board";
+import { activityProfile, constraintCheck, type GateStatus, decisionItemsFor, gatesFor, guidanceFor, guidanceQuestions, hubIndex, hubPage, inventoryFor, manifestFor, newReviewItem, review, updateReviewItem, whatCanWeDoFor } from "./fixtures/cycle3";
 import { buildDistribution } from "./fixtures/distribution";
 import { buildFlow } from "./fixtures/flow";
 import { bpic19Norm } from "./fixtures/norm";
@@ -287,6 +289,22 @@ export const handlers = [
     db.norms.push(created);
     return HttpResponse.json(created, { status: 201 });
   }),
+  http.get(`${API}/projects/:projectId/norms/inventory`, async ({ request }) => {
+    await delay(latency);
+    const caseTableId = new URL(request.url).searchParams.get("caseTableId");
+    if (!caseTableId) return problem(422, "Unprocessable Content", "caseTableId is required", "norm.case_table");
+    return HttpResponse.json(inventoryFor(caseTableId));
+  }),
+  http.get(`${API}/projects/:projectId/norms/guidance-questions`, async ({ request }) => {
+    await delay(latency);
+    const u = new URL(request.url);
+    return HttpResponse.json(guidanceQuestions(u.searchParams.get("kind") ?? "layer", u.searchParams.get("id") ?? undefined));
+  }),
+  http.post(`${API}/projects/:projectId/norms/constraints/check`, async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { caseTableId?: string; constraint?: Record<string, unknown> };
+    if (!body.caseTableId || !body.constraint) return problem(422, "Unprocessable Content", "caseTableId and constraint are required", "norm.constraint");
+    return HttpResponse.json(constraintCheck(body.caseTableId, body.constraint));
+  }),
   http.get(`${API}/projects/:projectId/norms/:normVersionId`, async ({ params }) => {
     await delay(latency);
     const n = db.norms.find((x) => x.id === params.normVersionId);
@@ -332,6 +350,32 @@ export const handlers = [
     if (job) cancelJob(job);
     if (run.status === "queued") run.status = "cancelled";
     return HttpResponse.json(run);
+  }),
+  /** The run in plain words (R3-O7): what the Run step leads with, the fingerprints kept behind it. */
+  http.get(`${API}/projects/:projectId/runs/:runId/manifest`, async ({ params }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const noun = "purchase order items";
+    const grouping = (run.slicings ?? []).map((s) => (s.attributes ?? []).join(" × ")).join("; ");
+    return HttpResponse.json({
+      runId: run.id,
+      status: run.status,
+      caseNoun: noun,
+      plain: [
+        { label: "Log", value: "BPI_Challenge_2019.csv", note: `251,734 ${noun}` },
+        { label: "Expectations", value: "WISE BPIC'19 norm v1", note: "draft; 29 expectations" },
+        { label: "Perspective", value: (run.views ?? []).join(", "), note: "the weighting of the expectation areas this run was read with" },
+        { label: "Grouped by", value: grouping, note: `groups of at least ${run.minCases ?? 1} ${noun}` },
+        { label: "Small groups", value: `γ = ${run.gamma ?? 20}`, note: `a group of ${run.gamma ?? 20} ${noun} keeps half of its shortfall; larger groups keep more` },
+        { label: "Scope", value: "the whole log", note: null },
+        { label: "End of the data", value: "2019-01-17T15:44:00", note: "every open-case number in this run is counted at that moment" },
+        { label: "Run", value: run.manifest?.finishedAt ?? run.createdAt, note: "took 13 s" },
+        { label: "Data caveats", value: "6 to keep in mind", note: "578 events lie outside the observation window" },
+      ],
+      technical: { ...(run.manifest ?? {}), paramsHash: run.paramsHash ?? null, caseTableId: run.caseTableId, normVersionId: run.normVersionId },
+      uncalibrated: UNCALIBRATED,
+    });
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/summary`, async ({ params }) => {
     await delay(latency);
@@ -517,9 +561,47 @@ export const handlers = [
     await delay(latency);
     const u = new URL(request.url);
     const sliceKey = u.searchParams.get("sliceKey") ?? undefined;
+    // the third release passes the canonical filter to the lens as well; the bin edges never move (§4.7)
+    const filter = parseFilter(u.searchParams.get("filter"));
     if (!bpic19Norm.constraints.some((c) => c.id === params.constraintId)) return problem(404, "Not Found", "constraint not found", "constraint.not_found");
-    if (params.constraintId === verifiedDistributionPackaging.constraintId && sliceKey && canonical(sliceKey) === canonical(VERIFIED_PACKAGING_KEY)) return HttpResponse.json(verifiedDistributionPackaging);
-    return HttpResponse.json(buildDistribution(String(params.constraintId), sliceKey));
+    if (params.constraintId === verifiedDistributionPackaging.constraintId && sliceKey && canonical(sliceKey) === canonical(VERIFIED_PACKAGING_KEY)) return HttpResponse.json(scaleDistribution(verifiedDistributionPackaging, filter));
+    return HttpResponse.json(scaleDistribution(buildDistribution(String(params.constraintId), sliceKey), filter));
+  }),
+
+  // ---------------------------------------------------------------- the board's sources (R3-O12)
+  http.get(`${API}/projects/:projectId/runs/:runId/facets`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    if (run.status !== "done") return problem(409, "Conflict", `run ${run.id} is ${run.status}; counts are available once it is done`, "run.not_done");
+    const u = new URL(request.url);
+    const by = u.searchParams.get("by") ?? "flow_type";
+    if (by !== "flow_type" && by !== "period" && by !== "attribute") return problem(422, "Unprocessable Content", `by must be flow_type, period or attribute; got ${by}`, "facets.by");
+    return HttpResponse.json(
+      facetsFor(run.id, {
+        by,
+        attribute: u.searchParams.get("attribute") ?? undefined,
+        view: u.searchParams.get("view") ?? run.views?.[0] ?? undefined,
+        slicing: u.searchParams.get("slicing") ?? undefined,
+        filter: parseFilter(u.searchParams.get("filter")),
+      }),
+    );
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/kpis`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    if (run.status !== "done") return problem(409, "Conflict", `run ${run.id} is ${run.status}; the numbers are available once it is done`, "run.not_done");
+    const u = new URL(request.url);
+    return HttpResponse.json(
+      kpisFor(run.id, {
+        view: u.searchParams.get("view") ?? run.views?.[0] ?? undefined,
+        slicing: u.searchParams.get("slicing") ?? run.slicings?.[0]?.id ?? undefined,
+        gamma: run.gamma ?? 20,
+        minCases: run.minCases ?? 1,
+        filter: parseFilter(u.searchParams.get("filter")),
+      }),
+    );
   }),
 
   http.get(`${API}/projects/:projectId/runs/:runId/flow`, async ({ params, request }) => {
@@ -535,12 +617,127 @@ export const handlers = [
     const verified = run.note === "2018" && !run.scope?.flow_type && !filter;
     const extra = { filter: filter ?? null, filterCases: filter ? Math.round(251734 * keep) : null, scope: run.scope ?? null, caseNoun: VERIFIED_CASE_NOUN };
     if (verified && !sliceKey && !focus) return HttpResponse.json({ ...verifiedFlowAll, meta: { ...verifiedFlowAll.meta, runId: run.id, ...extra } });
-    if (verified && !sliceKey && focus === "a_record_goods_receipt") return HttpResponse.json({ ...verifiedFlowFocusedOnGoodsReceipt, meta: { ...verifiedFlowFocusedOnGoodsReceipt.meta, runId: run.id, ...extra } });
+    if (verified && !sliceKey && focus === "a_record_goods_receipt") {
+      const own = pathsForFocus(verifiedFlowAll, focus);
+      return HttpResponse.json({
+        ...verifiedFlowFocusedOnGoodsReceipt,
+        meta: { ...verifiedFlowFocusedOnGoodsReceipt.meta, runId: run.id, ...extra, pathsHidden: own.hidden },
+      });
+    }
+    // every other activity: the paths of the full relation, including the ones the drawn graph does not hold (R3-O8)
+    if (verified && !sliceKey && focus) {
+      const own = pathsForFocus(verifiedFlowAll, focus);
+      return HttpResponse.json({ ...verifiedFlowAll, focus, paths: { incoming: own.incoming, outgoing: own.outgoing }, meta: { ...verifiedFlowAll.meta, runId: run.id, ...extra, pathsHidden: own.hidden } });
+    }
     if (verified && sliceKey && canonical(sliceKey) === canonical(VERIFIED_PACKAGING_KEY) && !focus) return HttpResponse.json({ ...verifiedFlowPackaging, meta: { ...verifiedFlowPackaging.meta, runId: run.id, ...extra } });
     const scopeShare = run.scope?.flow_type ? ({ DF2: 0.878, DF1: 0.06, Consignment: 0.058, "2-way": 0.004 } as Record<string, number>)[run.scope.flow_type] ?? 0.1 : 1;
     const base = sliceKey ? undefined : keep * scopeShare;
     const graph = buildFlow({ slicing, sliceKey, abstraction: num(u.searchParams.get("abstraction"), 0.05), focus, ...(base !== undefined && base < 1 ? { scale: base } : {}) });
     return HttpResponse.json({ ...graph, meta: { ...graph.meta, runId: run.id, ...extra, illustrative: true } });
+  }),
+
+
+  // ---------------------------------------------------------------- operations of the third-release contract
+  // whose screens arrive in the next increments; the mocks answer them in the contract's shapes.
+  http.get(`${API}/projects/:projectId/case-tables/:caseTableId/decisions`, async ({ params }) => {
+    await delay(latency);
+    const ct = db.caseTables.find((c) => c.id === params.caseTableId);
+    if (!ct) return problem(404, "Not Found", "case table not found", "case_table.not_found");
+    return HttpResponse.json(decisionItemsFor(ct.id));
+  }),
+  http.get(`${API}/projects/:projectId/knowledge/hub`, async () => {
+    await delay(latency);
+    return HttpResponse.json(hubIndex());
+  }),
+  http.get(`${API}/projects/:projectId/knowledge/hub/:nodeId`, async ({ params }) => {
+    await delay(latency);
+    return HttpResponse.json(hubPage(String(params.nodeId)));
+  }),
+  http.get(`${API}/projects/:projectId/guidance/:kind/:entryId`, async ({ params }) => {
+    await delay(latency);
+    return HttpResponse.json(guidanceFor(String(params.kind), String(params.entryId)));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/manifest`, async ({ params }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    return HttpResponse.json(manifestFor(run.id));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/flow/bpmn`, async ({ params, request }) => {
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const scope = new URL(request.url).searchParams.get("scope") ?? "flow";
+    // the mocks do not generate BPMN: the map's own export writes the file from the scene it draws
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="${run.id}_${scope}"><bpmn:process id="p_${run.id}" isExecutable="false"/></bpmn:definitions>`;
+    return new HttpResponse(xml, { headers: { "Content-Type": "application/xml" } });
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/flow/activities/:activityId`, async ({ params }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    return HttpResponse.json(activityProfile(String(params.activityId)));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/gates`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    const slicing = u.searchParams.get("slicing");
+    const key = u.searchParams.get("key");
+    if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "gates.group");
+    return HttpResponse.json(gatesFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined));
+  }),
+  http.post(`${API}/projects/:projectId/runs/:runId/gates/:gateId`, async ({ params, request }) => {
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    const slicing = u.searchParams.get("slicing");
+    const key = u.searchParams.get("key");
+    if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "gates.group");
+    const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
+    const gates = gatesFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined);
+    const gate = gates.gates.find((g) => g.id === String(params.gateId));
+    if (!gate) return problem(404, "Not Found", `unknown gate ${String(params.gateId)}`, "gates.not_found");
+    if (body.status === "waived" && !body.note) return problem(422, "Unprocessable Content", "a waived gate needs a note", "gates.note");
+    const status = (body.status ?? gate.status) as GateStatus;
+    const updated = gates.gates.map((g) => (g.id === gate.id ? { ...g, status } : g));
+    const blocking = updated.filter((g) => g.status !== "passed" && g.status !== "waived").map((g) => g.id);
+    return HttpResponse.json({ ...gates, gates: updated, blocking, passed: blocking.length === 0 });
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/what-can-we-do`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    const slicing = u.searchParams.get("slicing");
+    const key = u.searchParams.get("key");
+    if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "whatcanwedo.group");
+    return HttpResponse.json(whatCanWeDoFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined));
+  }),
+  ...(["hypotheses", "findings", "actions"] as const).flatMap((collection) => {
+    const kind = collection === "hypotheses" ? ("hypothesis" as const) : collection === "findings" ? ("finding" as const) : ("action" as const);
+    return [
+      http.get(`${API}/projects/:projectId/${collection}`, async ({ params }) => {
+        await delay(latency);
+        return HttpResponse.json(review.filter((r) => r.kind === kind && r.projectId === String(params.projectId)));
+      }),
+      http.post(`${API}/projects/:projectId/${collection}`, async ({ params, request }) => {
+        const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+        if (kind === "hypothesis" && typeof body.constraint_id !== "string") return problem(422, "Unprocessable Content", "constraint_id is required", `${kind}.incomplete`);
+        if (kind !== "hypothesis" && typeof body.title !== "string") return problem(422, "Unprocessable Content", "title is required", `${kind}.incomplete`);
+        return HttpResponse.json(newReviewItem(String(params.projectId), kind, body), { status: 201 });
+      }),
+      http.get(`${API}/projects/:projectId/${collection}/:itemId`, async ({ params }) => {
+        const item = review.find((r) => r.id === String(params.itemId) && r.kind === kind);
+        return item ? HttpResponse.json(item) : problem(404, "Not Found", `${kind} not found`, `${kind}.not_found`);
+      }),
+      http.patch(`${API}/projects/:projectId/${collection}/:itemId`, async ({ params, request }) => {
+        const item = review.find((r) => r.id === String(params.itemId) && r.kind === kind);
+        if (!item) return problem(404, "Not Found", `${kind} not found`, `${kind}.not_found`);
+        const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+        return HttpResponse.json(updateReviewItem(item, body));
+      }),
+    ];
   }),
 
   // ---------------------------------------------------------------- analysis notebook (R2-O11)
@@ -632,7 +829,7 @@ export const handlers = [
   }),
   http.get(`${API}/projects/:projectId/notebook/export`, ({ request }) => {
     const format = new URL(request.url).searchParams.get("format") ?? "markdown";
-    if (format !== "markdown") return problem(422, "Unprocessable Content", `export format ${format} arrives in cycle 4`, "notebook.format");
+    if (format !== "markdown") return problem(422, "Unprocessable Content", `export format ${format} is not available yet`, "notebook.format");
     const lines = ["# Analysis notebook · P2P 2018 (BPIC 2019)", ""];
     for (const s of [...db.notebook.snapshots].sort((a, b) => a.order - b.order)) {
       const ctx = s.context as Partial<SnapshotContext> | undefined;

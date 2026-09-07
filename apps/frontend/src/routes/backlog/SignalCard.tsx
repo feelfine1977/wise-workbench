@@ -2,7 +2,7 @@ import { ChevronDown, Pin } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import type { BacklogRow } from "@wise/api-schema";
 import type { BacklogRowC2 } from "@/lib/api/cycle2";
-import { KindBadge, LayerChip } from "@/components/badges";
+import { CalibrationChip, KindBadge, LayerChip } from "@/components/badges";
 import { CaveatChips } from "@/components/guide/CaveatChips";
 import { Term, useVocabulary } from "@/components/Term";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,9 @@ export interface SignalCardProps {
   /** The group's name without the part every group on the page shares. */
   label?: string;
   /** Caveat ids the page states once in its header. */
-  hideCaveats?: Set<string>;
+  hideCaveats?: Map<string, number | undefined>;
+  /** The run's uncalibrated expectations by id: the one this card names carries the chip. */
+  uncalibrated?: Map<string, { text?: string }>;
   active?: boolean;
   pinned?: boolean;
   onWhy: (key: string) => void;
@@ -54,7 +56,7 @@ export function distanceSentence(row: { gap: number; global_mean?: number | null
  * the priority, the confidence word and at most one caveat chip; **Why?** as the single primary button;
  * everything else behind "more".
  */
-export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label: givenLabel, hideCaveats, active, pinned, onWhy, onActivate, onTogglePin, onDrill, onKeyDown, className }: SignalCardProps) {
+export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label: givenLabel, hideCaveats, uncalibrated, active, pinned, onWhy, onActivate, onTogglePin, onDrill, onKeyDown, className }: SignalCardProps) {
   const { vocabulary, t } = useVocabulary();
   const plain = vocabulary === "plain";
   const row = raw as BacklogRowC2;
@@ -65,6 +67,7 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label:
   const noun = row.case_noun ?? caseNoun ?? (plain ? "cases" : "n_cases");
   const noShortfall = row.gap <= 0;
   const topDescription = row.top_constraint_description?.replace(/\.$/, "");
+  const topConstraint = (row as { top_constraint?: string | null }).top_constraint ?? undefined;
   const missed = missedPhrase(row);
   const missedShare = row.top_constraint_share !== null && row.top_constraint_share !== undefined ? row.top_constraint_share : undefined;
   const comparison = plain ? comparisonSentence(row) : row.comparison ?? undefined;
@@ -133,6 +136,8 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label:
                 </>
               ) : null}
             </span>
+            {/* an expectation almost every case misses separates no group: say so where it is named  */}
+            {topConstraint && uncalibrated?.has(topConstraint) && <CalibrationChip className="ml-1.5 align-middle" text={uncalibrated.get(topConstraint)?.text} />}
           </>
         )}
         .

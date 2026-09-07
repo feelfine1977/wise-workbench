@@ -76,6 +76,18 @@ class Container:
         return DecisionService(self)
 
     @cached_property
+    def knowledge(self):  # type: ignore[no-untyped-def]
+        from wise_workbench.application.services.knowledge import KnowledgeService
+
+        return KnowledgeService(self)
+
+    @cached_property
+    def review(self):  # type: ignore[no-untyped-def]
+        from wise_workbench.application.services.review import ReviewService
+
+        return ReviewService(self)
+
+    @cached_property
     def jobs(self):  # type: ignore[no-untyped-def]
         from wise_workbench.application.services.jobs import JobService
 

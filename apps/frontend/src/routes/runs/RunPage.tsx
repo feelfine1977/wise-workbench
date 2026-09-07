@@ -8,6 +8,7 @@ import { flowTypeOf } from "@/lib/api/cycle2";
 import { BackControl } from "@/components/guide/BackControl";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
+import { CalibrationChip } from "@/components/badges";
 import { Term } from "@/components/Term";
 import { CompareFlowTypes } from "./CompareFlowTypes";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { Card, CardTitle, Progress } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDate, fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { flowQuery, jobTransport, runQuery, useCancelJob, useJob } from "@/lib/queries";
+import { runManifestQuery, type ManifestRow } from "@/lib/api/cycle3";
 import { runStatusGlyph, runStatusVariant } from "./RunsPage";
 
 const FlowMap = lazy(() => import("@/components/flow/FlowMap"));
@@ -30,6 +32,19 @@ export default function RunPage() {
   const job = useJob(run.data?.jobId ?? undefined);
   const cancel = useCancelJob();
   const flow = useQuery({ ...flowQuery(ctx.projectId, runId, {}), enabled: run.data?.status === "done" && search.tab === "flow" });
+  const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId), enabled: !!runId });
+  const uncalibrated = manifest.data?.uncalibrated ?? [];
+  // the plain block the server serves; without it the run's own fields say the same in the same words
+  const plainRows: ManifestRow[] = manifest.data?.plain?.length
+    ? manifest.data.plain
+    : [
+        { label: "Expectations", value: run.data?.normVersionId ? "the norm of this run" : "–", note: null },
+        { label: "Perspective", value: (run.data?.views ?? []).join(", ") || "–", note: "the weighting of the expectation areas this run was read with" },
+        { label: "Grouped by", value: (run.data?.slicings ?? []).map((s) => (s.attributes ?? []).map((a) => a.replace(/^case /, "")).join(" × ")).join("; ") || "–", note: null },
+        { label: "Small groups", value: run.data?.gamma !== undefined && run.data?.gamma !== null ? `γ = ${fmtNum(run.data.gamma, 0)}` : "–", note: "a small group keeps less of its shortfall than a large one" },
+        { label: "Scope", value: flowTypeOf(run.data) ? `${flowTypeOf(run.data)} flow only` : "the whole log", note: null },
+        { label: "Run", value: fmtDateTime(run.data?.manifest?.finishedAt), note: null },
+      ];
   const setTab = (tab: RunTab) => void navigate({ to: ".", search: { tab } });
 
   return (
@@ -42,7 +57,7 @@ export default function RunPage() {
                 <BackControl className="normal-case tracking-normal" />
                 <span>Run</span>
               </div>
-              <h1 className="flex items-center gap-3 text-2xl font-semibold" title={r.id}>
+              <h1 className="flex items-center gap-3 text-2xl font-semibold">
                 <span>{r.note?.trim() || "Run"}{r.manifest?.finishedAt ? ` · ${fmtDate(r.manifest.finishedAt)}` : ""}</span>
                 <Badge variant={runStatusVariant[r.status]}>
                   <span aria-hidden>{runStatusGlyph[r.status]}</span>
@@ -55,7 +70,7 @@ export default function RunPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2" data-no-capture>
-              {r.status === "done" && <FreezeButton projectId={ctx.projectId} screen={search.tab === "compare" ? "compare-flow-types" : search.tab === "flow" ? "run-flow" : "run"} context={{ run_id: r.id, scope: (r.scope as never) ?? null }} data={{ manifest: r.manifest, params: { gamma: r.gamma, minCases: r.minCases, views: r.views, slicings: r.slicings } }} defaultTitle={`Run ${r.id}${search.tab === "compare" ? " · flow types side by side" : search.tab === "flow" ? " · process map" : ""}`} />}
+              {r.status === "done" && <FreezeButton projectId={ctx.projectId} screen={search.tab === "compare" ? "compare-flow-types" : search.tab === "flow" ? "run-flow" : "run"} context={{ run_id: r.id, scope: (r.scope as never) ?? null }} data={{ manifest: r.manifest, params: { gamma: r.gamma, minCases: r.minCases, views: r.views, slicings: r.slicings } }} defaultTitle={`${r.note?.trim() || `Run of ${fmtDate(r.manifest?.finishedAt ?? r.createdAt)}`}${search.tab === "compare" ? " · flow types side by side" : search.tab === "flow" ? " · process map" : ""}`} />}
               {(r.status === "queued" || r.status === "running") && r.jobId && (
                 <Button variant="outline" onClick={() => r.jobId && cancel.mutate(r.jobId)}>
                   Cancel
@@ -103,65 +118,113 @@ export default function RunPage() {
                 <CardTitle>
                   <Term id="flow">Process map of the whole log</Term>
                 </CardTitle>
+                {/* a doorway, not a second map: the Flow step is where the map is the screen and its actions work (§3.1) */}
+                <p className="reading mb-3 text-sm text-text-muted">
+                  This is the map of {flowTypeOf(r) ? `the ${flowTypeOf(r)} flow` : "the whole log"} as a preview. The Flow step gives it the whole frame, with the filter bar, the paths, the model and the actions.{" "}
+                  <Button asChild size="sm" className="ml-2">
+                    <Link to="/p/$projectId/runs/$runId/flow" params={{ projectId: ctx.projectId, runId: r.id }} search={{ view: ctx.view, slicing: ctx.slicing, render: "map" as const }}>
+                      Open the Flow step →
+                    </Link>
+                  </Button>
+                </p>
                 {flow.isPending && <LoadingBlock rows={6} />}
                 {flow.isError && <ErrorBlock error={flow.error} retry={() => void flow.refetch()} />}
                 {flow.data && (
                   <Suspense fallback={<LoadingBlock rows={6} />}>
-                    <FlowMap graph={flow.data} title="Process map of the whole log with the expectations drawn on it" noun={(flow.data.meta as { caseNoun?: string } | undefined)?.caseNoun ?? "cases"} />
+                    <FlowMap graph={flow.data} frame="panel" height={420} title="Process map of the whole log with the expectations drawn on it" noun={(flow.data.meta as { caseNoun?: string } | undefined)?.caseNoun ?? "cases"} />
                   </Suspense>
                 )}
               </Card>
             </TabsContent>
             <TabsContent value="monitor">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardTitle>Parameters</CardTitle>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                <dt className="text-text-muted">case table</dt>
-                <dd className="font-mono">{r.caseTableId}</dd>
-                <dt className="text-text-muted">norm version</dt>
-                <dd>
-                  <Link className="font-mono text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: r.normVersionId }} search={{ tab: "constraints" }}>
-                    {r.normVersionId}
-                  </Link>
-                </dd>
-                <dt className="text-text-muted">views</dt>
-                <dd>{r.views?.join(", ")}</dd>
-                <dt className="text-text-muted">slicings</dt>
-                <dd>{r.slicings?.map((s) => `${(s.attributes ?? []).join(" × ")} (id ${s.id})`).join("; ")}</dd>
-                <dt className="text-text-muted">γ</dt>
-                <dd className="tnum">{fmtNum(r.gamma, 0)}</dd>
-                <dt className="text-text-muted">min cases</dt>
-                <dd className="tnum">{fmtNum(r.minCases, 0)}</dd>
-                <dt className="text-text-muted">baseline run</dt>
-                <dd className="font-mono">{r.baselineRunId ?? "– (global mean of this run)"}</dd>
-                <dt className="text-text-muted">scope</dt>
-                <dd>{flowTypeOf(r) ? `${flowTypeOf(r)} flow type only` : "all flow types together"}</dd>
-              </dl>
-            </Card>
-            <Card>
-              <CardTitle>Manifest and provenance</CardTitle>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                <dt className="text-text-muted">norm fingerprint</dt>
-                <dd className="font-mono text-xs">{r.manifest?.normFingerprint ?? "–"}</dd>
-                <dt className="text-text-muted">content hash</dt>
-                <dd className="font-mono text-xs">{r.manifest?.contentHash ?? "–"}</dd>
-                <dt className="text-text-muted">mapping</dt>
-                <dd className="font-mono text-xs">{r.manifest?.mappingId ?? "–"}</dd>
-                <dt className="text-text-muted">params hash</dt>
-                <dd className="font-mono text-xs">{r.manifest?.paramsHash ?? "–"}</dd>
-                <dt className="text-text-muted">wise version</dt>
-                <dd className="font-mono text-xs">{r.manifest?.wiseVersion ?? "–"}</dd>
-                <dt className="text-text-muted">started</dt>
-                <dd>{fmtDateTime(r.manifest?.startedAt)}</dd>
-                <dt className="text-text-muted">finished</dt>
-                <dd>{fmtDateTime(r.manifest?.finishedAt)}</dd>
-                <dt className="text-text-muted">job</dt>
-                <dd className="font-mono text-xs">{r.jobId ?? "–"}</dd>
-              </dl>
-              <p className="mt-3 text-xs text-text-muted">Same content hash + norm fingerprint + params hash → identical ranked list. Comparisons across different groupings are refused.</p>
-            </Card>
-          </div>
+              {/*
+                The run in the reader's words first (R3-O7): what was read, against which expectations,
+                in which perspectives, with which parameters in words, when and how long, and the caveats that
+                travel with the numbers. Every fingerprint, hash, mapping id and job id sits behind
+                "Technical details", closed on arrival — the first screenful of this step carries no id.
+              */}
+              <div className="flex flex-col gap-4">
+                <Card>
+                  <CardTitle>What this run is</CardTitle>
+                  {manifest.isPending && <LoadingBlock rows={5} />}
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm" data-testid="run-plain">
+                    {plainRows.map((row) => (
+                      <div key={row.label} className="contents">
+                        <dt className="text-text-muted">{row.label}</dt>
+                        <dd>
+                          <span className="text-text">{row.value ?? "–"}</span>
+                          {row.note ? <span className="reading mt-0.5 block text-xs text-text-subtle">{row.note}</span> : null}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {uncalibrated.length > 0 && (
+                    <div className="mt-4 flex flex-col gap-1" data-testid="run-uncalibrated">
+                      <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">Expectations to calibrate</p>
+                      <ul className="flex flex-col gap-1 text-sm text-text-muted">
+                        {uncalibrated.map((u) => (
+                          <li key={u.id} className="reading flex items-start gap-2">
+                            <CalibrationChip text={u.text} />
+                            <span>{u.text ?? u.plain_name ?? u.description}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Card>
+                <details className="surface px-4 py-3" data-testid="run-technical">
+                  <summary className="cursor-pointer text-sm font-medium">Technical details</summary>
+                  <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-text-subtle">Parameters</p>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                        <dt className="text-text-muted">case table</dt>
+                        <dd className="font-mono text-xs">{r.caseTableId}</dd>
+                        <dt className="text-text-muted">norm version</dt>
+                        <dd>
+                          <Link className="font-mono text-xs text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: r.normVersionId }} search={{ tab: "constraints" }}>
+                            {r.normVersionId}
+                          </Link>
+                        </dd>
+                        <dt className="text-text-muted">views</dt>
+                        <dd>{r.views?.join(", ")}</dd>
+                        <dt className="text-text-muted">slicings</dt>
+                        <dd>{r.slicings?.map((s) => `${(s.attributes ?? []).join(" × ")} (id ${s.id})`).join("; ")}</dd>
+                        <dt className="text-text-muted">γ</dt>
+                        <dd className="tnum">{fmtNum(r.gamma, 0)}</dd>
+                        <dt className="text-text-muted">min cases</dt>
+                        <dd className="tnum">{fmtNum(r.minCases, 0)}</dd>
+                        <dt className="text-text-muted">baseline run</dt>
+                        <dd className="font-mono text-xs">{r.baselineRunId ?? "– (global mean of this run)"}</dd>
+                        <dt className="text-text-muted">scope</dt>
+                        <dd>{flowTypeOf(r) ? `${flowTypeOf(r)} flow type only` : "all flow types together"}</dd>
+                      </dl>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-text-subtle">Manifest and provenance</p>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                        <dt className="text-text-muted">norm fingerprint</dt>
+                        <dd className="font-mono text-xs">{r.manifest?.normFingerprint ?? "–"}</dd>
+                        <dt className="text-text-muted">content hash</dt>
+                        <dd className="font-mono text-xs">{r.manifest?.contentHash ?? "–"}</dd>
+                        <dt className="text-text-muted">mapping</dt>
+                        <dd className="font-mono text-xs">{r.manifest?.mappingId ?? "–"}</dd>
+                        <dt className="text-text-muted">params hash</dt>
+                        <dd className="font-mono text-xs">{r.manifest?.paramsHash ?? "–"}</dd>
+                        <dt className="text-text-muted">wise version</dt>
+                        <dd className="font-mono text-xs">{r.manifest?.wiseVersion ?? "–"}</dd>
+                        <dt className="text-text-muted">started</dt>
+                        <dd>{fmtDateTime(r.manifest?.startedAt)}</dd>
+                        <dt className="text-text-muted">finished</dt>
+                        <dd>{fmtDateTime(r.manifest?.finishedAt)}</dd>
+                        <dt className="text-text-muted">job</dt>
+                        <dd className="font-mono text-xs">{r.jobId ?? "–"}</dd>
+                      </dl>
+                      <p className="mt-3 text-xs text-text-muted">Same content hash + norm fingerprint + params hash → identical ranked list. Comparisons across different groupings are refused.</p>
+                    </div>
+                  </div>
+                </details>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import builtins
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from wise_workbench.adapters.knowledge import guidance_complete
+from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
+from wise_workbench.adapters.knowledge import guidance_complete, guidance_ref
 from wise_workbench.domain import CaseTableStatus, NormStatus, NormVersion, NotFoundError, ValidationError
 from wise_workbench.ids import new_id
 
@@ -86,6 +88,77 @@ class NormService:
     def set_status(self, project_id: str, norm_version_id: str, status: NormStatus) -> NormVersion:
         n = self.get(project_id, norm_version_id).with_status(status)
         return self.c.repos.update_norm_status(n)
+
+    # ------------------------------------------------------------- norm builder (R3-O6)
+    def inventory(
+        self,
+        project_id: str,
+        case_table_id: str,
+        *,
+        attribute: str | None = None,
+        q: str | None = None,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        """The activities and attribute values a norm can be built from, with counts."""
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        if table.status != CaseTableStatus.READY:
+            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        process = self.c.repos.get_project(project_id).process
+        out = self.c.engine.inventory(
+            self.c.workspace.case_table_dir(project_id, case_table_id),
+            mapping,
+            process=process,
+            attribute=attribute,
+            q=q,
+            limit=limit,
+        )
+        out["caseTableId"] = case_table_id
+        out["caseNoun"] = out.get("caseNoun") or (table.readiness.case_noun if table.readiness else None)
+        return out
+
+    def validate_constraint(
+        self,
+        project_id: str,
+        case_table_id: str,
+        constraint: dict[str, Any],
+        *,
+        norm_version_id: str | None = None,
+    ) -> dict[str, Any]:
+        """One expectation checked against a case table, with the plain sentence the builder shows."""
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        if table.status != CaseTableStatus.READY:
+            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        project = self.c.repos.get_project(project_id)
+        document = self.get(project_id, norm_version_id).document if norm_version_id else None
+        noun = (
+            mapping.case_noun
+            or (table.readiness.case_noun if table.readiness else None)
+            or pack_case_noun(project.process)
+            or "cases"
+        )
+        out = self.c.engine.validate_constraint(
+            self.c.workspace.case_table_dir(project_id, case_table_id),
+            mapping,
+            constraint,
+            process=project.process,
+            document=document,
+            case_noun=noun,
+        )
+        out["caseTableId"] = case_table_id
+        out["caseNoun"] = noun
+        return out
+
+    def guidance_missing(self, n: NormVersion) -> builtins.list[str]:
+        """Layers of the norm that carry no guidance: what the elicitation questions still have to fill (RK-6)."""
+        process = self.c.repos.get_project(n.project_id).process
+        out: builtins.list[str] = []
+        for layer in n.document.get("layers") or []:
+            lid = str(layer.get("id"))
+            if guidance_ref(process, "layer", lid, document=n.document).plain_name is None:
+                out.append(lid)
+        return out
 
     def check(self, project_id: str, norm_version_id: str, case_table_id: str) -> dict[str, Any]:
         n = self.get(project_id, norm_version_id)

@@ -24,9 +24,19 @@ ZERO_EXPOSURE_HANDLING = ("keep", "exclude")
 DEFAULT_CASE_NOUN = "cases"
 
 
+PREPARED_KINDS = ("date_difference", "period", "alias")
+
+
 @dataclass(frozen=True)
 class FlowTypingRule:
-    """``name`` is the flow-type label; ``rule`` is a library applicability rule."""
+    """``name`` is the flow-type label; ``rule`` is a library applicability rule or a canonical filter clause.
+
+    Applicability rules (``attr``/``in``/``eq``/``has``/``all``/``any``/``not``) are evaluated by the library.
+    A rule written in the filter grammar of the contract (``{"kind": "activity", …}``, ``{"kind": "count", …}``,
+    ``{"and": [...]}`` of such clauses) is evaluated by the workbench's filter engine instead — the knowledge
+    packs' presets describe their flow types that way, and both grammars are supported so that a preset does not
+    have to be rewritten.
+    """
 
     name: str
     rule: dict[str, Any]
@@ -36,6 +46,54 @@ class FlowTypingRule:
             raise ValidationError("flow typing: every rule needs a name")
         if not isinstance(self.rule, dict) or not self.rule:
             raise ValidationError(f"flow typing rule {self.name!r}: rule must be a non-empty mapping")
+
+    @property
+    def is_filter(self) -> bool:
+        """True when the rule is written in the canonical filter grammar rather than the library's."""
+        return _is_filter_rule(self.rule)
+
+
+def _is_filter_rule(rule: dict[str, Any]) -> bool:
+    if "kind" in rule:
+        return True
+    for key in ("and", "any", "all"):
+        items = rule.get(key)
+        if isinstance(items, list) and any(isinstance(x, dict) and _is_filter_rule(x) for x in items):
+            return True
+    if isinstance(rule.get("not"), dict):
+        return _is_filter_rule(rule["not"])
+    return False
+
+
+@dataclass(frozen=True)
+class PreparedAttribute:
+    """A case attribute the workbench computes at case-table build, next to the library's derive recipes.
+
+    The library derives from the log's own primitives (counts, lags, totals). Three shapes a preset needs are not
+    among them: the difference between an event date and a date carried as a case attribute (``date_difference``,
+    the O2C ``days_late``), the period of a date (``period``, the O2C ``order_month``) and a second name for a
+    column a template expects under a canonical name (``alias``, ``Returns Item`` → ``return_item``). All three
+    become ordinary case attributes: sliceable, filterable and usable in applicability.
+    """
+
+    name: str
+    kind: str
+    spec: dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValidationError("a prepared attribute needs a name", code="mapping.prepared")
+        if self.name in RESERVED_ATTRIBUTES:
+            raise ValidationError(f"prepared attribute {self.name!r} is reserved", code="mapping.prepared")
+        if self.kind not in PREPARED_KINDS:
+            raise ValidationError(
+                f"prepared attribute {self.name!r}: kind must be one of {list(PREPARED_KINDS)}",
+                code="mapping.prepared",
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"name": self.name, "kind": self.kind, "spec": dict(self.spec), "description": self.description}
 
 
 @dataclass(frozen=True)
@@ -62,6 +120,7 @@ class ColumnMapping:
     flow_type_default: str = "other"
     closure_activities: tuple[str, ...] = ()
     derived_attributes: tuple[dict[str, Any], ...] = ()
+    prepared_attributes: tuple[PreparedAttribute, ...] = ()
     dedupe: bool = False
     missing_label: str | None = "(missing)"
     note: str | None = None
@@ -144,8 +203,11 @@ class ColumnMapping:
 
     @property
     def all_case_attributes(self) -> list[str]:
-        """Case attributes the case table carries: mapped ones plus the flow type."""
+        """Case attributes the case table carries: mapped ones, the prepared ones and the flow type."""
         attrs = list(self.case_attributes)
+        for prepared in self.prepared_attributes:
+            if prepared.name not in attrs:
+                attrs.append(prepared.name)
         if self.flow_typing and FLOW_TYPE_ATTRIBUTE not in attrs:
             attrs.append(FLOW_TYPE_ATTRIBUTE)
         return attrs
@@ -180,6 +242,7 @@ class ColumnMapping:
             "flowTypeDefault": self.flow_type_default,
             "closureActivities": list(self.closure_activities),
             "derivedAttributes": [dict(r) for r in self.derived_attributes],
+            "preparedAttributes": [p.to_dict() for p in self.prepared_attributes],
             "dedupe": self.dedupe,
             "missingLabel": self.missing_label,
             "note": self.note,
@@ -225,6 +288,15 @@ class ColumnMapping:
             flow_type_default=str(d.get("flowTypeDefault") or "other"),
             closure_activities=tuple(d.get("closureActivities") or ()),
             derived_attributes=tuple(dict(r) for r in d.get("derivedAttributes") or ()),
+            prepared_attributes=tuple(
+                PreparedAttribute(
+                    name=str(r.get("name") or ""),
+                    kind=str(r.get("kind") or ""),
+                    spec=dict(r.get("spec") or {}),
+                    description=r.get("description"),
+                )
+                for r in d.get("preparedAttributes") or ()
+            ),
             dedupe=bool(d.get("dedupe", False)),
             missing_label=(str(d["missingLabel"]) if d.get("missingLabel") else None)
             if "missingLabel" in d

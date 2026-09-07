@@ -93,7 +93,9 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     return Math.max(mag, 0.001);
   }, [xMin, xMax]);
   const unit = distribution.unit ?? "";
-  const unitWord = UNIT_WORD[unit] ?? unit;
+  // the answer's unit is the column it was measured on (`manual_share`); the axis, the band and the sentences
+  // say it in words, never as a field name
+  const unitWord = UNIT_WORD[unit] ?? unit.replace(/[_-]+/g, " ").trim();
   const dirty = t !== (distribution.threshold ?? 0) || w !== (distribution.width ?? 1);
   const nGroup = total(distribution);
   const nAll = rest ? total(rest) : 0;
@@ -120,8 +122,11 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
   const [instance, setInstance] = useState<ECharts>();
 
   const option = useMemo<EChartsOption>(() => {
-    const groupShares = bins.map((b) => (nGroup > 0 ? (b.n ?? 0) / nGroup : 0));
-    const maxShare = Math.max(0.0001, ...groupShares, ...(restShares ?? []));
+    // a share of cases is between nothing and everything: the axis never runs past 100 %
+    const share = (v: number) => Math.max(0, Math.min(1, v));
+    const groupShares = bins.map((b) => share(nGroup > 0 ? (b.n ?? 0) / nGroup : 0));
+    const restBars = restShares?.map(share);
+    const maxShare = Math.min(1, Math.max(0.0001, ...groupShares, ...(restBars ?? [])));
     const lo = direction === "high" ? t : t - w;
     const hi = direction === "high" ? t + w : t;
     const bar = (name: string, shares: number[], color: string, opacity: number, z: number) => ({
@@ -145,7 +150,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
       },
     });
     const series: Record<string, unknown>[] = [];
-    if (restShares) series.push(bar("everyone else", restShares, tk.muted, 0.6, 1));
+    if (restBars) series.push(bar("everyone else", restBars, tk.muted, 0.6, 1));
     series.push({
       ...bar(groupName, groupShares, tk.accent, restShares ? 0.85 : 0.9, 2),
       markArea: { silent: true, itemStyle: { color: tk.violation[1], opacity: 0.3 }, label: { show: true, position: "insideTop", color: tk.muted, fontSize: 11, formatter: plain ? `tolerance to ${fmtNum(hi, 0)} ${unitWord}` : `ϑ … ϑ${direction === "high" ? "+" : "−"}W` }, data: [[{ xAxis: lo }, { xAxis: hi }]] },
@@ -279,6 +284,18 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     </div>
   );
 
+  // a group without a single value is not a 100 % share of nothing (R2-05): it says so and draws no bars
+  if (total(distribution) === 0) {
+    return (
+      <section className={cn("flex flex-col gap-2", className)} aria-label={title ?? `Distribution of ${constraintId ?? "signal"}`} data-testid="lens-empty">
+        {title && <h3 className="text-sm font-semibold">{title}</h3>}
+        <p className="reading text-sm text-text-muted">
+          No case of {groupName} has a value for this expectation, so there is nothing to draw — not a share of 100 %. The expectation may not apply here, or the events it measures are missing.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className={cn("flex flex-col gap-3", className)} aria-label={title ?? `Distribution of ${constraintId ?? "signal"}`}>
       <header className="flex flex-col gap-1">
@@ -287,7 +304,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           <div className="reading flex flex-col gap-0.5 text-base text-text" data-testid="lens-sentences">
             {sentences ?? (
               <p aria-live="polite">
-                <strong className="tnum">{fmtPct(stats.shareViolating, 0)}</strong> of {groupName}'s cases are beyond the expected {fmtNum(t, t >= 10 ? 0 : 1)} {unitWord}
+                <strong className="tnum">{fmtPct(stats.shareViolating, 0)}</strong> of {groupName} are beyond the expected {fmtNum(t, t >= 10 ? 0 : 1)} {unitWord}
                 {restBeyond !== undefined ? ` (everyone else: ${fmtPct(restBeyond, 0)})` : ""}.
               </p>
             )}

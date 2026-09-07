@@ -641,6 +641,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/case-tables/{caseTableId}/decisions:
+    get:
+      tags:
+      - datasets
+      summary: Get Case Table Decisions
+      description: 'Every readiness item with its full option set, the decision in force (its option marked) and the decision history, plus the lineage of case tables the decisions built. A decision never removes the options of its item: deciding again creates the next mapping version. A new decision is applied to `caseTableId` here, the head of the lineage, so decisions accumulate.'
+      operationId: getCaseTableDecisions
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Casetableid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionItems'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - datasets
+      summary: Apply Decision
+      description: 'Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built from it (job) and its readiness report is the re-evaluation.'
+      operationId: applyDecision
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Casetableid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionApplied'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /projects/{projectId}/case-tables/{caseTableId}/decisions/preview:
     post:
       tags:
@@ -674,45 +745,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DecisionPreviewOut'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /projects/{projectId}/case-tables/{caseTableId}/decisions:
-    post:
-      tags:
-      - datasets
-      summary: Apply Decision
-      description: 'Apply a decision: it is stored as a versioned mapping decision (a child mapping), a new case table is built from it (job) and its readiness report is the re-evaluation.'
-      operationId: applyDecision
-      parameters:
-      - name: projectId
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Projectid
-      - name: caseTableId
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Casetableid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DecisionRequest'
-      responses:
-        '202':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DecisionApplied'
         '422':
           description: Validation Error
           content:
@@ -780,6 +812,164 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Content
+  /projects/{projectId}/norms/inventory:
+    get:
+      tags:
+      - norms
+      summary: Get Norm Inventory
+      description: 'The pickers of the norm builder: the log''s activities with their event and case counts and their stage, and every case attribute with its distinct count and its values. Without `attribute` each attribute is summarised with its ten most frequent values; with one, that attribute''s values are listed (searchable with `q`, up to `limit`).'
+      operationId: getNormInventory
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the case table the norm is written against
+          title: Casetableid
+        description: the case table the norm is written against
+      - name: attribute
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: list this attribute's values in full
+          title: Attribute
+        description: list this attribute's values in full
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: search activities or values
+          title: Q
+        description: search activities or values
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 25
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inventory'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/norms/constraints/check:
+    post:
+      tags:
+      - norms
+      summary: Check Constraint
+      description: 'One expectation checked against a case table before it goes into a norm: whether it is well formed, whether the activities it names occur, how many cases it applies to and how many miss it, and what it says in one plain sentence with its applicability in words.'
+      operationId: checkConstraint
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConstraintCheckRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintCheck'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/norms/guidance-questions:
+    get:
+      tags:
+      - norms
+      summary: Get Guidance Questions
+      description: 'The five questions asked when an expectation area or an expectation is defined (knowledge-hub panel §4): what we call it, what we expect, what it means when missed, what usually causes it, what we do about it and who owns it. The pack''s text is offered as a starting answer; answers are stored as the project''s guidance overlay.'
+      operationId: getGuidanceQuestions
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: kind
+        in: query
+        required: false
+        schema:
+          enum:
+          - layer
+          - constraint
+          - expectation
+          - failure_mode
+          type: string
+          default: layer
+          title: Kind
+      - name: id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: the layer or expectation being defined
+          title: Id
+        description: the layer or expectation being defined
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuidanceQuestions'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /projects/{projectId}/norms/{normVersionId}:
     get:
       tags:
@@ -896,6 +1086,211 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/knowledge/hub:
+    get:
+      tags:
+      - knowledge
+      summary: Get Knowledge Hub
+      description: 'The knowledge hub of the project''s process pack as node and edge tables: stages, expectation areas, expectations, failure modes, usual reasons, usual actions and KPIs, each with its plain name and its method name. Nodes the project has written its own note on are marked `hasOverlay`.'
+      operationId: getKnowledgeHub
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: process
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'pack id; default: the project''s process'
+          title: Process
+        description: 'pack id; default: the project''s process'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubIndex'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/knowledge/hub/{nodeId}:
+    get:
+      tags:
+      - knowledge
+      summary: Get Knowledge Hub Page
+      description: 'One hub page: what it means, why it matters, how it is detected, the usual reasons with what to check in the log and whom to ask outside it, the usual actions with countermeasure type and owner role, what to check first, examples and KPIs, plus the related stage, expectations, failure modes and playbook.'
+      operationId: getKnowledgeHubPage
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Nodeid
+      - name: process
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubPage'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/guidance/{kind}/{entryId}:
+    get:
+      tags:
+      - knowledge
+      summary: Get Guidance
+      description: 'The guidance of one expectation area (`layer`), expectation (`constraint` or `expectation`) or failure mode: the pack''s generic tier, the project''s own note as `overlay`, and the hub node to open. Pass `normVersionId` to read the guidance a norm carries with it.'
+      operationId: getGuidance
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: kind
+        in: path
+        required: true
+        schema:
+          enum:
+          - layer
+          - constraint
+          - expectation
+          - failure_mode
+          type: string
+          title: Kind
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entryid
+      - name: normVersionId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: read metadata.guidance of this norm version
+          title: Normversionid
+        description: read metadata.guidance of this norm version
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guidance'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - knowledge
+      summary: Set Guidance Overlay
+      description: Your organisation's note on this entry (RK-5). It is added to the generic tier, never instead of it.
+      operationId: setGuidanceOverlay
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: kind
+        in: path
+        required: true
+        schema:
+          enum:
+          - layer
+          - constraint
+          - expectation
+          - failure_mode
+          type: string
+          title: Kind
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entryid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuidanceOverlay'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guidance'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
   /projects/{projectId}/runs:
     get:
       tags:
@@ -1030,6 +1425,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Run'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/manifest:
+    get:
+      tags:
+      - runs
+      summary: Get Run Manifest
+      description: 'The run in two blocks (R3-O7): `plain` is what a person needs — the log, the expectations, the perspective, the grouping, the parameters in words, the end of the data, when it ran and how long, and the data caveats; `technical` keeps the fingerprints, hashes and artefact checksums.'
+      operationId: getRunManifest
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunManifestView'
         '422':
           description: Validation Error
           content:
@@ -1227,6 +1655,18 @@ paths:
           description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
           title: Filter
         description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      - name: volume
+        in: query
+        required: false
+        schema:
+          enum:
+          - cases
+          - exposure
+          type: string
+          description: 'what the Priority Index weighs: the number of cases (default) or their exposure'
+          default: cases
+          title: Volume
+        description: 'what the Priority Index weighs: the number of cases (default) or their exposure'
       - name: page
         in: query
         required: false
@@ -1353,6 +1793,237 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FilterPreview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/facets:
+    get:
+      tags:
+      - runs
+      summary: Get Facets
+      description: 'One row per value of a case attribute (`by=attribute&attribute=…`), of the flow type (`by=flow_type`) or of the case start period (`by=period`), under the canonical filter: how many cases carry it, how many of them miss at least one expectation, how much priority is at stake on it and how many are still open. Periods come back in time order, everything else by priority.'
+      operationId: getFacets
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: by
+        in: query
+        required: false
+        schema:
+          enum:
+          - attribute
+          - flow_type
+          - period
+          type: string
+          default: attribute
+          title: By
+      - name: attribute
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: case attribute; required for by=attribute
+          title: Attribute
+        description: case attribute; required for by=attribute
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: gamma
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gamma
+      - name: period
+        in: query
+        required: false
+        schema:
+          enum:
+          - month
+          - quarter
+          - year
+          - week
+          type: string
+          default: month
+          title: Period
+      - name: sort
+        in: query
+        required: false
+        schema:
+          enum:
+          - -priority
+          - priority
+          - -cases
+          - cases
+          - -share_below
+          - share_below
+          - period
+          type: string
+          default: -priority
+          title: Sort
+      - name: minCases
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Mincases
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+          title: Filter
+        description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Facets'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/kpis:
+    get:
+      tags:
+      - runs
+      summary: Get Kpis
+      description: 'The board''s KPI tiles for the cases the filter (and, when given, the group) keeps: items, share below expectation, priority at stake, still open and the mean score, each with a plain sentence.'
+      operationId: getKpis
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: gamma
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gamma
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: restrict the tiles to one group of this slicing
+          title: Slicing
+        description: restrict the tiles to one group of this slicing
+      - name: sliceKey
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: the group's key (JSON array)
+          title: Slicekey
+        description: the group's key (JSON array)
+      - name: grouping
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'slicing whose groups carry the priority (default: the run''s first slicing)'
+          title: Grouping
+        description: 'slicing whose groups carry the priority (default: the run''s first slicing)'
+      - name: minCases
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Mincases
+      - name: bands
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+          title: Bands
+        description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+          title: Filter
+        description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kpis'
         '422':
           description: Validation Error
           content:
@@ -1709,6 +2380,212 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/flow/bpmn:
+    get:
+      tags:
+      - runs
+      summary: Export Flow Bpmn
+      description: The flow as BPMN 2.0. `scope=flow` (default) exports the observed map at `detail` (the abstraction level of the map, so the file is what the screen shows, filter included); `scope=stages` exports the knowledge pack's stage model. Stages become lanes, activities tasks, branches exclusive gateways; counts travel in `bpmn:documentation` and in `wise:*` attributes. The response headers carry the element counts.
+      operationId: exportFlowBpmn
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: scope
+        in: query
+        required: false
+        schema:
+          enum:
+          - flow
+          - stages
+          type: string
+          description: the observed flow or the pack's stage model
+          default: flow
+          title: Scope
+        description: the observed flow or the pack's stage model
+      - name: detail
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          description: detail level of the map (abstraction)
+          default: 0.05
+          title: Detail
+        description: detail level of the map (abstraction)
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: sliceKey
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+      - name: gateways
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: insert exclusive gateways where a task branches or joins
+          default: true
+          title: Gateways
+        description: insert exclusive gateways where a task branches or joins
+      - name: bands
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+          title: Bands
+        description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+          title: Filter
+        description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      - name: download
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: offer the file as an attachment
+          default: false
+          title: Download
+        description: offer the file as an attachment
+      responses:
+        '200':
+          description: A BPMN 2.0 document with lanes, gateways, sequence flows and a laid-out diagram.
+          content:
+            application/xml:
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/runs/{runId}/flow/activities/{activityId}:
+    get:
+      tags:
+      - runs
+      summary: Get Activity Profile
+      description: 'One activity of the map by node id or label: counts, stage, the expectations that name it, and every incoming and outgoing path of the **full** directly-follows relation with the count of the paths the detail level hides (R3-O8).'
+      operationId: getActivityProfile
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: activityId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Activityid
+      - name: abstraction
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          default: 0.05
+          title: Abstraction
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: sliceKey
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+      - name: bands
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+          title: Bands
+        description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+          title: Filter
+        description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityProfile'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /projects/{projectId}/runs/{runId}/flow:
     get:
       tags:
@@ -1791,6 +2668,626 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FlowGraph'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/gates:
+    get:
+      tags:
+      - review
+      summary: Get Gates
+      description: The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. A hypothesis or an action on a group with a failed gate is refused with 409 until the gate is passed or waived with a note.
+      operationId: getGates
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the group's key (JSON array)
+          title: Key
+        description: the group's key (JSON array)
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gates'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/gates/{gateId}:
+    post:
+      tags:
+      - review
+      summary: Set Gate
+      description: Pass, fail or waive one gate. Passing or waiving needs a note that says why.
+      operationId: setGate
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: gateId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Gateid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the group's key (JSON array)
+          title: Key
+        description: the group's key (JSON array)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GateUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gates'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/hypotheses:
+    get:
+      tags:
+      - review
+      summary: List Hypotheses
+      operationId: listHypotheses
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewItem'
+                title: Response Listhypotheses
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - review
+      summary: Create Hypothesis
+      description: Record a hypothesis about one group and one expectation. The backend computes its test from the run's contrast (risk difference with its interval, the real-unit shift) and refuses the record while a gate of that group has failed.
+      operationId: createHypothesis
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HypothesisCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/hypotheses/{itemId}:
+    get:
+      tags:
+      - review
+      summary: Get Hypothesis
+      operationId: getHypothesis
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Itemid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - review
+      summary: Update Hypothesis
+      operationId: updateHypothesis
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Itemid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/findings:
+    get:
+      tags:
+      - review
+      summary: List Findings
+      operationId: listFindings
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewItem'
+                title: Response Listfindings
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - review
+      summary: Create Finding
+      description: What the analysis concluded about a group, with the evidence it rests on.
+      operationId: createFinding
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FindingCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/findings/{itemId}:
+    patch:
+      tags:
+      - review
+      summary: Update Finding
+      operationId: updateFinding
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Itemid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/actions:
+    get:
+      tags:
+      - review
+      summary: List Actions
+      operationId: listActions
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewItem'
+                title: Response Listactions
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - review
+      summary: Create Action
+      description: 'What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Refused with 409 while a gate of the group has failed.'
+      operationId: createAction
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/actions/{itemId}:
+    patch:
+      tags:
+      - review
+      summary: Update Action
+      operationId: updateAction
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Itemid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewItem'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/what-can-we-do:
+    get:
+      tags:
+      - review
+      summary: Get What Can We Do
+      description: 'The sixth step for one group: for its top expectations the usual reasons with what to check in the log and whom to ask outside it, the usual actions with a countermeasure type and an owner role, what to check first, and the headroom of each expectation in score points; plus the gates and the actions already saved.'
+      operationId: getWhatCanWeDo
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the group's key (JSON array)
+          title: Key
+        description: the group's key (JSON array)
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: top
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 10
+          minimum: 1
+          default: 3
+          title: Top
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatCanWeDo'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -1893,7 +3390,7 @@ paths:
       tags:
       - notebook
       summary: Export Notebook
-      description: 'The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint arrives in cycle 4.'
+      description: 'The notebook as a zip: `notebook.md` with the images under `images/` (format=markdown); PowerPoint is not available yet.'
       operationId: exportNotebook
       parameters:
       - name: projectId
@@ -2221,6 +3718,98 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ActionCreate:
+      properties:
+        title:
+          type: string
+          title: Title
+        runId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+        slicing:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+        sliceKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        mechanism:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mechanism
+          description: what produces the shortfall
+        remedy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Remedy
+        countermeasure:
+          anyOf:
+          - type: string
+            enum:
+            - policy
+            - system_setting
+            - standard_work
+            - training
+            - catalogue
+            - contract
+            - master_data
+            - automation
+            - review
+            - measurement
+          - type: 'null'
+          title: Countermeasure
+        owner_role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Role
+        due:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Due
+        status:
+          type: string
+          enum:
+          - proposed
+          - agreed
+          - in_progress
+          - done
+          - dropped
+          title: Status
+          default: proposed
+        links:
+          items:
+            type: string
+          type: array
+          title: Links
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: true
+      type: object
+      required:
+      - title
+      title: ActionCreate
     ActivityCount:
       properties:
         label:
@@ -2238,6 +3827,91 @@ components:
       - events
       - cases
       title: ActivityCount
+    ActivityInventory:
+      properties:
+        label:
+          type: string
+          title: Label
+        events:
+          type: integer
+          title: Events
+        cases:
+          type: integer
+          title: Cases
+        share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Share
+        stage:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stage
+        canonicalId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Canonicalid
+      type: object
+      required:
+      - label
+      - events
+      - cases
+      title: ActivityInventory
+    ActivityProfile:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        onMap:
+          type: boolean
+          title: Onmap
+          description: whether the current detail level draws this activity
+        stage:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stage
+        cases:
+          type: integer
+          title: Cases
+        events:
+          type: integer
+          title: Events
+        shareOfCases:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shareofcases
+        metrics:
+          additionalProperties:
+            type: number
+          type: object
+          title: Metrics
+        paths:
+          $ref: '#/components/schemas/FlowPaths'
+        constraintsTouching:
+          items:
+            $ref: '#/components/schemas/ConstraintTouching'
+          type: array
+          title: Constraintstouching
+        meta:
+          additionalProperties: true
+          type: object
+          title: Meta
+      type: object
+      required:
+      - id
+      - label
+      - onMap
+      - cases
+      - events
+      - paths
+      title: ActivityProfile
     AnalyticsStatus:
       properties:
         runId:
@@ -2270,6 +3944,65 @@ components:
       - runId
       - status
       title: AnalyticsStatus
+    AttributeInventory:
+      properties:
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          enum:
+          - text
+          - number
+          title: Kind
+        distinct:
+          type: integer
+          title: Distinct
+        missing:
+          type: integer
+          title: Missing
+          default: 0
+        total:
+          type: integer
+          title: Total
+          description: values that match the search
+          default: 0
+        values:
+          items:
+            $ref: '#/components/schemas/AttributeValue'
+          type: array
+          title: Values
+        numeric:
+          anyOf:
+          - additionalProperties:
+              type: number
+            type: object
+          - type: 'null'
+          title: Numeric
+          description: min, p10, median, p90, max for numbers
+      type: object
+      required:
+      - name
+      - kind
+      - distinct
+      title: AttributeInventory
+    AttributeValue:
+      properties:
+        value:
+          type: string
+          title: Value
+        cases:
+          type: integer
+          title: Cases
+        share:
+          type: number
+          title: Share
+      type: object
+      required:
+      - value
+      - cases
+      - share
+      title: AttributeValue
     BacklogPage:
       properties:
         rows:
@@ -2500,6 +4233,12 @@ components:
           - type: integer
           - type: 'null'
           title: N Caveats
+        n_caveats_shown:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: N Caveats Shown
+          description: caveats the page-wide rule leaves visible on the card (R2-06)
         plain_layer:
           anyOf:
           - type: string
@@ -2537,6 +4276,17 @@ components:
             - library
           - type: 'null'
           title: Kind Source
+        comparison_constraint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Comparison Constraint
+          description: the expectation the comparison sentence is about
+        comparison_reason:
+          anyOf:
+          - $ref: '#/components/schemas/ComparisonReason'
+          - type: 'null'
+          description: set exactly when `comparison` is null; never both (R2-05)
         reading:
           anyOf:
           - type: string
@@ -2734,6 +4484,30 @@ components:
           - type: string
           - type: 'null'
           title: Window End
+        subgroup:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Subgroup
+          description: 'for a sub-group caveat: the attribute, value and cases it names'
+        suppressed:
+          type: boolean
+          title: Suppressed
+          description: 'true only when the page-wide rule may hide the chip: a warn caveat whose share is within the page-wide range. A fail caveat, and any caveat whose own share exceeds the page-wide threshold, is never suppressed (R2-06)'
+          default: false
+        page_share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Page Share
+          description: the page-wide share of this caveat kind
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+          description: the share above which the chip is always shown
       type: object
       required:
       - id
@@ -2833,6 +4607,13 @@ components:
           type: array
           title: Derivedattributes
           description: library derive recipes
+        preparedAttributes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Preparedattributes
+          description: 'case attributes the workbench computes at build time next to the library''s recipes: {"name", "kind": "date_difference" | "period", "spec", "description"}'
         dedupe:
           type: boolean
           title: Dedupe
@@ -2993,6 +4774,13 @@ components:
           type: array
           title: Derivedattributes
           description: library derive recipes
+        preparedAttributes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Preparedattributes
+          description: 'case attributes the workbench computes at build time next to the library''s recipes: {"name", "kind": "date_difference" | "period", "spec", "description"}'
         dedupe:
           type: boolean
           title: Dedupe
@@ -3097,6 +4885,185 @@ components:
       - nulls
       - distinct
       title: ColumnProfile
+    ComparisonReason:
+      properties:
+        code:
+          type: string
+          enum:
+          - no_scored_cases
+          - no_driver
+          - not_computed
+          - analytics_unavailable
+          - analytics_error
+          title: Code
+          description: why there is no comparison sentence
+        text:
+          type: string
+          title: Text
+          description: the reason in plain words; the screens print this instead of a sentence
+      type: object
+      required:
+      - code
+      - text
+      title: ComparisonReason
+    ConstraintActivity:
+      properties:
+        label:
+          type: string
+          title: Label
+        known:
+          type: boolean
+          title: Known
+        cases:
+          type: integer
+          title: Cases
+      type: object
+      required:
+      - label
+      - known
+      - cases
+      title: ConstraintActivity
+    ConstraintCheck:
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        errors:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Errors
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        layer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Layer
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        sentence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sentence
+          description: the expectation in one sentence, name and rule
+        rule_sentence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Sentence
+        applicability_sentence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Applicability Sentence
+          description: whom it applies to, in words
+        activities:
+          items:
+            $ref: '#/components/schemas/ConstraintActivity'
+          type: array
+          title: Activities
+        casesInScope:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Casesinscope
+        casesEvaluated:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Casesevaluated
+        casesMissing:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Casesmissing
+        shareMissing:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Sharemissing
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        caseTableId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casetableid
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+      type: object
+      required:
+      - valid
+      title: ConstraintCheck
+    ConstraintCheckRequest:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        constraint:
+          additionalProperties: true
+          type: object
+          title: Constraint
+          description: 'the library shape: {"id", "layer", "type", "params", "weight", "applicability", "description"}'
+        normVersionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Normversionid
+          description: read plain names from this norm's guidance
+      type: object
+      required:
+      - caseTableId
+      - constraint
+      title: ConstraintCheckRequest
+    ConstraintTouching:
+      properties:
+        id:
+          type: string
+          title: Id
+        type:
+          type: string
+          title: Type
+        layer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Layer
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        plain_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plain Name
+        hub_node:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hub Node
+      type: object
+      required:
+      - id
+      - type
+      title: ConstraintTouching
     DatasetVersion:
       properties:
         id:
@@ -3223,12 +5190,112 @@ components:
           $ref: '#/components/schemas/CaseTable'
         job:
           $ref: '#/components/schemas/Job'
+        appliedTo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Appliedto
+          description: 'the case table the decision was applied to: the head of the lineage (R3-O3)'
       type: object
       required:
       - decision
       - caseTable
       - job
       title: DecisionApplied
+    DecisionItem:
+      properties:
+        readinessItem:
+          type: string
+          title: Readinessitem
+        kind:
+          type: string
+          title: Kind
+        label:
+          type: string
+          title: Label
+        params:
+          items:
+            type: string
+          type: array
+          title: Params
+        options:
+          additionalProperties:
+            items: {}
+            type: array
+          type: object
+          title: Options
+          description: the values a parameter accepts, for the 'decide again' dialog
+        selected:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Selected
+          description: the parameters of the decision in force
+        currentValue:
+          title: Currentvalue
+          description: what the mapping carries for this item today
+        decided:
+          type: boolean
+          title: Decided
+          default: false
+        canDecideAgain:
+          type: boolean
+          title: Candecideagain
+          default: true
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        history:
+          items:
+            $ref: '#/components/schemas/Decision'
+          type: array
+          title: History
+          description: every decision on this item, newest first
+      type: object
+      required:
+      - readinessItem
+      - kind
+      - label
+      title: DecisionItem
+    DecisionItems:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+          description: 'the head of the lineage: where a new decision is applied'
+        requestedCaseTableId:
+          type: string
+          title: Requestedcasetableid
+        mappingId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mappingid
+        version:
+          type: integer
+          title: Version
+        lineage:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Lineage
+          description: the chain of case tables the decisions built, oldest first
+        items:
+          items:
+            $ref: '#/components/schemas/DecisionItem'
+          type: array
+          title: Items
+      type: object
+      required:
+      - caseTableId
+      - requestedCaseTableId
+      - version
+      title: DecisionItems
+      description: The readiness items with their full option set, the decision in force and its history (R3-O1).
     DecisionKind:
       properties:
         kind:
@@ -3245,6 +5312,22 @@ components:
         label:
           type: string
           title: Label
+        options:
+          additionalProperties:
+            items: {}
+            type: array
+          type: object
+          title: Options
+          description: the values a parameter accepts
+        default:
+          additionalProperties: true
+          type: object
+          title: Default
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
       type: object
       required:
       - kind
@@ -3480,6 +5563,150 @@ components:
       - x
       - label
       title: DistributionMarker
+    FacetValue:
+      properties:
+        value:
+          type: string
+          title: Value
+        label:
+          type: string
+          title: Label
+        field:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Field
+        cases:
+          type: integer
+          title: Cases
+        share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Share
+          description: share of the selected cases carrying this value
+        mean_score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mean Score
+        cases_below:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cases Below
+        share_below_expectation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Share Below Expectation
+          description: share of the value's scored cases that miss at least one expectation
+        gap:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gap
+        stable_gap:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Stable Gap
+        PI:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pi
+        priority_at_stake:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Priority At Stake
+          description: stabilised Priority Index of the value against the run's overall score
+        open_cases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Open Cases
+        open_share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Open Share
+          description: share still open at the window end
+        exposure:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Exposure
+      additionalProperties: true
+      type: object
+      required:
+      - value
+      - label
+      - cases
+      title: FacetValue
+    Facets:
+      properties:
+        by:
+          type: string
+          enum:
+          - attribute
+          - flow_type
+          - period
+          title: By
+        field:
+          type: string
+          title: Field
+          description: the case attribute, the flow-type attribute or 'case start'
+        period:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Period
+          description: month | quarter | year | week, for by=period
+        values:
+          items:
+            $ref: '#/components/schemas/FacetValue'
+          type: array
+          title: Values
+        total:
+          type: integer
+          title: Total
+          description: how many values the facet has in this selection
+        shown:
+          type: integer
+          title: Shown
+        cases:
+          type: integer
+          title: Cases
+          description: cases the filter keeps
+        casesTotal:
+          type: integer
+          title: Casestotal
+          description: cases in the run
+        belowMinCases:
+          type: integer
+          title: Belowmincases
+          default: 0
+        other:
+          additionalProperties: true
+          type: object
+          title: Other
+          description: 'values not shown: how many, their cases and their priority'
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+      type: object
+      required:
+      - by
+      - field
+      - values
+      - total
+      - shown
+      - cases
+      - casesTotal
+      title: Facets
     FilterPreview:
       properties:
         cases_in:
@@ -3510,6 +5737,55 @@ components:
       - cases_in
       - cases_out
       title: FilterPreview
+    FindingCreate:
+      properties:
+        title:
+          type: string
+          title: Title
+        runId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+        slicing:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+        sliceKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        status:
+          type: string
+          title: Status
+          default: open
+        evidence:
+          items:
+            type: string
+          type: array
+          title: Evidence
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: true
+      type: object
+      required:
+      - title
+      title: FindingCreate
     FlowEdge:
       properties:
         id:
@@ -3696,6 +5972,11 @@ components:
           - type: 'null'
           title: Violation Share
           description: share of the cases on the path missing any expectation
+        onMap:
+          type: boolean
+          title: Onmap
+          description: whether the current detail level draws this path
+          default: true
       additionalProperties: true
       type: object
       required:
@@ -3714,8 +5995,36 @@ components:
             $ref: '#/components/schemas/FlowPath'
           type: array
           title: Outgoing
+        hiddenIncoming:
+          type: integer
+          title: Hiddenincoming
+          default: 0
+        hiddenOutgoing:
+          type: integer
+          title: Hiddenoutgoing
+          default: 0
+        hidden:
+          type: integer
+          title: Hidden
+          description: paths that exist below the detail level
+          default: 0
+        totalIncoming:
+          type: integer
+          title: Totalincoming
+          default: 0
+        totalOutgoing:
+          type: integer
+          title: Totaloutgoing
+          default: 0
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+          description: '"n paths hidden by the detail level", in words'
       type: object
       title: FlowPaths
+      description: Every path of the **full** directly-follows relation, with the ones the detail level hides counted (R3-O8).
     FlowType:
       properties:
         name:
@@ -3880,6 +6189,299 @@ components:
       - name
       - rule
       title: FlowTypingRule
+    Gate:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          enum:
+          - readiness
+          - censoring
+          - replication
+          - domain
+          title: Kind
+        status:
+          type: string
+          enum:
+          - pending
+          - passed
+          - failed
+          - waived
+          title: Status
+        computed_status:
+          anyOf:
+          - type: string
+            enum:
+            - pending
+            - passed
+            - failed
+            - waived
+          - type: 'null'
+          title: Computed Status
+        evidence:
+          additionalProperties: true
+          type: object
+          title: Evidence
+        text:
+          type: string
+          title: Text
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        decidedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decidedat
+      type: object
+      required:
+      - id
+      - kind
+      - status
+      - text
+      title: Gate
+    GateUpdate:
+      properties:
+        status:
+          type: string
+          enum:
+          - pending
+          - passed
+          - failed
+          - waived
+          title: Status
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+          description: mandatory when passing or waiving
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+      type: object
+      required:
+      - status
+      title: GateUpdate
+    Gates:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        slicing:
+          type: string
+          title: Slicing
+        sliceKey:
+          type: string
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        cases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cases
+        gates:
+          items:
+            $ref: '#/components/schemas/Gate'
+          type: array
+          title: Gates
+        blocking:
+          items:
+            type: string
+          type: array
+          title: Blocking
+          description: gate ids that block saving a hypothesis or action
+        passed:
+          type: boolean
+          title: Passed
+          default: true
+      type: object
+      required:
+      - runId
+      - slicing
+      - sliceKey
+      title: Gates
+    Guidance:
+      properties:
+        kind:
+          type: string
+          title: Kind
+        id:
+          type: string
+          title: Id
+        generic:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Generic
+          description: 'the pack''s generic tier: plain_name, missed_label, expectation, meaning_when_missed, why_it_matters, how_detected, usual_reasons[], usual_actions[], what_to_check_first[], examples[], kpis[], owner_role, stakeholders, sources[], review_status, version'
+        overlay:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Overlay
+          description: the project's own note
+        hub_node:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hub Node
+          description: the hub page to open for this entry
+      type: object
+      required:
+      - kind
+      - id
+      title: Guidance
+    GuidanceOverlay:
+      properties:
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        plain_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plain Name
+        expectation:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expectation
+        meaning_when_missed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Meaning When Missed
+        why_it_matters:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Why It Matters
+        usual_reasons:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+          title: Usual Reasons
+        usual_actions:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+          title: Usual Actions
+        what_to_check_first:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: What To Check First
+        owner_role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Role
+        stakeholders:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Stakeholders
+        examples:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+          title: Examples
+        kpis:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Kpis
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+      additionalProperties: false
+      type: object
+      title: GuidanceOverlay
+      description: Your organisation's note on one entry; every field is optional and added to the generic tier.
+    GuidanceQuestion:
+      properties:
+        id:
+          type: string
+          title: Id
+        field:
+          type: string
+          title: Field
+        question:
+          type: string
+          title: Question
+        suggested:
+          title: Suggested
+          description: the pack's generic text, offered as a starting answer
+        answer:
+          title: Answer
+          description: what the project has already answered
+      type: object
+      required:
+      - id
+      - field
+      - question
+      title: GuidanceQuestion
+    GuidanceQuestions:
+      properties:
+        kind:
+          type: string
+          title: Kind
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        questions:
+          items:
+            $ref: '#/components/schemas/GuidanceQuestion'
+          type: array
+          title: Questions
+      type: object
+      required:
+      - kind
+      title: GuidanceQuestions
     GuidanceRefOut:
       properties:
         kind:
@@ -3921,6 +6523,238 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HubEdge:
+      properties:
+        from:
+          type: string
+          title: From
+        to:
+          type: string
+          title: To
+        kind:
+          type: string
+          title: Kind
+      additionalProperties: true
+      type: object
+      required:
+      - from
+      - to
+      - kind
+      title: HubEdge
+    HubIndex:
+      properties:
+        pack:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pack
+        process:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+        case_noun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Noun
+        nodes:
+          items:
+            $ref: '#/components/schemas/HubNode'
+          type: array
+          title: Nodes
+        edges:
+          items:
+            $ref: '#/components/schemas/HubEdge'
+          type: array
+          title: Edges
+        overlays:
+          type: integer
+          title: Overlays
+          default: 0
+      type: object
+      title: HubIndex
+    HubNode:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          title: Kind
+        plain_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plain Name
+        method_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Method Name
+        hasOverlay:
+          type: boolean
+          title: Hasoverlay
+          default: false
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - kind
+      title: HubNode
+    HubPage:
+      properties:
+        node:
+          additionalProperties: true
+          type: object
+          title: Node
+        guidance:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Guidance
+        related:
+          additionalProperties: true
+          type: object
+          title: Related
+          description: stage, expectations[], failure_modes[], kpis[], playbook[], reasons[], actions[]
+        overlay:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Overlay
+        process:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+      type: object
+      required:
+      - node
+      title: HubPage
+    HypothesisCreate:
+      properties:
+        runId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+        slicing:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+        sliceKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        constraint_id:
+          type: string
+          title: Constraint Id
+          description: the expectation the hypothesis is about
+        comparison:
+          type: string
+          enum:
+          - group_vs_rest
+          - period
+          - subgroup
+          title: Comparison
+          default: group_vs_rest
+        expected_direction:
+          type: string
+          enum:
+          - higher
+          - lower
+          - none
+          title: Expected Direction
+          default: higher
+        statement_plain:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Statement Plain
+          description: the hypothesis in the reader's own words
+        evidence_links:
+          items:
+            type: string
+          type: array
+          title: Evidence Links
+        outcome:
+          type: string
+          enum:
+          - open
+          - supported
+          - not_supported
+          - inconclusive
+          title: Outcome
+          default: open
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: true
+      type: object
+      required:
+      - constraint_id
+      title: HypothesisCreate
+    Inventory:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        cases:
+          type: integer
+          title: Cases
+        events:
+          type: integer
+          title: Events
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        activities:
+          items:
+            $ref: '#/components/schemas/ActivityInventory'
+          type: array
+          title: Activities
+        attributes:
+          items:
+            $ref: '#/components/schemas/AttributeInventory'
+          type: array
+          title: Attributes
+        attributeNames:
+          items:
+            type: string
+          type: array
+          title: Attributenames
+        stages:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Stages
+      type: object
+      required:
+      - caseTableId
+      - cases
+      - events
+      title: Inventory
+      description: 'What a norm can be built from (R3-O6): the log''s activities and every case attribute''s values, with counts.'
     Job:
       properties:
         id:
@@ -3986,6 +6820,116 @@ components:
       - createdAt
       - updatedAt
       title: Job
+    KpiTile:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+        format:
+          type: string
+          enum:
+          - count
+          - share
+          - index
+          - points
+          title: Format
+          default: count
+        unit:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unit
+        text:
+          type: string
+          title: Text
+          description: the tile in one plain sentence
+      type: object
+      required:
+      - id
+      - label
+      - text
+      title: KpiTile
+    Kpis:
+      properties:
+        tiles:
+          items:
+            $ref: '#/components/schemas/KpiTile'
+          type: array
+          title: Tiles
+        cases:
+          type: integer
+          title: Cases
+        casesTotal:
+          type: integer
+          title: Casestotal
+        casesScored:
+          type: integer
+          title: Casesscored
+        casesBelowExpectation:
+          type: integer
+          title: Casesbelowexpectation
+        meanScore:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Meanscore
+        baseline:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Baseline
+        priorityAtStake:
+          type: number
+          title: Priorityatstake
+        groups:
+          type: integer
+          title: Groups
+        openCases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Opencases
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+      type: object
+      required:
+      - tiles
+      - cases
+      - casesTotal
+      - casesScored
+      - casesBelowExpectation
+      - priorityAtStake
+      - groups
+      title: Kpis
+    ManifestRow:
+      properties:
+        label:
+          type: string
+          title: Label
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - label
+      title: ManifestRow
     MappingSuggestion:
       properties:
         mapping:
@@ -4144,6 +7088,24 @@ components:
           title: Guidance Complete
           description: every layer and expectation has a plain name
           default: false
+        guidance_missing:
+          items:
+            type: string
+          type: array
+          title: Guidance Missing
+          description: layers that still have no guidance (the elicitation questions, RK-6)
+        uncalibrated:
+          items:
+            type: string
+          type: array
+          title: Uncalibrated
+          description: thresholds and weights the norm declares as not yet calibrated (metadata.meta, R2-09)
+        calibration:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calibration
+          description: calibrated | mixed | uncalibrated, from the norm
         createdAt:
           type: string
           format: date-time
@@ -4260,6 +7222,44 @@ components:
         process:
           type: string
           title: Process
+        kind:
+          type: string
+          enum:
+          - builtin
+          - pack
+          title: Kind
+          description: where the preset is defined
+          default: builtin
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+          description: the business name of a case ("sales order items")
+        labelPack:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Labelpack
+          description: the curated label pack that translates the pack's template into this log's labels
+        pitfalls:
+          items:
+            type: string
+          type: array
+          title: Pitfalls
+          description: what to read carefully on this log
+        extraSlicings:
+          items:
+            items:
+              type: string
+            type: array
+          type: array
+          title: Extraslicings
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
       type: object
       required:
       - id
@@ -4428,6 +7428,96 @@ components:
       - level
       - message
       title: ReadinessItem
+    ReviewItem:
+      properties:
+        id:
+          type: string
+          title: Id
+        projectId:
+          type: string
+          title: Projectid
+        kind:
+          type: string
+          enum:
+          - hypothesis
+          - gate
+          - finding
+          - action
+          title: Kind
+        status:
+          type: string
+          title: Status
+        title:
+          type: string
+          title: Title
+          default: ''
+        runId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Runid
+        slicing:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+        sliceKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        createdAt:
+          type: string
+          title: Createdat
+        updatedAt:
+          type: string
+          title: Updatedat
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - projectId
+      - kind
+      - status
+      - createdAt
+      - updatedAt
+      title: ReviewItem
+      description: A hypothesis, a gate decision, a finding or an action; the kind's own fields sit next to these.
+    ReviewItemUpdate:
+      properties:
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: true
+      type: object
+      title: ReviewItemUpdate
     Run:
       properties:
         caseTableId:
@@ -4646,6 +7736,40 @@ components:
           title: Normwarnings
       type: object
       title: RunManifest
+    RunManifestView:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        status:
+          type: string
+          title: Status
+        caseNoun:
+          type: string
+          title: Casenoun
+        plain:
+          items:
+            $ref: '#/components/schemas/ManifestRow'
+          type: array
+          title: Plain
+        technical:
+          additionalProperties: true
+          type: object
+          title: Technical
+        uncalibrated:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Uncalibrated
+          description: expectations whose threshold needs calibrating on this log (R2-09)
+      type: object
+      required:
+      - runId
+      - status
+      - caseNoun
+      title: RunManifestView
+      description: 'The run screen, plain first (R3-O7): what a person needs, and the fingerprints behind `technical`.'
     RunScope:
       properties:
         flow_type:
@@ -4771,6 +7895,17 @@ components:
           - type: string
           - type: 'null'
           title: Comparison
+        comparison_reason:
+          anyOf:
+          - $ref: '#/components/schemas/ComparisonReason'
+          - type: 'null'
+          description: set exactly when `comparison` is null; never both (R2-05)
+        scoredCases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Scoredcases
+          description: cases of the group with a score in this view
         comparisons:
           $ref: '#/components/schemas/Table'
         analytics:
@@ -5091,6 +8226,140 @@ components:
       - workbench
       - wise
       title: Version
+    WhatCanWeDo:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        slicing:
+          type: string
+          title: Slicing
+        sliceKey:
+          type: string
+          title: Slicekey
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        reading:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reading
+        drivers:
+          items:
+            $ref: '#/components/schemas/WhatCanWeDoDriver'
+          type: array
+          title: Drivers
+        gates:
+          items:
+            $ref: '#/components/schemas/Gate'
+          type: array
+          title: Gates
+        blocking:
+          items:
+            type: string
+          type: array
+          title: Blocking
+        actions:
+          items:
+            $ref: '#/components/schemas/ReviewItem'
+          type: array
+          title: Actions
+        guidanceAvailable:
+          type: boolean
+          title: Guidanceavailable
+          default: false
+      type: object
+      required:
+      - runId
+      - slicing
+      - sliceKey
+      title: WhatCanWeDo
+    WhatCanWeDoDriver:
+      properties:
+        constraint_id:
+          type: string
+          title: Constraint Id
+        plain_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plain Name
+        hub_node:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hub Node
+        share_of_shortfall:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Share Of Shortfall
+        comparison:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Comparison
+        headroom_points:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Headroom Points
+          description: score points the group would gain
+        headroom_percent:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Headroom Percent
+        meaning_when_missed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Meaning When Missed
+        why_it_matters:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Why It Matters
+        what_to_check_first:
+          items:
+            type: string
+          type: array
+          title: What To Check First
+        usual_reasons:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Usual Reasons
+        usual_actions:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Usual Actions
+        kpis:
+          items:
+            type: string
+          type: array
+          title: Kpis
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: true
+      type: object
+      required:
+      - constraint_id
+      title: WhatCanWeDoDriver
     WorstCase:
       properties:
         caseId:

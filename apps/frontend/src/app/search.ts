@@ -148,6 +148,81 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
   };
 }
 
+export const RENDER_MODES = ["map", "model", "table"] as const;
+export type RenderMode = (typeof RENDER_MODES)[number];
+export const BREAKDOWNS = ["flow_type", "period", "attribute"] as const;
+export type Breakdown = (typeof BREAKDOWNS)[number];
+
+/**
+ * The Flow step and the board are two arrangements of one step, so they share their state (§3.1, §4.1):
+ * context (perspective, grouping, scope), the canonical filter with its short hash, the detail level, the
+ * rendering, the selection and the full window. `f` is accepted as the short name of `filter`.
+ */
+export interface FlowSearch {
+  view?: string;
+  slicing?: string;
+  /** All flows, or one flow type. */
+  scope?: string;
+  detail?: number;
+  /** The selected element, as `activity:<label>` or `path:<a>→<b>`. */
+  sel?: string;
+  /** The activity whose paths are drawn. */
+  activity?: string;
+  filter?: string;
+  /** The short hash of the canonical filter, for share links and caches. */
+  fh?: string;
+  full?: boolean;
+  render: RenderMode;
+  /** The expectation the lens shows when it is open. */
+  lens?: string;
+}
+
+export function validateFlowSearch(input: Partial<FlowSearch> & SearchSchemaInput): FlowSearch {
+  const s = input as Record<string, unknown>;
+  const detail = num(s.detail);
+  return {
+    view: str(s.view),
+    slicing: str(s.slicing),
+    scope: str(s.scope),
+    detail: detail === undefined ? undefined : Math.max(0, Math.min(4, Math.round(detail))),
+    sel: str(s.sel),
+    activity: str(s.activity),
+    filter: json(s.filter) ?? json(s.f),
+    fh: str(s.fh),
+    full: bool(s.full),
+    render: oneOf(s.render, RENDER_MODES) ?? "map",
+    lens: str(s.lens),
+  };
+}
+
+export interface BoardSearch extends FlowSearch {
+  /** The board's own selectors: period, expectation area, group (§4.4). */
+  period?: string;
+  area?: string;
+  group?: string;
+  /** Which dimension the breakdown shows, and which attribute in its third tab. */
+  breakdown: Breakdown;
+  attribute?: string;
+  /** The panel opened to the full window. */
+  panel?: string;
+  /** The saved board this screen was opened from. */
+  board?: string;
+}
+
+export function validateBoardSearch(input: Partial<BoardSearch> & SearchSchemaInput): BoardSearch {
+  const s = input as Record<string, unknown>;
+  return {
+    ...validateFlowSearch(input),
+    period: str(s.period),
+    area: str(s.area),
+    group: str(s.group),
+    breakdown: oneOf(s.breakdown, BREAKDOWNS) ?? "flow_type",
+    attribute: str(s.attribute),
+    panel: str(s.panel),
+    board: str(s.board),
+  };
+}
+
 export interface CompareSearch {
   view?: string;
   slicing?: string;

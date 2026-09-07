@@ -19,13 +19,32 @@ export const CAVEAT_SHORT: Record<string, string> = {
 
 export const caveatShort = (id: string) => CAVEAT_SHORT[id] ?? id.replace(/_/g, " ");
 
+/** The share below which a caveat is not worth a chip; duplicates need a full per cent (R2-06). */
+export const caveatFloor = (id: string) => (CAVEAT_SHORT[id] === "duplicated events" || CAVEAT_SHORT[id] === "copied postings" ? 0.01 : 0.005);
+
+/**
+ * Whether a page-wide caveat still deserves its own chip on this group (R2-06): a failing caveat always
+ * does; a warning is left to the page's header only while the group's share stays inside the page's range —
+ * at most 1.5 × the page-wide share. That is the rule that hid Real Estate's 44 % censoring behind a 16 %
+ * page-wide line.
+ */
+export function chipHidden(caveat: Caveat, pageWide: Map<string, number | undefined> | undefined): boolean {
+  if (!pageWide?.has(caveat.id)) return false;
+  if (caveat.status === "fail") return false;
+  const share = caveat.share;
+  const wide = pageWide.get(caveat.id);
+  if (share === null || share === undefined || wide === null || wide === undefined) return true;
+  return share <= 1.5 * wide;
+}
+
 /**
  * Data caveats that touch a group, with their share: "14 % still open at the end". At most `max` chips;
- * `hide` lists the ids a page states once in its header instead of on every card.
+ * `hide` carries the caveats a page states once in its header, with their page-wide share, so a group far
+ * outside that range keeps its own chip.
  */
-export function CaveatChips({ caveats, className, max = 3, hide }: { caveats: Caveat[] | undefined; className?: string; max?: number; hide?: Set<string> }) {
+export function CaveatChips({ caveats, className, max = 3, hide }: { caveats: Caveat[] | undefined; className?: string; max?: number; hide?: Map<string, number | undefined> }) {
   const list = (caveats ?? [])
-    .filter((c) => (c.share === null || c.share === undefined || c.share > 0.005) && !hide?.has(c.id))
+    .filter((c) => (c.share === null || c.share === undefined || c.share > caveatFloor(c.id)) && !chipHidden(c, hide))
     .sort((a, b) => (b.status === "fail" ? 1 : 0) - (a.status === "fail" ? 1 : 0) || (b.share ?? 0) - (a.share ?? 0))
     .slice(0, max);
   if (!list.length) return null;

@@ -29,7 +29,8 @@
       "@wise/design-tokens": ["../../packages/design-tokens/tokens.json"],
       "@wise/design-tokens/*": ["../../packages/design-tokens/*"],
       "@wise/flow": ["./node_modules/@wise/flow/dist/index.d.ts", "./stubs/wise-flow/index.d.ts"],
-      "@wise/flow/react": ["./node_modules/@wise/flow/dist/react/index.d.ts", "./stubs/wise-flow/react.d.ts"]
+      "@wise/flow/react": ["./node_modules/@wise/flow/dist/react/index.d.ts", "./stubs/wise-flow/react.d.ts"],
+      "@wise/flow/bpmn": ["./node_modules/@wise/flow/dist/bpmn/index.d.ts", "./stubs/wise-flow/bpmn.d.ts"]
     }
   },
   "include": ["src", "../../packages/api-schema/generated/**/*.ts", "../../packages/design-tokens/tokens.json"]

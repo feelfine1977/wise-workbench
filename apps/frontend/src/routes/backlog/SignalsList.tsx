@@ -4,13 +4,15 @@ import { groupLabel, sharedKeyValues } from "@/lib/sentences";
 import { SignalCard } from "./SignalCard";
 
 export interface SignalsListProps {
+  /** The run's uncalibrated expectations by id. */
+  uncalibrated?: Map<string, { text?: string }>;
   rows: BacklogRow[];
   maxPI: number;
   view?: string;
   layerNames?: Record<string, string>;
   caseNoun?: string;
   /** Caveat ids the page states once in its header. */
-  hideCaveats?: Set<string>;
+  hideCaveats?: Map<string, number | undefined>;
   pins: string[];
   activeKey: string | undefined;
   onActive: (key: string | undefined) => void;
@@ -25,7 +27,7 @@ export interface SignalsListProps {
  * A plain list of focusable articles: the cards carry buttons, so they are not options of a listbox. The part
  * of the name that every group on the page shares is dropped from the cards.
  */
-export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, hideCaveats, pins, activeKey, onActive, onTogglePin, onOpen, onDrill, onFocusFilter }: SignalsListProps) {
+export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, hideCaveats, uncalibrated, pins, activeKey, onActive, onTogglePin, onOpen, onDrill, onFocusFilter }: SignalsListProps) {
   const ref = useRef<HTMLOListElement>(null);
   // the part of the name every group on the page shares (the company on BPIC 2019) is dropped
   const shared = useMemo(() => sharedKeyValues(rows), [rows]);
@@ -109,6 +111,7 @@ export function SignalsList({ rows, maxPI, view, layerNames, caseNoun, hideCavea
       {rows.map((row, i) => (
         <li key={row.key}>
           <SignalCard
+            uncalibrated={uncalibrated}
             row={row}
             maxPI={maxPI}
             view={view}

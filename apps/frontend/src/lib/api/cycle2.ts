@@ -67,6 +67,25 @@ export interface BacklogParamsC2 {
   stability_applies?: boolean;
   /** Set by the mocks on slicings whose rows are made up rather than read from the verified run. */
   illustrative?: boolean;
+  /** Expectations whose threshold needs calibrating on this log (R2-09): the run's own list. */
+  uncalibrated?: UncalibratedExpectation[];
+}
+
+/** One entry of `params.uncalibrated`: an expectation that separates no group on this log. */
+export interface UncalibratedExpectation {
+  id: string;
+  layer?: string;
+  plain_name?: string | null;
+  description?: string | null;
+  share_violated?: number;
+  evaluated?: number;
+  reason?: string;
+  text?: string;
+}
+
+/** The run's uncalibrated expectations by id, for the chips that flag them wherever they are named. */
+export function uncalibratedById(params: BacklogParamsC2 | undefined): Map<string, UncalibratedExpectation> {
+  return new Map((params?.uncalibrated ?? []).map((u) => [u.id, u]));
 }
 
 /** One element of `FlowTypeComparison.types` (the contract leaves it open). */
