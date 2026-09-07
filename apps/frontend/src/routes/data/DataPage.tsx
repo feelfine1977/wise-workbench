@@ -147,7 +147,6 @@ export default function DataPage() {
                 <Th>name</Th>
                 <Th>status</Th>
                 <Th numeric>events</Th>
-                <Th>content hash</Th>
                 <Th>created</Th>
                 <Th>
                   <span className="sr-only">{t("app.actions")}</span>
@@ -158,10 +157,11 @@ export default function DataPage() {
               {datasets.data.map((d) => (
                 <tr key={d.id}>
                   <Td>
-                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{ tab: "mapping" }}>
+                    {/* R3-13: the file's own name is the label; its id and its content hash are how the run is
+                        reproduced, not what the dataset is called, and they live under "details" on the run */}
+                    <Link className="font-medium text-accent-text underline" to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: d.id }} search={{ tab: "mapping" }} title={d.contentHash ? `content hash ${d.contentHash}` : undefined}>
                       {d.name}
                     </Link>
-                    <span className="ml-2 font-mono text-xs text-text-subtle">{d.id}</span>
                   </Td>
                   <Td>
                     <Badge variant={d.status === "ready" ? "success" : d.status === "failed" ? "danger" : "info"}>
@@ -170,7 +170,6 @@ export default function DataPage() {
                     </Badge>
                   </Td>
                   <Td numeric>{fmtInt(d.events)}</Td>
-                  <Td className="font-mono text-xs">{d.contentHash ?? "–"}</Td>
                   <Td>{fmtDateTime(d.createdAt)}</Td>
                   <Td>
                     {d.status === "ready" && (

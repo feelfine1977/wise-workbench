@@ -1,27 +1,34 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 import { useWorkbench } from "@/app/context";
 import { EmptyState, QueryState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
 import { fmtDateTime } from "@/lib/format";
 import { normsQuery } from "@/lib/queries";
+import { NEXT_STATUS, SignVersion } from "./SignVersion";
 
 const statusVariant = { draft: "warning", reviewed: "info", approved: "success" } as const;
 const statusGlyph = { draft: "◐", reviewed: "◑", approved: "●" } as const;
-
-/** S3–S4 — norm versions. */
+/** The versions of this project's norm: what changed, who signed it, and which one the latest run used. */
 export default function NormsPage() {
   const { t } = useTranslation();
   const ctx = useWorkbench();
   const norms = useQuery(normsQuery(ctx.projectId));
+  const [signing, setSigning] = useState<string>();
+  const version = (norms.data ?? []).find((n) => n.id === signing);
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <p className="text-xs uppercase tracking-wide text-text-subtle">S3–S4 · Norm elicitation and view design</p>
-        <h1 className="text-2xl font-semibold">Norm versions</h1>
-        <p className="text-sm text-text-muted">Every save is an immutable version with a note. The builder forms arrive with increment 1; this screen shows the versions, their JSON and the calibration lens.</p>
+        <p className="text-xs uppercase tracking-wide text-text-subtle">Norm</p>
+        <h1 className="text-2xl font-semibold">What this process is expected to do</h1>
+        <p className="reading max-w-prose text-sm text-text-muted">
+          Every change is a version of its own with a reason and an owner, so a number on a later screen can always be traced to the person who set it. Open a version to read its expectations, calibrate a threshold on the
+          spread of the log's own values, and say what each expectation is meant for.
+        </p>
       </header>
       <QueryState query={norms}>
         {(list) =>
@@ -37,8 +44,8 @@ export default function NormsPage() {
                     <Th>status</Th>
                     <Th>note</Th>
                     <Th>author</Th>
-                    <Th>fingerprint</Th>
                     <Th>created</Th>
+                    <Th>sign</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -50,7 +57,7 @@ export default function NormsPage() {
                           <Link className="font-medium text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: n.id }} search={{ tab: "constraints" }}>
                             v{n.version}
                           </Link>
-                          {ctx.run?.normVersionId === n.id && <span className="ml-2 text-xs text-text-subtle">used by {ctx.run.id}</span>}
+                          {ctx.run?.normVersionId === n.id && <span className="ml-2 text-xs text-text-subtle">the version the latest run was scored against</span>}
                         </Td>
                         <Td>
                           <Badge variant={statusVariant[n.status]}>
@@ -60,8 +67,17 @@ export default function NormsPage() {
                         </Td>
                         <Td className="max-w-lg">{n.note}</Td>
                         <Td>{n.author}</Td>
-                        <Td className="font-mono text-xs">{n.fingerprint}</Td>
                         <Td>{fmtDateTime(n.createdAt)}</Td>
+                        <Td>
+                          {/* P1-9: the endpoint that moves a version along has a control beside the badge */}
+                          {NEXT_STATUS[n.status as "draft" | "reviewed"] ? (
+                            <Button variant="outline" size="sm" onClick={() => setSigning(n.id)}>
+                              {NEXT_STATUS[n.status as "draft" | "reviewed"].label}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-text-subtle">signed</span>
+                          )}
+                        </Td>
                       </tr>
                     ))}
                 </tbody>
@@ -70,6 +86,7 @@ export default function NormsPage() {
           )
         }
       </QueryState>
+      {version && <SignVersion projectId={ctx.projectId} version={version} onDone={() => setSigning(undefined)} />}
     </div>
   );
 }

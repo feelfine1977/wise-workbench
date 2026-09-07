@@ -31,7 +31,37 @@ def list_norms(projectId: str, c: ContainerDep) -> list[schemas.NormVersion]:
     description="Body is the library's norm JSON plus a note; a new immutable version is created and validated.",
 )
 def create_norm_version(projectId: str, body: schemas.NormVersionCreate, c: ContainerDep) -> schemas.NormVersion:
-    return _out(c, c.norms.create_version(projectId, body.norm, body.note, body.parentId, body.author))
+    return _out(
+        c,
+        c.norms.create_version(
+            projectId,
+            body.norm,
+            body.note,
+            body.parentId,
+            body.author,
+            calibration={k: v.model_dump(exclude_none=True) for k, v in body.calibration.items()},
+            not_applicable={k: v.model_dump(exclude_none=True) for k, v in body.notApplicable.items()},
+        ),
+    )
+
+
+@router.get(
+    "/applicability",
+    operation_id="getApplicabilityOptions",
+    response_model=schemas.ApplicabilityOptions,
+    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "What an expectation can be made to apply to on this log (R3-02): the flow types the case table carries "
+        "with their counts, the flow types the rules name that it does not carry and why, every case attribute "
+        "with its values, and the shape of each applicability clause including *not applicable to this log*."
+    ),
+)
+def get_applicability_options(
+    projectId: str,
+    c: ContainerDep,
+    caseTableId: Annotated[str, Query(description="the case table the norm is written against")],
+) -> schemas.ApplicabilityOptions:
+    return schemas.ApplicabilityOptions(**c.norms.applicability_options(projectId, caseTableId))
 
 
 # ---------------------------------------------------------------------------- norm builder (R3-O6)
@@ -110,11 +140,35 @@ def get_norm_version(
     return _out(c, n)
 
 
-@router.patch("/{normVersionId}", operation_id="setNormStatus", response_model=schemas.NormVersion)
+@router.patch(
+    "/{normVersionId}",
+    operation_id="setNormStatus",
+    response_model=schemas.NormVersion,
+    responses={422: {"model": schemas.Problem}},
+    description=(
+        "Move a version along draft → reviewed → approved. Leaving draft needs a named person and a rationale "
+        "with an owner for every threshold this version set (R3-02); it is refused with 422 otherwise."
+    ),
+)
 def set_norm_status(
     projectId: str, normVersionId: str, body: schemas.NormStatusUpdate, c: ContainerDep
 ) -> schemas.NormVersion:
-    return _out(c, c.norms.set_status(projectId, normVersionId, NormStatus(body.status)))
+    return _out(c, c.norms.set_status(projectId, normVersionId, NormStatus(body.status), author=body.author))
+
+
+@router.get(
+    "/{normVersionId}/calibration",
+    operation_id="getNormCalibration",
+    response_model=schemas.NormCalibration,
+    responses={404: {"model": schemas.Problem}},
+    description=(
+        "The calibration state of one version: every threshold with the rationale and the owner recorded for it, "
+        "which of them this version set, the expectations marked not applicable with their notes, and what still "
+        "keeps the version in draft."
+    ),
+)
+def get_norm_calibration(projectId: str, normVersionId: str, c: ContainerDep) -> schemas.NormCalibration:
+    return schemas.NormCalibration(**c.norms.calibration(projectId, normVersionId))
 
 
 @router.post("/{normVersionId}/check", operation_id="checkNorm", response_model=schemas.NormCheck)

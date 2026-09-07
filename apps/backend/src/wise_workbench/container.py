@@ -58,6 +58,12 @@ class Container:
         return RunService(self)
 
     @cached_property
+    def whatif(self):  # type: ignore[no-untyped-def]
+        from wise_workbench.application.services.whatif import WhatIfService
+
+        return WhatIfService(self)
+
+    @cached_property
     def presets(self):  # type: ignore[no-untyped-def]
         from wise_workbench.application.services.presets import PresetService
 

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import datasets, jobs, knowledge, norms, notebook, projects, review, runs, system
+from . import datasets, jobs, knowledge, norms, notebook, projects, review, runs, system, whatif
 
 api_router = APIRouter()
 for r in (
@@ -14,6 +14,7 @@ for r in (
     runs.router,
     review.router,
     notebook.router,
+    whatif.router,
     jobs.router,
 ):
     api_router.include_router(r)

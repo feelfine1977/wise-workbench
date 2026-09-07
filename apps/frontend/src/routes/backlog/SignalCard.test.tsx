@@ -33,7 +33,8 @@ describe("signal card", () => {
     expect(sentence).toHaveTextContent(/^109,199 purchase order items · 0\.9 % below expectation · waiting too long between steps in 97\s?% of them\.$/);
     expect(sentence.textContent?.match(/\d[\d,.]*/g)?.length).toBe(3);
     // the real-unit comparison as a muted line
-    expect(within(card).getByTestId("card-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+25 days\)\.$/);
+    // the bracket the card prints is the difference of the two numbers beside it, not the shift estimate the run serves (R3-04)
+    expect(within(card).getByTestId("card-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
     // the kind carries its glyph; the method's name stays hidden in plain mode
     const kind = within(card).getByText("widespread").closest("[data-kind]") as HTMLElement;
     expect(kind).toHaveAttribute("data-kind", "widespread");
@@ -93,14 +94,31 @@ describe("signal card", () => {
   });
 
   it("prints the backend's comparison as served, also when it says there is no material difference", () => {
-    renderCard({ row: { ...packaging, comparison: "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).", comparison_kind: "metric", top_constraint_plain: "Mostly automatic" } });
-    expect(screen.getByTestId("card-reason")).toHaveTextContent(/^Mostly automatic: a manual share of 83 % here against 80 % elsewhere \(\+3\.3 points\)\.$/);
+    renderCard({ row: { ...packaging, comparison: "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3 points).", comparison_kind: "metric", top_constraint_plain: "Mostly automatic" } });
+    expect(screen.getByTestId("card-reason")).toHaveTextContent(/^Mostly automatic: a manual share of 83 % here against 80 % elsewhere \(\+3 points\)\.$/);
     cleanup();
     renderCard({ row: { ...packaging, comparison: "No material difference on the top expectation (Few manual touches).", comparison_kind: "none", top_constraint_plain: "Few manual touches" } });
     expect(screen.getByTestId("card-reason")).toHaveTextContent(/^No material difference on the top expectation \(Few manual touches\)\.$/);
     cleanup();
     renderCard({ row: { ...packaging, comparison: null, comparison_kind: null } });
     expect(screen.queryByTestId("card-reason")).not.toBeInTheDocument();
+  });
+
+  it("carries a What does this mean? chip on the missed expectation, on the area and on the data caveat (R3-05)", async () => {
+    const user = userEvent.setup();
+    renderCard({ row: { ...packaging, caveats: [{ id: "header_event_replication", share: 0.84, status: "warn", text: "84 % of the header events are copied onto every item." }] } });
+    const card = screen.getByRole("article");
+    // the expectation the sentence names opens its page
+    const sentence = within(card).getByTestId("card-sentence");
+    expect(within(sentence).getByTestId("what-does-this-mean")).toHaveAccessibleName(/What does .* mean\?/);
+    // the caveat chip is itself the question
+    const caveat = within(card).getByText(/copied postings/).closest("button") as HTMLElement;
+    expect(caveat).toHaveAttribute("data-testid", "what-does-this-mean");
+    expect(caveat).toHaveAccessibleName(/What does “copied postings” mean\?/);
+    // and the expectation area behind "more"
+    await user.click(within(card).getByRole("button", { name: /^More about/ }));
+    const more = within(card).getByTestId("card-more");
+    expect(within(more).getAllByTestId("what-does-this-mean").length).toBeGreaterThan(0);
   });
 
   it("the case noun replaces \"cases\" and the drill button appears behind more", async () => {

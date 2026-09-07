@@ -812,6 +812,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Unprocessable Content
+  /projects/{projectId}/norms/applicability:
+    get:
+      tags:
+      - norms
+      summary: Get Applicability Options
+      description: 'What an expectation can be made to apply to on this log (R3-02): the flow types the case table carries with their counts, the flow types the rules name that it does not carry and why, every case attribute with its values, and the shape of each applicability clause including *not applicable to this log*.'
+      operationId: getApplicabilityOptions
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the case table the norm is written against
+          title: Casetableid
+        description: the case table the norm is written against
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicabilityOptions'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
   /projects/{projectId}/norms/inventory:
     get:
       tags:
@@ -1015,6 +1056,7 @@ paths:
       tags:
       - norms
       summary: Set Norm Status
+      description: Move a version along draft → reviewed → approved. Leaving draft needs a named person and a rationale with an owner for every threshold this version set (R3-02); it is refused with 422 otherwise.
       operationId: setNormStatus
       parameters:
       - name: projectId
@@ -1042,6 +1084,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NormVersion'
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/norms/{normVersionId}/calibration:
+    get:
+      tags:
+      - norms
+      summary: Get Norm Calibration
+      description: 'The calibration state of one version: every threshold with the rationale and the owner recorded for it, which of them this version set, the expectations marked not applicable with their notes, and what still keeps the version in draft.'
+      operationId: getNormCalibration
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormCalibration'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -3594,6 +3675,224 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/whatif:
+    post:
+      tags:
+      - what-if
+      summary: Create Whatif
+      description: 'Queue a scenario against this run as the frozen baseline. A scenario changes the log (the transform layer: cap a lag, delete an activity, move an event, set an attribute, keep first), the norm (thresholds and applicability, which become a new norm version with its own fingerprint), or both, and is then scored under the baseline''s own parameters. The job''s `resultRef` is the scenario run; its change table is read from `GET /runs/{scenarioId}/whatif`.'
+      operationId: createWhatIf
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatIfCreate'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+    get:
+      tags:
+      - what-if
+      summary: Get Whatif
+      description: 'The change table of a scenario run against its frozen baseline: per group the two runs'' cases, mean score and priority with the difference of each and the movement in rank, the groups that entered and left, the agreement of the two orders, and the provenance of both numbers.'
+      operationId: getWhatIf
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: slicing
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slicing
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: minCases
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 1
+          - type: 'null'
+          title: Mincases
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeTable'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/runs/{runId}/whatif/preview:
+    post:
+      tags:
+      - what-if
+      summary: Preview Whatif
+      description: What the transform layer would touch on this run's log — cases selected, events moved, events removed — without scoring anything.
+      operationId: previewWhatIfTransforms
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformPreviewRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransformPreview'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/scenarios:
+    get:
+      tags:
+      - what-if
+      summary: List Scenarios
+      description: Every what-if scenario of the project, newest first; `baselineRunId` narrows it to one baseline.
+      operationId: listScenarios
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: baselineRunId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Baselinerunid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Scenario'
+                title: Response Listscenarios
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /jobs:
     get:
       tags:
@@ -3718,6 +4017,28 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AbsentFlowType:
+      properties:
+        name:
+          type: string
+          title: Name
+        reason:
+          type: string
+          enum:
+          - missing_column
+          - matches_nothing
+          title: Reason
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+      type: object
+      required:
+      - name
+      - reason
+      title: AbsentFlowType
+      description: A flow type the rules name that this log has none of, with the reason (R3-15).
     ActionCreate:
       properties:
         title:
@@ -3944,6 +4265,76 @@ components:
       - runId
       - status
       title: AnalyticsStatus
+    ApplicabilityKind:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        shape:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Shape
+        available:
+          type: boolean
+          title: Available
+          default: true
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - id
+      - label
+      title: ApplicabilityKind
+    ApplicabilityOptions:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        flowTypeAttribute:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Flowtypeattribute
+        flowTypes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Flowtypes
+        flowTypesAbsent:
+          items:
+            $ref: '#/components/schemas/AbsentFlowType'
+          type: array
+          title: Flowtypesabsent
+        attributes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Attributes
+        kinds:
+          items:
+            $ref: '#/components/schemas/ApplicabilityKind'
+          type: array
+          title: Kinds
+      type: object
+      required:
+      - caseTableId
+      title: ApplicabilityOptions
+      description: 'What an expectation can be made to apply to on this log: flow types, attribute values, or nothing.'
     AttributeInventory:
       properties:
         name:
@@ -4256,6 +4647,18 @@ components:
           - type: string
           - type: 'null'
           title: Top Constraint Plain
+        top_constraint_measures_logging:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Top Constraint Measures Logging
+          description: true when the leading expectation is missed mostly because an event is not logged rather than because a measured value is beyond its threshold (R3-14); `top_constraint_flag` carries the sentence
+        top_constraint_flag:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Top Constraint Flag
+          description: the sentence to print beside the leading expectation when it measures logging
         case_noun:
           anyOf:
           - type: string
@@ -4282,6 +4685,12 @@ components:
           - type: 'null'
           title: Comparison Constraint
           description: the expectation the comparison sentence is about
+        expectation_note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expectation Note
+          description: 'set when the headline expectation and the compared expectation differ: which is missed most often and which carries the largest share of the shortfall (R3-04)'
         comparison_reason:
           anyOf:
           - $ref: '#/components/schemas/ComparisonReason'
@@ -4397,6 +4806,31 @@ components:
       required:
       - file
       title: Body_uploadDataset
+    CalibrationEntry:
+      properties:
+        rationale:
+          type: string
+          title: Rationale
+        owner:
+          type: string
+          title: Owner
+        decidedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decidedat
+        decidedBy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decidedby
+      additionalProperties: false
+      type: object
+      required:
+      - rationale
+      - owner
+      title: CalibrationEntry
+      description: Why a threshold is what it is, and who owns it (R3-02); both are required before the version is signed.
     CaseTable:
       properties:
         id:
@@ -4513,6 +4947,214 @@ components:
       - id
       - text
       title: Caveat
+    ChangeRow:
+      properties:
+        key:
+          type: string
+          title: Key
+        keys:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Keys
+        state:
+          type: string
+          enum:
+          - changed
+          - entered
+          - left
+          title: State
+        baseline:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Baseline
+        scenario:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Scenario
+        deltaCases:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Deltacases
+        deltaMeanPoints:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Deltameanpoints
+          description: scenario mean minus baseline mean, in points
+        deltaPriority:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Deltapriority
+        deltaRank:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Deltarank
+          description: positive when the group moves up the list
+        unchanged:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Unchanged
+      additionalProperties: true
+      type: object
+      required:
+      - key
+      - state
+      title: ChangeRow
+    ChangeSummary:
+      properties:
+        groupsBaseline:
+          type: integer
+          title: Groupsbaseline
+        groupsScenario:
+          type: integer
+          title: Groupsscenario
+        groupsCompared:
+          type: integer
+          title: Groupscompared
+        groupsChanged:
+          type: integer
+          title: Groupschanged
+        groupsUnchanged:
+          type: integer
+          title: Groupsunchanged
+        entered:
+          items:
+            type: string
+          type: array
+          title: Entered
+        left:
+          items:
+            type: string
+          type: array
+          title: Left
+        topTenOverlap:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Toptenoverlap
+        leaderBaseline:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Leaderbaseline
+        leaderScenario:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Leaderscenario
+        priorityBaseline:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Prioritybaseline
+        priorityScenario:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Priorityscenario
+        rankAgreement:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rankagreement
+          description: Spearman rank correlation of the two orders
+        largestMove:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Largestmove
+        text:
+          type: string
+          title: Text
+          default: ''
+      additionalProperties: true
+      type: object
+      required:
+      - groupsBaseline
+      - groupsScenario
+      - groupsCompared
+      - groupsChanged
+      - groupsUnchanged
+      title: ChangeSummary
+    ChangeTable:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        baselineRunId:
+          type: string
+          title: Baselinerunid
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        slicing:
+          type: string
+          title: Slicing
+        view:
+          type: string
+          title: View
+        minCases:
+          type: integer
+          title: Mincases
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        rows:
+          items:
+            $ref: '#/components/schemas/ChangeRow'
+          type: array
+          title: Rows
+        total:
+          type: integer
+          title: Total
+          default: 0
+        summary:
+          $ref: '#/components/schemas/ChangeSummary'
+        transforms:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Transforms
+        normChanges:
+          items:
+            type: string
+          type: array
+          title: Normchanges
+          description: one line per edit to the baseline norm
+        provenance:
+          additionalProperties: true
+          type: object
+          title: Provenance
+          description: both runs with their fingerprints, so the comparison can be reproduced
+      type: object
+      required:
+      - runId
+      - baselineRunId
+      - slicing
+      - view
+      - minCases
+      - summary
+      title: ChangeTable
     ColumnMapping:
       properties:
         caseId:
@@ -4591,6 +5233,13 @@ components:
             $ref: '#/components/schemas/FlowTypingRule'
           type: array
           title: Flowtyping
+        flowTypingNotes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Flowtypingnotes
+          description: flow types the rules name that this file cannot assign, with the columns they need (R3-15)
         flowTypeDefault:
           type: string
           title: Flowtypedefault
@@ -4758,6 +5407,13 @@ components:
             $ref: '#/components/schemas/FlowTypingRule'
           type: array
           title: Flowtyping
+        flowTypingNotes:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Flowtypingnotes
+          description: flow types the rules name that this file cannot assign, with the columns they need (R3-15)
         flowTypeDefault:
           type: string
           title: Flowtypedefault
@@ -6099,6 +6755,11 @@ components:
             type: object
           type: array
           title: Types
+        absent:
+          items:
+            $ref: '#/components/schemas/AbsentFlowType'
+          type: array
+          title: Absent
       type: object
       required:
       - attribute
@@ -6167,6 +6828,12 @@ components:
             $ref: '#/components/schemas/FlowType'
           type: array
           title: Types
+        absent:
+          items:
+            $ref: '#/components/schemas/AbsentFlowType'
+          type: array
+          title: Absent
+          description: types the rules name that no case of this log carries, and why
       type: object
       required:
       - caseTableId
@@ -6242,6 +6909,15 @@ components:
           - type: string
           - type: 'null'
           title: Decidedat
+        scope:
+          anyOf:
+          - type: string
+            enum:
+            - run
+            - group
+          - type: 'null'
+          title: Scope
+          description: '`group` when the evidence is the group''s own share; `run` when it is a property of the whole log, in which case the gate is stated once per run and decided once (R3-03)'
       type: object
       required:
       - id
@@ -6315,6 +6991,11 @@ components:
           type: boolean
           title: Passed
           default: true
+        runWide:
+          anyOf:
+          - $ref: '#/components/schemas/RunWideReadiness'
+          - type: 'null'
+          description: the readiness gate stated once for the run, beside the group's own reading
       type: object
       required:
       - runId
@@ -6926,6 +7607,15 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        options:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+          title: Options
+          description: 'alternatives the run offers for this row, one of them in force (R3-15: rank by items or by quantity)'
       type: object
       required:
       - label
@@ -6951,6 +7641,76 @@ components:
       - mapping
       - source
       title: MappingSuggestion
+    NormCalibration:
+      properties:
+        normVersionId:
+          type: string
+          title: Normversionid
+        status:
+          type: string
+          title: Status
+        parentId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parentid
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        thresholds:
+          items:
+            $ref: '#/components/schemas/ThresholdRow'
+          type: array
+          title: Thresholds
+        notApplicable:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Notapplicable
+        missingRationale:
+          items:
+            type: string
+          type: array
+          title: Missingrationale
+        canLeaveDraft:
+          type: boolean
+          title: Canleavedraft
+          default: true
+      type: object
+      required:
+      - normVersionId
+      - status
+      title: NormCalibration
+      description: 'The calibration state of one norm version: its thresholds, their rationales and what still blocks signing.'
+    NormChanges:
+      properties:
+        constraints:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Constraints
+          description: 'per expectation `{id, delta?, width?, applicability?}`: the fields to set on it'
+        add:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Add
+          description: whole expectations to add
+        remove:
+          items:
+            type: string
+          type: array
+          title: Remove
+          description: expectation ids to drop
+      additionalProperties: false
+      type: object
+      title: NormChanges
+      description: What a scenario changes in the baseline norm; the result becomes a norm version with its own fingerprint.
     NormCheck:
       properties:
         constraints:
@@ -7032,6 +7792,12 @@ components:
           - reviewed
           - approved
           title: Status
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: the person who signs the version; required to leave draft (R3-02)
       type: object
       required:
       - status
@@ -7152,11 +7918,44 @@ components:
           - type: string
           - type: 'null'
           title: Author
+        calibration:
+          additionalProperties:
+            $ref: '#/components/schemas/CalibrationEntry'
+          type: object
+          title: Calibration
+          description: 'per expectation id: the rationale and the owner of the threshold this version sets (R3-02)'
+        notApplicable:
+          additionalProperties:
+            $ref: '#/components/schemas/NotApplicableEntry'
+          type: object
+          title: Notapplicable
+          description: expectation ids to mark not applicable to this log; each is moved out of the norm with its note and kept in the metadata
       type: object
       required:
       - norm
       - note
       title: NormVersionCreate
+    NotApplicableEntry:
+      properties:
+        note:
+          type: string
+          title: Note
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        decidedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decidedat
+      additionalProperties: false
+      type: object
+      required:
+      - note
+      title: NotApplicableEntry
+      description: An expectation moved out of this version because it cannot be judged on this log, with the note why.
     Notebook:
       properties:
         projectId:
@@ -7840,6 +8639,79 @@ components:
           title: Views
       type: object
       title: RunSummary
+    RunWideReadiness:
+      properties:
+        status:
+          type: string
+          title: Status
+          default: unknown
+        failed:
+          items:
+            type: string
+          type: array
+          title: Failed
+        warned:
+          items:
+            type: string
+          type: array
+          title: Warned
+        logWideFailed:
+          items:
+            type: string
+          type: array
+          title: Logwidefailed
+          description: failed checks that are the same for every group of this log
+        checks:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Checks
+        text:
+          type: string
+          title: Text
+          default: ''
+      type: object
+      title: RunWideReadiness
+      description: 'The readiness gate at the run: every check, and which of its failures no group can be judged on.'
+    Scenario:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        baselineRunId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Baselinerunid
+        status:
+          type: string
+          title: Status
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        transforms:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Transforms
+        createdAt:
+          type: string
+          title: Createdat
+      type: object
+      required:
+      - runId
+      - status
+      - createdAt
+      title: Scenario
     SliceDetail:
       properties:
         row:
@@ -8112,6 +8984,38 @@ components:
       - columns
       - rows
       title: Table
+    ThresholdRow:
+      properties:
+        constraint_id:
+          type: string
+          title: Constraint Id
+        threshold:
+          additionalProperties: true
+          type: object
+          title: Threshold
+        changedHere:
+          type: boolean
+          title: Changedhere
+          default: false
+        rationale:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rationale
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
+        decidedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decidedat
+      type: object
+      required:
+      - constraint_id
+      title: ThresholdRow
     Trace:
       properties:
         caseId:
@@ -8182,6 +9086,89 @@ components:
           title: Attributes
       type: object
       title: TraceEvent
+    Transform:
+      properties:
+        kind:
+          type: string
+          enum:
+          - cap_lag
+          - delete_activity
+          - move_event
+          - set_attribute
+          - keep_first
+          title: Kind
+        where:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Where
+          description: canonical filter selecting the cases the step applies to; all of them without it
+      additionalProperties: true
+      type: object
+      required:
+      - kind
+      title: Transform
+      description: One step of a scenario's transform layer; the shape depends on `kind` (see the what-if documentation).
+    TransformPreview:
+      properties:
+        runId:
+          type: string
+          title: Runid
+        caseNoun:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Casenoun
+        transforms:
+          items:
+            $ref: '#/components/schemas/TransformRecord'
+          type: array
+          title: Transforms
+      type: object
+      required:
+      - runId
+      title: TransformPreview
+    TransformPreviewRequest:
+      properties:
+        transforms:
+          items:
+            $ref: '#/components/schemas/Transform'
+          type: array
+          title: Transforms
+      additionalProperties: false
+      type: object
+      title: TransformPreviewRequest
+    TransformRecord:
+      properties:
+        kind:
+          type: string
+          title: Kind
+        spec:
+          additionalProperties: true
+          type: object
+          title: Spec
+        casesSelected:
+          type: integer
+          title: Casesselected
+          default: 0
+        casesTouched:
+          type: integer
+          title: Casestouched
+          default: 0
+        eventsMoved:
+          type: integer
+          title: Eventsmoved
+          default: 0
+        eventsRemoved:
+          type: integer
+          title: Eventsremoved
+          default: 0
+      additionalProperties: true
+      type: object
+      required:
+      - kind
+      title: TransformRecord
     ValidationError:
       properties:
         loc:
@@ -8307,6 +9294,19 @@ components:
           - type: string
           - type: 'null'
           title: Comparison
+          description: the shares missed here and elsewhere, with the difference of those two numbers in percentage points; one comparison, one bracket (R3-04)
+        median_comparison:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Median Comparison
+          description: the real-unit medians here and elsewhere, with the difference of the two
+        measures_logging:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Measures Logging
+          description: set when this expectation is missed mostly where an event is not logged (R3-14)
         headroom_points:
           anyOf:
           - type: number
@@ -8360,6 +9360,41 @@ components:
       required:
       - constraint_id
       title: WhatCanWeDoDriver
+    WhatIfCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: what the scenario is called on screen
+        transforms:
+          items:
+            $ref: '#/components/schemas/Transform'
+          type: array
+          title: Transforms
+        norm:
+          anyOf:
+          - $ref: '#/components/schemas/NormChanges'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        force:
+          type: boolean
+          title: Force
+          description: score again even when an identical scenario exists
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: WhatIfCreate
     WorstCase:
       properties:
         caseId:

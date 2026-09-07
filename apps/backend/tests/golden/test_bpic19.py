@@ -13,6 +13,7 @@ import pytest
 from tests.conftest import WISE_LIB, make_settings
 from wise_workbench.container import Container
 from wise_workbench.domain import RunParams, Slicing
+from wise_workbench.domain.comparison import bracket_is_difference
 from wise_workbench.jobs import Worker
 from wise_workbench.presets import BPIC19_MAPPING
 
@@ -138,7 +139,10 @@ def test_cycle2_analytics_censoring_histogram_and_flow_types(pipeline: dict) -> 
     assert packaging["keys"]["case Spend area text"] == "Packaging" and packaging["stability"] == "stable"
     assert packaging["kind"] == "widespread" and packaging["plain_layer"] == "On time"
     assert packaging["points_below"].startswith("0.9 points below the overall score of 84.4")
-    assert packaging["comparison"].startswith("Paid within terms: 83 days here against 55 elsewhere (+25 days)")
+    # R3-04: the bracket is the difference of the two numbers the sentence prints (83 − 55), not the
+    # analytics package's Hodges-Lehmann shift of 25 days, which keeps its own labelled column in the contrast
+    assert packaging["comparison"].startswith("Paid within terms: 83 days here against 55 elsewhere (+28 days)")
+    assert bracket_is_difference(packaging["comparison"]) is True
     censoring = next(x for x in packaging["caveats"] if x["id"] == "censoring")
     assert censoring["share"] == pytest.approx(0.1437, abs=5e-4)
     assert censoring["text"].startswith("14 % of purchase order items still open at the end of the data (2019-01-17)")

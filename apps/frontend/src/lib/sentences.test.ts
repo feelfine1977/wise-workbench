@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BacklogRow } from "@wise/api-schema";
-import { belowExpectation, comparisonSentence, groupLabel, missedPhrase, pageWideCaveats, readingSentence, sharedKeyValues } from "./sentences";
+import { verifiedBacklog, verifiedSlicings } from "@/mocks/fixtures/verified";
+import { belowExpectation, bracketIsDifference, comparisonSentence, groupLabel, missedPhrase, pageWideCaveats, readingSentence, sharedKeyValues } from "./sentences";
 
 const rows = [
   { key: '["companyID_0000", "Packaging"]', keys: { "case Company": "companyID_0000", "case Spend area text": "Packaging" } },
@@ -21,13 +22,43 @@ describe("the plain sentences of a group", () => {
     expect(belowExpectation({ gap: 0.008662 })).toBe("0.9 %");
     expect(belowExpectation({ gap: 0.1142 })).toBe("11 %");
   });
-  it("prints the backend's comparison as served, with one full stop, and nothing when there is none", () => {
-    expect(comparisonSentence({ comparison: "Paid within terms: 83 days here against 55 elsewhere (+25 days)." })).toBe("Paid within terms: 83 days here against 55 elsewhere (+25 days).");
-    expect(comparisonSentence({ comparison: "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points)" })).toBe("Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points).");
-    expect(comparisonSentence({ comparison: "Received in few deliveries: 14 Record Goods Receipt events per purchase order item here against 1 elsewhere (+13)." })).toBe("Received in few deliveries: 14 Record Goods Receipt events per purchase order item here against 1 elsewhere (+13).");
-    expect(comparisonSentence({ comparison: "No material difference on the top expectation (Few manual touches)." })).toBe("No material difference on the top expectation (Few manual touches).");
+  it("prints the served comparison as it is given, trimmed and ended once (R3-04)", () => {
+    // the bracket is the server's: the rule is kept where the sentence is written and where a stored one is
+    // read back, so nothing is rewritten on the way to a card
+    expect(comparisonSentence({ comparison: "Paid within terms: 83 days here against 55 elsewhere (+28 days)." })).toBe("Paid within terms: 83 days here against 55 elsewhere (+28 days).");
+    expect(comparisonSentence({ comparison: "Received in few deliveries: 14 Record Goods Receipt events per purchase order item here against 1 elsewhere (+13)" })).toBe("Received in few deliveries: 14 Record Goods Receipt events per purchase order item here against 1 elsewhere (+13).");
+    expect(comparisonSentence({ comparison: "No material difference on the top expectation (Few manual touches)..." })).toBe("No material difference on the top expectation (Few manual touches).");
     expect(comparisonSentence({ comparison: null })).toBeUndefined();
     expect(comparisonSentence({ comparison: "  " })).toBeUndefined();
+  });
+
+  it("reads a bracket back and says whether it is the difference of the two printed numbers (R3-04)", () => {
+    expect(bracketIsDifference("Paid within terms: 83 days here against 55 elsewhere (+28 days).")).toBe(true);
+    // the shift estimate the run was scored with, which the server must not serve
+    expect(bracketIsDifference("Paid within terms: 83 days here against 55 elsewhere (+25 days).")).toBe(false);
+    // the bracket is no more precise than the coarser of the two numbers on the screen
+    expect(bracketIsDifference("Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+6 points).")).toBe(true);
+    expect(bracketIsDifference("Goods or service received: missed in 12 % of purchase order items here against 5.9 % elsewhere (+5.9 points).")).toBe(false);
+    expect(bracketIsDifference("Picked goods leave promptly: 1.2 days here against 1.9 elsewhere (-0.7 days).")).toBe(true);
+    expect(bracketIsDifference("No material difference on the top expectation (Few manual touches).")).toBeUndefined();
+    expect(bracketIsDifference(null)).toBeUndefined();
+  });
+
+  it("every comparison the verified run serves prints a bracket that is its own difference (R3-04)", () => {
+    const sentences = verifiedSlicings.flatMap((slicing) =>
+      ["Automation", "Finance"].flatMap((view) =>
+        (verifiedBacklog(slicing, view)?.rows ?? []).flatMap((r) => [(r as BacklogRow).comparison, (r as BacklogRow).reading_plain]).filter((c): c is string => !!c),
+      ),
+    );
+    expect(sentences.length).toBeGreaterThan(10);
+    let checked = 0;
+    for (const raw of sentences) {
+      const verdict = bracketIsDifference(comparisonSentence({ comparison: raw }));
+      if (verdict === undefined) continue;
+      checked += 1;
+      expect(verdict, `the run serves “${raw}”, whose bracket is not the difference of the two numbers it prints`).toBe(true);
+    }
+    expect(checked).toBeGreaterThan(5);
   });
   it("names what is missed from the guidance, the area or the expectation", () => {
     const row = { top_constraint: "c_l3_invoice_to_clear_days", layer_missed_label: "waiting too long between steps", top_constraint_plain: "Paid within terms" } as BacklogRow;

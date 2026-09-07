@@ -4,6 +4,7 @@ import type { BacklogRow } from "@wise/api-schema";
 import type { BacklogRowC2 } from "@/lib/api/cycle2";
 import { CalibrationChip, KindBadge, LayerChip } from "@/components/badges";
 import { CaveatChips } from "@/components/guide/CaveatChips";
+import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { Term, useVocabulary } from "@/components/Term";
 import { Button } from "@/components/ui/button";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
@@ -136,6 +137,8 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label:
                 </>
               ) : null}
             </span>
+            {/* the expectation is named here, so the page that says what it means opens from here (R3-05) */}
+            {plain && topConstraint && <WhatDoesThisMean className="ml-1.5 align-middle" kind="constraint" entryId={topConstraint} label={row.top_constraint_plain ?? missed ?? topConstraint} />}
             {/* an expectation almost every case misses separates no group: say so where it is named  */}
             {topConstraint && uncalibrated?.has(topConstraint) && <CalibrationChip className="ml-1.5 align-middle" text={uncalibrated.get(topConstraint)?.text} />}
           </>
@@ -214,7 +217,7 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label:
             <>
               <dt className="text-text-muted">{plain ? "expectation area" : <Term id="dominant_layer" primaryOnly />}</dt>
               <dd>
-                <LayerChip id={row.dominant_layer} name={plain ? (row.plain_layer ?? area) : area} className="text-sm" />
+                <LayerChip id={row.dominant_layer} name={plain ? (row.plain_layer ?? area) : area} className="text-sm" explain />
                 {plain && row.plain_layer && row.plain_layer !== area ? <span className="ml-1 text-xs text-text-subtle">({area})</span> : null}
                 {topDescription && (
                   <span className="block text-text-muted">

@@ -84,6 +84,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   const openHelp = useUiStore((s) => s.openHelp);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const vocabulary = useUiStore((s) => s.vocabulary);
+  const guided = useUiStore((s) => s.mode === "guided");
   const setVocabulary = useUiStore((s) => s.setVocabulary);
   const freezeButtons = useNavStore((s) => s.freezeButtons);
   const pid = ctx.projectId;
@@ -141,18 +142,24 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
 
   let shown: ReactNode[];
   let more: ReactNode[];
+  /**
+   * Guided mode keeps the reader's own context — the project, the run and the scope — and puts the method's
+   * switchers away: γ is a discount rate, a perspective is a weighting of expectation areas and a grouping
+   * is a slicing key, and none of the three is a question the reader of the guided path came to answer
+   * (R3-10). They are one click away under ⋯, so nothing is lost.
+   */
   switch (step) {
     case "data":
       shown = [project, dataset()];
-      more = [mapping(true), words];
+      more = guided ? [mapping(true)] : [mapping(true), words];
       break;
     case "norm":
       shown = [project, norm()];
-      more = [dataset(true), words];
+      more = guided ? [dataset(true)] : [dataset(true), words];
       break;
     case "run":
       shown = [project, run()];
-      more = [norm(true), mapping(true), words];
+      more = guided ? [norm(true), mapping(true)] : [norm(true), mapping(true), words];
       break;
     // the Flow step and the board are one step of the analysis and need the same context as Signals and Why:
     // a perspective or a grouping changed there re-reads the map and every panel without leaving the screen
@@ -160,12 +167,12 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
     case "signals":
     case "why":
     case "act":
-      shown = [project, run(), perspective, grouping, scope];
-      more = [dataset(true), mapping(true), norm(true), gamma, words];
+      shown = guided ? [project, run(), scope] : [project, run(), perspective, grouping, scope];
+      more = guided ? [perspective, grouping] : [dataset(true), mapping(true), norm(true), gamma, words];
       break;
     default:
       shown = [project];
-      more = [words];
+      more = guided ? [] : [words];
   }
 
   return (
@@ -249,6 +256,13 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
           <PopoverContent align="end" className="w-80" data-testid="ribbon-more">
             <ul className="flex flex-col gap-3">
               {more}
+              {/* the knowledge hub is reachable from every screen (RK-3): one page per word of this process */}
+              <li className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-xs text-text-subtle">what the words mean</span>
+                <Button variant="outline" size="sm" data-testid="ribbon-knowledge" onClick={() => void navigate({ to: "/p/$projectId/knowledge", params: { projectId: pid }, search: {} })}>
+                  Knowledge hub
+                </Button>
+              </li>
               <li className="flex items-center justify-between gap-2 text-sm">
                 <span className="text-xs text-text-subtle">{t("ribbon.density")}</span>
                 <Button variant="outline" size="sm" aria-pressed={density === "compact"} onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}>

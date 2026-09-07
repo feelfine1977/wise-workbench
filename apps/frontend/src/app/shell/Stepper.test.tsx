@@ -32,10 +32,12 @@ describe("the analysis path (R2-O6)", () => {
     const stepper = screen.getByRole("navigation", { name: "Analysis path" });
     const steps = within(stepper).getAllByRole("listitem").filter((li) => li.hasAttribute("data-step"));
     const text = (li: HTMLElement) => `${li.querySelector("[data-step-glyph]")?.textContent}${li.querySelector("[data-step-label]")?.textContent}`;
-    expect(steps.map((s) => text(s as HTMLElement))).toEqual(["●Data", "●Norm", "●Run", "◉Signals", "◐Flow", "○Why", "○What to do"]);
+    // the seventh step is a screen from this cycle on (R3-01): it opens for the group the reader last read
+    expect(steps.map((s) => text(s as HTMLElement))).toEqual(["●Data", "●Norm", "●Run", "◉Signals", "◐Flow", "○Why", "⊘What can we do?"]);
     expect(steps[3]).toHaveAttribute("aria-current", "step");
     expect(within(steps[3] as HTMLElement).getByTestId("you-are-here")).toHaveTextContent("you are here");
-    expect(within(steps[6] as HTMLElement).getAllByText(/not available yet/).length).toBeGreaterThan(0);
+    expect(within(steps[6] as HTMLElement).getAllByText(/open a group first/).length).toBeGreaterThan(0);
+    expect(within(steps[6] as HTMLElement).getByRole("link")).toBeInTheDocument();
     // no user-visible string names a release
     expect(stepper.textContent).not.toMatch(/cycle \d/);
     // the twelve stages of the method sit behind "All stages"
@@ -55,7 +57,7 @@ describe("the analysis path (R2-O6)", () => {
     await screen.findByRole("heading", { level: 1, name: /Packaging/ }, T);
     await user.click(screen.getByRole("tab", { name: "Compared" }));
     await user.click(await screen.findByRole("link", { name: /norm's calibration lens/ }, T));
-    await screen.findByText(/Calibration lens/, {}, T);
+    await screen.findByTestId("norm-builder", {}, T);
     const stepper = screen.getByRole("navigation", { name: "Analysis path" });
     const why = within(stepper).getAllByRole("listitem").find((li) => li.getAttribute("data-step") === "why") as HTMLElement;
     expect(why).toHaveAttribute("aria-current", "step");
@@ -75,7 +77,7 @@ describe("the analysis path (R2-O6)", () => {
     renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Logistics&minCases=30`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await user.click(within(screen.getByRole("navigation", { name: "Analysis path" })).getByRole("link", { name: /Norm/ }));
-    await screen.findByText(/Calibration lens/, {}, T);
+    await screen.findByTestId("norm-builder", {}, T);
     const back = screen.getByTestId("back-control");
     expect(back).toHaveTextContent("Back to Where is it worst? (page 1)");
     await user.click(back);

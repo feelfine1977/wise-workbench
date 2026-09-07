@@ -22,10 +22,52 @@ export function missedPhrase(row: BacklogRow, refs?: GuidanceRef[] | null): stri
 }
 
 /**
- * The backend's comparison sentence as the card prints it. The backend serves one form for every kind of
- * number — "<expectation>: <here> here against <elsewhere> elsewhere (<difference>)" — and says
- * "No material difference on the top expectation (<expectation>)" when the numbers round to the same value,
- * so nothing is rewritten here: the sentence is trimmed and ends with one full stop.
+ * One comparison, one bracket (R3-04) — read, never rewritten.
+ *
+ * The backend serves one form for every kind of number — "<expectation>: <here> here against <elsewhere>
+ * elsewhere (<difference>)" — and the bracket is the difference of the two numbers beside it, at the precision
+ * of the coarser of the two, with its sign. It was for a while the shift estimate of the two distributions
+ * instead (*83 days here against 55 elsewhere (+25 days)*, where 83 − 55 is 28), and this file rewrote the
+ * bracket on the way to the card. That was a mask, not a fix: the endpoint went on answering the sentence the
+ * rule forbids, and every consumer that is not this component — an export, the governance pack, the notebook —
+ * printed it. The rule now holds where the sentence is written and where a stored one is read back
+ * (`domain/comparison.py`, `with_printed_bracket`), so the card prints what it is given and this reads the
+ * sentence only to check it.
+ *
+ * `bracketIsDifference` is that reading: `true` when the bracket agrees with the two printed numbers, `false`
+ * when it does not, `undefined` for a sentence that carries no comparison. The tests assert it over every
+ * sentence the verified run serves; nothing on a screen depends on it.
+ *
+ * The whole clause between a number and *here against* is allowed: a per cent sign or a unit word, each
+ * followed by any words — *67 % **of purchase order items** here against 22 %*. The earlier form allowed one
+ * or the other and nothing after it, so it read the duration sentences and never the share ones, and four of
+ * the ten cards of the reference run went unchecked.
+ */
+const COMPARISON = /(-?\d[\d,]*(?:\.\d+)?)\s*(?:%|[a-z]+)?(?:\s+[a-z]+)*?\s*here against\s+(-?\d[\d,]*(?:\.\d+)?)\s*(?:%|[a-z]+)?(?:\s+[a-z]+)*?\s*elsewhere\s*\(\s*([+−-]?)\s*(-?\d[\d,]*(?:\.\d+)?)/i;
+
+/** The decimals a printed number carries: "83" → 0, "1.55" → 2. */
+const decimalsOf = (text: string) => (text.split(".")[1] ?? "").length;
+const valueOf = (text: string) => Number(text.replace(/,/g, ""));
+
+/** Whether a served sentence's bracket is the difference of the two numbers it prints; `undefined` when it prints none. */
+export function bracketIsDifference(sentence: string | null | undefined): boolean | undefined {
+  const m = sentence ? COMPARISON.exec(sentence) : null;
+  if (!m) return undefined;
+  const hereText = m[1] ?? "";
+  const elsewhereText = m[2] ?? "";
+  const here = valueOf(hereText);
+  const elsewhere = valueOf(elsewhereText);
+  const bracket = valueOf(m[4] ?? "") * (m[3] === "−" || m[3] === "-" ? -1 : 1);
+  if (!Number.isFinite(here) || !Number.isFinite(elsewhere) || !Number.isFinite(bracket)) return undefined;
+  // the difference a reader can check is the difference of what is printed, so it is no more precise than
+  // the coarser of the two numbers on the screen
+  const digits = Math.min(decimalsOf(hereText), decimalsOf(elsewhereText));
+  return Math.abs(Number((here - elsewhere).toFixed(digits)) - bracket) <= 0.05 + 1e-9;
+}
+
+/**
+ * The comparison as the card prints it: the backend's sentence, trimmed and ended with one full stop. Nothing
+ * else — the numbers and the bracket are the server's, and it is the server that keeps them in agreement.
  */
 export function comparisonSentence(row: Pick<BacklogRow, "comparison">): string | undefined {
   const raw = row.comparison?.trim();
@@ -131,6 +173,8 @@ export function groupingLabel(slicing: string | undefined, attributes?: (string 
     a
       .replace(/^case /i, "")
       .replace(/[ _](text|id|code|key|no|nr|number)$/i, "")
+      // a column name is not a name: the run screen and the dashboard printed *by flow_type* (P1-13)
+      .replace(/_/g, " ")
       .trim(),
   );
   return parts.filter(Boolean).join(" × ");

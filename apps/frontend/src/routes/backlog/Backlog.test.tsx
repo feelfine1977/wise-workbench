@@ -161,3 +161,62 @@ describe("where is it worst: the signals list on the verified run", () => {
     expect(await screen.findByText("illustrative")).toBeInTheDocument();
   });
 });
+
+describe("one run, one population (R3-09)", () => {
+  const COMPANY = `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&pageSize=10`;
+
+  it("reads the page-wide caveat line from the run, so it is the same sentence on every page", async () => {
+    const user = userEvent.setup();
+    renderApp(COMPANY);
+    await screen.findByRole("list", { name: "Signals" }, T);
+    const line = await screen.findByTestId("page-caveats", {}, T);
+    // the line describes the run, not the ten rows that happen to be on the screen
+    expect(line).toHaveTextContent(/On nearly every group of this run/);
+    const first = String(screen.getByTestId("page-caveat-range").textContent);
+    expect(first).toMatch(/on \d[\d,]* of \d[\d,]* groups/);
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(screen.getByText(/page 2 \//)).toBeInTheDocument(), T);
+    await waitFor(() => expect(String(screen.getByTestId("page-caveat-range").textContent)).toBe(first), T);
+    expect(screen.getByTestId("page-caveats")).toHaveTextContent(/On nearly every group of this run/);
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(screen.getByText(/page 3 \//)).toBeInTheDocument(), T);
+    await waitFor(() => expect(String(screen.getByTestId("page-caveat-range").textContent)).toBe(first), T);
+  });
+
+  it("reads the run's own summary by the names the server writes, and says nothing it cannot say (P1-3)", async () => {
+    renderApp(COMPANY);
+    await screen.findByRole("list", { name: "Signals" }, T);
+    const line = await screen.findByTestId("page-caveats", {}, T);
+    // the server writes `page_share` and `max_share`; read as `share` and `max` every chip fell back on the
+    // literal word "log-wide" and the range beside them printed nothing at all
+    expect(line).not.toHaveTextContent(/log-wide/);
+    const chips = within(line).getAllByRole("button");
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip).toHaveTextContent(/\d+(\.\d+)?\s?%/);
+      // the accessible name is a sentence about the run, never the caveat's id
+      expect(chip.getAttribute("aria-label") ?? "").not.toMatch(/^(censoring|replication|duplicates|window_edge|sentinel_dates)\b/);
+      expect(chip.getAttribute("aria-label") ?? "").toMatch(/^On this run: /);
+    }
+    // the run's own maximum, on the groups it holds on
+    expect(screen.getByTestId("page-caveat-range")).toHaveTextContent(/still open at the end: \d+(\.\d+)?\s?% on average, up to \d+(\.\d+)?\s?% on \d+ of \d+ groups/);
+    // and a caveat that touches six groups of twenty-three is not stated of nearly every group of the run
+    expect(line).not.toHaveTextContent(/duplicated events/);
+    expect(line).not.toHaveTextContent(/copied postings/);
+  });
+
+  it("prints the same group count on the ranked list and on the reason screen", async () => {
+    const user = userEvent.setup();
+    renderApp(COMPANY);
+    const list = await screen.findByRole("list", { name: "Signals" }, T);
+    const listed = /of ([\d,]+) groups/.exec(String(screen.getByTestId("ranking-rule").textContent) + " " + String(document.body.textContent));
+    const total = Number((/(\d[\d,]*) groups of/.exec(String(screen.getByTestId("ranking-rule").textContent)) ?? [])[1]?.replace(/,/g, "") ?? listed?.[1]?.replace(/,/g, ""));
+    expect(total).toBeGreaterThan(0);
+    await user.click(within(list).getAllByRole("button", { name: /^Why\? / })[0] as HTMLElement);
+    const rank = await screen.findByTestId("why-strip", {}, T);
+    const onWhy = /of ([\d,]+)/.exec(String(rank.textContent));
+    expect(Number(onWhy?.[1]?.replace(/,/g, "")), `the list ranks ${total} groups and the Why screen says ${onWhy?.[1]}`).toBe(total);
+  });
+});

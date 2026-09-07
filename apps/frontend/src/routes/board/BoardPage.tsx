@@ -4,7 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react
 import type { BacklogRow } from "@wise/api-schema";
 import { useWorkbench } from "@/app/context";
 import { boardRoute } from "@/app/router";
-import type { BoardSearch, Breakdown } from "@/app/search";
+import { BACKLOG_DEFAULTS, type BoardSearch, type Breakdown } from "@/app/search";
 import { filterPreviewQuery, uncalibratedById, type BacklogParamsC2, type Filter, type FilterClause, type RunC2, type SliceClause, type TimeClause } from "@/lib/api/cycle2";
 import { distributionFilteredQuery, facetsQuery, kpisQuery, periodWindow } from "@/lib/api/cycle3";
 import { CalibrationChip } from "@/components/badges";
@@ -12,7 +12,7 @@ import { DistributionLens } from "@/components/DistributionLens";
 import { FilterChipsRow } from "@/components/guide/FilterChipsRow";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { useFilterFeedback } from "@/components/flow/useFilterFeedback";
-import { EmptyState, LoadingBlock } from "@/components/states";
+import { EmptyState, ErrorBlock, LoadingBlock, errorReading } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -63,12 +63,20 @@ export default function BoardPage() {
   const [boardName, setBoardName] = useState("");
 
   const enabled = !!run && run.status === "done";
-  const backlogParams = { slicing: slicing ?? "", view, gamma: run?.gamma ?? undefined, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 };
+  /**
+   * One run, one population (P1-12): the board counts the groups the ranked list counts.
+   *
+   * The board asked with the run's own `minCases` (one on this run) and the signals list with the twenty it
+   * starts from, so one run read *10 of 30* on the board and *23 groups* on the list. The board now asks with
+   * the same number, and a run scored with a larger one keeps it.
+   */
+  const minCases = Math.max(run?.minCases ?? 1, BACKLOG_DEFAULTS.minCases);
+  const backlogParams = { slicing: slicing ?? "", view, gamma: run?.gamma ?? undefined, minCases, sort: "-stable_PI", page: 1, pageSize: 10 };
   const ranked = useQuery({ ...backlogQuery(ctx.projectId, runId, { ...backlogParams, filter: search.filter }), enabled: enabled && !!slicing });
   const rankedAll = useQuery({ ...backlogQuery(ctx.projectId, runId, { ...backlogParams, pageSize: 30 }), enabled: enabled && !!slicing });
   const flow = useQuery({ ...flowQuery(ctx.projectId, runId, { filter: search.filter }), enabled });
   const preview = useQuery({ ...filterPreviewQuery(ctx.projectId, runId, filter), enabled: enabled && !!filter });
-  const kpiParams = { view, grouping: slicing, gamma: run?.gamma ?? undefined, minCases: run?.minCases ?? 1, openShare: openShareOf(ctx.caseTable?.readiness), caseNoun: (flow.data?.meta as { caseNoun?: string } | undefined)?.caseNoun };
+  const kpiParams = { view, grouping: slicing, gamma: run?.gamma ?? undefined, minCases, openShare: openShareOf(ctx.caseTable?.readiness), caseNoun: (flow.data?.meta as { caseNoun?: string } | undefined)?.caseNoun };
   const kpis = useQuery({ ...kpisQuery(ctx.projectId, runId, { ...kpiParams, filter }), enabled });
   // the unfiltered twin of every tile: a filtered number is never shown without it (§4.7)
   const kpisAll = useQuery({ ...kpisQuery(ctx.projectId, runId, kpiParams), enabled });
@@ -80,7 +88,7 @@ export default function BoardPage() {
 
   const graph = flow.data;
   const meta = (graph?.meta ?? {}) as { cases?: number; events?: number; caseNoun?: string; constraints?: ConstraintMeta[] };
-  const noun = meta.caseNoun ?? ranked.data?.rows[0]?.case_noun ?? "cases";
+  const noun = meta.caseNoun ?? ranked.data?.rows[0]?.case_noun ?? ctx.caseTable?.readiness?.caseNoun ?? "cases";
   const casesTotal = preview.data && filter ? preview.data.cases_in + preview.data.cases_out : (kpis.data?.casesTotal ?? meta.cases ?? 0);
   const casesIn = filter ? preview.data?.cases_in : (kpis.data?.cases ?? meta.cases ?? 0);
   const feedback = useFilterFeedback({ filter, casesIn, casesTotal, noun, panels: PANEL_COUNT });
@@ -119,8 +127,19 @@ export default function BoardPage() {
   }, [setSubline]);
 
   const patch = useCallback((p: Partial<BoardSearch>) => void navigate({ to: ".", search: (s) => ({ ...(s as BoardSearch), ...p }) }), [navigate]);
+  /**
+   * The selection itself is refused, so the board has no numbers at all (P1-11).
+   *
+   * A filter the run cannot read is refused for every panel, and each of them drew the same sentence and the
+   * same way out — three alerts on one screen — under four tiles that stayed on *the numbers of this
+   * selection are being counted…*. One error of that kind puts the whole board in that state: it is said
+   * once, and no number is printed beside it.
+   */
+  const boardError = [kpis, flow, ranked, dist, facets].map((q) => (q.isError ? q.error : undefined)).find((e) => e && errorReading(e).kind === "filter") ?? (kpis.isError ? kpis.error : undefined);
   const changeFilter = useCallback((next: Filter | undefined) => patch({ filter: serializeFilter(next), fh: filterHash(next) }), [patch]);
   const toggle = useCallback((clause: FilterClause) => changeFilter(toggleClause(filter, clause)), [changeFilter, filter]);
+  /** The way out of a panel that a filter in the address broke (R3-12): the board without that filter. */
+  const clearFilterAction = useMemo(() => (filter ? { label: "Open the board without the filter", onClick: () => changeFilter(undefined) } : undefined), [filter, changeFilter]);
 
   const flowTypeField = flowTypes.data?.field ?? "flow_type";
   const currentFlowType = valueOf(filter, flowTypeField);
@@ -224,16 +243,40 @@ export default function BoardPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <FilterChipsRow filter={filter} preview={preview.data} noun={noun} onChange={changeFilter} counts={false} className="min-w-0 flex-1" />
-          <span className="tnum whitespace-nowrap text-sm text-text-muted" data-testid="count-line">
-            in <strong className="text-text">{fmtInt(casesIn ?? 0)}</strong> of {fmtInt(casesTotal)} {noun}
-            {filter?.and.length ? ` · ${fmtInt(Math.max(0, casesTotal - (casesIn ?? 0)))} out` : ""}
-            {feedback.noneRemoved ? <span className="ml-2 text-warning">no {noun} removed</span> : null}
-          </span>
+          {/* a board that could not be counted prints no count: it said "in 0 of 0" beside its own error */}
+          {!boardError && (
+            <span className="tnum whitespace-nowrap text-sm text-text-muted" data-testid="count-line">
+              in <strong className="text-text">{fmtInt(casesIn ?? 0)}</strong> of {fmtInt(casesTotal)} {noun}
+              {filter?.and.length ? ` · ${fmtInt(Math.max(0, casesTotal - (casesIn ?? 0)))} out` : ""}
+              {feedback.noneRemoved ? <span className="ml-2 text-warning">no {noun} removed</span> : null}
+            </span>
+          )}
         </div>
       </div>
 
-      <KpiTiles kpis={kpis.data} baseline={kpisAll.data} filtered={!!filter?.and.length} updating={kpis.isFetching && !kpis.isPending} />
+      {/*
+        R3-12, P1-11 — one board, one state.
 
+        When the selection cannot be counted at all, every panel drew the same sentence and the same way out —
+        three alerts on one screen — while the four tiles stayed on *the numbers of this selection are being
+        counted…*, which nothing was ever going to end. The board says it once, offers the way out once, and
+        draws no numbers it does not have.
+      */}
+      {boardError ? (
+        <ErrorBlock
+          error={boardError}
+          retry={() => void kpis.refetch()}
+          action={
+            filter?.and.length
+              ? { label: "Open the board without the filter", onClick: () => patch({ filter: undefined, fh: undefined, sel: undefined, activity: undefined }) }
+              : { label: "Back to Where is it worst?", to: "/p/$projectId/runs/$runId/backlog" as const, params: { projectId: ctx.projectId, runId }, search: { slicing, view } }
+          }
+        />
+      ) : (
+        <KpiTiles kpis={kpis.data} baseline={kpisAll.data} filtered={!!filter?.and.length} updating={kpis.isFetching && !kpis.isPending} />
+      )}
+
+      {!boardError && (
       <div className="grid gap-3 xl:grid-cols-12">
         <Panel
           spec={PANELS["flow-map"]}
@@ -243,6 +286,7 @@ export default function BoardPage() {
           onExpand={() => expand("flow-map")}
           loading={flow.isPending}
           error={flow.isError ? flow.error : undefined}
+          errorAction={clearFilterAction}
           onRetry={() => void flow.refetch()}
           updating={flow.isFetching && !flow.isPending}
           bodyHeight={300}
@@ -288,6 +332,7 @@ export default function BoardPage() {
           onExpand={() => expand("worst-groups")}
           loading={ranked.isPending}
           error={ranked.isError ? ranked.error : undefined}
+          errorAction={clearFilterAction}
           onRetry={() => void ranked.refetch()}
           updating={ranked.isFetching && !ranked.isPending}
           bodyHeight={300}
@@ -312,6 +357,7 @@ export default function BoardPage() {
           onExpand={() => expand("distribution")}
           loading={dist.isPending && !!constraint}
           error={dist.isError ? dist.error : undefined}
+          errorAction={clearFilterAction}
           onRetry={() => void dist.refetch()}
           updating={dist.isFetching && !dist.isPending}
           bodyHeight={220}
@@ -329,6 +375,7 @@ export default function BoardPage() {
                 mode="plain"
                 sliders="never"
                 height={expanded("distribution") ? 420 : 200}
+                noun={noun}
                 groupName={filter?.and.length ? "the items in view" : "all items"}
               />
             )
@@ -353,6 +400,7 @@ export default function BoardPage() {
           onExpand={() => expand("breakdown")}
           loading={facets.isPending}
           error={facets.isError ? facets.error : undefined}
+          errorAction={clearFilterAction}
           onRetry={() => void facets.refetch()}
           updating={facets.isFetching && !facets.isPending}
           bodyHeight={220}
@@ -372,6 +420,7 @@ export default function BoardPage() {
           )}
         </Panel>
       </div>
+      )}
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-2 text-xs text-text-muted" data-testid="board-source">
         <span>{sourceLine}</span>

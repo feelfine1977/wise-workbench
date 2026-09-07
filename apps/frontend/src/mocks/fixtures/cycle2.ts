@@ -117,6 +117,39 @@ export function enrichRow(row: BacklogRow, _view: string, illustrative: boolean)
   } as BacklogRow;
 }
 
+/**
+ * The data caveats of the **whole run** (R3-09). The served backend computes this over every group it ranked,
+ * so the line above the ranked list is the same sentence on page 1, page 2 and page 3; the mocks compute it
+ * once from every row of the run for the same reason. Before it, the line was built from whichever fifty rows
+ * were on the screen and read *up to 44 %* on one page and *up to 91 %* on the next, for one run.
+ */
+export function caveatSummary(rows: BacklogRow[]): Record<string, { groups: number; page_share: number; max_share: number; threshold: number }> {
+  const byId = new Map<string, { shares: number[]; text: string; groups: number }>();
+  for (const r of rows) {
+    for (const c of r.caveats ?? []) {
+      const entry = byId.get(c.id) ?? { shares: [], text: c.text, groups: 0 };
+      entry.groups += 1;
+      if (c.share !== null && c.share !== undefined) entry.shares.push(c.share);
+      byId.set(c.id, entry);
+    }
+  }
+  // the shape the service serves (`an.caveat_page_summary`): the kind is the key, the shares are named
+  // `page_share` and `max_share`, and there is no sentence — the screen writes that itself (P1-3)
+  const out: Record<string, { groups: number; page_share: number; max_share: number; threshold: number }> = {};
+  for (const [id, e] of byId) {
+    if (!rows.length || e.groups / rows.length < 0.9) continue;
+    const sorted = [...e.shares].sort((a, b) => a - b);
+    const page = sorted.length ? (sorted[Math.floor(sorted.length / 2)] as number) : 0;
+    out[id] = {
+      groups: e.groups,
+      page_share: page,
+      max_share: sorted.length ? (sorted[sorted.length - 1] as number) : 0,
+      threshold: 1.5 * page,
+    };
+  }
+  return out;
+}
+
 export const backlogParamsC2 = (illustrative: boolean, extra: Partial<BacklogParamsC2> = {}): BacklogParamsC2 => ({
   window_end: VERIFIED_WINDOW_END,
   case_noun: VERIFIED_CASE_NOUN,

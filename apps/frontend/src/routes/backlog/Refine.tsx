@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { describeClause, removeClause, serializeFilter } from "@/lib/filter";
 import { fmtInt, fmtNum } from "@/lib/format";
+import { useUiStore } from "@/lib/stores/ui";
 import { kindReading } from "@/lib/vocabulary";
 import { cn, sliceLabel } from "@/lib/utils";
 import { Filters } from "./Filters";
@@ -38,6 +39,7 @@ interface Chip {
  */
 export const Refine = forwardRef<HTMLInputElement, RefineProps>(function Refine({ search, layers, runGamma, filter, preview, within, labelOf, onChange, onReset, caseNoun = "cases", children }, searchRef) {
   const [open, setOpen] = useState(false);
+  const guided = useUiStore((st) => st.mode === "guided");
   // The drawer opens on the search box (not on the first tooltip trigger), so Escape closes the drawer at once.
   const inputRef = useRef<HTMLInputElement | null>(null);
   const setInputRef = useCallback(
@@ -108,7 +110,36 @@ export const Refine = forwardRef<HTMLInputElement, RefineProps>(function Refine(
             <SheetDescription className="text-sm text-text-muted">Every choice lives in the address bar and shows as a chip above the list.</SheetDescription>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            <Filters ref={setInputRef} search={search} layers={layers} runGamma={runGamma} onChange={onChange} onReset={onReset} />
+            {guided ? (
+              /**
+               * Guided mode offers three questions instead of the whole drawer (R3-10): the ones a reader of
+               * the guided path asks. γ, the sort, the stability filter and the expectation-area picker are
+               * the analyst's, and *Show everything* in the banner brings them back.
+               */
+              <ul className="flex flex-col gap-3 text-sm" data-testid="guided-filters">
+                {(
+                  [
+                    { id: "big", label: "Only the groups with many items", on: (search.minCases ?? BACKLOG_DEFAULTS.minCases) > BACKLOG_DEFAULTS.minCases, patch: { minCases: (search.minCases ?? BACKLOG_DEFAULTS.minCases) > BACKLOG_DEFAULTS.minCases ? BACKLOG_DEFAULTS.minCases : 100 } },
+                    { id: "sure", label: "Only the ranks we are sure of", on: !!search.confident, patch: { confident: search.confident ? undefined : true } },
+                    { id: "acute", label: "Only the sharpest problems", on: search.kind === "acute", patch: { kind: search.kind === "acute" ? undefined : ("acute" as const) } },
+                  ] as const
+                ).map((f) => (
+                  <li key={f.id}>
+                    <label className="flex items-start gap-2">
+                      <input type="checkbox" className="mt-0.5" checked={f.on} onChange={() => onChange(f.patch as Partial<BacklogSearch>)} />
+                      <span>{f.label}</span>
+                    </label>
+                  </li>
+                ))}
+                <li>
+                  <Button variant="outline" size="sm" onClick={onReset}>
+                    Show every group again
+                  </Button>
+                </li>
+              </ul>
+            ) : (
+              <Filters ref={setInputRef} search={search} layers={layers} runGamma={runGamma} onChange={onChange} onReset={onReset} />
+            )}
           </div>
         </SheetContent>
       </Sheet>

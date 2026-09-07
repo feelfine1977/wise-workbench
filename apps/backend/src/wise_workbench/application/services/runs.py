@@ -50,9 +50,19 @@ class RunService:
 
     # ------------------------------------------------------------- create
     def create(
-        self, project_id: str, params: RunParams, idempotency_key: str | None = None, force: bool = False
+        self,
+        project_id: str,
+        params: RunParams,
+        idempotency_key: str | None = None,
+        force: bool = False,
+        *,
+        enqueue: bool = True,
     ) -> tuple[Run, Job | None, bool]:
-        """Returns ``(run, job, created)``; identical inputs return the existing run."""
+        """Returns ``(run, job, created)``; identical inputs return the existing run.
+
+        ``enqueue=False`` records the run without queueing its scoring job: the caller is already inside a job
+        (a what-if scenario) and scores it itself.
+        """
         self.c.repos.get_project(project_id)
         if idempotency_key:
             existing = self.c.repos.find_run(project_id, idempotency_key=idempotency_key)
@@ -97,6 +107,8 @@ class RunService:
             idempotency_key=idempotency_key,
         )
         self.c.repos.add_run(run)
+        if not enqueue:
+            return run, None, True
         job = self.c.queue.enqueue(
             str(JobKind.SCORE_RUN), {"projectId": project_id, "runId": run.id}, project_id=project_id
         )
@@ -160,6 +172,7 @@ class RunService:
             slicings=tuple((s.id, tuple(s.attributes)) for s in run.params.slicings),
             bands={s.id: tuple(dict(b) for b in s.bands) for s in run.params.slicings if s.bands},
             scope=dict(run.params.scope) if run.params.scope else None,
+            transforms=tuple(dict(t) for t in run.params.transforms),
             window_end=window_end,
             case_noun=noun,
             closure_label=CLOSURE_LABELS.get(str(project.process or ""), "closure"),
@@ -198,6 +211,10 @@ class RunService:
         attrs, specs = self._slicing(ctx, drill_from, bands)
         key = parse_slice_key(drill_key, len(attrs))
         return {"id": ctx.slicing_id(attrs, specs) or ",".join(attrs), "attributes": attrs, "bands": specs, "key": key}
+
+    def ready(self, project_id: str, run_id: str) -> tuple[Run, RunContext]:
+        """The run and its context, once it is done; the read side of every screen starts here."""
+        return self._ready(project_id, run_id)
 
     def _ready(self, project_id: str, run_id: str) -> tuple[Run, RunContext]:
         run = self.get(project_id, run_id)
@@ -358,7 +375,12 @@ class RunService:
                 "label": "Expectations",
                 "value": f"{norm.name} v{norm.version}",
                 "note": f"{norm.status}; {len(norm.document.get('constraints') or [])} expectations"
-                + (f"; {len(norm.validation)} warning(s)" if norm.validation else ""),
+                # a count says its own plural: the run screen printed "3 warning(s)" (P1-13)
+                + (
+                    f"; {len(norm.validation)} warning{'' if len(norm.validation) == 1 else 's'}"
+                    if norm.validation
+                    else ""
+                ),
             },
             {
                 "label": "Perspective",
@@ -370,6 +392,7 @@ class RunService:
                 "value": "; ".join(slicings) or "nothing",
                 "note": f"groups of at least {run.params.min_cases} {noun}",
             },
+            self._ranking_row(project_id, table.mapping_id, noun),
             {
                 "label": "Small groups",
                 "value": f"γ = {run.params.gamma:g}",
@@ -422,6 +445,30 @@ class RunService:
             "uncalibrated": self._uncalibrated_or_empty(project_id, run_id),
         }
 
+    def _ranking_row(self, project_id: str, mapping_id: str, noun: str) -> dict[str, Any]:
+        """Which weighting the ranked list is in force with, and which other one the run offers (R3-15).
+
+        A backlog can be ranked by how many items a group carries or by how much they are worth — the exposure
+        the mapping names, the order quantity on the order-to-cash extract. Both are available on every request
+        (``?volume=cases`` and ``?volume=exposure``); the run says which one it is showing.
+        """
+        exposure = self.c.repos.get_mapping(mapping_id).exposure
+        if not exposure:
+            return {
+                "label": "Ranked by",
+                "value": f"number of {noun}",
+                "note": "this log carries no exposure column, so there is nothing else to weigh groups by",
+            }
+        return {
+            "label": "Ranked by",
+            "value": f"number of {noun}",
+            "note": f"in force; the same run also ranks by {exposure} (rank by quantity)",
+            "options": [
+                {"id": "cases", "label": f"by {noun}", "inForce": True},
+                {"id": "exposure", "label": f"by {exposure}", "inForce": False},
+            ],
+        }
+
     def _resolved_window_end(self, project_id: str, run_id: str) -> str | None:
         try:
             _run, ctx = self._ready(project_id, run_id)
@@ -435,6 +482,33 @@ class RunService:
         except ConflictError:
             return []
         return self.c.engine.uncalibrated(run, ctx)
+
+    def readiness_report(self, project_id: str, run_id: str) -> dict[str, Any]:
+        """The run's readiness gate check by check (R3-03); empty when the analytics have not run."""
+        try:
+            run, ctx = self._ready(project_id, run_id)
+        except ConflictError:
+            return {
+                "status": "unknown",
+                "checks": [],
+                "failed": [],
+                "warned": [],
+                "logWideFailed": [],
+                "perGroupFailed": [],
+            }
+        return self.c.engine.readiness_report(run, ctx)
+
+    def uncalibrated_flags(self, project_id: str, run_id: str) -> builtins.list[dict[str, Any]]:
+        """Every flagged expectation of the run, with its reason and its sentence (R2-09, R3-14)."""
+        return self._uncalibrated_or_empty(project_id, run_id)
+
+    def measures_logging(self, project_id: str, run_id: str) -> dict[str, str]:
+        """Expectation id → the sentence saying its shortfall counts missing events, not values (R3-14)."""
+        return {
+            str(row["id"]): str(row["text"])
+            for row in self._uncalibrated_or_empty(project_id, run_id)
+            if row.get("measures_logging")
+        }
 
     # ------------------------------------------------------------- explore board (R3-O12)
     def facets(

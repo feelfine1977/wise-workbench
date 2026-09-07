@@ -146,6 +146,9 @@ class RunParams:
     baseline_run_id: str | None = None
     note: str | None = None
     scope: dict[str, Any] | None = None
+    # a what-if scenario: the transform layer applied to the log before it is scored (R3-27)
+    transforms: tuple[dict[str, Any], ...] = ()
+    scenario: str | None = None
 
     def __post_init__(self) -> None:
         if not self.case_table_id or not self.norm_version_id:
@@ -170,6 +173,8 @@ class RunParams:
             "baselineRunId": self.baseline_run_id,
             "note": self.note,
             "scope": dict(self.scope) if self.scope else None,
+            "transforms": [dict(t) for t in self.transforms],
+            "scenario": self.scenario,
         }
 
     @classmethod
@@ -192,6 +197,8 @@ class RunParams:
             baseline_run_id=d.get("baselineRunId") or None,
             note=d.get("note") or None,
             scope=dict(d["scope"]) if d.get("scope") else None,
+            transforms=tuple(dict(t) for t in d.get("transforms") or ()),
+            scenario=d.get("scenario") or None,
         )
 
     def params_hash(self) -> str:
@@ -213,6 +220,8 @@ class RunParams:
             payload["bands"] = bands
         if self.scope:
             payload["scope"] = self.scope
+        if self.transforms:
+            payload["transforms"] = [json.dumps(dict(t), sort_keys=True) for t in self.transforms]
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

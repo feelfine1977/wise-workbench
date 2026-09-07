@@ -9,12 +9,13 @@ numbers are those of the BPI Challenge 2019 log in the verified workspace.
 ## Workflow
 
 The stepper across the top of every screen names the seven steps of an
-analysis — **Data → Norm → Run → Signals → Flow → Why → What to do** — and
-shows where you are (*you are here*), what is done (●), what is in progress
-(◐) and what is still waiting (○, with the reason in a tooltip: *needs a
-finished run*). Every step is a link to where its work happens; `Alt+1` …
-`Alt+7` jump to them; **Back to …** and `Alt+←` return to where you came
-from, with its filters.
+analysis — **Data → Norm → Run → Signals → Flow → Why → What can we do?** —
+and shows where you are (*you are here*), what is done (●), what is in
+progress (◐) and what is still waiting (○, with the reason in a tooltip:
+*needs a finished run*). Every step is a link to where its work happens;
+`Alt+1` … `Alt+7` jump to them; **Back to …** and `Alt+←` return to where
+you came from, with its filters. A reader who wants one path rather than
+seven steps can open any address with `?mode=guided` (section 2).
 
 **Data.** You give the application an event log (one row per event: which
 case, which activity, when), name the columns, say what a case is (an order
@@ -64,13 +65,15 @@ and the possible gain. The decision pane asks **What next?** — investigate,
 defer, accept the shortfall, not a problem — with a note. **Freeze this**
 keeps any screen in the notebook with its context and your remark.
 
-**What to do.** The step is on the stepper and reads *not available yet*.
-The server already answers it — for the group's top drivers, the usual
-reasons with *in the log: check …* and *outside the log: ask …*, the usual
-actions with their countermeasure type and owner role, and what to check
-first — and so does the knowledge hub behind it; the screens that would show
-them are the next piece of work. Section 11 says what can be read today and
-how.
+**What can we do?** The last step takes the group's shortfall apart into its
+drivers: for each, the expectation in plain words, what closing it would be
+worth in score points, what to check first, the usual reasons split into *in
+the log — check …* and *outside the log — ask …*, and the usual actions with
+the kind of countermeasure and the role that usually owns them. A reason
+marked **to test** becomes a hypothesis, which the checks on the group must
+let through; a proposed action is recorded with its owner and appears on the
+dashboard. Every word on the screen has a page in the knowledge hub behind
+it. Section 11.
 
 Priorities are evidence for hypotheses, not verdicts. The application never
 says what causes a shortfall; it shows where the shortfall sits and which
@@ -104,9 +107,9 @@ flow types, or one) on Signals and Why; **case table** (*case table v1 ·
 251,734 cases*) on Data. On the right: **N caveats** (opens the data
 caveats), **Notebook** with its snapshot count, the camera (presses the
 screen's **Freeze this**), **Help and glossary** (`?`) and the **Command
-palette** (`⌘K` / `Ctrl K`). The rest — density, theme, the **words**
-switch, *live backend* or *mock data* — sits behind **⋯**. No id is visible;
-hover a switcher for it.
+palette** (`⌘K` / `Ctrl K`). The rest — **Knowledge hub** (*what the words
+mean*, section 11), density, theme, the **words** switch, *live backend* or
+*mock data* — sits behind **⋯**. No id is visible; hover a switcher for it.
 
 **The stepper** (the Workflow section above). Sub-screens show a second line
 under their step: on the norm lens opened from Why it reads *Why › Packaging
@@ -147,6 +150,29 @@ Section 17 lists all pairs.
 **Why?**, `p` pins, `f` opens the decision pane, `/` opens **Refine**; on the
 map the arrow keys move between activities, `Space` selects, `Enter` opens
 the actions menu, `Esc` clears.
+
+**Guided mode.** `?mode=guided` in any address turns the workbench into one
+path for a reader who has a question rather than an analysis to run; it is
+remembered until `?mode=analyst` turns it off. What changes:
+
+- **three steps instead of seven** — **Where is it worst? → Why? → What can
+  we do?**; loading a log, writing a norm and scoring a run are the
+  analyst's work and are not on the path;
+- **the ribbon keeps the project, the run and the scope**; the perspective,
+  the grouping, γ and the **words** switch move under **⋯**, and the
+  duplicated selects beside the ranked list are gone;
+- **the explanations open with the screen** — the *How to read this*
+  paragraph is unfolded and cannot be closed;
+- **Refine becomes three questions** — *only the groups with many items*,
+  *only the ranks we are sure of*, *only the sharpest problems* — instead of
+  the drawer with the method's terms;
+- **the decision pane asks *What next?* and a note**; the kind of problem is
+  computed rather than asked for;
+- **a banner** at the top says what guided mode is, with **Show
+  everything** — one click back to the whole workbench.
+
+The numbers, the sentences and the addresses are the same in both modes: a
+link copied in guided mode opens the same screen for an analyst.
 
 ## 3. Load a log: the BPIC 2019 preset or your own CSV
 
@@ -412,12 +438,15 @@ whole log with the expectations drawn on it (section 9 explains the map)
 ## 8. Read the signals list
 
 **Signals** (step 4) is **Where is it worst?** for the run. One sentence
-under the title says what is ranked: *30 groups of purchase order items by
-Company × Spend area text, ranked by how many × how far below the overall
-score, small groups discounted, in the Automation perspective*. Caveats that
-hold on nearly every group are stated once under it (*On nearly every group
-here: 17 % started near the window end · 16 % still open at the end*), not
-on every card.
+under the title says what is ranked: *23 groups of purchase order items by
+Company × Spend area, ranked by how many × how far below the overall score,
+small groups discounted, in the Automation perspective*. Caveats that hold
+on nearly every group are stated once under it, in the run's own words and
+with the run's own numbers (*On nearly every group of this run: 17 %
+started near the window end · 14 % still open at the end*, and under it
+*still open at the end: 14 % on average, up to 91 % on 23 of 23 groups*),
+not on every card. A caveat that holds on six groups of the twenty-three is
+not stated of the run.
 
 **Refine** (the funnel) opens a drawer of questions — which group (`/`),
 at least how many cases, only problems about one expectation area, only one
@@ -493,7 +522,7 @@ items, 9 % below): 946 against 51.
 **Keyboard**: `↑` `↓` move between cards, `↵` opens Why?, `p` pins the card
 into the comparison strip (three slots above the list; **Unpin** removes
 it), `f` opens Why? with the decision pane focused, `/` opens Refine. The
-footer shows "10 of 30 groups · page 1 / 3" with **Previous** and **Next**.
+footer shows "10 of 23 groups · page 1 / 3" with **Previous** and **Next**.
 
 **Table** shows the same rows as numbers with full precision: **#**,
 **group**, **cases**, **average score**, **shortfall**, **shortfall, small
@@ -535,11 +564,28 @@ filter, the chips and the selection survive the switch) and **Freeze this**.
 
 **The frame is the page.** No card, no title over the drawing: a 1 px
 border, the legend as a column beside the canvas (**Hide the legend** folds
-it into a button), and the zoom controls (**+**, **−**, **Fit the map to the
-frame**, **Fill the window**) as the only thing over it. At 1440 × 900 the
-frame is 1,360 × 588 px — 61.7 % of the window — and the step never grows a
+it into a button; below 1200 px it is a **▤ legend** button with a pop-over,
+so the canvas keeps the full width), and the zoom controls (**+**, **−**,
+**Fit the map to the frame**, **Fill the window**) as the only thing over
+it — the drawing library's own control bar and watermark are gone. At
+1440 × 900 the frame is 1,360 × 588 px — 61.7 % of the window — with the
+canvas 1,158 px wide beside the legend column, and the step never grows a
 page scrollbar: opening the activity card, adding a filter or entering the
 full window leaves the frame the size it was.
+
+**Every label on the map can be read.** The drawing is fitted to what it
+draws rather than to the lanes that hold it — the empty band above it is
+**4.2 %** of the frame at 1440 × 900 — and every text inside the canvas is
+drawn at a constant size on the screen whatever the fitted zoom: the
+activity name at **12 px** and the item count, the stage and lane headers,
+the start and end markers, the path labels and both halves of a badge at
+**at least 11 px**, at 1440 × 900, 1280 × 720 and 1024 × 768, at every
+detail level. A badge that cannot be drawn inside its own box at that size
+is dropped, worst share first, rather than printed illegibly. Two things
+this does not fix: the share labels of two different paths can still land on
+the same pixels, and the pop-up title of a path is written by the drawing
+library and says *cases* where the rest of the screen says *purchase order
+items*.
 
 **Click an activity** and a card appears under the map with its counts and
 six actions, each with a key:
@@ -566,11 +612,15 @@ the log from 251,734 to 234,479 items; the chip, the count line, the map and
 the address all move together.
 
 **Paths in / out** answers from the whole directly-follows relation, not
-only from what is drawn. **Change Quantity** has 22 paths in and 20 out; at
-the default detail the map draws none of them, so all 42 are listed under
-*hidden at this detail level (42)* with **Show them**, each with its other
-end, the items on it and the median wait in days. An activity that the
-current level does not draw says so under the frame, with **Raise the
+only from what is drawn, and it answers on a **sheet over the map** rather
+than in a column beside it, so the drawing keeps its width. **Record Goods
+Receipt** has 27 paths in and 22 out: all **49** are on the sheet at once,
+without scrolling, each with its other end, the items on it and the median
+wait in days, and each with **filter to this path**; the sheet sorts by
+items or by median wait, and `Escape` closes it. The paths the current
+detail level does not draw sit under one divider — *hidden at this detail
+level* with **Show them** — printed once, on the sheet and nowhere else. An
+activity the level does not draw says so under the frame, with **Raise the
 detail**.
 
 **Full window** (`⤢` or `F`) fills 95 % of the window and keeps the filter
@@ -614,11 +664,17 @@ Company × Spend area · all flows · no filter · 251,734 purchase order items
 (the dialog reads *Save this board*; boards are kept per project in your
 browser) and one primary action, *Why? Packaging →*.
 
-**What to expect of the speed.** The count line, the ranked list and the
-breakdown answer a click in well under a second. The **four tiles** are
-computed on the server for that filter the first time you ask for it, which
-on this log takes about eight seconds; the same selection made again is
-immediate.
+**What to expect of the speed.** Every panel answers a click in well under a
+second. The four tiles of an unfiltered board are read from the run's own
+artefacts (0.20 s the first time after the server starts, 0.009 s again);
+a filtered selection is computed for that filter and costs about 0.13 s once
+the log is in the server's memory, and about three seconds the first time
+after a start for a run scored before this release.
+
+**One population.** The board's ranked list counts the groups the signals
+list counts — **23 groups**, *10 of 23* on the first page — and the name
+column has the width it needs, so the ten rows read *Packaging · Logistics ·
+Additives · Latex & Monomers · Real Estate · company 0003 …* in full.
 
 ## 10. Why? — the group's reasons
 
@@ -627,7 +683,8 @@ group's name with the kind chip and the confidence word, **Freeze this**,
 the sentence — *109,199 purchase order items · 0.9 % below expectation ·
 invoices cleared late in 97 % of them; the shortfall is 93 % this one
 expectation* —, the comparison line, and a strip of four cells: **priority**,
-**rank** (1 of 30), **average met** (84 %, everyone 84 %), **data caveats**
+**rank** (1 of 23, the same 23 groups the list ranks), **average met** (84 %,
+everyone 84 %), **data caveats**
 (the chip). **more ▾** unfolds the full metric set. A filter row (*purchase
 order items in: all*) shows the active flow filters with their counts and
 ×.
@@ -658,9 +715,10 @@ Gain** — and the **Decision** pane on the right.
   late clearing cannot be judged*; *17 % started within the lag horizon of
   the window end*; *no duplicated header events in this group*), **All
   checks →**.
-- **Typical causes for this pattern**: still a placeholder, with **What can
-  we do? →** disabled. The server answers it already; section 11 says what
-  it holds and why there is no screen for it yet.
+- **Typical causes for this pattern**: the candidate reasons the process
+  pack carries for the expectations this group misses, each labelled as
+  something to check and not a finding, with **What can we do? →** into the
+  last step (section 11).
 
 **Compared** shows the lens for any expectation with a threshold (the select
 lists them by plain name); ϑ and W are not moved here — the line under the
@@ -702,12 +760,14 @@ timeline of its events with missed expectations marked ▲, the case's
 attributes, and a table with **#**, **activity**, **timestamp**, **Δ prev**,
 **resource**, **violates** (plain phrases).
 
-**Data trust**. The validation row of this group: **Reading** (*stable
-signal*, or *high event replication: verify logging before acting*),
-**still open at the end of the data**, **duplicated events**, **shortfall
-kept without open cases** and **shortfall without open cases**. Then the
-checks before acting — still open (pending above 10 %), duplicated events
-(failed at 50 % or more), plausibility — read-only in this release.
+**Data trust**. The reading of this group — *stable signal*, or *high event
+replication: verify logging before acting* — with the caveat shares behind
+it: **still open at the end of the data**, **duplicated events**, and the
+subgroups whose share is worse than the group's, each named (*subgroup
+censoring · start Q 2019Q1*, 99 %; *· start Q 2018Q4*, 53 %). Under it the
+**checks before acting** — the same four gates as on the last step, each
+listed once with one verdict, each with its evidence and its decision
+(section 11). Nothing on this tab computes a second verdict of its own.
 
 **Gain**. The possible gain as sentences from the analytics — *If Paid
 within terms were always met, this group would gain 4.3 points (100 % of
@@ -722,84 +782,170 @@ shortfall**, **Not a problem** (returns a threshold to elicitation), the
 method's dispositions in the tooltips — with a **note \*** and an
 **owner**; **Save** is enabled once the note is written. **Change the
 kind** and **Method terms** are disclosures. After a save the next step is
-suggested: *Freeze this screen for the notebook*. Findings are stored in
-your browser in this release.
+suggested: *Freeze this screen for the notebook*. A disposition taken here
+is kept in your browser; the hypotheses and actions written on the last step
+are kept on the server (section 11).
 
 ## 11. What can we do?, hypotheses and gates, and the knowledge hub
 
-These three are **answered by the server and have no screen yet**. The
-stepper's last step reads *not available yet*, and the Why screen's *typical
-causes* block is still a placeholder. What exists can be read from the API
-of the running server (`http://127.0.0.1:8000/api/v1`, and `…/docs` for the
-browsable contract); the screens are the next piece of work.
+**What can we do?** (step 7, `Alt+7`) opens for one group, from the Why
+screen or from the stepper. It begins with **Back to Why?**, the group's
+name and the same reading sentence the card carries, then the **drivers** —
+the expectations behind the shortfall, worst first. Each driver holds:
 
-**What can we do?** — `GET /projects/{p}/runs/{r}/what-can-we-do?slicing=…&key=…`
-answers, for the group's top drivers: the expectation in plain words, the
-share of the shortfall it carries, the **headroom in score points**, the
-comparison sentence, **what to check first**, the usual reasons split into
-*in the log: check …* and *outside the log: ask …*, and the usual actions
-with their **countermeasure type** and **owner role**. For Real Estate on
-the verified run the first driver is *Approved once* — 95 % of the
-shortfall, 8.67 points of headroom (96 % of the group's priority) — with
-*Commercially relevant fields locked after release or a reason required*
-(system setting, purchasing) and *Release strategy reviewed so that routine
-changes do not reset it* (policy, finance and controlling).
+- the expectation in plain words with a **What does this mean?** chip;
+- **what closing it would be worth**: *8.67 points of possible gain (96 %)*,
+  and the share of the shortfall it carries (*This one expectation is 95 %
+  of the shortfall of this group*);
+- what it means when it is missed, and why it matters;
+- the comparison with everyone else in real units (*Approved once: missed in
+  100 % of purchase order items here against 1.5 % elsewhere (+99 points)*);
+- **What to check first** — two or three concrete checks;
+- **What usually causes it** — candidates to check, not findings, each
+  marked *in the log — check …* or *outside the log — ask …*, each with
+  **Mark to test**;
+- **What usually helps** — the actions, each with the kind of countermeasure
+  and the role that usually owns it (*system setting · purchasing*,
+  *automation · IT process owner*), each with **Propose this action**.
 
-**Gates and hypotheses.** `GET …/runs/{r}/gates?slicing=…&key=…` computes
-three gates for a group — **readiness** (from the log's own readiness),
-**censoring** and **replication** (from the group's caveat shares; a warning
-at 20 %, a failure at 40 to 50 %) — each with its evidence and a plain
-sentence. `POST …/gates/{id}` records *passed*, *failed* or *waived*, and
-refuses to pass or waive one without a note. A hypothesis or an action
-written on a group with a failed gate is refused until the gate is waived
-with a note: on Real Estate both readiness and censoring fail (*44 % of
-these purchase order items are still open at the end of the data*). A
-hypothesis records the group, the perspective, the expectation, the
-comparison and the direction you expect; the **test is computed, not
-typed** — for Real Estate the risk difference is 0.985 [0.980, 0.985], 100 %
-here against 2 % elsewhere, medians 3 against 0. Findings and actions are
-stored on the server with their mechanism, remedy, countermeasure type,
-owner role, due date and status.
+**Propose this action** opens its form **inside the driver you pressed**,
+with the cursor in *What should be done*; **Mark to test** fills a
+hypothesis with the reason's own words and names its expectation. Both are
+saved on the server and appear under **Open findings** at the foot of the
+screen and in the dashboard's **Open findings** — with the group, the kind,
+the owner role, the author and the date — so a colleague on another machine
+and the same screen after a restart show the same list.
 
-**The knowledge hub.** `GET /projects/{p}/knowledge/hub` returns the pack's
-node and edge tables — for purchase-to-pay **597 nodes and 1,123 edges**: 7
-stages, 8 layers, 92 expectations, 29 failure modes, 266 reasons, 177
-actions and 18 KPIs — and `…/hub/{node}` one page of it (what it means, why
-it matters, how it is detected, the usual reasons and actions, what to check
-first, the KPIs). `GET /projects/{p}/guidance/{kind}/{id}` (kind *layer*,
-*constraint*, *expectation* or *failure_mode*) returns the pack's generic
-text with your project's own note as an **overlay**; `PUT` on the same path
-stores that note, which is added to the generic text and never replaces it.
+**Before acting on this: the checks.** Four gates are computed for the group
+you are looking at, each with its evidence and one plain sentence:
 
-## 12. Building a norm without writing JSON
+| Gate | What it asks |
+|---|---|
+| **readiness** | do this group's own shares allow a judgement (still open, window edge, duplicates, replication, sentinel stamps)? |
+| **censoring** | how many of these items had not finished at the end of the data (a warning at 20 %, a failure at 40 %)? |
+| **replication** | how much of this group's evidence is the same event copied onto many items? |
+| **domain** | does the expectation carrying this group's shortfall rest on a threshold that is still a placeholder, or on one that measures logging? |
 
-The norm screen already shows a version's **uncalibrated thresholds**, its
-warnings and which layers have no guidance, and the run screen lists the
-expectations whose threshold says more about the threshold than about the
-groups (*Mostly automatic is missed by 92 % of all purchase order items it
-applies to — a threshold to calibrate, not a difference between groups*).
+A check whose evidence is a property of the whole log is decided **once, at
+the run**, and says so instead of asking for a decision per group; a group
+with no share above the reporting threshold reads *passed*, not *unknown*.
+Each gate can be recorded as **passed**, **failed** or **waived**, always
+with a note. A hypothesis on a group whose gates block is refused until they
+are decided — on **Real Estate** readiness and censoring both fail (*44 % of
+these purchase order items are still open at the end of the data*), and the
+screen says so where the hypothesis would have been written. The test itself
+is **computed, not typed**: the risk difference with its interval, the two
+shares and the two medians.
 
-The **builder's own three helpers are on the server and have no form yet**:
+**The knowledge hub** (**⋯ → Knowledge hub** in the ribbon, on every screen,
+or the chip on any word) gives every word of the process a page: for
+purchase-to-pay **597 pages** —
+7 stages, 8 expectation areas, 92 expectations, the failure modes, reasons,
+actions and indicators. A page holds what is expected, what it means when it
+is missed, why it matters, how it is detected, what usually causes it and
+what usually helps (the same texts the drivers use), what to check first,
+examples of missed and as expected, the related stage, expectations, failure
+modes and indicators, and who is usually accountable. **Your organisation's
+note** is added to the pack's text and never replaces it. The index lists
+the pages by kind with a search box; several expectations share a name
+across templates, so the index still repeats some names.
 
-- `GET /projects/{p}/norms/inventory?caseTableId=…` — what a rule may be
-  written on: 42 activities with their events, cases, share, stage and
-  canonical id (*Record Goods Receipt · 314,097 events · 234,479 items ·
-  93 % · receive*), and 18 case attributes with their distinct and missing
-  counts and their values (*case Spend area text: 21 values, Packaging
-  109,199 · 43 %*); numeric attributes also carry their minimum, p10,
-  median, p90 and maximum for the calibration lens.
-- `POST /projects/{p}/norms/constraints/check` — one expectation checked
-  against a case table before it joins a norm: whether it is well formed,
-  whether the activities it names occur, how many cases it applies to and
-  how many miss it, and **what it says in one plain sentence** with its
-  applicability in words.
-- `GET /projects/{p}/norms/guidance-questions?kind=layer&id=…` — the five
-  questions to ask a stakeholder about a layer, each with the pack's text as
-  a suggested starting answer; answers are stored through the guidance
-  overlay.
+**A What does this mean? chip** sits on the missed expectation of every
+signal card, on every driver row, on the expectation area behind *more*, on
+the norm's layers and constraints and on every data caveat chip — the chip
+*is* the caveat chip, so the strip carries no second glyph. The kind of
+problem (acute · systematic · widespread) has no page: it is the method's
+own word and keeps its tooltip and its glossary entry.
 
-Until the forms exist, a norm still comes from a preset, from the
-calibration lens, or as JSON through the API.
+### What-if against a frozen baseline
+
+A scenario asks *what would the ranking look like if …*. It is **answered by
+the server and has no screen yet**; it is asked through the API of the
+running server (`http://127.0.0.1:8000/api/v1`, `…/docs` for the browsable
+contract).
+
+A scenario **is a run**: it keeps the artefacts, the manifest with its
+fingerprints and the analytics every run has, and every screen that reads a
+run reads it. It carries three things more: the id of the run it is measured
+against, the transform layer, and a name a person recognises.
+
+- `POST …/runs/{r}/whatif` queues one against this run as the **frozen
+  baseline**; `POST …/runs/{r}/whatif/preview` says what the transforms
+  would touch without scoring anything.
+- **The transforms**: cap a lag, delete an activity, move an event, set an
+  attribute, keep the first of a repetition — each selecting its cases with
+  the same filter grammar the map writes, each reporting what it touched.
+- The scenario is scored under the baseline's own parameters, or under a
+  **norm version of its own** parented on the baseline's when it changes a
+  threshold or an applicability.
+- `GET …/runs/{r}/whatif` answers the **change table**: per group the two
+  runs' cases, mean score and priority, the difference of each and the
+  movement in rank; which groups entered and left; the Spearman agreement of
+  the two orders and the overlap of the top ten; and one sentence to read.
+  `GET /projects/{p}/scenarios` lists them, newest first.
+- **The baseline is untouched.** Both runs are named in the provenance with
+  their norm fingerprints, content hashes, case counts, γ and minimum group
+  size, marked *frozen*.
+
+## 12. The norm builder
+
+**Norm** (step 2) is where what the process is expected to do is written
+down. The screen opens on the **versions**: the status (*draft*, *reviewed*,
+*approved*), the note, the author, the date, which version the latest run
+was scored against, and the sign controls beside it.
+
+**Opening a version** lists the expectations by area, each as the sentence
+it means — *Clear Invoice follows Record Invoice Receipt or Vendor creates
+invoice within 30 days, tolerated to 60* — with *⚠ a threshold to calibrate*
+on the ones whose number is still the template's, and the line *7 expectation
+areas · 29 expectations · 4 perspectives · 10 still to calibrate on this
+log*. Selecting one opens it on the right in three panes: **the numbers**,
+**the rule**, **who it applies to**.
+
+**The numbers** is the calibration lens: the distribution of the log's own
+values with the threshold and its tolerance drawn on it, and what each
+candidate would make missing.
+
+**The rule** is built from pickers that carry the log's own counts, so a
+rule is written on what the log has rather than on what it might have: 42
+activities with their events, items, share and stage (*Record Goods Receipt
+· 314,097 events · 234,479 items · 93 % · receive*) and 18 case attributes
+with their distinct and missing counts and their values (*Spend area:
+21 values, Packaging 109,199 · 43 %*). The rule is checked against the case
+table before it joins the norm — whether it is well formed, whether the
+activities it names occur, how many items it applies to and how many miss it
+— and shown back as one plain sentence. **New expectation** starts an empty
+one in an area.
+
+**Who it applies to** is offered from the log itself: the flow types the
+case table carries with their counts, the flow types the rules name that it
+does **not** carry with the reason, every case attribute with its values,
+and the four shapes a clause can take — *this flow type*, *this attribute
+value*, *always*, and **not applicable to this log**. An expectation marked
+not applicable leaves the version with a required note and leaves the
+perspectives' weights with it, instead of being averaged in as a constant;
+the whole expectation is kept, so it can be brought back.
+
+**Committing a change** asks two questions and will not save without them:
+*why this threshold (required)* and *who owns it (required)*.
+
+**Signing a version.** **Mark reviewed** and **Approve this version** sit
+beside the status, and each asks for the person who signs. A version cannot
+leave *draft* without a named person, and not while a threshold this version
+set has no reason and no owner: the server answers with the thresholds that
+are missing one and the screen shows that refusal. `GET
+…/norms/{id}/calibration` is the same list — every threshold with its reason
+and owner, what this version changed, what is marked not applicable, and
+what still keeps it in draft.
+
+**Still on the server only:** the five **guidance questions** to ask a
+stakeholder about an expectation area, each with the pack's text as a
+starting answer (`GET …/norms/guidance-questions?kind=layer&id=…`); the
+answers are stored through the guidance overlay and added to the pack's
+text, and no form asks them yet.
+
+A norm can still arrive as a preset or as JSON through the API; what changes
+is that it no longer has to.
 
 ## 13. The order-to-cash preset
 
@@ -810,12 +956,13 @@ which now includes the packs' own. Beside **BPI Challenge 2019
 button. Loading it takes about four minutes and produces 51,164 **sales
 order items** over 267,071 events and 16 activities, with *Create Order*
 typed as a header event, `days_late` and `order_month` prepared at
-case-table build, the flow types *standard* 49,486 · *rejected* 1,568 ·
-*partial delivery* 110, a readiness report (186 events outside the window,
-137 duplicates, 84.1 % header replication of *Create Order*, 639 items still
-open) and `o2c_baseline` as norm v1 with its uncalibrated flags visible.
+case-table build, the flow types *standard* 49,481 · *rejected* 1,563 ·
+*partial delivery* 110 · *returns* 10, a readiness report (186 events
+outside the window, 137 duplicates, 84.1 % header replication of *Create
+Order*, 639 items still open) and `o2c_baseline` as norm v1 with its
+uncalibrated flags visible.
 
-Two things to know before using it:
+Three things to know before using it:
 
 - **The norm is a template, not a calibration.** Every threshold in
   `o2c_baseline` is a placeholder, and 32 of its canonical activities do not
@@ -823,8 +970,16 @@ Two things to know before using it:
   silently). The population of the customer backlog matches the hackathon's
   own output — 69 customers and a `(missing)` group against 71, item counts
   exact for 52 of 68 and within 2 % for 66 — but **the scores do not**, and
-  the reason is the uncalibrated template. Calibrating it on the
-  distribution lens is the work an order-management expert has to do first.
+  the reason is the uncalibrated template. Calibrating it on the lens is the
+  work an order-management expert has to do first, and until it is done the
+  version cannot be signed: 13 of its 14 thresholds have neither a reason
+  nor an owner, and the server names them when the version is asked to leave
+  draft.
+- **A flow type the log cannot carry says so.** *make to order* is named by
+  the pack's rules and is **not assigned on this log**: the rule reads a
+  planning type the file does not carry, and the flow-type answer says that
+  in words instead of showing three types and no reason. A rule that
+  survives but matches nothing is reported separately.
 - **The preset card is the generic one.** The pack's own information — the
   case noun, the label pack, the six pitfalls, the extra slicings — is
   served by the API but not yet drawn on the card, and the map does not yet
@@ -905,6 +1060,16 @@ Two people who click the same things send byte-identical filters: the chips
 read in the order you added the clauses, while the form that goes to the
 server and into `fh` is sorted and de-duplicated.
 
+**What can we do?** is a screen of one group and carries the group in the
+path, not in the query: `/p/<project>/runs/<run>/slices/<key>/act?slicing=…&view=…`,
+with `constraint` naming the expectation whose reason was marked to test.
+The Why screen of the same group is the same path without `/act`, and the
+knowledge hub is `/p/<project>/knowledge` and `/p/<project>/knowledge/<page>`.
+
+`mode` is the one parameter that is not about a screen: `?mode=guided`
+turns on the guided path (section 2) anywhere and is remembered until
+`?mode=analyst` turns it off.
+
 ## 16. The command palette and help
 
 `⌘K` (`Ctrl K` on Windows and Linux) opens the **Command palette**: type to
@@ -960,54 +1125,61 @@ Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
 | gate | validation gate | a check that must pass, fail or be waived with a note before a group carries a hypothesis or an action |
 | what can we do? | remedy set | the usual reasons and actions for the expectations a group misses, with a countermeasure type and an owner role |
 | knowledge hub | process knowledge graph | the pack's stages, layers, expectations, failure modes, reasons, actions and KPIs, and the pages that join them |
+| a reason to test | hypothesis | a candidate cause written down with the group, the expectation and the direction expected, before it is tested |
+| what was recorded | finding | the outcome of testing one, kept on the server with its mechanism and status |
+| a proposed action | countermeasure | what should be done about it, with the kind of countermeasure and the role that owns it |
+| what it applies to | applicability | the flow types or attribute values an expectation is written for, or *not applicable to this log* |
+| why this threshold, who owns it | rationale, owner | what a version records against a threshold it sets; without both it stays a draft |
+| what would happen if | what-if scenario | a run against a frozen baseline with one part of the log or the norm changed |
+| the run it is measured against | frozen baseline | the run a scenario is compared with, unchanged by it |
+| guided path | guided mode | three steps, the explanations open and the method's controls out of the way |
 
 ## 18. Known limits of this release
 
 **On the map**
 
-- **Activity labels are too small to read at the fitted zoom.** The design
-  asks for at least 11 px; on this log no detail level reaches it — a 12 px
-  label is drawn at 3.0 to 5.8 px, depending on the level and the window
-  (4.6 px at *more activities* on a 1440 × 900 window, 3.0 px at 1024 × 768).
-  The slider therefore still offers every level and the caption marks the
-  ones that fall short; use the full window (`F`) or zoom in to read a name.
-  Making this right needs a label drawn at a constant size on the screen, or
-  node boxes that shrink with the zoom.
-- **A long path list scrolls.** *Paths in / out* on an activity with 42
-  paths lists all of them inside the frame, in a 264 px column, but the
-  column holds 1,154 px of rows in 586 px of height, so about half of them
-  are visible at once.
+- **Two drawn texts can land on the same pixels.** Every text drawn inside
+  the map is at least 11 px at 1440 × 900, 1280 × 720 and 1024 × 768 on both
+  logs, but the labels over the drawing are placed without knowledge of each
+  other: on the purchase-to-pay log 12 to 22 pairs intersect, depending on
+  the window and the detail level — a path's share label over another path's
+  (*⇒ 52 %* over *⇒ 38 %*), or a badge over the activity name or item count
+  beside it (*≥1* over *Vendor creates invoice*). Moving the detail slider
+  or opening the full window separates them; the placement itself is the
+  drawing library's own geometry.
+- **The pop-up title of a path says *cases*** — *124,621 cases. median lag
+  37 d.* — where the rest of the screen says *purchase order items*: that
+  text is written by the drawing library, which takes no case noun.
+- **At *stages only* the drawing does not fill its frame.** The four other
+  levels leave no band wider than 8 % of the frame on any side; the coarsest
+  level leaves the frame about two thirds empty at 1440 × 900.
 - **Two pinned scenes are kept, not compared**; the legend has no *show only
   this*; a range cannot be dragged across bars or bins; the breakdown draws
   twelve bars and drops the rest instead of offering a *top ten and other*
-  row; a saved board does not show *modified*.
+  row; a saved board does not show *modified*; the model's lanes are drawn
+  in the reverse of the map's order.
 - The map needs the flow library checkout next to the repository; without it
   the map shows a notice.
 
 **On the board**
 
-- **The first filtered selection is slow.** The count line, the ranked list
-  and the breakdown answer in well under a second, but the four tiles are
-  computed on the server for that filter the first time and take about eight
-  seconds on this log; the same selection made again is immediate.
+- The map panel redraws about twice as slowly as the other panels after a
+  click (about 1.5 s against 0.8 s).
 - Saved boards and pinned scenes live in your browser, not on the server;
   **Freeze this** goes to the notebook on the server as everywhere else.
 
 **Steps and screens that do not exist yet**
 
-- **What to do** is a step on the stepper without a screen, and the Why
-  screen's *typical causes* block is still a placeholder. The server answers
-  *What can we do?*, the gates, hypotheses, findings, actions, the knowledge
-  hub and the guidance overlay (section 11), and the norm builder's
-  inventory, constraint check and guidance questions (section 12).
-- **Findings** written in the decision pane still live in your browser, not
-  on the server, and the checks under **Data trust** cannot be passed,
-  failed or waived from a screen.
-- **Norm builder forms** do not exist: norms come from a preset, from the
-  calibration lens or from the API as JSON.
-- The **order-to-cash preset** loads from the generic preset card
-  (section 13); its pack information is not drawn on the card, its stage
-  lanes are not on the map, and its norm is an uncalibrated template.
+- **A what-if scenario has no screen.** The server builds it, previews its
+  transforms and answers the change table against the frozen baseline
+  (section 11); nothing in the interface asks for one.
+- **The remedy screen does not say what the possible gain is a share of**,
+  and the shares of the drivers can sum past 100 % because they overlap.
+- **An action has no due date** on the form, and *add the group to the next
+  review session* is not offered.
+- **The hub index repeats names.** Expectations that several templates carry
+  are listed once per template, so about 35 distinct names appear as 92
+  links; the *Related* block can list the page you are on.
 
 **Numbers and data**
 
@@ -1015,14 +1187,16 @@ Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
   sentence is computed for the top twelve groups of every grouping and
   perspective; the other rows say why they have none instead of borrowing
   one.
-- Three gates are computed — readiness, censoring and replication; the
-  *domain* gate exists in the vocabulary and nothing computes it.
+- **A run scored before this release carries no comparison sentence** until
+  it is scored again; the sales extract's run is such a run.
 - The analytics of a run take about 50 s after scoring on BPIC 2019; the
-  first **Why?** and the first group map after the server starts take about
-  13 s (the run is re-scored in memory once).
+  first board request after the server starts reads the event log once for a
+  run scored before this release (about 3 s).
 - **Why?** on a drilled row opens the sub-group's reasons over the whole
   log, not inside its parent group.
-- A **what-if** scenario cannot be run.
+- **The order-to-cash norm is a template.** Its thresholds are placeholders
+  and cannot be signed before they are calibrated (section 13), and its
+  *make to order* flow type cannot be assigned on this extract.
 
 **Platform**
 

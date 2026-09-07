@@ -54,7 +54,9 @@ export default function FlowPage() {
 
   const graph = flow.data;
   const meta = (graph?.meta ?? {}) as { cases?: number; events?: number; caseNoun?: string; constraints?: ConstraintMeta[]; nodesTotal?: number };
-  const noun = meta.caseNoun ?? "cases";
+  // the case table's own noun when the map itself could not be drawn: the error state printed "– cases" on a
+  // run whose noun is *purchase order items*, because the noun travels with the map (P1-11, P1-13)
+  const noun = meta.caseNoun ?? ctx.caseTable?.readiness?.caseNoun ?? "cases";
   const casesTotal = preview.data && filter ? preview.data.cases_in + preview.data.cases_out : (meta.cases ?? 0);
   const casesIn = filter ? preview.data?.cases_in : (meta.cases ?? 0);
   const feedback = useFilterFeedback({ filter, casesIn, casesTotal, noun });
@@ -112,14 +114,20 @@ export default function FlowPage() {
         runId={runId}
         title="Where in the flow"
         sentence={
-          <>
-            {scope ? `${scope} flow only` : "all flows"} · <strong className="tnum">{fmtInt(meta.cases)}</strong> {noun}
-            {meta.events ? (
-              <>
-                , <span className="tnum">{fmtInt(meta.events)}</span> events
-              </>
-            ) : null}
-          </>
+          // without the map there is no count to print: "all flows · – cases" was a dash where a number
+          // belongs, on a screen that has already said it cannot answer (P1-11)
+          meta.cases ? (
+            <>
+              {scope ? `${scope} flow only` : "all flows"} · <strong className="tnum">{fmtInt(meta.cases)}</strong> {noun}
+              {meta.events ? (
+                <>
+                  , <span className="tnum">{fmtInt(meta.events)}</span> events
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>{scope ? `${scope} flow only` : "all flows"}</>
+          )
         }
         active="flow"
         search={shared}
@@ -152,7 +160,15 @@ export default function FlowPage() {
       )}
 
       {flow.isPending && <LoadingBlock rows={8} />}
-      {flow.isError && <ErrorBlock error={flow.error} retry={() => void flow.refetch()} />}
+      {/* R3-12: a request the run refuses ends the screen on one sentence with one way out — never a status
+          code and never a skeleton that does not stop */}
+      {flow.isError && (
+        <ErrorBlock
+          error={flow.error}
+          retry={() => void flow.refetch()}
+          action={filter ? { label: "Open the run without the filter", onClick: () => changeFilter(undefined) } : undefined}
+        />
+      )}
       {graph && graph.nodes.filter((n) => n.kind === "activity").length === 0 && (
         <EmptyState
           title={`No ${noun} match.`}

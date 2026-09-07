@@ -85,7 +85,9 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(cards.nth(0).getByTestId("card-strip")).toHaveText(`priority 946 · confidence ${confidenceWord[first.stability ?? "unknown"]}`);
   expect(first.stability, "the backend's stability of Packaging").toBe("stable");
   // the comparison sentence from the row; the caveats every group shares sit once in the header, the others on the card
-  await expect(cards.nth(0).getByTestId("card-reason")).toHaveText("Paid within terms: 83 days here against 55 elsewhere (+25 days).");
+  // R3-04: one comparison, one bracket — the difference of the two numbers the card prints, not the shift
+  // estimate the run serves beside them (83 − 55 = 28)
+  await expect(cards.nth(0).getByTestId("card-reason")).toHaveText("Paid within terms: 83 days here against 55 elsewhere (+28 days).");
   await expect(page.getByTestId("page-caveats")).toContainText("still open at the end");
   await expect(page.getByTestId("page-caveats")).toContainText("started near the window end");
   await expect(cards.nth(1).getByRole("list", { name: "Data caveats for this group" })).toContainText(/copied postings|duplicated events/);
@@ -133,7 +135,11 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(map).toBeVisible({ timeout: 60_000 });
   await expect(map).toContainText("Record Goods Receipt", { timeout: 60_000 });
   await expect(map.getByRole("button", { name: "compare with everyone else" })).toBeVisible();
-  await expect(map.getByTestId("map-legend")).toBeVisible();
+  // R3-22: below 1200 px the legend is a button with a pop-over so the canvas takes the whole frame; the
+  // Why tab's map is 900 px wide, so it is the button that is drawn here
+  const legendColumn = map.getByTestId("map-legend");
+  const legendButton = map.getByTestId("legend-button");
+  expect((await legendColumn.count()) + (await legendButton.count()), "the map has no legend at all").toBeGreaterThan(0);
   await expect(map.getByTestId("map-footnote")).not.toContainText("c_l");
   await page.getByRole("button", { name: /Show all \d+ expectations/ }).click();
   await expect(page.getByTestId("drivers-table").locator("tbody tr")).toHaveCount(29, { timeout: 30_000 });

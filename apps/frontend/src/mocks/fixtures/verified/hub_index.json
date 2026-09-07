@@ -1,0 +1,2039 @@
+{
+ "pack": "p2p",
+ "process": "p2p",
+ "case_noun": "purchase order items",
+ "nodes": [
+  {
+   "id": "stage:request",
+   "kind": "stage",
+   "plain_name": "Request",
+   "method_name": "request",
+   "hasOverlay": false,
+   "order": 1
+  },
+  {
+   "id": "stage:approve",
+   "kind": "stage",
+   "plain_name": "Approve",
+   "method_name": "approve",
+   "hasOverlay": false,
+   "order": 2
+  },
+  {
+   "id": "stage:order",
+   "kind": "stage",
+   "plain_name": "Order",
+   "method_name": "order",
+   "hasOverlay": false,
+   "order": 3
+  },
+  {
+   "id": "stage:receive",
+   "kind": "stage",
+   "plain_name": "Receive",
+   "method_name": "receive",
+   "hasOverlay": false,
+   "order": 4
+  },
+  {
+   "id": "stage:invoice",
+   "kind": "stage",
+   "plain_name": "Invoice",
+   "method_name": "invoice",
+   "hasOverlay": false,
+   "order": 5
+  },
+  {
+   "id": "stage:match",
+   "kind": "stage",
+   "plain_name": "Match",
+   "method_name": "match",
+   "hasOverlay": false,
+   "order": 6
+  },
+  {
+   "id": "stage:pay",
+   "kind": "stage",
+   "plain_name": "Pay",
+   "method_name": "pay",
+   "hasOverlay": false,
+   "order": 7
+  },
+  {
+   "id": "kpi:p2p.kpi.touchless_rate",
+   "kind": "kpi",
+   "plain_name": "Touchless processing rate",
+   "method_name": "1 - share of cases with violation > 0 on the metric constraint over manual_touch_count (c_l7_manual_touches)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "kind": "kpi",
+   "plain_name": "First-time three-way match rate",
+   "method_name": "1 - share of cases with violation > 0 on the exclusion of p2p.payment_block_set or the precedence receipt -> invoice (c_l2_df1_invoice_after_goods)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "kpi",
+   "plain_name": "Payment block rate",
+   "method_name": "share of cases with count(p2p.payment_block_remove) > 0 among invoice-bearing flows",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.po_cycle_time",
+   "kind": "kpi",
+   "plain_name": "Requisition-to-order cycle time",
+   "method_name": "lag p2p.pr_item_create -> p2p.po_item_create in days (activation_lags); applicable only where a requisition exists",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.po_release_lead_time",
+   "kind": "kpi",
+   "plain_name": "Purchase order release lead time",
+   "method_name": "lag p2p.po_item_create -> p2p.po_release in days (b_approval_po_release_days)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.gr_to_invoice_days",
+   "kind": "kpi",
+   "plain_name": "Goods receipt to invoice days",
+   "method_name": "lag p2p.gr -> p2p.ir in days (c_l3_df1_goods_to_invoice_days); median and p90 per slice",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "kpi",
+   "plain_name": "Invoice to clearing days (DPO proxy)",
+   "method_name": "lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "kpi",
+   "plain_name": "Open invoice share",
+   "method_name": "share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.open_receipt_share",
+   "kind": "kpi",
+   "plain_name": "Open receipt share",
+   "method_name": "share of cases with violation > 0 on presence(p2p.gr, p2p.ses) (c_l1_goods_or_ses_present)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.price_change_rate",
+   "kind": "kpi",
+   "plain_name": "Price change rate",
+   "method_name": "share of cases with count(p2p.po_change_price) > 0 (c_l6_change_price violation > 0)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.quantity_change_rate",
+   "kind": "kpi",
+   "plain_name": "Quantity change rate",
+   "method_name": "share of cases with count(p2p.po_change_quantity) > 0 (c_l6_change_quantity violation > 0)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "kpi",
+   "plain_name": "Invoice cancellation rate",
+   "method_name": "share of cases with count(p2p.ir_cancel) > 0 (c_l5_cancel_invoice_receipt violation)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.gr_cancellation_rate",
+   "kind": "kpi",
+   "plain_name": "Goods receipt cancellation rate",
+   "method_name": "share of cases with count(p2p.gr_cancel) > 0 (c_l5_cancel_goods_receipt violation)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.item_deletion_rate",
+   "kind": "kpi",
+   "plain_name": "Order item deletion rate",
+   "method_name": "share of cases with count(p2p.po_item_delete) > 0 (c_l5_delete_item violation)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.confirmation_churn",
+   "kind": "kpi",
+   "plain_name": "Vendor confirmation churn",
+   "method_name": "share of cases with violation > 0 on singularity(p2p.po_confirmation_receive, k) (b_rework_confirmation_churn)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.on_time_receipt_rate",
+   "kind": "kpi",
+   "plain_name": "On-time receipt rate",
+   "method_name": "1 - share of cases with days_late > 0 where days_late = first p2p.gr date minus scheduled delivery date (derived attribute; metric constraint)",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.order_to_receipt_days",
+   "kind": "kpi",
+   "plain_name": "Order to receipt days",
+   "method_name": "lag p2p.po_item_create -> p2p.gr in days (b_time_po_to_gr); median and p90 per slice, open items censored",
+   "hasOverlay": false
+  },
+  {
+   "id": "kpi:p2p.kpi.spend_under_requisition",
+   "kind": "kpi",
+   "plain_name": "Share of orders with requisition evidence",
+   "method_name": "1 - share of cases with violation > 0 on presence(p2p.pr_item_create, p2p.pr_create, p2p.srm_created) (b_approval_requisition_present)",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:closure_completeness",
+   "kind": "layer",
+   "plain_name": "Closing the loop",
+   "method_name": "Expected completion and closure",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:flow_discipline",
+   "kind": "layer",
+   "plain_name": "Buying channel and sequence (maverick buying)",
+   "method_name": "Flow-conditioned control discipline",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:approval_discipline",
+   "kind": "layer",
+   "plain_name": "Approved before ordering",
+   "method_name": "Approval discipline",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:timeliness_ageing",
+   "kind": "layer",
+   "plain_name": "On time",
+   "method_name": "Handovers and ageing",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:rework_instability",
+   "kind": "layer",
+   "plain_name": "Doing it once",
+   "method_name": "Rework and instability",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:exceptions_corrections",
+   "kind": "layer",
+   "plain_name": "Exceptions stay rare",
+   "method_name": "Exceptions and corrections",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:value_commercial",
+   "kind": "layer",
+   "plain_name": "Paying what was agreed",
+   "method_name": "Value and commercial integrity",
+   "hasOverlay": false
+  },
+  {
+   "id": "layer:effort_automation",
+   "kind": "layer",
+   "plain_name": "Touchless where possible",
+   "method_name": "Effort and automation friction",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l1_invoice_present",
+   "kind": "expectation",
+   "plain_name": "Invoice received",
+   "method_name": "Invoice evidence should exist for invoice-bearing flows.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+   "kind": "expectation",
+   "plain_name": "Invoice paid",
+   "method_name": "Invoice-bearing flows should eventually be cleared.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l1_goods_or_ses_present",
+   "kind": "expectation",
+   "plain_name": "Goods or service received",
+   "method_name": "3-way flows should contain goods or service receipt evidence.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l2_df1_invoice_after_goods",
+   "kind": "expectation",
+   "plain_name": "Invoice after the goods (GR-based flow)",
+   "method_name": "In DF1, invoice evidence should not precede the first goods/service event.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l2_df2_release_after_goods",
+   "kind": "expectation",
+   "plain_name": "Block released after the goods (invoice-first flow)",
+   "method_name": "In DF2, payment-block release should happen after the first goods/service event.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l2_2way_no_goods_expected",
+   "kind": "expectation",
+   "plain_name": "No receipt on two-way items",
+   "method_name": "2-way match should not show goods/service receipt postings.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l2_consignment_no_clear_invoice",
+   "kind": "expectation",
+   "plain_name": "Consignment settled, not paid per item",
+   "method_name": "Consignment items are not expected to be settled through Clear Invoice.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l3_df1_goods_to_invoice_days",
+   "kind": "expectation",
+   "plain_name": "Invoice soon after the goods",
+   "method_name": "In DF1, invoice should follow goods/service within a target time.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "kind": "expectation",
+   "plain_name": "Paid within terms",
+   "method_name": "Invoice-bearing flows should clear in a reasonable time.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "kind": "expectation",
+   "plain_name": "Block released soon after the goods",
+   "method_name": "In DF2, goods/service to Remove Payment Block should be timely.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+   "kind": "expectation",
+   "plain_name": "Paid soon after the release",
+   "method_name": "In DF2, released items should clear quickly.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l4_goods_fragmentation",
+   "kind": "expectation",
+   "plain_name": "Received in few deliveries",
+   "method_name": "Too many goods/service receipt events indicate fragmentation.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l4_change_approval_repeats",
+   "kind": "expectation",
+   "plain_name": "Approved once",
+   "method_name": "Approval changes should be rare.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l4_repeated_invoice_receipt",
+   "kind": "expectation",
+   "plain_name": "Invoiced once",
+   "method_name": "Repeated invoice receipt events indicate invoice handling churn.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l4_change_payment_terms_repeats",
+   "kind": "expectation",
+   "plain_name": "Payment terms stay as ordered",
+   "method_name": "Repeated payment-term changes indicate unstable commercial handling.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l5_cancel_invoice_receipt",
+   "kind": "expectation",
+   "plain_name": "Invoice not cancelled",
+   "method_name": "Invoice receipt cancellations should be exceptional.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l5_cancel_goods_receipt",
+   "kind": "expectation",
+   "plain_name": "Receipt not cancelled",
+   "method_name": "Goods receipt cancellations should be exceptional.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l5_delete_item",
+   "kind": "expectation",
+   "plain_name": "Item not deleted",
+   "method_name": "PO item deletion should be exceptional once execution is underway.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l5_debit_memo",
+   "kind": "expectation",
+   "plain_name": "No vendor debit memo",
+   "method_name": "Vendor debit memos should be rare.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l5_credit_memo",
+   "kind": "expectation",
+   "plain_name": "No vendor credit memo",
+   "method_name": "Vendor credit memos should be rare.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l6_change_price",
+   "kind": "expectation",
+   "plain_name": "Price unchanged after ordering",
+   "method_name": "Price changes after ordering indicate commercial inconsistency risk.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l6_change_quantity",
+   "kind": "expectation",
+   "plain_name": "Quantity unchanged after ordering",
+   "method_name": "Quantity changes after ordering indicate commercial inconsistency risk.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l6_high_exposure_memo",
+   "kind": "expectation",
+   "plain_name": "No memos on high-value items",
+   "method_name": "Correction documents on high-exposure cases matter more financially.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l6_high_exposure_price_change",
+   "kind": "expectation",
+   "plain_name": "No price changes on high-value items",
+   "method_name": "Price changes on high-exposure cases are financially more critical.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l7_manual_touches",
+   "kind": "expectation",
+   "plain_name": "Few manual touches",
+   "method_name": "Too many manual touches reduce touchless processing potential.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "kind": "expectation",
+   "plain_name": "Few hands on the item",
+   "method_name": "Too many human handoffs indicate coordination cost.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l7_total_events",
+   "kind": "expectation",
+   "plain_name": "Short event chain",
+   "method_name": "Very long event chains indicate execution friction.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l7_manual_share",
+   "kind": "expectation",
+   "plain_name": "Mostly automatic",
+   "method_name": "High manual share indicates low straight-through processing.",
+   "hasOverlay": false
+  },
+  {
+   "id": "expectation:p2p_bpic19:c_l6_networth_volatility",
+   "kind": "expectation",
+   "plain_name": "Stable value across postings",
+   "method_name": "Net-worth volatility across the item's postings should stay within tolerance.",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.price_change_after_po",
+   "kind": "failure_mode",
+   "plain_name": "Price changed after ordering",
+   "method_name": "Price change after ordering",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.quantity_change_after_po",
+   "kind": "failure_mode",
+   "plain_name": "Quantity changed after ordering",
+   "method_name": "Quantity change after ordering",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.deleted_item",
+   "kind": "failure_mode",
+   "plain_name": "Order item deleted",
+   "method_name": "Purchase order item deleted",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.blocked_item",
+   "kind": "failure_mode",
+   "plain_name": "Order item blocked",
+   "method_name": "Purchase order item blocked",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.vendor_confirmation_churn",
+   "kind": "failure_mode",
+   "plain_name": "Repeated or changed vendor confirmations",
+   "method_name": "Repeated or changed vendor confirmations",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.payment_terms_churn",
+   "kind": "failure_mode",
+   "plain_name": "Payment terms changed on the order",
+   "method_name": "Payment terms changed on the order",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.srm_transfer_failed",
+   "kind": "failure_mode",
+   "plain_name": "Cart transfer to the execution system failed",
+   "method_name": "SRM transfer to the execution system failed",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "kind": "failure_mode",
+   "plain_name": "Late or repeated approval",
+   "method_name": "Late or repeated approval",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.order_without_requisition",
+   "kind": "failure_mode",
+   "plain_name": "Order without requisition or shopping cart",
+   "method_name": "Order without requisition or shopping cart",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.missing_goods_receipt",
+   "kind": "failure_mode",
+   "plain_name": "Receipt missing on a three-way item",
+   "method_name": "Goods or service receipt missing in a three-way flow",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.cancelled_goods_receipt",
+   "kind": "failure_mode",
+   "plain_name": "Goods receipt cancelled",
+   "method_name": "Goods receipt cancelled",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.goods_receipt_fragmentation",
+   "kind": "failure_mode",
+   "plain_name": "Fragmented goods receipts",
+   "method_name": "Fragmented goods receipts",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.late_goods_receipt",
+   "kind": "failure_mode",
+   "plain_name": "Goods late after the scheduled date",
+   "method_name": "Goods receipt after the scheduled delivery date",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.missing_invoice",
+   "kind": "failure_mode",
+   "plain_name": "Invoice missing",
+   "method_name": "Invoice missing on an invoice-bearing item",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.duplicate_invoice",
+   "kind": "failure_mode",
+   "plain_name": "Repeated invoice receipts",
+   "method_name": "Repeated invoice receipts on one item",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.cancelled_invoice",
+   "kind": "failure_mode",
+   "plain_name": "Invoice receipt cancelled",
+   "method_name": "Invoice receipt cancelled",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.vendor_debit_memo",
+   "kind": "failure_mode",
+   "plain_name": "Vendor debit memo",
+   "method_name": "Vendor debit memo",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.vendor_credit_memo",
+   "kind": "failure_mode",
+   "plain_name": "Vendor credit memo",
+   "method_name": "Vendor credit memo",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.invoice_before_order",
+   "kind": "failure_mode",
+   "plain_name": "Invoice before the order",
+   "method_name": "Invoice created before the order item",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "kind": "failure_mode",
+   "plain_name": "Invoice before goods receipt in a GR-based flow",
+   "method_name": "Invoice before goods receipt in a GR-based flow",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.payment_block",
+   "kind": "failure_mode",
+   "plain_name": "Invoice blocked for payment",
+   "method_name": "Invoice blocked for payment",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.goods_receipt_in_two_way",
+   "kind": "failure_mode",
+   "plain_name": "Receipt on a two-way item",
+   "method_name": "Goods receipt on a two-way item",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "failure_mode",
+   "plain_name": "Invoice unpaid or paid late",
+   "method_name": "Invoice not cleared or cleared late",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.consignment_cleared_per_item",
+   "kind": "failure_mode",
+   "plain_name": "Consignment item cleared per item",
+   "method_name": "Consignment item settled through invoice clearing",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "failure_mode",
+   "plain_name": "Many manual touches and hand-offs",
+   "method_name": "Many manual touches and hand-offs",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.networth_volatility",
+   "kind": "failure_mode",
+   "plain_name": "Value swings across postings",
+   "method_name": "Volatile cumulative net worth across postings",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.delivery_indicator_reopened",
+   "kind": "failure_mode",
+   "plain_name": "Item closed and reopened",
+   "method_name": "Delivery-completed indicator changed repeatedly",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.block_release_logging_asymmetry",
+   "kind": "failure_mode",
+   "plain_name": "Block releases without a logged block",
+   "method_name": "Payment-block releases without a logged block",
+   "hasOverlay": false
+  },
+  {
+   "id": "failure_mode:p2p.fm.missing_order_confirmation",
+   "kind": "failure_mode",
+   "plain_name": "Order confirmation not recorded",
+   "method_name": "Vendor order confirmation not recorded",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:c972ba4b70",
+   "kind": "reason",
+   "plain_name": "The item was still open when the data was extracted (right-censoring)",
+   "method_name": "in the log: share of items whose last event is within 60 days of the window end, per group; read the shortfall only after excluding them",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:0eb9f96d4b",
+   "kind": "reason",
+   "plain_name": "The vendor invoices late or invoices are captured without an order reference",
+   "method_name": "in the log: goods received without invoice evidence after 60 days, by vendor; invoice documents without item link in the source system",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:e8b118adc4",
+   "kind": "reason",
+   "plain_name": "Service entry sheets are not posted for services already rendered",
+   "method_name": "in the log: service items with an invoice but no service entry sheet, by purchasing group",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:c59395e3b8",
+   "kind": "reason",
+   "plain_name": "The item was deleted, blocked or closed by reducing the quantity instead of receiving it",
+   "method_name": "in the log: deletion, block and quantity-change events on the open items",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:8916a0c67c",
+   "kind": "reason",
+   "plain_name": "The item category expects a milestone that this purchase never has (framework, consignment)",
+   "method_name": "outside the log: ask the buyer whether the document type needs a receipt or an item-level clearing at all",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:b301847bb5",
+   "kind": "reason",
+   "plain_name": "The vendor issues the invoice at dispatch, so the vendor's invoice date precedes the receipt although the posting does not",
+   "method_name": "in the log: compare the share of early invoices by vendor invoice date with the share by invoice posting date (the split expectations of norm draft v1.1)",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:8cee63c881",
+   "kind": "reason",
+   "plain_name": "After-the-fact orders created to pay an invoice that was already in the house",
+   "method_name": "in the log: order item created after the vendor's invoice date, by requester, spend area and document type",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:afdd8b1843",
+   "kind": "reason",
+   "plain_name": "The item category is wrong for how the vendor actually delivers",
+   "method_name": "in the log: vendors whose GR-based items are mostly invoice-first; share of early invoices per vendor",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:1e141fd05e",
+   "kind": "reason",
+   "plain_name": "Receipts are posted late at the dock although the goods arrived before the invoice",
+   "method_name": "in the log: delivery-note date against receipt posting date where available; receipt-to-invoice lags near zero or negative",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:e916690f15",
+   "kind": "reason",
+   "plain_name": "Urgent needs bypass the requisition and the buyer",
+   "method_name": "outside the log: ask the requesters and the category manager which spend areas run on phone orders",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:72e2921e20",
+   "kind": "reason",
+   "plain_name": "Direct orders from contracts or material planning that need no requisition (legitimate)",
+   "method_name": "in the log: document type and source of the order; restrict the rule to document types that require a requisition",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:61457d43a3",
+   "kind": "reason",
+   "plain_name": "Approver absent without substitute; multi-level release strategies",
+   "method_name": "in the log: release lag per purchasing group and value band; day-of-week pattern",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:225a22a02d",
+   "kind": "reason",
+   "plain_name": "Price or quantity changes reset the release and trigger re-approval",
+   "method_name": "in the log: which change event precedes each re-approval",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:df9bcbcfea",
+   "kind": "reason",
+   "plain_name": "Release strategy thresholds too low for routine orders",
+   "method_name": "outside the log: ask finance for the release strategy values and compare with the order value distribution",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:b79a7a0fe1",
+   "kind": "reason",
+   "plain_name": "Long contractual payment terms (60 or 90 days) make a 30-day target look violated",
+   "method_name": "in the log: median invoice-to-payment days per vendor; vendors with medians near 60 or 90 days follow terms, not a delay",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:b1dbfec174",
+   "kind": "reason",
+   "plain_name": "Payment blocks hold the invoice until a variance is resolved",
+   "method_name": "in the log: share of items with a block release and the receipt-to-release lag on the same items",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:d9c43aa6bf",
+   "kind": "reason",
+   "plain_name": "The vendor invoices late after delivery",
+   "method_name": "in the log: receipt-to-invoice lag by vendor and spend area",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:aee258594e",
+   "kind": "reason",
+   "plain_name": "Approval queues delay the release where approvals are logged",
+   "method_name": "in the log: order-to-release lag on items with a logged release",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:23a76ea8fd",
+   "kind": "reason",
+   "plain_name": "Payment runs on fixed dates and cash-management holds at period end",
+   "method_name": "outside the log: ask accounts payable for the payment-run calendar and any period-end holds",
+   "hasOverlay": false
+  },
+  {
+   "id": "reason:169104115d",
+   "kind": "reason",
+   "plain_name": "Partial deliveries and partial invoices split one item over several postings (often legitimate)",
+   "method_name": "in the log: quantities per receipt against the order quantity; whether repeats are splits or corrections",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:27f6536bcb",
+   "kind": "action",
+   "plain_name": "Period-end review of open items with the buyers, closing or correcting each with a reason",
+   "method_name": "review cadence",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:95a6ffa7b3",
+   "kind": "action",
+   "plain_name": "Dunning of missing invoices for received goods and a mandatory order reference on incoming invoices",
+   "method_name": "standard work",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:39f5ab0444",
+   "kind": "action",
+   "plain_name": "Service entry sheet discipline with a monthly reminder for open service items",
+   "method_name": "standard work",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:2e3580a6f0",
+   "kind": "action",
+   "plain_name": "Exclude censored items from the reading and set the observation window in the run",
+   "method_name": "measurement fix",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:831e068344",
+   "kind": "action",
+   "plain_name": "No-purchase-order-no-pay policy with a maintained exception list",
+   "method_name": "policy",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:ebb964d98c",
+   "kind": "action",
+   "plain_name": "Catalogue coverage for the top free-text items and guided buying with an approval service level",
+   "method_name": "catalogue",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:dfda7c9052",
+   "kind": "action",
+   "plain_name": "GR-based invoice verification flag and item category maintained per vendor and material",
+   "method_name": "master data",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:7ed5b0244f",
+   "kind": "action",
+   "plain_name": "Framework contracts for recurring off-contract vendors",
+   "method_name": "contract",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:e32ba1eaa9",
+   "kind": "action",
+   "plain_name": "Receipt posted on the day of arrival, with invoices parked until the receipt exists",
+   "method_name": "standard work",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:a582880fa5",
+   "kind": "action",
+   "plain_name": "Substitute rules and escalation after a fixed number of days in the release workflow",
+   "method_name": "system setting",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:6ce2b3361b",
+   "kind": "action",
+   "plain_name": "Release strategy thresholds reviewed with finance; batch approvals for catalogue items",
+   "method_name": "policy",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:a795d8bbb9",
+   "kind": "action",
+   "plain_name": "Commercially relevant fields locked after release or a reason required for changes",
+   "method_name": "system setting",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:0d23e7d923",
+   "kind": "action",
+   "plain_name": "Apply the requisition rule only to document types that require one",
+   "method_name": "measurement fix",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:f70f29a4d4",
+   "kind": "action",
+   "plain_name": "Payment terms per vendor as a case attribute so that days beyond terms are scored instead of a fixed target",
+   "method_name": "measurement fix",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:75f5398e78",
+   "kind": "action",
+   "plain_name": "Root-cause review of blocking reasons with a release cadence per reason",
+   "method_name": "review cadence",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:e2be09d080",
+   "kind": "action",
+   "plain_name": "Accounts payable workload levelling and a target for invoice ageing",
+   "method_name": "standard work",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:38a64609c4",
+   "kind": "action",
+   "plain_name": "Early-payment discounts where cash allows, agreed per vendor",
+   "method_name": "contract",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:feae8da4ec",
+   "kind": "action",
+   "plain_name": "Confirm price and quantity before ordering; lock them after release",
+   "method_name": "standard work",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:b9cd357e37",
+   "kind": "action",
+   "plain_name": "Vendor confirmations recorded with tolerance instead of copied into the order",
+   "method_name": "system setting",
+   "hasOverlay": false
+  },
+  {
+   "id": "action:48b2510067",
+   "kind": "action",
+   "plain_name": "Master-data cleanup of rounding profiles, minimum quantities and payment terms",
+   "method_name": "master data",
+   "hasOverlay": false
+  }
+ ],
+ "edges": [
+  {
+   "from": "stage:request",
+   "to": "stage:approve",
+   "kind": "precedes"
+  },
+  {
+   "from": "stage:approve",
+   "to": "stage:order",
+   "kind": "precedes"
+  },
+  {
+   "from": "stage:order",
+   "to": "stage:receive",
+   "kind": "precedes"
+  },
+  {
+   "from": "stage:receive",
+   "to": "stage:invoice",
+   "kind": "precedes"
+  },
+  {
+   "from": "stage:invoice",
+   "to": "stage:match",
+   "kind": "precedes"
+  },
+  {
+   "from": "stage:match",
+   "to": "stage:pay",
+   "kind": "precedes"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "reason:c972ba4b70",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "reason:0eb9f96d4b",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "reason:e8b118adc4",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "reason:c59395e3b8",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "reason:8916a0c67c",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "action:27f6536bcb",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "action:95a6ffa7b3",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "action:39f5ab0444",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "action:2e3580a6f0",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "kpi:p2p.kpi.open_receipt_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "reason:b301847bb5",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "reason:8cee63c881",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "reason:afdd8b1843",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "reason:1e141fd05e",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "reason:e916690f15",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "action:831e068344",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "action:ebb964d98c",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "action:dfda7c9052",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "action:7ed5b0244f",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "action:e32ba1eaa9",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "kpi:p2p.kpi.spend_under_requisition",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "reason:72e2921e20",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "reason:61457d43a3",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "reason:225a22a02d",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "reason:df9bcbcfea",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "action:a582880fa5",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "action:6ce2b3361b",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "action:a795d8bbb9",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "action:0d23e7d923",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "kpi:p2p.kpi.po_release_lead_time",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "kpi:p2p.kpi.po_cycle_time",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:approval_discipline",
+   "to": "kpi:p2p.kpi.spend_under_requisition",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "reason:b79a7a0fe1",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "reason:b1dbfec174",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "reason:d9c43aa6bf",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "reason:aee258594e",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "reason:23a76ea8fd",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "action:f70f29a4d4",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "action:75f5398e78",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "action:e2be09d080",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "action:38a64609c4",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "kpi:p2p.kpi.gr_to_invoice_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "reason:169104115d",
+   "kind": "usual_reason"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "action:feae8da4ec",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "action:b9cd357e37",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "action:48b2510067",
+   "kind": "usual_action"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "kpi:p2p.kpi.confirmation_churn",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "kpi:p2p.kpi.gr_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "kpi:p2p.kpi.item_deletion_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "kpi:p2p.kpi.price_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "kpi:p2p.kpi.quantity_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:effort_automation",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "expectation:p2p_bpic19:c_l1_invoice_present",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_invoice_present",
+   "to": "failure_mode:p2p.fm.missing_invoice",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_invoice_present",
+   "to": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+   "to": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+   "to": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+   "to": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:closure_completeness",
+   "to": "expectation:p2p_bpic19:c_l1_goods_or_ses_present",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_goods_or_ses_present",
+   "to": "failure_mode:p2p.fm.missing_goods_receipt",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l1_goods_or_ses_present",
+   "to": "kpi:p2p.kpi.open_receipt_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "expectation:p2p_bpic19:c_l2_df1_invoice_after_goods",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_df1_invoice_after_goods",
+   "to": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_df1_invoice_after_goods",
+   "to": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_df1_invoice_after_goods",
+   "to": "kpi:p2p.kpi.gr_to_invoice_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "expectation:p2p_bpic19:c_l2_df2_release_after_goods",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_df2_release_after_goods",
+   "to": "failure_mode:p2p.fm.payment_block",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_df2_release_after_goods",
+   "to": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "expectation:p2p_bpic19:c_l2_2way_no_goods_expected",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_2way_no_goods_expected",
+   "to": "failure_mode:p2p.fm.goods_receipt_in_two_way",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:flow_discipline",
+   "to": "expectation:p2p_bpic19:c_l2_consignment_no_clear_invoice",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l2_consignment_no_clear_invoice",
+   "to": "failure_mode:p2p.fm.consignment_cleared_per_item",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "expectation:p2p_bpic19:c_l3_df1_goods_to_invoice_days",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df1_goods_to_invoice_days",
+   "to": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df1_goods_to_invoice_days",
+   "to": "kpi:p2p.kpi.gr_to_invoice_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "to": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "to": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "to": "failure_mode:p2p.fm.payment_block",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "to": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:timeliness_ageing",
+   "to": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+   "to": "failure_mode:p2p.fm.payment_block",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+   "to": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "expectation:p2p_bpic19:c_l4_goods_fragmentation",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_goods_fragmentation",
+   "to": "failure_mode:p2p.fm.goods_receipt_fragmentation",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "expectation:p2p_bpic19:c_l4_change_approval_repeats",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_change_approval_repeats",
+   "to": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_change_approval_repeats",
+   "to": "action:a795d8bbb9",
+   "kind": "usual_action"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_change_approval_repeats",
+   "to": "kpi:p2p.kpi.po_release_lead_time",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "expectation:p2p_bpic19:c_l4_repeated_invoice_receipt",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_repeated_invoice_receipt",
+   "to": "failure_mode:p2p.fm.duplicate_invoice",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_repeated_invoice_receipt",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:rework_instability",
+   "to": "expectation:p2p_bpic19:c_l4_change_payment_terms_repeats",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l4_change_payment_terms_repeats",
+   "to": "failure_mode:p2p.fm.payment_terms_churn",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "expectation:p2p_bpic19:c_l5_cancel_invoice_receipt",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_cancel_invoice_receipt",
+   "to": "failure_mode:p2p.fm.cancelled_invoice",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_cancel_invoice_receipt",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "expectation:p2p_bpic19:c_l5_cancel_goods_receipt",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_cancel_goods_receipt",
+   "to": "failure_mode:p2p.fm.cancelled_goods_receipt",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_cancel_goods_receipt",
+   "to": "kpi:p2p.kpi.gr_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "expectation:p2p_bpic19:c_l5_delete_item",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_delete_item",
+   "to": "failure_mode:p2p.fm.deleted_item",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_delete_item",
+   "to": "kpi:p2p.kpi.item_deletion_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "expectation:p2p_bpic19:c_l5_debit_memo",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_debit_memo",
+   "to": "failure_mode:p2p.fm.vendor_debit_memo",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:exceptions_corrections",
+   "to": "expectation:p2p_bpic19:c_l5_credit_memo",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l5_credit_memo",
+   "to": "failure_mode:p2p.fm.vendor_credit_memo",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "expectation:p2p_bpic19:c_l6_change_price",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_change_price",
+   "to": "failure_mode:p2p.fm.price_change_after_po",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_change_price",
+   "to": "kpi:p2p.kpi.price_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "expectation:p2p_bpic19:c_l6_change_quantity",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_change_quantity",
+   "to": "failure_mode:p2p.fm.quantity_change_after_po",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_change_quantity",
+   "to": "kpi:p2p.kpi.quantity_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "expectation:p2p_bpic19:c_l6_high_exposure_memo",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_high_exposure_memo",
+   "to": "failure_mode:p2p.fm.vendor_debit_memo",
+   "kind": "detects"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "expectation:p2p_bpic19:c_l6_high_exposure_price_change",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_high_exposure_price_change",
+   "to": "failure_mode:p2p.fm.price_change_after_po",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_high_exposure_price_change",
+   "to": "kpi:p2p.kpi.price_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:effort_automation",
+   "to": "expectation:p2p_bpic19:c_l7_manual_touches",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_manual_touches",
+   "to": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_manual_touches",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:effort_automation",
+   "to": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "to": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:effort_automation",
+   "to": "expectation:p2p_bpic19:c_l7_total_events",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_total_events",
+   "to": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_total_events",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:effort_automation",
+   "to": "expectation:p2p_bpic19:c_l7_manual_share",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_manual_share",
+   "to": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "detects"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l7_manual_share",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "layer:value_commercial",
+   "to": "expectation:p2p_bpic19:c_l6_networth_volatility",
+   "kind": "contains"
+  },
+  {
+   "from": "expectation:p2p_bpic19:c_l6_networth_volatility",
+   "to": "failure_mode:p2p.fm.networth_volatility",
+   "kind": "detects"
+  },
+  {
+   "from": "failure_mode:p2p.fm.price_change_after_po",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.price_change_rate",
+   "to": "failure_mode:p2p.fm.price_change_after_po",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.price_change_after_po",
+   "to": "kpi:p2p.kpi.price_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.quantity_change_after_po",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.quantity_change_rate",
+   "to": "failure_mode:p2p.fm.quantity_change_after_po",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.quantity_change_after_po",
+   "to": "kpi:p2p.kpi.quantity_change_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.deleted_item",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.item_deletion_rate",
+   "to": "failure_mode:p2p.fm.deleted_item",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.deleted_item",
+   "to": "kpi:p2p.kpi.item_deletion_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.blocked_item",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.vendor_confirmation_churn",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.confirmation_churn",
+   "to": "failure_mode:p2p.fm.vendor_confirmation_churn",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.vendor_confirmation_churn",
+   "to": "kpi:p2p.kpi.confirmation_churn",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.payment_terms_churn",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.srm_transfer_failed",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "to": "stage:approve",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.po_release_lead_time",
+   "to": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "to": "kpi:p2p.kpi.po_release_lead_time",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.order_without_requisition",
+   "to": "stage:request",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.order_without_requisition",
+   "to": "kpi:p2p.kpi.spend_under_requisition",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_goods_receipt",
+   "to": "stage:receive",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.open_receipt_share",
+   "to": "failure_mode:p2p.fm.missing_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_goods_receipt",
+   "to": "kpi:p2p.kpi.open_receipt_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.cancelled_goods_receipt",
+   "to": "stage:receive",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.gr_cancellation_rate",
+   "to": "failure_mode:p2p.fm.cancelled_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.cancelled_goods_receipt",
+   "to": "kpi:p2p.kpi.gr_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.goods_receipt_fragmentation",
+   "to": "stage:receive",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.late_goods_receipt",
+   "to": "stage:receive",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.on_time_receipt_rate",
+   "to": "failure_mode:p2p.fm.late_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "kpi:p2p.kpi.order_to_receipt_days",
+   "to": "failure_mode:p2p.fm.late_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.late_goods_receipt",
+   "to": "kpi:p2p.kpi.on_time_receipt_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.late_goods_receipt",
+   "to": "kpi:p2p.kpi.order_to_receipt_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_invoice",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.open_invoice_share",
+   "to": "failure_mode:p2p.fm.missing_invoice",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_invoice",
+   "to": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.duplicate_invoice",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "to": "failure_mode:p2p.fm.duplicate_invoice",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.duplicate_invoice",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.cancelled_invoice",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "to": "failure_mode:p2p.fm.cancelled_invoice",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.cancelled_invoice",
+   "to": "kpi:p2p.kpi.invoice_cancellation_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.vendor_debit_memo",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.vendor_credit_memo",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.invoice_before_order",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.invoice_before_order",
+   "to": "kpi:p2p.kpi.spend_under_requisition",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "to": "stage:match",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "to": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "kpi:p2p.kpi.gr_to_invoice_days",
+   "to": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "to": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+   "to": "kpi:p2p.kpi.gr_to_invoice_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.payment_block",
+   "to": "stage:match",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.payment_block_rate",
+   "to": "failure_mode:p2p.fm.payment_block",
+   "kind": "measures"
+  },
+  {
+   "from": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "to": "failure_mode:p2p.fm.payment_block",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.payment_block",
+   "to": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.payment_block",
+   "to": "kpi:p2p.kpi.three_way_match_first_time_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.goods_receipt_in_two_way",
+   "to": "stage:match",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "to": "stage:pay",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.invoice_to_clear_days",
+   "to": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "measures"
+  },
+  {
+   "from": "kpi:p2p.kpi.open_invoice_share",
+   "to": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "to": "kpi:p2p.kpi.invoice_to_clear_days",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "to": "kpi:p2p.kpi.open_invoice_share",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.consignment_cleared_per_item",
+   "to": "stage:pay",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.manual_touch_load",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.touchless_rate",
+   "to": "failure_mode:p2p.fm.manual_touch_load",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.manual_touch_load",
+   "to": "kpi:p2p.kpi.touchless_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.networth_volatility",
+   "to": "stage:invoice",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.delivery_indicator_reopened",
+   "to": "stage:receive",
+   "kind": "in_stage"
+  },
+  {
+   "from": "failure_mode:p2p.fm.block_release_logging_asymmetry",
+   "to": "stage:match",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.payment_block_rate",
+   "to": "failure_mode:p2p.fm.block_release_logging_asymmetry",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.block_release_logging_asymmetry",
+   "to": "kpi:p2p.kpi.payment_block_rate",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_order_confirmation",
+   "to": "stage:order",
+   "kind": "in_stage"
+  },
+  {
+   "from": "kpi:p2p.kpi.confirmation_churn",
+   "to": "failure_mode:p2p.fm.missing_order_confirmation",
+   "kind": "measures"
+  },
+  {
+   "from": "failure_mode:p2p.fm.missing_order_confirmation",
+   "to": "kpi:p2p.kpi.confirmation_churn",
+   "kind": "related_kpi"
+  },
+  {
+   "from": "kpi:p2p.kpi.po_cycle_time",
+   "to": "failure_mode:p2p.fm.late_or_repeated_approval",
+   "kind": "measures"
+  },
+  {
+   "from": "kpi:p2p.kpi.spend_under_requisition",
+   "to": "failure_mode:p2p.fm.order_without_requisition",
+   "kind": "measures"
+  }
+ ],
+ "overlays": 0
+}

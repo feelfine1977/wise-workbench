@@ -167,6 +167,16 @@ class Engine(Protocol):
     ) -> dict[str, Any]: ...
     def activity_profile(self, run: Run, ctx: RunContext, activity: str, *, abstraction: float) -> dict[str, Any]: ...
     def uncalibrated(self, run: Run, ctx: RunContext) -> list[dict[str, Any]]: ...
+
+    def readiness_report(self, run: Run, ctx: RunContext) -> dict[str, Any]: ...
+
+    def transform_preview(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        scope: dict[str, Any] | None,
+        transforms: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]: ...
     def resolved_window_end(self, ctx: RunContext) -> str | None: ...
     def flow_bpmn(self, run: Run, ctx: RunContext, *, scope: str, detail: float, process: str | None) -> Any: ...
     def facets(
@@ -220,6 +230,7 @@ class RunContext:
     slicings: tuple[tuple[str, tuple[str, ...]], ...] = ()
     bands: dict[str, tuple[dict[str, Any], ...]] = field(default_factory=dict)  # slicing id → band specs
     scope: dict[str, Any] | None = None  # the run's sub-log scope (flow type)
+    transforms: tuple[dict[str, Any], ...] = ()  # a what-if scenario's transform layer (R3-27)
     window_end: str | None = None  # the one window end of the case table's readiness report
     case_noun: str = "cases"
     closure_label: str = "closure"

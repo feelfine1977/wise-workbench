@@ -898,19 +898,245 @@ Pass: the population agrees, the scores do not, and the reason is named.
 `tests/golden/test_o2c_preset.py` (3 tests, ~50 s) asserts exactly that and
 skips when the extract is not on the machine.
 
+## Cycle 4 — CP-4.1 … CP-4.6 (the four-tile budget, truthfulness, the group-aware gate, what-if, exposure and flow types, the norm builder)
+
+Everything below was observed on 2026-09-07. Two workspaces:
+
+```bash
+# the verified BPI Challenge 2019 workspace, on a free port
+WISE_WORKSPACE=~/code/PhD/WISE/wise-workbench-data/workspace_verify .venv/bin/wise-workbench serve --port 8101
+API=http://127.0.0.1:8101/api/v1; P=prj_0mtoq2jvx8mcfcg6j; R=run_0mtoq44vd14f208ur
+
+# a fresh workspace with the ICPM 2026 sales extract loaded by its preset
+WISE_WORKSPACE=/tmp/ws_o2c .venv/bin/wise-workbench serve --port 8102
+# stop either of them by port:  kill $(lsof -t -nP -iTCP:8101 -sTCP:LISTEN)
+```
+
+### CP-4.1 — the board answers within one second, first paint included (R3-07)
+
+```bash
+curl -s -o /dev/null -w "%{time_total}\n" "$API/projects/$P/runs/$R/kpis?view=Automation"   # twice
+```
+
+Observed on `run_0mtoq44vd14f208ur` (251,734 purchase order items):
+
+| | before | after |
+|---|---|---|
+| first paint, warm process | 7.0 s | **0.156 s** |
+| repeated call | 7.0 s (no cache) | **0.004 s** |
+| a second view | 7.0 s | 0.010 s |
+| first call of a cold process, censoring artefact already written | 4.2 s | **1.3 s** (of which 1.2 s is the knowledge pack, now warmed in the background: 0.156 s) |
+| first call ever on a run scored before this release | 4.2 s | 2.9 s (loads the log once, writes the artefact) |
+| filtered on 234,479 items, log in the process | — | 0.13 s |
+| `Change Quantity`, 17,590 items | — | 0.04 s |
+
+The numbers are identical to the ones CP-3.2 and CP-3.3 recorded: 251,734 items, 99.9 % below expectation,
+priority **1,674.9** over 30 groups, 14 % still open, 84.4 points; under the `Change Quantity` filter 17,590
+items, priority **878.3** over 19 groups. Three things did it:
+
+* the group label of the priority tile is built by vectorised concatenation instead of a row-wise join
+  (`frame[attrs].agg(" × ".join, axis=1)` cost 6.47 s on 251,734 rows; the vectorised form costs 0.015 s);
+* the answer is memoised on `(run, its fingerprints, the analytics stamp, view, γ, min cases, grouping,
+  filter)`, so a repeated call and every panel of one board answer from the memo;
+* an unfiltered board at the run's own slicing and γ reads its priority from the **backlog artefact the scoring
+  job wrote** (`params.priority_source: "run artefact"`), so the tile is the sum of the bars the ranked list
+  shows rather than a second, independently computed number; and the open share is read from
+  `runs/<id>/cache/censored__<hash>.parquet`, written by the scoring job, instead of loading the event log.
+
+On the extract (51,164 sales order items): 0.022 s cold, 0.004 s warm, `priority_source: "run artefact"`,
+57 groups, priority 320.62 — the same numbers the ranked list shows.
+
+### CP-4.2 — one comparison, one bracket, and an expectation that measures logging (R3-04, R3-14)
+
+```bash
+curl -s "$API/projects/$P/runs/$R/backlog?slicing=case%20Company%2Bcase%20Spend%20area%20text&view=Automation&minCases=1&pageSize=30"
+curl -s "$API/projects/$P/runs/$R/manifest"          # the uncalibrated block carries the new flags
+```
+
+Every comparison the server writes now brackets **the difference of the two numbers it prints**, computed from
+the printed forms so that a reader who subtracts what is on the page arrives at what is in the brackets:
+
+* BPIC card 1: *Paid within terms: 83 days here against 55 elsewhere (**+28 days**)* — the analytics package's
+  Hodges–Lehmann shift (25 days) is not the difference of two medians and keeps its own labelled column in the
+  contrast table;
+* the extract's card 1: *Shipped within the target time: 100 days here against 1.6 elsewhere (**+98 days**)*;
+  card 2 *4.4 days here against 1.4 elsewhere (+3 days)*; card 3 *missed in 19 % … against 2.2 % … (+17 points)*;
+* the score tile: *84.4 points on average against 84.4 over the whole run (+0.0)* — the sign is the tile's own
+  difference, not its negation;
+* the hypothesis test and *What can we do?* print the two shares with their difference in percentage points, and
+  the real-unit medians get a **second, labelled sentence** (`median_reading`, `median_comparison`) instead of a
+  bracket in a different unit than the numbers beside it.
+
+`bracket_is_difference()` in `domain/comparison.py` reads a rendered sentence back; an API test asserts it over
+every `comparison` string of both views of a run.
+
+`expectation_note` says which expectation is which when a card's headline and its comparison differ (*X is
+missed by most of these items; Y carries the largest share of the shortfall, and the comparison is about that
+one*).
+
+**R3-14** adds two flags to the uncalibrated block, both computed from `measurement.json`, written by the
+scoring job:
+
+```
+missing_partner  | Picked goods leave promptly: this expectation is missed mostly where the pair of events is
+                 | missing — 42,747 of its 42,979 misses have no partner event, not a measured value beyond the
+                 | threshold.
+missing_partner  | Invoiced within two days of shipping: … 48,640 of its 48,640 misses have no partner event …
+partly_measured  | <name> is measured on N of the M items it applies to (x %); on the rest it records whether the
+                 | events are logged, not the value it names.
+```
+
+A flagged expectation may not lead a card unflagged: `_top_constraints` prefers an unflagged expectation of the
+same area, and when there is none the card carries `top_constraint_measures_logging` and the sentence in
+`top_constraint_flag`. On the extract the leading expectation of card 1 therefore **changes** from *Picked goods
+leave promptly* to *Shipped within the target time*, which is a measured lag.
+
+### CP-4.3 — the readiness gate is read from the group (R3-03)
+
+```bash
+Q='slicing=Customer%20ID&key=%5B%22852101700.0%22%5D&view=Logistics'
+curl -s "http://127.0.0.1:8102/api/v1/projects/$P/runs/$R/gates?$Q"
+```
+
+Five of the eleven readiness checks have a share for a single group (censoring, replication, duplicates,
+sentinel stamps, the window edge); the rest are properties of the whole log. The gate a group must pass is the
+worst of **its own** shares; the log's verdict stays beside it under `runWide`, where the checks no group can be
+judged on are named and decided once.
+
+Observed on the extract's first twelve customers: readiness **passed on 7, pending on 5**, every one of them
+`scope: "group"` — where cycle 3 read `fail` on all 57. On BPIC: Packaging passes, Real Estate fails on
+censoring (44 %), Logistics fails on duplicates and replication (73 %). `runWide` on the extract reads *The
+data-readiness gate on this log reads fail; every failed check has a share per group.*
+
+A gate whose evidence is the log's (`scope: "run"`) is stored without a group, so waiving it once covers the
+run. The `domain` gate of the contract is now **computed** (R3-27): it fails when the expectation carrying a
+group's shortfall is flagged — a placeholder threshold, or one that measures logging — because then the claim
+rests on the norm or on the logging rather than on the group. On the extract it fails for the customers whose
+leading expectation is *Shipped within the target time*, whose threshold is still the template's.
+
+### CP-4.4 — what-if against a frozen baseline (R3-27, R1-11)
+
+```bash
+curl -s -X POST "$API/projects/$P/runs/$R/whatif/preview" -H 'content-type: application/json' -d @transforms.json
+curl -s -X POST "$API/projects/$P/runs/$R/whatif"         -H 'content-type: application/json' -d @scenario.json
+curl -s "$API/projects/$P/runs/<scenarioId>/whatif?limit=8"
+curl -s "$API/projects/$P/scenarios?baselineRunId=$R"
+```
+
+A scenario is a run with three things added: the id of the run it is compared against, the transform layer, and
+a name. The `whatif` job builds the scenario's norm version (when the norm changes), scores it under the
+baseline's own parameters and writes the change table.
+
+The transform layer, previewed on the extract without scoring anything:
+
+```
+cap_lag           selected 51,164  touched 13,936  moved 13,937
+delete_activity   selected 51,164  touched  1,613  removed 2,175   (Scheduled delivery date postponed)
+move_event        selected 51,164  touched 48,703  moved 48,703    (first Goods issue, −2 D)
+set_attribute     selected    208  touched    208  moved  1,246    (FCA → DAP)
+keep_first        selected 51,164  touched  1,019  removed 1,562   (Changed Mat.Avail.Date)
+```
+
+The cycle's scenario, **make-to-order items get their own threshold**, on the extract: the five SKUs the
+planning team calls make-to-order keep 45 days instead of 14 (the material master of this extract does not join
+to the sales SKUs, so the population is named by SKU id — see CP-4.5), the baseline expectation is restricted to
+the rest with `not_in`, and both become a norm version of the scenario's own.
+
+```
+normChanges  o_deliv_order_to_issue_days: applicability {…} → {… , {"attr": "SKU ID", "not_in": [five SKUs]}}
+             o_deliv_order_to_issue_days_mto: added
+summary      Against the frozen baseline, make-to-order items get their own threshold moves 55 of the 57 groups
+             of sales order items that both runs rank; the group at the top is unchanged (["852101700.0"]),
+             10 of the top ten are the same.
+             priority 320.62 → 312.47   rank agreement (Spearman) 0.9494   top-ten overlap 1.0
+             entered []   left []   changed 55   unchanged 2
+rows         852101700.0  n 902   PI 134.5 → 130.1  Δ +0.59 points  Δrank 0
+             902158000.0  n 8,401 PI  20.2 →  18.1  Δ +0.11 points  Δrank 0
+provenance   frozen: true
+             baseline run_0mtqxyi8… norm 6bddd1ed7599 params 477c97732e80 cases 51,164 γ 20 min cases 20
+             scenario run_0mtqy1ao… norm 7be3781ddbbf params 4fc94a8cdbe9 cases 51,164 γ 20 min cases 20
+```
+
+The baseline is untouched: it still answers 134.48 / 67.21 / 44.26 for its top three customers while the
+scenario answers 130.06 / 67.19 / 43.91.
+
+### CP-4.5 — exposure and the O2C flow-type rules (R3-15)
+
+```bash
+curl -s "http://127.0.0.1:8102/api/v1/projects/$P/case-tables/$CT/flow-types"
+curl -s "http://127.0.0.1:8102/api/v1/projects/$P/runs/$R/manifest"       # the "Ranked by" row
+curl -s "…/backlog?slicing=Customer%20ID&view=Logistics&volume=exposure"  # rank by quantity
+```
+
+* **The `returns` type matches its items.** Two defects kept it at zero. The preset's rule
+  `{kind: attribute, field: Returns Item, in: [X]}` was dropped when the mapping was fitted to the file, because
+  the column extractor read the value list's key `in` as a column name; and the marker sits on 16 of the 267,071
+  events while the case attribute takes the case's first value, which is blank. Flow typing now reads an
+  attribute rule over **the whole case** (`attribute_on_any_event`), which is the same answer for an attribute
+  that is constant per case. The extract now types **standard 49,481 · rejected 1,563 · partial delivery 110 ·
+  returns 10** (51,164 items).
+* **`make_to_order` is named absent with its reason**: *The flow type 'make_to_order' is not assigned on this
+  log: its rule reads planning_type, which the file does not carry.* The join cannot be made: `SKU_360_WISE.csv`
+  carries 80 material ids and `Planning type` with the single value *Reorder point based planning*, and **none**
+  of its 80 keys occurs among the extract's 71 sales SKUs or material ids (measured 2026-09-07). Every dropped
+  rule is kept as a `flowTypingNotes` entry on the mapping and surfaces in `flow-types.absent` and in
+  `compare-flow-types.absent`; a rule that survives but matches nothing is reported as `matches_nothing`.
+* **The run states its weighting.** The manifest's plain block carries *Ranked by — number of sales order items
+  — in force; the same run also ranks by Order Quantity (rank by quantity)* with both options and which is in
+  force; `?volume=exposure` answers the same run by quantity.
+
+### CP-4.6 — the norm builder's server side (R3-02)
+
+```bash
+curl -s "$API/projects/$P/norms/applicability?caseTableId=$CT"
+curl -s -X POST $API/projects/$P/norms -H 'content-type: application/json' -d @version.json   # with calibration
+curl -s "$API/projects/$P/norms/<nv>/calibration"
+curl -s -X PATCH "$API/projects/$P/norms/<nv>" -H 'content-type: application/json' \
+     -d '{"status":"reviewed","author":"SD expert"}'
+```
+
+* **applicability from the flow types** — the extract answers `standard 49,481 · rejected 1,563 ·
+  partial_delivery 110 · returns 10`, the absent `make_to_order` with its reason, 21 case attributes with their
+  values, and the four clause shapes (`flow_type`, `attribute`, `always`, `not_applicable`);
+* **a required rationale per threshold** — `POST /norms` takes `calibration: {<expectation>: {rationale, owner}}`
+  and stores it in `metadata.calibration`; `GET /norms/{id}/calibration` lists every threshold, which of them
+  this version set (against its parent), its rationale and owner, and `missingRationale`. A version whose
+  changed threshold has no rationale and owner is refused when it leaves `draft` (422 `norm.rationale_required`),
+  and leaving `draft` without a named person is refused too (422 `norm.author`);
+* **not applicable to this log** — `notApplicable: {<expectation>: {note}}` moves the expectation out of the
+  version with its note and its own weights, and keeps it in `metadata.not_applicable` so it can be brought
+  back; a note is required (422 `norm.not_applicable_note`). This is what stops a layer-balanced score from
+  averaging a constant.
+
+The inventory, the constraint check with its plain sentence and the guidance questions per layer are unchanged
+from CP-3.8.
+
+### Also in this cycle — a group key a person recognises (R3-08, the backend half)
+
+`key_label` drops the float tail a numeric key arrives with, in the one place the printed form of a key is
+built, while the key itself — the JSON array that addresses the group — keeps the value it indexes by:
+
+```
+key (addresses the group)   ["852101700.0"]
+keys (printed)              {"Customer ID": "852101700"}
+reading                     852101700: 902 sales order items, 15 % below expectation on average; …
+facet label                 852101700
+```
+
 ## Tests, lint, types
 
 ```bash
-.venv/bin/python -m pytest -q                        # 144 passed, 4 skipped (BPIC opt-in) in ~106 s
+.venv/bin/python -m pytest -q                        # 149 passed, 5 skipped (BPIC opt-in) in ~110 s
 WISE_BPIC19_CSV=~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv .venv/bin/python -m pytest tests/golden/test_bpic19.py -q
-                                                     # 4 passed in ~4 min: readiness (251,734 cases, 1948/2020 stamps, header replication,
+                                                     # 4 passed in 2 min 25 s (20 passed in 3 min 20 s over tests/golden):
+                                                     # readiness (251,734 cases, 1948/2020 stamps, header replication,
                                                      # minute vs day precision), Table XI focus slices at ranks 1, 2 and 5, Section V means,
                                                      # and the cycle 2 checks (Packaging stable, 14 % / 44 % still open at 2019-01-17,
                                                      # "97 % beyond 30 days", the four flow types, the norm warnings)
 WISE_PRESET_DATA_DIRS=~/code/PhD/WISE/WISE/hackathon_2026/outputs_icpm2026 \
-  .venv/bin/python -m pytest tests/golden/test_o2c_preset.py -q             # 3 passed in ~51 s (CP-3.9)
+  .venv/bin/python -m pytest tests/golden/test_o2c_preset.py -q             # 3 passed in 42 s (CP-3.9)
 .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests   # clean
-.venv/bin/mypy                                                             # clean (92 files)
+.venv/bin/mypy                                                             # clean (96 files)
 .venv/bin/wise-workbench openapi --yaml --out ../../packages/api-schema/openapi.yaml   # regenerate the contract, then `npm run generate` in apps/frontend
 ```
 
@@ -960,10 +1186,15 @@ load, no pack at all, and the stage groups of the flow payload.
 - **The O2C run is not calibrated.** The preset loads the pack's
   `o2c_baseline` template as norm v1 with its placeholder thresholds; its
   backlog therefore does not reproduce the hackathon's own priority order
-  (CP-3.9 names every difference). Calibration on the distribution lens is the
-  next step and needs the SD expert, not the backend.
-- **The what-if job (R1-11)** is P2 and not implemented; `POST
-  /runs/{r}/whatif` does not exist.
+  (CP-3.9 names every difference). The server side of the calibration is in place since cycle 4 (CP-4.6): the
+  thresholds, their rationales and owners, the applicability editor's options and *not applicable to this log*.
+  Setting them is the SD expert's work on the distribution lens, not the backend's.
+- **`make_to_order` cannot be joined on this extract.** `SKU_360_WISE.csv` carries 80 material ids with the
+  single planning type *Reorder point based planning*, and none of its keys occurs among the extract's 71 sales
+  SKUs or material ids; the type is therefore reported absent with that reason (CP-4.5) rather than joined.
+- **The what-if job (R1-11, R3-27)** exists since cycle 4 (CP-4.4): `POST /runs/{r}/whatif`, its preview,
+  `GET /scenarios` and the change table. Not covered: a scenario against a *period* baseline (cycle 8), joint
+  scenarios, and undoing a scenario's norm version.
 - **Comparison sentences are computed for the top groups only** (12 per
   backlog by default, `WISE_ANALYTICS_COMPARISON_TOP`); every other row
   carries `comparison_reason` `not_computed` rather than a sentence. Opening

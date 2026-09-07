@@ -1,5 +1,6 @@
 import type { Caveat } from "@/lib/api/cycle2";
 import { fmtPct } from "@/lib/format";
+import { useHubStore } from "@/lib/stores/hub";
 import { cn } from "@/lib/utils";
 
 /** The four-word readings of the data caveats, by id. */
@@ -18,6 +19,35 @@ export const CAVEAT_SHORT: Record<string, string> = {
 };
 
 export const caveatShort = (id: string) => CAVEAT_SHORT[id] ?? id.replace(/_/g, " ");
+
+/**
+ * The words on the chip: the caveat's own, and the part of the group it is about when it names one (P1-10).
+ *
+ * The reason screen printed *subgroup censoring* twice, at 100 % and at 65 %, with nothing to tell the two
+ * apart — they are two different quarters of the same group.
+ */
+export function caveatWords(caveat: Pick<Caveat, "id" | "subgroup">): string {
+  const sub = caveat.subgroup as { attribute?: string; value?: string } | null | undefined;
+  const words = caveatShort(caveat.id);
+  if (!sub?.value) return words;
+  const attribute = String(sub.attribute ?? "").replace(/^case /, "").replace(/_/g, " ");
+  return `${words} · ${attribute ? `${attribute} ` : ""}${String(sub.value)}`;
+}
+
+/**
+ * What a run-wide caveat says, in words (P1-3).
+ *
+ * The chip carries its own question — *what does “still open at the end” mean?* — in its accessible name, and
+ * the sentence in front of it is what the run says about the caveat. Where the server serves no sentence the
+ * client wrote `String(id)` in its place, so a screen reader heard *“censoring What does … mean?”* and the
+ * tooltip read the same. The share is the run's, not the page's.
+ */
+export function runCaveatSentence(id: string, share: number | undefined, max: number | undefined, items: string): string {
+  const words = caveatShort(id);
+  if (share === undefined) return `On this run: ${words}.`;
+  const head = `On this run: ${words}, ${fmtPct(share, share < 0.1 ? 1 : 0)} of ${items} on average`;
+  return max === undefined || max <= share ? `${head}.` : `${head}, up to ${fmtPct(max, max < 0.1 ? 1 : 0)} on one group.`;
+}
 
 /** The share below which a caveat is not worth a chip; duplicates need a full per cent (R2-06). */
 export const caveatFloor = (id: string) => (CAVEAT_SHORT[id] === "duplicated events" || CAVEAT_SHORT[id] === "copied postings" ? 0.01 : 0.005);
@@ -41,8 +71,14 @@ export function chipHidden(caveat: Caveat, pageWide: Map<string, number | undefi
  * Data caveats that touch a group, with their share: "14 % still open at the end". At most `max` chips;
  * `hide` carries the caveats a page states once in its header, with their page-wide share, so a group far
  * outside that range keeps its own chip.
+ *
+ * The chip is itself the *What does this mean?* control (R3-05): a reader who does not know what "copied
+ * postings" is presses the words and the hub page opens beside the screen. A second glyph beside every chip
+ * would double the width of a strip that already carries a priority bar and a confidence word, so the chip
+ * carries the question in its own accessible name instead.
  */
-export function CaveatChips({ caveats, className, max = 3, hide }: { caveats: Caveat[] | undefined; className?: string; max?: number; hide?: Map<string, number | undefined> }) {
+export function CaveatChips({ caveats, className, max = 3, hide, explain = true }: { caveats: Caveat[] | undefined; className?: string; max?: number; hide?: Map<string, number | undefined>; explain?: boolean }) {
+  const openHub = useHubStore((s) => s.openHub);
   const list = (caveats ?? [])
     .filter((c) => (c.share === null || c.share === undefined || c.share > caveatFloor(c.id)) && !chipHidden(c, hide))
     .sort((a, b) => (b.status === "fail" ? 1 : 0) - (a.status === "fail" ? 1 : 0) || (b.share ?? 0) - (a.share ?? 0))
@@ -50,13 +86,43 @@ export function CaveatChips({ caveats, className, max = 3, hide }: { caveats: Ca
   if (!list.length) return null;
   return (
     <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label="Data caveats for this group">
-      {list.map((c) => (
-        <li key={c.id} title={c.text} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs", c.status === "fail" ? "border-danger/40 bg-danger-subtle text-danger" : "border-warning/40 bg-warning-subtle text-warning")} data-caveat={c.id}>
-          <span aria-hidden>⚠</span>
-          {c.share !== null && c.share !== undefined ? <span className="tnum font-medium">{fmtPct(c.share, c.share < 0.1 ? 1 : 0)}</span> : <span className="font-medium">log-wide</span>}
-          <span>{caveatShort(c.id)}</span>
-        </li>
-      ))}
+      {list.map((c) => {
+        const chip = cn(
+          "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-left text-xs",
+          c.status === "fail" ? "border-danger/40 bg-danger-subtle text-danger" : "border-warning/40 bg-warning-subtle text-warning",
+        );
+        const inside = (
+          <>
+            <span aria-hidden>⚠</span>
+            {c.share !== null && c.share !== undefined ? <span className="tnum font-medium">{fmtPct(c.share, c.share < 0.1 ? 1 : 0)}</span> : <span className="font-medium">log-wide</span>}
+            <span>{caveatWords(c)}</span>
+          </>
+        );
+        return (
+          <li key={`${c.id}:${caveatWords(c)}`} data-caveat={c.id}>
+            {explain ? (
+              <button
+                type="button"
+                className={cn(chip, "cursor-help hover:border-accent hover:text-accent-text")}
+                title={`${c.text} — what does “${caveatShort(c.id)}” mean?`}
+                aria-label={`${c.text} What does “${caveatWords(c)}” mean?`}
+                data-testid="what-does-this-mean"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  openHub({ kind: "failure_mode", entryId: c.id, label: caveatShort(c.id) });
+                }}
+              >
+                {inside}
+              </button>
+            ) : (
+              <span className={chip} title={c.text}>
+                {inside}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

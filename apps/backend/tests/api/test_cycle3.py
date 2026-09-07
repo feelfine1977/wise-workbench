@@ -474,7 +474,7 @@ def test_run_manifest_separates_the_plain_block_from_the_fingerprints(world: dic
     c, pid, rid = world["client"], world["pid"], world["run"]["id"]
     m = c.get(f"/api/v1/projects/{pid}/runs/{rid}/manifest").json()
     labels = [r["label"] for r in m["plain"]]
-    assert labels[:5] == ["Log", "Expectations", "Perspective", "Grouped by", "Small groups"]
+    assert labels[:6] == ["Log", "Expectations", "Perspective", "Grouped by", "Ranked by", "Small groups"]
     assert "End of the data" in labels and "Data caveats" in labels
     joined = " ".join(f"{r['label']} {r['value']} {r['note'] or ''}" for r in m["plain"])
     for forbidden in ("sha256", "fingerprint", "paramsHash"):
@@ -632,7 +632,7 @@ def test_gates_block_a_hypothesis_until_they_are_waived_with_a_note(world: dict[
     row = _worst(world)
     params = {"slicing": "company,spend_area", "key": row["key"], "view": "Finance"}
     gates = c.get(f"/api/v1/projects/{pid}/runs/{rid}/gates", params=params).json()
-    assert [g["id"] for g in gates["gates"]] == ["readiness", "censoring", "replication"]
+    assert [g["id"] for g in gates["gates"]] == ["readiness", "censoring", "replication", "domain"]
     assert all(g["text"] for g in gates["gates"]) and gates["cases"] == row["n_cases"]
 
     body = {
@@ -733,5 +733,5 @@ def test_what_can_we_do_lists_reasons_and_actions_with_owner_and_headroom(world:
     top = out["drivers"][0]
     assert top["constraint_id"] and top["share_of_shortfall"] is not None
     assert top["headroom_points"] is not None
-    assert [g["id"] for g in out["gates"]] == ["readiness", "censoring", "replication"]
+    assert [g["id"] for g in out["gates"]] == ["readiness", "censoring", "replication", "domain"]
     assert isinstance(out["actions"], list)

@@ -15,7 +15,7 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     expect(cards[0]).toHaveTextContent(/221,010 purchase order items · 88\s?%/);
     expect(await within(cards[0] as HTMLElement).findByTestId("mini-map", {}, T)).toBeInTheDocument();
     expect(cards[0]).toHaveTextContent(/14\s?% still open/);
-    expect(screen.getByTestId("your-process")).toHaveTextContent(/The log splits into 4 flow types by flow_type; DF2 carries 88\s?% of the 251,734 purchase order items/);
+    expect(screen.getByTestId("your-process")).toHaveTextContent(/The log splits into 4 flow types by flow type; DF2 carries 88\s?% of the 251,734 purchase order items/);
     const fork = screen.getByTestId("flow-fork");
     expect(within(fork).getByRole("link", { name: "Compare everything together" })).toHaveAttribute("href", expect.stringContaining("/runs/run_41/backlog"));
     expect(within(fork).getByRole("button", { name: "Analyse per flow type" })).toBeEnabled();
@@ -44,5 +44,22 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     expect(within(section).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["DF2", "DF1", "Consignment", "2-way"]);
     expect(section).toHaveTextContent(/points against everyone/);
     expect(section).toHaveTextContent(/no run of its own yet/);
+  });
+  it("every card carries a thumbnail of its own flow and a sub-line that is not clipped (R3-18)", async () => {
+    renderApp("/p/p2p2018/data/ds_1?caseTable=ct_1&tab=flows");
+    const list = await screen.findByRole("list", { name: "Flow types" }, T);
+    const cards = within(list).getAllByRole("listitem") as HTMLElement[];
+    expect(cards).toHaveLength(4);
+    for (const card of cards) {
+      // the card carries a thumbnail; that it draws its flow rather than a lane header is measured on the
+      // real map in `e2e/flow-frame.spec.ts`, because the unit environment stands the flow library in
+      await within(card).findByTestId("mini-map", {}, T);
+      // and the sub-line says what the flow type is, in full: clamping it cut every card of the extract
+      // mid-number
+      const sub = [...card.querySelectorAll("p")].find((p) => /purchase order items \(/.test(p.textContent ?? ""));
+      expect(sub, `${card.textContent?.slice(0, 12) ?? ""} has no sub-line`).toBeTruthy();
+      expect(sub?.className ?? "", `${card.textContent?.slice(0, 12) ?? ""} clamps its sub-line`).not.toMatch(/clamp-/);
+      expect(sub?.textContent ?? "").toMatch(/activities/);
+    }
   });
 });

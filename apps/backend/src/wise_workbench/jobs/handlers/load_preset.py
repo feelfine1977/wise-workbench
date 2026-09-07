@@ -46,16 +46,36 @@ def preset_paths(settings: Any, preset: Preset) -> tuple[Path, Path]:
 
 
 def fit_mapping(doc: dict[str, Any], columns: set[str]) -> dict[str, Any]:
-    """The preset mapping restricted to the columns the file has."""
+    """The preset mapping restricted to the columns the file has.
+
+    A flow type whose rule reads a column the file does not carry cannot be assigned, and dropping it silently
+    leaves a type in the pack that matches nothing and no one can explain (R3-15). Every dropped rule is kept as
+    a note naming the type, the columns it needed and the ones the file has, so that the flow-type list can say
+    why the fourth type is absent instead of showing three and no reason.
+    """
     out = json.loads(json.dumps(doc))
     out["caseAttributes"] = [a for a in out.get("caseAttributes", []) if a in columns]
     for key in ("resource", "order", "eventId", "exposure", "lifecycle"):
         if out.get(key) and out[key] not in columns:
             out.pop(key, None)
+    notes: list[dict[str, Any]] = list(out.get("flowTypingNotes") or [])
     rules = []
     for rule in out.get("flowTyping", []):
-        if _rule_columns(rule.get("rule") or {}) <= columns or not columns:
+        needed = _rule_columns(rule.get("rule") or {})
+        if needed <= columns or not columns:
             rules.append(rule)
+        else:
+            notes.append(
+                {
+                    "name": str(rule.get("name") or ""),
+                    "reason": "missing_column",
+                    "needs": sorted(needed - columns),
+                    "text": (
+                        f"The flow type {rule.get('name')!r} is not assigned on this log: its rule reads "
+                        f"{', '.join(sorted(needed - columns))}, which the file does not carry."
+                    ),
+                }
+            )
     out["flowTyping"] = rules
     # a prepared attribute whose source column the file does not carry is dropped, not failed
     prepared = []
@@ -66,12 +86,68 @@ def fit_mapping(doc: dict[str, Any], columns: set[str]) -> dict[str, Any]:
     out["preparedAttributes"] = prepared
     if columns:
         known = columns | {str(p["name"]) for p in prepared}
-        out["flowTyping"] = [r for r in out["flowTyping"] if _rule_columns(r.get("rule") or {}) <= known]
+        kept = []
+        for rule in out["flowTyping"]:
+            needed = _rule_columns(rule.get("rule") or {})
+            if needed <= known:
+                kept.append(rule)
+            elif not any(n.get("name") == rule.get("name") for n in notes):
+                notes.append(
+                    {
+                        "name": str(rule.get("name") or ""),
+                        "reason": "missing_column",
+                        "needs": sorted(needed - known),
+                        "text": (
+                            f"The flow type {rule.get('name')!r} is not assigned on this log: its rule reads "
+                            f"{', '.join(sorted(needed - known))}, which the file does not carry."
+                        ),
+                    }
+                )
+        out["flowTyping"] = kept
+    out["flowTypingNotes"] = notes
     return out
 
 
+# words a rule uses for itself; anything else with a list of values in the library's grammar is an attribute name
+_RULE_WORDS = frozenset(
+    {
+        "a",
+        "activity",
+        "after",
+        "all",
+        "and",
+        "any",
+        "attr",
+        "b",
+        "before",
+        "directly",
+        "eq",
+        "field",
+        "has",
+        "kind",
+        "lacks",
+        "max",
+        "min",
+        "name",
+        "not",
+        "note",
+        "op",
+        "or",
+        "unit",
+        "value",
+        "in",
+    }
+)
+
+
 def _rule_columns(rule: dict[str, Any]) -> set[str]:
-    """The case-attribute columns a flow-typing rule reads, in either grammar."""
+    """The case-attribute columns a flow-typing rule reads, in either grammar.
+
+    The canonical filter grammar names its column in ``field`` and lists the values it wants in ``in``; the
+    library's applicability grammar writes the attribute name as the key (``{"Item Category": ["3-way"]}``).
+    Reading ``in`` as a column name drops every attribute rule of a preset as *the file has no column "in"*,
+    which is how the order-to-cash ``returns`` type came to match nothing (R3-15).
+    """
     out: set[str] = set()
     if rule.get("attr"):
         out.add(str(rule["attr"]))
@@ -83,11 +159,10 @@ def _rule_columns(rule: dict[str, Any]) -> set[str]:
                 out |= _rule_columns(item)
     if isinstance(rule.get("not"), dict):
         out |= _rule_columns(rule["not"])
-    for attr, value in rule.items():
-        if attr not in ("attr", "kind", "field", "all", "any", "and", "or", "not", "has", "lacks") and isinstance(
-            value, list
-        ):
-            out.add(str(attr))
+    if "kind" not in rule:
+        for attr, value in rule.items():
+            if attr not in _RULE_WORDS and isinstance(value, list):
+                out.add(str(attr))
     return out
 
 

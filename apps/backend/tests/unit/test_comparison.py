@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from wise_workbench.domain.comparison import (
     Comparison,
+    bracket_is_difference,
     capitalised,
     is_share_unit,
     number,
@@ -28,12 +29,14 @@ def test_numbers_follow_the_design_rule() -> None:
     assert is_share_unit("manual_share") and is_share_unit(None, 0.83, 0.8) and not is_share_unit("count", 4.0, 4.0)
 
 
-def test_lag_keeps_the_acceptance_sentence() -> None:
+def test_lag_brackets_the_difference_of_the_two_printed_numbers() -> None:
+    """R3-04: the bracket is 83 − 55, not the analytics package's shift estimate of 24.94."""
     s = readable_comparison(
         Comparison("lag", "Paid within terms", 83.378, 54.698, 24.94, "D", 0.9666, 0.8336), items=ITEMS
     )
-    assert s.text == "Paid within terms: 83 days here against 55 elsewhere (+25 days)" and s.kind == "lag"
-    assert capitalised(s.text) == "Paid within terms: 83 days here against 55 elsewhere (+25 days)."
+    assert s.text == "Paid within terms: 83 days here against 55 elsewhere (+28 days)" and s.kind == "lag"
+    assert capitalised(s.text) == "Paid within terms: 83 days here against 55 elsewhere (+28 days)."
+    assert bracket_is_difference(s.text) is True
 
 
 def test_count_uses_the_count_noun_and_the_case_noun() -> None:
@@ -66,8 +69,9 @@ def test_share_valued_metric_reads_as_percentages() -> None:
     s = readable_comparison(
         Comparison("metric", "Mostly automatic", 0.8333, 0.8, 0.0333, "manual_share", 0.99, 0.919), items=ITEMS
     )
-    assert s.text == "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3.3 points)"
+    assert s.text == "Mostly automatic: a manual share of 83 % here against 80 % elsewhere (+3 points)"
     assert s.kind == "metric"
+    assert bracket_is_difference(s.text) is True
 
 
 def test_other_metric_reads_per_item() -> None:
@@ -93,8 +97,7 @@ def test_zero_real_unit_difference_falls_back_on_the_shares() -> None:
     assert s.kind == "rate"
     lag = readable_comparison(Comparison("lag", "Paid within terms", 64.2, 64.0, 0.02, "D", 0.83, 0.82), items=ITEMS)
     assert (
-        lag.text
-        == "Paid within terms: missed in 83 % of purchase order items here against 82 % elsewhere (+1.0 points)"
+        lag.text == "Paid within terms: missed in 83 % of purchase order items here against 82 % elsewhere (+1 points)"
     )
 
 

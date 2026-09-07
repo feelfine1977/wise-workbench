@@ -402,6 +402,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/norms/applicability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Applicability Options
+         * @description What an expectation can be made to apply to on this log (R3-02): the flow types the case table carries with their counts, the flow types the rules name that it does not carry and why, every case attribute with its values, and the shape of each applicability clause including *not applicable to this log*.
+         */
+        get: operations["getApplicabilityOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/norms/inventory": {
         parameters: {
             query?: never;
@@ -479,8 +499,31 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Set Norm Status */
+        /**
+         * Set Norm Status
+         * @description Move a version along draft → reviewed → approved. Leaving draft needs a named person and a rationale with an owner for every threshold this version set (R3-02); it is refused with 422 otherwise.
+         */
         patch: operations["setNormStatus"];
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/{normVersionId}/calibration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Norm Calibration
+         * @description The calibration state of one version: every threshold with the rationale and the owner recorded for it, which of them this version set, the expectations marked not applicable with their notes, and what still keeps the version in draft.
+         */
+        get: operations["getNormCalibration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/projects/{projectId}/norms/{normVersionId}/check": {
@@ -1217,6 +1260,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/runs/{runId}/whatif": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Whatif
+         * @description The change table of a scenario run against its frozen baseline: per group the two runs' cases, mean score and priority with the difference of each and the movement in rank, the groups that entered and left, the agreement of the two orders, and the provenance of both numbers.
+         */
+        get: operations["getWhatIf"];
+        put?: never;
+        /**
+         * Create Whatif
+         * @description Queue a scenario against this run as the frozen baseline. A scenario changes the log (the transform layer: cap a lag, delete an activity, move an event, set an attribute, keep first), the norm (thresholds and applicability, which become a new norm version with its own fingerprint), or both, and is then scored under the baseline's own parameters. The job's `resultRef` is the scenario run; its change table is read from `GET /runs/{scenarioId}/whatif`.
+         */
+        post: operations["createWhatIf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/whatif/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Whatif
+         * @description What the transform layer would touch on this run's log — cases selected, events moved, events removed — without scoring anything.
+         */
+        post: operations["previewWhatIfTransforms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Scenarios
+         * @description Every what-if scenario of the project, newest first; `baselineRunId` narrows it to one baseline.
+         */
+        get: operations["listScenarios"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs": {
         parameters: {
             query?: never;
@@ -1276,6 +1383,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AbsentFlowType
+         * @description A flow type the rules name that this log has none of, with the reason (R3-15).
+         */
+        AbsentFlowType: {
+            /** Name */
+            name: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "missing_column" | "matches_nothing";
+            /** Text */
+            text?: string | null;
+        };
         /** ActionCreate */
         ActionCreate: {
             /** Title */
@@ -1392,6 +1514,48 @@ export interface components {
             manifest?: {
                 [key: string]: unknown;
             };
+        };
+        /** ApplicabilityKind */
+        ApplicabilityKind: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Shape */
+            shape?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Available
+             * @default true
+             */
+            available?: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * ApplicabilityOptions
+         * @description What an expectation can be made to apply to on this log: flow types, attribute values, or nothing.
+         */
+        ApplicabilityOptions: {
+            /** Casetableid */
+            caseTableId: string;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Flowtypeattribute */
+            flowTypeAttribute?: string | null;
+            /** Flowtypes */
+            flowTypes?: {
+                [key: string]: unknown;
+            }[];
+            /** Flowtypesabsent */
+            flowTypesAbsent?: components["schemas"]["AbsentFlowType"][];
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            }[];
+            /** Kinds */
+            kinds?: components["schemas"]["ApplicabilityKind"][];
         };
         /** AttributeInventory */
         AttributeInventory: {
@@ -1592,6 +1756,16 @@ export interface components {
             /** Top Constraint Plain */
             top_constraint_plain?: string | null;
             /**
+             * Top Constraint Measures Logging
+             * @description true when the leading expectation is missed mostly because an event is not logged rather than because a measured value is beyond its threshold (R3-14); `top_constraint_flag` carries the sentence
+             */
+            top_constraint_measures_logging?: boolean | null;
+            /**
+             * Top Constraint Flag
+             * @description the sentence to print beside the leading expectation when it measures logging
+             */
+            top_constraint_flag?: string | null;
+            /**
              * Case Noun
              * @description the business name of a case ("purchase order items")
              */
@@ -1608,6 +1782,11 @@ export interface components {
              * @description the expectation the comparison sentence is about
              */
             comparison_constraint?: string | null;
+            /**
+             * Expectation Note
+             * @description set when the headline expectation and the compared expectation differ: which is missed most often and which carries the largest share of the shortfall (R3-04)
+             */
+            expectation_note?: string | null;
             /** @description set exactly when `comparison` is null; never both (R2-05) */
             comparison_reason?: components["schemas"]["ComparisonReason"] | null;
             /** Reading */
@@ -1665,6 +1844,20 @@ export interface components {
             file: string;
             /** Name */
             name?: string | null;
+        };
+        /**
+         * CalibrationEntry
+         * @description Why a threshold is what it is, and who owns it (R3-02); both are required before the version is signed.
+         */
+        CalibrationEntry: {
+            /** Rationale */
+            rationale: string;
+            /** Owner */
+            owner: string;
+            /** Decidedat */
+            decidedAt?: string | null;
+            /** Decidedby */
+            decidedBy?: string | null;
         };
         /** CaseTable */
         CaseTable: {
@@ -1734,6 +1927,130 @@ export interface components {
              */
             threshold?: number | null;
         };
+        /** ChangeRow */
+        ChangeRow: {
+            /** Key */
+            key: string;
+            /** Keys */
+            keys?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "changed" | "entered" | "left";
+            /** Baseline */
+            baseline?: {
+                [key: string]: unknown;
+            } | null;
+            /** Scenario */
+            scenario?: {
+                [key: string]: unknown;
+            } | null;
+            /** Deltacases */
+            deltaCases?: number | null;
+            /**
+             * Deltameanpoints
+             * @description scenario mean minus baseline mean, in points
+             */
+            deltaMeanPoints?: number | null;
+            /** Deltapriority */
+            deltaPriority?: number | null;
+            /**
+             * Deltarank
+             * @description positive when the group moves up the list
+             */
+            deltaRank?: number | null;
+            /** Unchanged */
+            unchanged?: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ChangeSummary */
+        ChangeSummary: {
+            /** Groupsbaseline */
+            groupsBaseline: number;
+            /** Groupsscenario */
+            groupsScenario: number;
+            /** Groupscompared */
+            groupsCompared: number;
+            /** Groupschanged */
+            groupsChanged: number;
+            /** Groupsunchanged */
+            groupsUnchanged: number;
+            /** Entered */
+            entered?: string[];
+            /** Left */
+            left?: string[];
+            /** Toptenoverlap */
+            topTenOverlap?: number | null;
+            /** Leaderbaseline */
+            leaderBaseline?: string | null;
+            /** Leaderscenario */
+            leaderScenario?: string | null;
+            /** Prioritybaseline */
+            priorityBaseline?: number | null;
+            /** Priorityscenario */
+            priorityScenario?: number | null;
+            /**
+             * Rankagreement
+             * @description Spearman rank correlation of the two orders
+             */
+            rankAgreement?: number | null;
+            /** Largestmove */
+            largestMove?: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ChangeTable */
+        ChangeTable: {
+            /** Runid */
+            runId: string;
+            /** Baselinerunid */
+            baselineRunId: string;
+            /** Name */
+            name?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Slicing */
+            slicing: string;
+            /** View */
+            view: string;
+            /** Mincases */
+            minCases: number;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Rows */
+            rows?: components["schemas"]["ChangeRow"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total?: number;
+            summary: components["schemas"]["ChangeSummary"];
+            /** Transforms */
+            transforms?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Normchanges
+             * @description one line per edit to the baseline norm
+             */
+            normChanges?: string[];
+            /**
+             * Provenance
+             * @description both runs with their fingerprints, so the comparison can be reproduced
+             */
+            provenance?: {
+                [key: string]: unknown;
+            };
+        };
         /** ColumnMapping */
         ColumnMapping: {
             /** Caseid */
@@ -1785,6 +2102,13 @@ export interface components {
             headerEvents?: string[];
             /** Flowtyping */
             flowTyping?: components["schemas"]["FlowTypingRule"][];
+            /**
+             * Flowtypingnotes
+             * @description flow types the rules name that this file cannot assign, with the columns they need (R3-15)
+             */
+            flowTypingNotes?: {
+                [key: string]: unknown;
+            }[];
             /**
              * Flowtypedefault
              * @default other
@@ -1907,6 +2231,13 @@ export interface components {
             headerEvents?: string[];
             /** Flowtyping */
             flowTyping?: components["schemas"]["FlowTypingRule"][];
+            /**
+             * Flowtypingnotes
+             * @description flow types the rules name that this file cannot assign, with the columns they need (R3-15)
+             */
+            flowTypingNotes?: {
+                [key: string]: unknown;
+            }[];
             /**
              * Flowtypedefault
              * @default other
@@ -2745,6 +3076,8 @@ export interface components {
             types: {
                 [key: string]: unknown;
             }[];
+            /** Absent */
+            absent?: components["schemas"]["AbsentFlowType"][];
         };
         /** FlowTypeReadiness */
         FlowTypeReadiness: {
@@ -2778,6 +3111,11 @@ export interface components {
             caseNoun?: string | null;
             /** Types */
             types: components["schemas"]["FlowType"][];
+            /**
+             * Absent
+             * @description types the rules name that no case of this log carries, and why
+             */
+            absent?: components["schemas"]["AbsentFlowType"][];
         };
         /** FlowTypingRule */
         FlowTypingRule: {
@@ -2816,6 +3154,11 @@ export interface components {
             author?: string | null;
             /** Decidedat */
             decidedAt?: string | null;
+            /**
+             * Scope
+             * @description `group` when the evidence is the group's own share; `run` when it is a property of the whole log, in which case the gate is stated once per run and decided once (R3-03)
+             */
+            scope?: ("run" | "group") | null;
         };
         /** GateUpdate */
         GateUpdate: {
@@ -2858,6 +3201,8 @@ export interface components {
              * @default true
              */
             passed?: boolean;
+            /** @description the readiness gate stated once for the run, beside the group's own reading */
+            runWide?: components["schemas"]["RunWideReadiness"] | null;
         };
         /** Guidance */
         Guidance: {
@@ -3216,6 +3561,13 @@ export interface components {
             value?: string | null;
             /** Note */
             note?: string | null;
+            /**
+             * Options
+             * @description alternatives the run offers for this row, one of them in force (R3-15: rank by items or by quantity)
+             */
+            options?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /** MappingSuggestion */
         MappingSuggestion: {
@@ -3227,6 +3579,58 @@ export interface components {
             source: "bpic2019" | "pm4py" | "heuristic";
             /** Notes */
             notes?: string[];
+        };
+        /**
+         * NormCalibration
+         * @description The calibration state of one norm version: its thresholds, their rationales and what still blocks signing.
+         */
+        NormCalibration: {
+            /** Normversionid */
+            normVersionId: string;
+            /** Status */
+            status: string;
+            /** Parentid */
+            parentId?: string | null;
+            /** Author */
+            author?: string | null;
+            /** Thresholds */
+            thresholds?: components["schemas"]["ThresholdRow"][];
+            /** Notapplicable */
+            notApplicable?: {
+                [key: string]: unknown;
+            }[];
+            /** Missingrationale */
+            missingRationale?: string[];
+            /**
+             * Canleavedraft
+             * @default true
+             */
+            canLeaveDraft?: boolean;
+        };
+        /**
+         * NormChanges
+         * @description What a scenario changes in the baseline norm; the result becomes a norm version with its own fingerprint.
+         */
+        NormChanges: {
+            /**
+             * Constraints
+             * @description per expectation `{id, delta?, width?, applicability?}`: the fields to set on it
+             */
+            constraints?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Add
+             * @description whole expectations to add
+             */
+            add?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Remove
+             * @description expectation ids to drop
+             */
+            remove?: string[];
         };
         /** NormCheck */
         NormCheck: {
@@ -3268,6 +3672,11 @@ export interface components {
              * @enum {string}
              */
             status: "draft" | "reviewed" | "approved";
+            /**
+             * Author
+             * @description the person who signs the version; required to leave draft (R3-02)
+             */
+            author?: string | null;
         };
         /** NormVersion */
         NormVersion: {
@@ -3350,6 +3759,32 @@ export interface components {
             parentId?: string | null;
             /** Author */
             author?: string | null;
+            /**
+             * Calibration
+             * @description per expectation id: the rationale and the owner of the threshold this version sets (R3-02)
+             */
+            calibration?: {
+                [key: string]: components["schemas"]["CalibrationEntry"];
+            };
+            /**
+             * Notapplicable
+             * @description expectation ids to mark not applicable to this log; each is moved out of the norm with its note and kept in the metadata
+             */
+            notApplicable?: {
+                [key: string]: components["schemas"]["NotApplicableEntry"];
+            };
+        };
+        /**
+         * NotApplicableEntry
+         * @description An expectation moved out of this version because it cannot be judged on this log, with the note why.
+         */
+        NotApplicableEntry: {
+            /** Note */
+            note: string;
+            /** Author */
+            author?: string | null;
+            /** Decidedat */
+            decidedAt?: string | null;
         };
         /** Notebook */
         Notebook: {
@@ -3757,6 +4192,54 @@ export interface components {
             /** Views */
             views?: string[];
         };
+        /**
+         * RunWideReadiness
+         * @description The readiness gate at the run: every check, and which of its failures no group can be judged on.
+         */
+        RunWideReadiness: {
+            /**
+             * Status
+             * @default unknown
+             */
+            status?: string;
+            /** Failed */
+            failed?: string[];
+            /** Warned */
+            warned?: string[];
+            /**
+             * Logwidefailed
+             * @description failed checks that are the same for every group of this log
+             */
+            logWideFailed?: string[];
+            /** Checks */
+            checks?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Text
+             * @default
+             */
+            text?: string;
+        };
+        /** Scenario */
+        Scenario: {
+            /** Runid */
+            runId: string;
+            /** Name */
+            name?: string | null;
+            /** Baselinerunid */
+            baselineRunId?: string | null;
+            /** Status */
+            status: string;
+            /** Note */
+            note?: string | null;
+            /** Transforms */
+            transforms?: {
+                [key: string]: unknown;
+            }[];
+            /** Createdat */
+            createdAt: string;
+        };
         /** SliceDetail */
         SliceDetail: {
             row: components["schemas"]["BacklogRow"];
@@ -3916,6 +4399,26 @@ export interface components {
             /** Rows */
             rows: unknown[][];
         };
+        /** ThresholdRow */
+        ThresholdRow: {
+            /** Constraint Id */
+            constraint_id: string;
+            /** Threshold */
+            threshold?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Changedhere
+             * @default false
+             */
+            changedHere?: boolean;
+            /** Rationale */
+            rationale?: string | null;
+            /** Owner */
+            owner?: string | null;
+            /** Decidedat */
+            decidedAt?: string | null;
+        };
         /** Trace */
         Trace: {
             /** Caseid */
@@ -3953,6 +4456,71 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * Transform
+         * @description One step of a scenario's transform layer; the shape depends on `kind` (see the what-if documentation).
+         */
+        Transform: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "cap_lag" | "delete_activity" | "move_event" | "set_attribute" | "keep_first";
+            /**
+             * Where
+             * @description canonical filter selecting the cases the step applies to; all of them without it
+             */
+            where?: {
+                [key: string]: unknown;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TransformPreview */
+        TransformPreview: {
+            /** Runid */
+            runId: string;
+            /** Casenoun */
+            caseNoun?: string | null;
+            /** Transforms */
+            transforms?: components["schemas"]["TransformRecord"][];
+        };
+        /** TransformPreviewRequest */
+        TransformPreviewRequest: {
+            /** Transforms */
+            transforms?: components["schemas"]["Transform"][];
+        };
+        /** TransformRecord */
+        TransformRecord: {
+            /** Kind */
+            kind: string;
+            /** Spec */
+            spec?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Casesselected
+             * @default 0
+             */
+            casesSelected?: number;
+            /**
+             * Casestouched
+             * @default 0
+             */
+            casesTouched?: number;
+            /**
+             * Eventsmoved
+             * @default 0
+             */
+            eventsMoved?: number;
+            /**
+             * Eventsremoved
+             * @default 0
+             */
+            eventsRemoved?: number;
+        } & {
+            [key: string]: unknown;
         };
         /** ValidationError */
         ValidationError: {
@@ -4014,8 +4582,21 @@ export interface components {
             hub_node?: string | null;
             /** Share Of Shortfall */
             share_of_shortfall?: number | null;
-            /** Comparison */
+            /**
+             * Comparison
+             * @description the shares missed here and elsewhere, with the difference of those two numbers in percentage points; one comparison, one bracket (R3-04)
+             */
             comparison?: string | null;
+            /**
+             * Median Comparison
+             * @description the real-unit medians here and elsewhere, with the difference of the two
+             */
+            median_comparison?: string | null;
+            /**
+             * Measures Logging
+             * @description set when this expectation is missed mostly where an event is not logged (R3-14)
+             */
+            measures_logging?: string | null;
             /**
              * Headroom Points
              * @description score points the group would gain
@@ -4043,6 +4624,27 @@ export interface components {
             note?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** WhatIfCreate */
+        WhatIfCreate: {
+            /**
+             * Name
+             * @description what the scenario is called on screen
+             */
+            name: string;
+            /** Transforms */
+            transforms?: components["schemas"]["Transform"][];
+            norm?: components["schemas"]["NormChanges"] | null;
+            /** Note */
+            note?: string | null;
+            /** Author */
+            author?: string | null;
+            /**
+             * Force
+             * @description score again even when an identical scenario exists
+             * @default false
+             */
+            force?: boolean;
         };
         /** WorstCase */
         WorstCase: {
@@ -4888,6 +5490,49 @@ export interface operations {
             };
         };
     };
+    getApplicabilityOptions: {
+        parameters: {
+            query: {
+                /** @description the case table the norm is written against */
+                caseTableId: string;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicabilityOptions"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getNormInventory: {
         parameters: {
             query: {
@@ -5072,6 +5717,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NormVersion"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNormCalibration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                normVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NormCalibration"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Validation Error */
@@ -6943,6 +7629,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getWhatIf: {
+        parameters: {
+            query?: {
+                slicing?: string | null;
+                view?: string | null;
+                minCases?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeTable"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createWhatIf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatIfCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewWhatIfTransforms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransformPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransformPreview"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listScenarios: {
+        parameters: {
+            query?: {
+                baselineRunId?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"][];
                 };
             };
             /** @description Validation Error */

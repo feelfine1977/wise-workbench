@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFindingStore } from "@/lib/stores/findings";
 import { returnTarget, useNavStore } from "@/lib/stores/nav";
+import { GUIDED_STEPS, useUiStore } from "@/lib/stores/ui";
 import { cn } from "@/lib/utils";
 import type { WorkbenchContext } from "../context";
 import { computeStages, type StageInfo, type StageState } from "./journey";
@@ -30,10 +31,11 @@ interface Step {
  * pathname the reader came from, taken from the navigation stack).
  */
 export function currentStep(pathname: string, origin?: string): StepId | undefined {
+  if (/\/act$/.test(pathname)) return "act";
   if (/\/slices\//.test(pathname)) return "why";
   if (/\/(flow|board)$/.test(pathname)) return "flow";
   if (/\/backlog$/.test(pathname)) return "signals";
-  if (/\/notebook$/.test(pathname)) return origin ? currentStep(origin) : undefined;
+  if (/\/(notebook|knowledge)(\/|$)/.test(pathname)) return origin ? currentStep(origin) : undefined;
   if (/\/norms\/[^/]+$/.test(pathname) && origin && /\/slices\//.test(origin)) return "why";
   if (/\/runs/.test(pathname)) return "run";
   if (/\/norms/.test(pathname)) return "norm";
@@ -51,6 +53,12 @@ export function useCurrentStep(ctx: WorkbenchContext): StepId | undefined {
   const dashboard = /^\/p\/[^/]+\/?$/.test(pathname);
   if (dashboard) return ctx.runs.some((r) => r.status === "done") ? "signals" : "data";
   return undefined;
+}
+
+/** The seventh step of the group the reader last opened: the reason screen's address with `/act` on its path. */
+export function actHref(sliceHref: string): string {
+  const [path = sliceHref, query] = sliceHref.split("?");
+  return `${path.replace(/\/$/, "")}/act${query ? `?${query.replace(/(^|&)tab=[^&]*/g, "").replace(/^&/, "")}` : ""}`;
 }
 
 const STEP_GLYPH: Record<StageState | "current", string> = {
@@ -170,6 +178,7 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
   const subline = useNavStore((s) => s.subline);
   const findings = useFindingStore((s) => s.findings);
   const lastSlice = useNavStore((s) => s.lastSlice);
+  const guided = useUiStore((s) => s.mode === "guided");
 
   const doneRun = ctx.run?.status === "done" ? ctx.run : ctx.runs.find((r) => r.status === "done");
   const steps = useMemo<Step[]>(() => {
@@ -184,9 +193,16 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
       { id: "signals", label: plain ? "Signals" : "Backlog", state: doneRun ? (lastSlice || findingCount ? "done" : "in_progress") : ctx.runs.length ? "gated" : "not_started", hint: plain ? "where is it worst?" : "ranked slices", caption: !doneRun && ctx.runs.length ? "needs a finished run" : undefined },
       { id: "flow", label: "Flow", state: doneRun ? "in_progress" : ctx.runs.length ? "gated" : "not_started", hint: "the process map as the instrument; the board beside it", caption: !doneRun && ctx.runs.length ? "needs a finished run" : undefined },
       { id: "why", label: "Why", state: findingCount ? "done" : "not_started", hint: plain ? "the reasons behind one group" : "drivers, contrast, flow" },
-      { id: "act", label: "What to do", state: "not_started", later: "not available yet", caption: "not available yet" },
+      // the seventh step is a screen from cycle 4 on (R3-01): it opens for the group the reader last read
+      { id: "act", label: plain ? "What can we do?" : "What to do", state: lastSlice ? "in_progress" : doneRun ? "gated" : "not_started", hint: "the drivers, their possible gain, the usual reasons and actions", caption: !lastSlice && doneRun ? "open a group first" : undefined },
     ];
   }, [findings, ctx.projectId, ctx.runs, ctx.norms, ctx.caseTable, ctx.datasets.length, doneRun, lastSlice, plain]);
+  /**
+   * Guided mode walks one path (R3-10): where is it worst, why is it worst there, and what can we do about
+   * it. Loading a log, writing a norm and scoring a run are the analyst's work, and a reader who is shown
+   * them as steps of their own path reads seven labels to find the three that are theirs.
+   */
+  const path = useMemo(() => (guided ? steps.filter((s) => (GUIDED_STEPS as readonly string[]).includes(s.id)) : steps), [guided, steps]);
 
   const pid = ctx.projectId;
   const datasetId = ctx.caseTable?.datasetId ?? ctx.dataset?.id ?? ctx.datasets[0]?.id;
@@ -212,7 +228,7 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
     <nav aria-label="Analysis path" className="border-b border-border bg-surface px-4" data-testid="stepper">
       <div className="flex items-start gap-2">
         <ol className="flex min-w-0 flex-1 flex-wrap items-start gap-y-1 py-2 text-sm">
-          {steps.map((s, i) => {
+          {path.map((s, i) => {
             const isCurrent = s.id === current;
             const glyph = isCurrent ? STEP_GLYPH.current : STEP_GLYPH[s.state];
             const cls = cn(
@@ -237,7 +253,21 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
             return (
               <li key={s.id} className="flex items-start" data-step={s.id} data-step-index={i + 1} aria-current={isCurrent ? "step" : undefined} title={s.later ? `${s.label}: ${s.later}` : s.hint}>
                 <div className="flex flex-col items-start">
-                  {s.id === "why" ? (
+                  {s.id === "act" ? (
+                    lastSlice ? (
+                      <button type="button" className={cls} onClick={() => router.history.push(actHref(lastSlice.href))} title={`What can we do about ${lastSlice.label}?`}>
+                        {inner}
+                      </button>
+                    ) : doneRun ? (
+                      <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: pid, runId: doneRun.id }} search={{ slicing: ctx.slicing, view: ctx.view }} className={cls} title="Open a group first; What can we do? answers for one group">
+                        {inner}
+                      </Link>
+                    ) : (
+                      <span className={cls} aria-disabled="true">
+                        {inner}
+                      </span>
+                    )
+                  ) : s.id === "why" ? (
                     lastSlice ? (
                       <button type="button" className={cls} onClick={() => router.history.push(lastSlice.href)} title={`Back to ${lastSlice.label}`}>
                         {inner}

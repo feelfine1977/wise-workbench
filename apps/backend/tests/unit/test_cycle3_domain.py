@@ -305,3 +305,18 @@ def test_a_group_without_a_value_is_found_whether_it_is_null_or_the_label() -> N
     assert list(frame.index[_slice_mask(frame, ["area"], [None])]) == ["c2", "c3"]
     # a real value is unaffected
     assert list(frame.index[_slice_mask(frame, ["area"], ["Packaging"])]) == ["c1"]
+
+
+def test_a_norm_warning_reads_as_a_sentence_with_both_names_in_words() -> None:
+    """P1-8: no raw id in the reading of a group, and the sentence ends once."""
+    from wise_workbench.adapters.engine.sentences import warned_activity, warning_sentence
+
+    raw = "constraint 'o_deliv_delivery_present': activity 'o2c.rejection_change' never occurs in the log"
+    assert warned_activity(raw) == "o2c.rejection_change"
+    said = warning_sentence(raw, expectation="A delivery exists", activity="Rejection reason changed")
+    assert said == "A delivery exists is never missed here, because Rejection reason changed never occurs in this log"
+    assert "constraint '" not in said and "activity '" not in said and not said.endswith(".")
+    # a name the pack does not know keeps the warning it came with rather than inventing one
+    kept = warning_sentence(raw, expectation=None, activity=None)
+    assert kept.startswith("constraint '") and kept.endswith("for that reason")
+    assert warned_activity("something else entirely") is None

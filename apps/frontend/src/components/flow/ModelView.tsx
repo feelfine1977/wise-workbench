@@ -62,7 +62,8 @@ export default function ModelView({ scene, abstraction, overlays, selected, onSe
   }
 
   return (
-    <div className={cn("flex h-full min-w-0 flex-col", className)} data-testid="model-view">
+    // `wise-model` carries the rule that suppresses bpmn.io's own watermark and palette (R3-17)
+    <div className={cn("wise-model flex h-full min-w-0 flex-col", className)} data-testid="model-view">
       <BpmnView
         graph={lite}
         overlays={overlays}

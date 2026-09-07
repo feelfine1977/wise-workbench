@@ -9,6 +9,7 @@ table.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import threading
@@ -24,7 +25,7 @@ import pyarrow as pa
 import wise
 
 from wise_workbench import __version__ as workbench_version
-from wise_workbench.adapters.knowledge import GuidanceRef, guidance_ref, stage_lanes, stage_model
+from wise_workbench.adapters.knowledge import GuidanceRef, activity_name, guidance_ref, stage_lanes, stage_model
 from wise_workbench.adapters.storage import Workspace, duck
 from wise_workbench.adapters.storage.parquet import read_frame, read_table, write_frame
 from wise_workbench.application.ports import ProgressFn, RunContext, Table
@@ -63,9 +64,12 @@ from .logs import (
 )
 from .signals import distribution, raw_signal
 from .tables import jsonable, key_label, records_from_frame, table_from_frame
+from .transforms import apply_transforms
 
 Z_LOWER = 1.96
 HOTSPOT_TOP = 12
+# the two flags of R3-14: an expectation whose shortfall is a statement about logging rather than about a value
+MEASURES_LOGGING = ("partly_measured", "missing_partner")
 
 
 def _now() -> str:
@@ -221,6 +225,8 @@ class EngineAdapter:
         self._sublogs: LRUCache[wise.EventLog] = LRUCache(max(cache_size, 2))
         self._flow_types: LRUCache[dict[str, Any]] = LRUCache(8)
         self._uncalibrated: LRUCache[list[dict[str, Any]]] = LRUCache(16)
+        self._board: LRUCache[dict[str, Any]] = LRUCache(128)
+        self._censored_flags: LRUCache[pd.Series] = LRUCache(max(cache_size, 2))
         self._guidance: dict[tuple[str | None, str, str, str], GuidanceRef] = {}
         self._lock = threading.RLock()
 
@@ -594,7 +600,7 @@ class EngineAdapter:
         started = _now()
         norm = _norm_from(document)
         progress(0.05, "loading the event log")
-        log = self._scoped_log(case_table_dir, mapping, run.params.scope)
+        log = self._scenario_log(case_table_dir, mapping, run.params.scope, run.params.transforms)
         norm_warnings = [str(w) for w in norm.check(log)]
         window_end = self.case_table_window_end(case_table_dir) or jsonable(resolve_window_end(log))
         views = list(run.params.views) or norm.view_names
@@ -633,8 +639,21 @@ class EngineAdapter:
         persist("in_scope.parquet", result.in_scope)
         self._frames.put(run.id, frame)
         gamma, min_cases = run.params.gamma, run.params.min_cases
+        measurement = constraint_measurement(result, log)
+        self.ws.write_json(dest_dir / "measurement.json", measurement)
+        # an expectation whose shortfall counts missing events may not lead a card unflagged (R3-14)
+        demote = measures_logging_ids(measurement["constraints"])
         replication = wise.event_replication(log)
         censored = censored_flags(log, mapping, window_end=window_end)
+        if censored is not None:
+            # the board reads the open share from here instead of loading the event log again (R3-07)
+            scope_key = json.dumps(dict(run.params.scope) if run.params.scope else None, sort_keys=True, default=str)
+            write_frame(
+                self.ws,
+                _censored_cache_path(dest_dir, scope_key, str(window_end) if window_end else None, mapping.id),
+                _censored_frame(censored),
+                index=False,
+            )
         n_steps = max(len(run.params.slicings) * len(views), 1)
         step = 0
         summary_extra: dict[str, Any] = {"concentration": {}, "agreement": {}}
@@ -646,7 +665,15 @@ class EngineAdapter:
                 step += 1
                 progress(0.35 + 0.5 * step / n_steps, f"backlog {s.id} × {view}")
                 backlog = self._compute_backlog(
-                    frame_s, attrs, view, gamma, min_cases, norm=norm, violations=result.violations, bands=bands
+                    frame_s,
+                    attrs,
+                    view,
+                    gamma,
+                    min_cases,
+                    norm=norm,
+                    violations=result.violations,
+                    bands=bands,
+                    demote=demote,
                 )
                 self._backlogs.put((run.id, s.id, view, gamma, min_cases, None, None), backlog)
                 persist(_artefact_name("backlogs", s.id, view), backlog.table.to_pandas(), index=False)
@@ -729,7 +756,50 @@ class EngineAdapter:
             return self._sublogs.put(key, sublog(log, mapping, mask))
 
     def _run_log(self, ctx: RunContext) -> wise.EventLog:
-        return self._scoped_log(ctx.case_table_dir, ctx.mapping, ctx.scope)
+        return self._scenario_log(ctx.case_table_dir, ctx.mapping, ctx.scope, ctx.transforms)
+
+    def _scenario_log(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        scope: dict[str, Any] | None,
+        transforms: tuple[dict[str, Any], ...] | list[dict[str, Any]],
+    ) -> wise.EventLog:
+        """The log a run reads: the case table's, scoped, and with a what-if scenario's transforms applied.
+
+        The transformed log is cached under its own key so that the baseline run keeps answering from the
+        untouched log in the same process (R3-27: a scenario is compared against a frozen baseline).
+        """
+        base = self._scoped_log(case_table_dir, mapping, scope)
+        specs = [dict(t) for t in transforms or ()]
+        if not specs:
+            return base
+        key = (
+            str(case_table_dir),
+            json.dumps(scope, sort_keys=True, default=str),
+            json.dumps(specs, sort_keys=True, default=str),
+        )
+        hit = self._sublogs.get(key)
+        if hit is not None:
+            return hit
+        with self._lock:
+            hit = self._sublogs.get(key)
+            if hit is not None:
+                return hit
+            log, _records = apply_transforms(base, mapping, specs)
+            return self._sublogs.put(key, log)
+
+    def transform_preview(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        scope: dict[str, Any] | None,
+        transforms: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """What a scenario's transform layer would touch, without scoring anything."""
+        base = self._scoped_log(case_table_dir, mapping, scope)
+        _log, records = apply_transforms(base, mapping, [dict(t) for t in transforms])
+        return records
 
     def _get_result(self, run: Run, ctx: RunContext) -> wise.ScoreResult:
         hit = self._results.get(run.id)
@@ -784,6 +854,7 @@ class EngineAdapter:
         baseline: float | None = None,
         scope: dict[str, Any] | None = None,
         volume: str = "cases",
+        demote: set[str] | None = None,
     ) -> BacklogResult:
         vf = _label_missing_keys(_view_frame(frame, view), attrs)
         try:
@@ -814,10 +885,11 @@ class EngineAdapter:
         out["dominant_layer_name"] = [
             layer_names.get(str(layer), str(layer)) if layer else None for layer in out["dominant_layer"]
         ]
-        top = _top_constraints(vf, attrs, keys, list(out["dominant_layer"]), norm, violations)
+        top = _top_constraints(vf, attrs, keys, list(out["dominant_layer"]), norm, violations, demote=demote)
         out["top_constraint"] = [t[0] for t in top]
         out["top_constraint_description"] = [t[1] for t in top]
         out["top_constraint_share"] = [t[2] for t in top]
+        out["top_constraint_measures_logging"] = [bool(t[3]) for t in top]
         labels = [" × ".join(key_label(v) for v in k) for k in keys]
         readings = []
         for label, rec in zip(labels, out.to_dict(orient="records")):
@@ -869,11 +941,18 @@ class EngineAdapter:
         stamp = an.AnalyticsStore(self.ws, ctx.run_dir).manifest_stamp()
         key = (run.id, cache_id, view, gamma, int(min_cases), scope_key, stamp)
         hit = self._backlogs.get(key)
-        if hit is not None:
+        if hit is not None and hit.enriched:
             return hit
-        base: BacklogResult | None = None
+        # the scoring job leaves the raw backlog in the cache; a read still adds the plain fields to it
+        base: BacklogResult | None = hit if (hit is not None and not hit.enriched) else None
         eff = effective_attributes(list(attributes), bands)
-        if sid is not None and gamma == ctx.gamma and int(min_cases) == ctx.min_cases and scope_key is None:
+        if (
+            base is None
+            and sid is not None
+            and gamma == ctx.gamma
+            and int(min_cases) == ctx.min_cases
+            and scope_key is None
+        ):
             path = ctx.run_dir / _artefact_name("backlogs", sid, view)
             if path.exists():
                 table = read_table(path)
@@ -931,12 +1010,37 @@ class EngineAdapter:
                 bands=bands,
                 baseline=baseline,
                 scope=scope,
+                demote=measures_logging_ids(self._measurement(ctx)),
                 volume=volume,
             )
         return self._backlogs.put(key, self._enrich_backlog(base, run, ctx, sid))
 
     def _censored(self, ctx: RunContext) -> pd.Series | None:
-        return censored_flags(self._run_log(ctx), ctx.mapping, window_end=self._window_end(ctx))
+        """The one open/closed flag per case: from the run's stored artefact, else computed from the log once.
+
+        It is the only thing the board's four tiles needed the whole event log for, and loading 1.6 M events to
+        answer one share cost the first paint about three seconds (R3-07). The flag is written beside the run the
+        first time it is computed and read from there afterwards, so a cold process answers the tiles from the
+        run's own artefacts.
+        """
+        end = self._window_end(ctx)
+        scope = json.dumps(ctx.scope, sort_keys=True, default=str)
+        key = (str(ctx.case_table_dir), scope, end)
+        hit = self._censored_flags.get(key)
+        if hit is not None:
+            return hit
+        path = _censored_cache_path(ctx.run_dir, scope, end, ctx.mapping.id)
+        if path.exists():
+            try:
+                return self._censored_flags.put(key, _censored_series(read_frame(path)))
+            except (OSError, pa.ArrowInvalid, IndexError, KeyError):  # pragma: no cover - unreadable cache
+                pass
+        flags = censored_flags(self._run_log(ctx), ctx.mapping, window_end=end)
+        if flags is None:
+            return None
+        with contextlib.suppress(OSError):  # a read-only workspace still answers, only slower
+            write_frame(self.ws, path, _censored_frame(flags), index=False)
+        return self._censored_flags.put(key, flags)
 
     def resolved_window_end(self, ctx: RunContext) -> str | None:
         """The one window end of a run, resolved for callers outside the engine."""
@@ -966,13 +1070,30 @@ class EngineAdapter:
         return hit
 
     def _warned_constraints(self, ctx: RunContext) -> dict[str, str]:
-        """Constraint id → warning text for the norm warnings of the run (activities that never occur)."""
+        """Constraint id → the warning as a sentence, for the norm warnings of the run (P1-8).
+
+        The library's warning names both the expectation and the activity by their id — *constraint
+        'o_deliv_delivery_present': activity 'o2c.rejection_change' never occurs in the log* — and it was
+        printed to the reader as it came, in the first paragraph of the group the walkthrough opens. Both are
+        named in words here; an id the pack does not know keeps the warning it came with, since a wrong name
+        would be worse than a raw one.
+        """
         out: dict[str, str] = {}
         for w in ctx.norm_warnings:
-            if w.startswith("constraint '"):
-                cid = w.split("'", 2)[1]
-                out.setdefault(cid, w)
+            if not w.startswith("constraint '"):
+                continue
+            cid = w.split("'", 2)[1]
+            out.setdefault(cid, self._warning_sentence(ctx, cid, w))
         return out
+
+    def _warning_sentence(self, ctx: RunContext, cid: str, warning: str) -> str:
+        """*A delivery exists is never missed here, because Rejection reason changed never occurs in this log.*"""
+        named = sentences.warned_activity(warning)
+        return sentences.warning_sentence(
+            warning,
+            expectation=self._guidance_for(ctx, "constraint", cid).plain_name,
+            activity=activity_name(ctx.process, named) if named else None,
+        )
 
     def _enrich_backlog(self, base: BacklogResult, run: Run, ctx: RunContext, sid: str | None) -> BacklogResult:
         """Add the cycle 2 plain fields to every row: stability, kind, kind_reading, comparison, caveats,
@@ -1061,6 +1182,21 @@ class EngineAdapter:
             ref = self._guidance_for(ctx, "constraint", str(cid)) if cid else None
             top_plain.append(ref.plain_name if ref else None)
         df["top_constraint_plain"] = top_plain
+        # an expectation that measures logging carries its sentence wherever a card names it (R3-14)
+        logging_sentences = self.measures_logging(run, ctx)
+        df["top_constraint_measures_logging"] = [bool(logging_sentences.get(str(c))) for c in df["top_constraint"]]
+        df["top_constraint_flag"] = [logging_sentences.get(str(c)) for c in df["top_constraint"]]
+        # the card's headline expectation and the comparison's expectation, and which is which when they differ
+        df["expectation_note"] = [
+            _expectation_note(
+                top,
+                self._guidance_for(ctx, "constraint", str(top)).plain_name if top else None,
+                cmp_id,
+                self._guidance_for(ctx, "constraint", str(cmp_id)).plain_name if cmp_id else None,
+                noun,
+            )
+            for top, cmp_id in zip(df["top_constraint"], df["comparison_constraint"])
+        ]
         caveats_json = []
         share_cols = {k: f"{k}_share" for k in an.CAVEAT_KINDS}
         for i, k in enumerate(idx_keys):
@@ -1082,7 +1218,7 @@ class EngineAdapter:
                             "id": "norm_warning",
                             "share": None,
                             "status": "warn",
-                            "text": f"{warned[cid]}; this expectation is never missed for that reason.",
+                            "text": f"{warned[cid]}.",
                             "window_end": None,
                         }
                     )
@@ -1117,6 +1253,8 @@ class EngineAdapter:
             "comparison_kind",
             "comparison_constraint",
             "top_constraint_plain",
+            "top_constraint_flag",
+            "expectation_note",
             "points_below",
         ):
             df[col] = df[col].astype(object).where(df[col].notna(), None)
@@ -1290,7 +1428,7 @@ class EngineAdapter:
                         "id": "norm_warning",
                         "share": None,
                         "status": "warn",
-                        "text": f"{warned[nc.id]}; this expectation is never missed for that reason.",
+                        "text": f"{warned[nc.id]}.",
                         "window_end": None,
                     }
                 )
@@ -1411,7 +1549,10 @@ class EngineAdapter:
         if comparison:
             reading_plain += f" {comparison}"
         if caveats:
-            reading_plain += f" Caveat: {caveats[0]['text']}."
+            # the caveat's own sentence ends itself; a second full stop read as ".." on the extract's first
+            # paragraph, which is the group the walkthrough opens (P1-8)
+            first = str(caveats[0]["text"]).strip()
+            reading_plain += f" Caveat: {first}" + ("" if first.endswith((".", "!", "?")) else ".")
         return {
             "contrast": contrast,
             "headroom": headroom,
@@ -1925,6 +2066,7 @@ class EngineAdapter:
             "windowEnd": jsonable(end),
             "caseNoun": noun,
             "types": types,
+            "absent": _absent_flow_types(mapping, {str(v) for v in counts.index}, noun),
         }
         return self._flow_types.put(key, out)
 
@@ -2027,6 +2169,7 @@ class EngineAdapter:
             "caseNoun": ctx.case_noun,
             "slicing": first[0] if first else None,
             "types": out_types,
+            "absent": _absent_flow_types(ctx.mapping, {str(t["name"]) for t in out_types}, ctx.case_noun),
         }
 
     # ------------------------------------------------------------------ analytics job
@@ -2081,13 +2224,26 @@ class EngineAdapter:
         manifest = an.manifest_json(self.ws, ctx.run_dir)
         return {"package": an.availability(), "status": manifest.get("status", "not_computed"), "manifest": manifest}
 
-    # ------------------------------------------------------------------ uncalibrated expectations (R2-09)
-    def uncalibrated(self, run: Run, ctx: RunContext) -> list[dict[str, Any]]:
-        """Expectations whose threshold says more about the threshold than about the groups.
+    def readiness_report(self, run: Run, ctx: RunContext) -> dict[str, Any]:
+        """The run's readiness gate check by check, with the checks a group has its own share of (R3-03)."""
+        return an.readiness_report(self.ws, ctx.run_dir)
 
-        An expectation missed by more than 90 % of the cases it applies to separates nothing — every group misses
-        it — and one met by more than 99 % cannot fail on this log. Both are flagged so that the list header and
-        the norm screen can say so instead of letting a card compare 98 % with 92 %.
+    # ------------------------------------------------------------------ uncalibrated expectations (R2-09, R3-14)
+    def uncalibrated(self, run: Run, ctx: RunContext) -> list[dict[str, Any]]:
+        """Expectations whose number says more about the norm or the log than about the groups.
+
+        Four reasons, each with its own sentence:
+
+        * *almost always missed* — missed by more than 90 % of the cases it applies to: a threshold to calibrate,
+          not a difference between groups;
+        * *almost never missed* — met by more than 99 %: it cannot fail on this log as it is set;
+        * *partly measured* (R3-14) — evaluated on far fewer cases than it applies to, so its shortfall is mostly
+          a statement about which events are logged;
+        * *missing partner* (R3-14) — most of its violations come from a partner event that never occurs rather
+          than from a measured value beyond the threshold.
+
+        The last two are the difference between *these items are late* and *these items have no goods issue
+        logged*, and a card may not lead with such an expectation without saying so.
         """
         key = (run.id, "uncalibrated")
         hit = self._uncalibrated.get(key)
@@ -2097,6 +2253,8 @@ class EngineAdapter:
         norm = _norm_from(ctx.document)
         meta = ((ctx.document.get("metadata") or {}).get("meta") or {}) if ctx.document else {}
         declared = {str(x) for x in (meta.get("uncalibrated_parameters") or [])}
+        scope = self._in_scope(ctx)
+        measurement = self._measurement(ctx)
         out: list[dict[str, Any]] = []
         for nc in norm.constraints:
             if nc.id not in violations.columns:
@@ -2109,17 +2267,36 @@ class EngineAdapter:
             share = float((column[evaluated] > 0).mean())
             ref = self._guidance_for(ctx, "constraint", nc.id)
             name = ref.plain_name or str(nc.description or nc.id)
-            reason = None
-            if share > 0.90:
+            noun = ctx.case_noun
+            applies = int(scope[nc.id].sum()) if scope is not None and nc.id in scope.columns else None
+            m = measurement.get(nc.id) or {}
+            measured = int(m["measured"]) if m.get("measured") is not None else n
+            violated = int((column[evaluated] > 0).sum())
+            no_partner = int(m.get("violated_without_value") or 0)
+            reason = measurement_reason(applies, measured, violated, no_partner)
+            text = ""
+            if reason == "missing_partner":
+                text = (
+                    f"{name}: this expectation is missed mostly where the pair of events is missing — "
+                    f"{no_partner:,} of its {violated:,} misses have no partner event, not a measured value "
+                    "beyond the threshold."
+                )
+            elif reason == "partly_measured" and applies:
+                text = (
+                    f"{name} is measured on {measured:,} of the {applies:,} {noun} it applies to "
+                    f"({measured / applies * 100:.0f} %); on the rest it records whether the events are logged, "
+                    "not the value it names."
+                )
+            elif share > 0.90:
                 reason = "almost_always_missed"
                 text = (
-                    f"{name} is missed by {share * 100:.0f} % of all {ctx.case_noun} it applies to — a threshold "
+                    f"{name} is missed by {share * 100:.0f} % of all {noun} it applies to — a threshold "
                     "to calibrate, not a difference between groups."
                 )
             elif share < 0.01:
                 reason = "almost_never_missed"
                 text = (
-                    f"{name} is met by {(1 - share) * 100:.0f} % of all {ctx.case_noun} it applies to — it cannot "
+                    f"{name} is met by {(1 - share) * 100:.0f} % of all {noun} it applies to — it cannot "
                     "fail on this log as it is set."
                 )
             elif any(d.startswith(nc.id) for d in declared):
@@ -2135,6 +2312,10 @@ class EngineAdapter:
                     "description": nc.description,
                     "share_violated": share,
                     "evaluated": n,
+                    "applies_to": applies,
+                    "measured": measured,
+                    "violated_without_value": no_partner or None,
+                    "measures_logging": reason in MEASURES_LOGGING,
                     "reason": reason,
                     "text": text,
                     "hub_node": ref.hub_node,
@@ -2142,6 +2323,31 @@ class EngineAdapter:
             )
         out.sort(key=lambda r: -float(r["share_violated"]))
         return self._uncalibrated.put(key, out)
+
+    def _in_scope(self, ctx: RunContext) -> pd.DataFrame | None:
+        """The run's applicability table (cases × expectations), from the artefact the scoring job wrote."""
+        path = ctx.run_dir / "in_scope.parquet"
+        if not path.exists():
+            return None
+        try:
+            return read_frame(path, index=ctx.mapping.case_id)
+        except (OSError, pa.ArrowInvalid, KeyError):  # pragma: no cover - unreadable artefact
+            return None
+
+    def _measurement(self, ctx: RunContext) -> dict[str, dict[str, Any]]:
+        """Per expectation, how much of it is a measured value: written by the scoring job, empty for older runs."""
+        path = ctx.run_dir / "measurement.json"
+        if not path.exists():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):  # pragma: no cover - unreadable artefact
+            return {}
+        return {str(k): dict(v) for k, v in (data.get("constraints") or {}).items()}
+
+    def measures_logging(self, run: Run, ctx: RunContext) -> dict[str, str]:
+        """Expectation id → the sentence that says its shortfall is about logging, not about the value (R3-14)."""
+        return {str(row["id"]): str(row["text"]) for row in self.uncalibrated(run, ctx) if row.get("measures_logging")}
 
     # ------------------------------------------------------------------ explore board (R3-O12)
     def _selection(
@@ -2192,6 +2398,70 @@ class EngineAdapter:
             "clause_cases": clause_counts,
         }
 
+    def _board_key(
+        self,
+        run: Run,
+        ctx: RunContext,
+        shape: str,
+        *,
+        view: str,
+        gamma: float,
+        filter_obj: dict[str, Any] | None,
+        extra: dict[str, Any],
+    ) -> tuple[Any, ...]:
+        """The memo key of one board answer: the run and its fingerprints, the view, the filter and the shape.
+
+        The fingerprints are in the key so that a re-scored run, a new norm or a new analytics pass answers with
+        its own numbers rather than the previous run's; ``manifest_stamp`` moves when the analytics job writes.
+        """
+        m = run.manifest
+        prints = (
+            (m.norm_fingerprint, m.content_hash, m.mapping_id, m.params_hash, m.finished_at) if m is not None else ()
+        )
+        return (
+            run.id,
+            prints,
+            an.AnalyticsStore(self.ws, ctx.run_dir).manifest_stamp(),
+            shape,
+            view,
+            float(gamma),
+            json.dumps(filter_obj, sort_keys=True, default=str) if filter_obj else None,
+            json.dumps(extra, sort_keys=True, default=str),
+        )
+
+    def _stored_priority(
+        self,
+        ctx: RunContext,
+        attributes: list[str],
+        bands: list[dict[str, Any]] | None,
+        *,
+        view: str,
+        gamma: float,
+        min_cases: int,
+    ) -> tuple[float, int] | None:
+        """Priority at stake and the group count read from the run's own backlog artefact, or ``None``.
+
+        Only for a run slicing at the run's γ: those are the rows the ranked list shows, so the tile is the sum
+        of the bars a reader can see rather than a second, independently computed number.
+        """
+        band_specs = [dict(b) for b in bands or []]
+        sid = ctx.slicing_id(list(attributes), band_specs)
+        if sid is None or float(gamma) != float(ctx.gamma) or int(min_cases) < int(ctx.min_cases):
+            # the artefact was written with the run's own min_cases applied; a smaller one needs the frame
+            return None
+        path = ctx.run_dir / _artefact_name("backlogs", sid, view)
+        if not path.exists():
+            return None
+        try:
+            table = read_table(path)
+        except (OSError, pa.ArrowInvalid):  # pragma: no cover - unreadable artefact falls back to the frame
+            return None
+        if "stable_PI" not in table.column_names or "n_cases" not in table.column_names:
+            return None
+        df = table.select(["n_cases", "stable_PI"]).to_pandas()
+        df = df[df["n_cases"] >= int(min_cases)]
+        return float(pd.to_numeric(df["stable_PI"], errors="coerce").fillna(0.0).sum()), len(df)
+
     def _flow_type_attribute(self, frame: pd.DataFrame) -> str:
         if FLOW_TYPE_ATTRIBUTE in frame.columns:
             return FLOW_TYPE_ATTRIBUTE
@@ -2219,6 +2489,25 @@ class EngineAdapter:
         """Counts, share below expectation and priority at stake per value of an attribute, flow type or period."""
         view = view or (ctx.views[0] if ctx.views else self._first_view(ctx))
         gamma = ctx.gamma if gamma is None else float(gamma)
+        cache_key = self._board_key(
+            run,
+            ctx,
+            "facets",
+            view=view,
+            gamma=gamma,
+            filter_obj=filter_obj,
+            extra={
+                "by": by,
+                "attribute": attribute,
+                "period": period,
+                "sort": sort,
+                "limit": int(limit),
+                "minCases": int(min_cases),
+            },
+        )
+        hit = self._board.get(cache_key)
+        if hit is not None:
+            return hit
         sel = self._selection(run, ctx, view=view, filter_obj=filter_obj)
         frame, selected = sel["frame"], sel["selected"]
         field_source = attribute
@@ -2256,7 +2545,7 @@ class EngineAdapter:
             row["field"] = field
             values_out.append(row)
         rest = pd.concat([tail, below]) if total_values else table
-        return {
+        out = {
             "by": by,
             "field": field,
             "period": period if by == "period" else None,
@@ -2284,6 +2573,7 @@ class EngineAdapter:
                 "baseline": sel["baseline"],
             },
         }
+        return self._board.put(cache_key, out)
 
     def kpis(
         self,
@@ -2299,9 +2589,34 @@ class EngineAdapter:
         grouping: list[str] | None = None,
         min_cases: int = 1,
     ) -> dict[str, Any]:
-        """The board's KPI tiles for the current selection: items, share below expectation, priority, open share."""
+        """The board's KPI tiles for the current selection: items, share below expectation, priority, open share.
+
+        The board's first paint is an unfiltered call, and it must not cost a re-aggregation of the whole log
+        (R3-07). Three things make it cheap: the answer is memoised on the run's fingerprints, the view, the
+        filter and the grouping; the group labels are built by vectorised concatenation rather than row by row;
+        and an unfiltered selection whose grouping is one of the run's own reads its priority from the backlog
+        artefact the scoring job already wrote, so that the tile and the ranked list can never disagree.
+        """
         view = view or (ctx.views[0] if ctx.views else self._first_view(ctx))
         gamma = ctx.gamma if gamma is None else float(gamma)
+        cache_key = self._board_key(
+            run,
+            ctx,
+            "kpis",
+            view=view,
+            gamma=gamma,
+            filter_obj=filter_obj,
+            extra={
+                "attributes": attributes,
+                "key": key,
+                "bands": bands,
+                "grouping": grouping,
+                "minCases": int(min_cases),
+            },
+        )
+        hit = self._board.get(cache_key)
+        if hit is not None:
+            return hit
         sel = self._selection(run, ctx, view=view, filter_obj=filter_obj, attributes=attributes, key=key, bands=bands)
         selected, frame = sel["selected"], sel["frame"]
         score = selected[sel["score_col"]]
@@ -2312,14 +2627,25 @@ class EngineAdapter:
         if not group_attrs:
             group_attrs = [a for a in (list(ctx.slicings[0][1]) if ctx.slicings else []) if a in frame.columns]
         priority, groups, grouping_label = 0.0, 0, "groups"
+        priority_source = "not_computed"
         if group_attrs and scored:
-            keyed = _label_missing_keys(selected, group_attrs)
-            labels = keyed[group_attrs].astype(str).agg(" × ".join, axis=1)
-            groups_table = board.facet_table(selected, labels, view=view, gamma=gamma, baseline=sel["baseline"])
-            groups_table = groups_table[groups_table["cases"] >= int(min_cases)]
-            priority = float(groups_table["priority_at_stake"].sum())
-            groups = len(groups_table)
             grouping_label = "groups of " + " × ".join(group_attrs)
+            unfiltered = not filter_obj and key is None and len(selected) == sel["cases_total"]
+            stored = (
+                self._stored_priority(ctx, group_attrs, bands, view=view, gamma=gamma, min_cases=int(min_cases))
+                if unfiltered
+                else None
+            )
+            if stored is not None:
+                priority, groups = stored
+                priority_source = "run artefact"
+            else:
+                labels = _group_labels(_label_missing_keys(selected, group_attrs), group_attrs)
+                groups_table = board.facet_table(selected, labels, view=view, gamma=gamma, baseline=sel["baseline"])
+                groups_table = groups_table[groups_table["cases"] >= int(min_cases)]
+                priority = float(groups_table["priority_at_stake"].sum())
+                groups = len(groups_table)
+                priority_source = "selection"
         censored = self._censored(ctx)
         open_cases = (
             int(censored.reindex(selected.index, fill_value=False).astype(bool).sum()) if censored is not None else None
@@ -2339,7 +2665,7 @@ class EngineAdapter:
             grouping_label=grouping_label,
             window_end=self._window_end(ctx),
         )
-        return {
+        out = {
             "tiles": tiles,
             "cases": len(selected),
             "casesTotal": sel["cases_total"],
@@ -2362,8 +2688,10 @@ class EngineAdapter:
                 "window_end": self._window_end(ctx),
                 "case_noun": ctx.case_noun,
                 "clause_cases": sel["clause_cases"],
+                "priority_source": priority_source,
             },
         }
+        return self._board.put(cache_key, out)
 
     # ------------------------------------------------------------------ previews (filters, slice designer)
     def filter_preview(self, run: Run, ctx: RunContext, filter_obj: dict[str, Any] | None) -> dict[str, Any]:
@@ -2660,13 +2988,19 @@ def _top_constraints(
     dominant_layers: list[Any],
     norm: wise.Norm | None,
     violations: pd.DataFrame | None,
-) -> list[tuple[str | None, str | None, float | None]]:
+    *,
+    demote: set[str] | None = None,
+) -> list[tuple[str | None, str | None, float | None, bool]]:
     """Per group: the expectation of its most-missed area with the highest share of cases missing it.
 
     The share is computed from the library's violation table (a violation > 0 counts as missed, only
     evaluated cases count). Without a norm or violations every entry is empty.
+
+    ``demote`` names the expectations whose shortfall is a statement about logging rather than about a measured
+    value (R3-14). One of those may lead a card only when nothing else in the area is missed at all, and then
+    the fourth element of the tuple is true so that the card carries the flag with it.
     """
-    empty: tuple[str | None, str | None, float | None] = (None, None, None)
+    empty: tuple[str | None, str | None, float | None, bool] = (None, None, None, False)
     if norm is None or violations is None or not len(vf) or not keys:
         return [empty] * len(keys)
     ids = [nc.id for nc in norm.constraints if nc.id in violations.columns]
@@ -2682,7 +3016,8 @@ def _top_constraints(
     for nc in norm.constraints:
         by_layer.setdefault(str(nc.layer), []).append(nc.id)
         descriptions[nc.id] = str(nc.description or nc.id)
-    out: list[tuple[str | None, str | None, float | None]] = []
+    flagged = set(demote or ())
+    out: list[tuple[str | None, str | None, float | None, bool]] = []
     for key, layer in zip(keys, dominant_layers):
         idx: Any = tuple(key) if len(key) > 1 else key[0]
         try:
@@ -2697,8 +3032,11 @@ def _top_constraints(
         if cand.empty:
             out.append(empty)
             continue
-        best = str(cand.idxmax())
-        out.append((best, descriptions.get(best, best), float(cand[best])))
+        plain = cand[[c for c in cand.index if str(c) not in flagged]]
+        plain = plain[plain > 0]
+        pick, carries_flag = (plain, False) if not plain.empty else (cand, True)
+        best = str(pick.idxmax())
+        out.append((best, descriptions.get(best, best), float(pick[best]), carries_flag and best in flagged))
     return out
 
 
@@ -2710,6 +3048,151 @@ def _label_missing_keys(frame: pd.DataFrame, attrs: list[str], label: str = "(mi
             if out is frame:
                 out = out.copy()
             out[attr] = out[attr].astype(object).where(out[attr].notna(), label)
+    return out
+
+
+def _expectation_note(
+    top: Any, top_plain: str | None, compared: Any, compared_plain: str | None, noun: str
+) -> str | None:
+    """What the card says when its headline expectation and its comparison are about different expectations.
+
+    Two true sentences about one group can name two expectations — the one missed by most of its cases and the
+    one carrying the largest share of its shortfall — and a reader who is not told which is which reads a
+    contradiction (R3-04). When they are the same expectation there is nothing to say.
+    """
+    if not top or not compared or str(top) == str(compared):
+        return None
+    return (
+        f"{top_plain or top} is missed by most of these {noun}; {compared_plain or compared} carries the "
+        "largest share of the shortfall, and the comparison is about that one."
+    )
+
+
+def measurement_reason(applies: int | None, measured: int, violated: int, no_partner: int) -> str | None:
+    """The R3-14 flag of one expectation, from its counts: ``missing_partner``, ``partly_measured`` or none.
+
+    *missing_partner* — more than half of its violations have no partner event, so the shortfall counts absent
+    events, not values beyond the threshold. *partly_measured* — it is evaluated on less than half of the cases
+    it applies to, so most of what it says is about logging.
+    """
+    if not applies:
+        return None
+    if violated and no_partner / violated > 0.5:
+        return "missing_partner"
+    if measured < 0.5 * applies:
+        return "partly_measured"
+    return None
+
+
+def measures_logging_ids(measurement: dict[str, dict[str, Any]]) -> set[str]:
+    """The expectations flagged by :func:`measurement_reason` in a stored measurement table."""
+    out: set[str] = set()
+    for cid, m in measurement.items():
+        reason = measurement_reason(
+            m.get("applies_to"),
+            int(m.get("measured") or 0),
+            int(m.get("violated") or 0),
+            int(m.get("violated_without_value") or 0),
+        )
+        if reason is not None:
+            out.add(str(cid))
+    return out
+
+
+def constraint_measurement(result: wise.ScoreResult, log: wise.EventLog) -> dict[str, Any]:
+    """How much of every expectation is a measured value and how much is the presence of an event (R3-14).
+
+    A duration expectation whose response event never occurs is recorded as a full violation, and a card that
+    leads with it reads *these items are late* when the log says *these items have no goods issue*. Per
+    expectation this counts the cases it applies to, the cases where both of its events are there so that the
+    lag can be measured, and the violations that come from the missing partner rather than from the value.
+    Written beside the run so that every screen can say so without loading the log again.
+    """
+    out: dict[str, Any] = {}
+    for nc in result.norm.constraints:
+        cid = str(nc.id)
+        if cid not in result.violations.columns:
+            continue
+        column = result.violations[cid]
+        evaluated = column.notna()
+        scope = (
+            result.in_scope[cid].astype(bool) if cid in result.in_scope.columns else pd.Series(True, index=column.index)
+        )
+        entry: dict[str, Any] = {
+            "kind": type(nc.constraint).__name__.lower(),
+            "applies_to": int(scope.sum()),
+            "evaluated": int(evaluated.sum()),
+            "violated": int((column[evaluated] > 0).sum()),
+            "measured": int(evaluated.sum()),
+            "violated_without_value": 0,
+        }
+        if isinstance(nc.constraint, wise.Lag):
+            try:
+                t_a, t_b = log.first_after(nc.constraint.a, nc.constraint.b)
+                has_value = pd.Series((pd.notna(t_a) & pd.notna(t_b)).to_numpy(dtype=bool), index=log.case_ids).reindex(
+                    column.index, fill_value=False
+                )
+            except Exception:  # pragma: no cover - a constraint the log cannot answer keeps the default
+                has_value = evaluated
+            entry["measured"] = int((scope & has_value).sum())
+            entry["violated_without_value"] = int((scope & (column > 0) & ~has_value).sum())
+        out[cid] = entry
+    return {"constraints": out, "cases": len(result.violations)}
+
+
+def _censored_cache_path(run_dir: Path, scope: str, window_end: str | None, mapping_id: str) -> Path:
+    """Where a run keeps its per-case open/closed flag: one file per scope, window end and mapping."""
+    stamp = hashlib.sha256(f"{scope}|{window_end}|{mapping_id}".encode()).hexdigest()[:16]
+    return run_dir / "cache" / f"censored__{stamp}.parquet"
+
+
+def _censored_frame(flags: pd.Series) -> pd.DataFrame:
+    """The open/closed flag as a two-column table (case id, censored) that survives a parquet round trip."""
+    return pd.DataFrame({"case": flags.index.to_numpy(), "censored": flags.to_numpy(dtype=bool)})
+
+
+def _censored_series(df: pd.DataFrame) -> pd.Series:
+    return pd.Series(df["censored"].to_numpy(dtype=bool), index=pd.Index(df["case"]))
+
+
+def _absent_flow_types(mapping: ColumnMapping, present: set[str], noun: str) -> list[dict[str, Any]]:
+    """The flow types the pack names that this log has none of, each with the reason (R3-15).
+
+    Three types with a note saying why the fourth is absent is an answer; three types and silence is not.
+    """
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for note in mapping.flow_typing_notes:
+        name = str(note.get("name") or "")
+        if not name or name in present or name in seen:
+            continue
+        seen.add(name)
+        out.append({"name": name, "reason": str(note.get("reason") or "missing_column"), "text": note.get("text")})
+    for rule in mapping.flow_typing:
+        if rule.name in present or rule.name in seen:
+            continue
+        seen.add(rule.name)
+        out.append(
+            {
+                "name": rule.name,
+                "reason": "matches_nothing",
+                "text": f"The flow type {rule.name!r} is in the rules but no {noun} of this log matches it.",
+            }
+        )
+    return out
+
+
+def _group_labels(frame: pd.DataFrame, attrs: list[str], sep: str = " × ") -> pd.Series:
+    """One group label per case, built by vectorised concatenation.
+
+    The row-wise form (``frame[attrs].agg(sep.join, axis=1)``) costs about 26 µs per case, which is 6.5 s on a
+    log of 250,000 — the whole of the board's first paint (R3-07). This costs 15 ms on the same frame.
+    """
+    if not attrs:
+        return pd.Series("", index=frame.index, dtype=object)
+    out = frame[attrs[0]].astype(str)
+    for attr in attrs[1:]:
+        out = out + sep + frame[attr].astype(str)
     return out
 
 

@@ -88,8 +88,11 @@ test("F3 · every path of an activity is reachable, and the ones below the detai
   await openFlow(page);
   await selectActivity(page, "Record Goods Receipt");
   await page.getByTestId("selected-activity").getByRole("button", { name: "Paths in / out" }).click();
-  await expect(page.getByTestId("paths-hidden")).toContainText(/paths? (is|are) below this detail level/, { timeout: 15_000 });
-  await expect(page.getByTestId("paths-hidden").getByRole("button", { name: "Show them" })).toBeVisible();
+  // the sheet lists every path and says how many the level does not draw — once, where the list is (R3-11)
+  await expect(page.getByTestId("path-panel")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("paths-divider")).toContainText(/hidden at this detail level/, { timeout: 15_000 });
+  await expect(page.getByTestId("paths-divider").getByRole("button", { name: "Show them" })).toBeVisible();
+  await expect(page.getByTestId("paths-hidden")).toHaveCount(0);
   expect(page.url()).toContain("activity=");
 });
 

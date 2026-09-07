@@ -123,6 +123,10 @@ class ColumnMapping(BaseModel):
         default_factory=list, description="activities that belong to a header object and are replicated onto items"
     )
     flowTyping: list[FlowTypingRule] = Field(default_factory=list)
+    flowTypingNotes: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="flow types the rules name that this file cannot assign, with the columns they need (R3-15)",
+    )
     flowTypeDefault: str = "other"
     closureActivities: list[str] = Field(default_factory=list)
     derivedAttributes: list[dict[str, Any]] = Field(default_factory=list, description="library derive recipes")
@@ -254,11 +258,43 @@ class CaseTable(BaseModel):
         )
 
 
+class CalibrationEntry(BaseModel):
+    """Why a threshold is what it is, and who owns it (R3-02); both are required before the version is signed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rationale: str
+    owner: str
+    decidedAt: str | None = None
+    decidedBy: str | None = None
+
+
+class NotApplicableEntry(BaseModel):
+    """An expectation moved out of this version because it cannot be judged on this log, with the note why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str
+    author: str | None = None
+    decidedAt: str | None = None
+
+
 class NormVersionCreate(BaseModel):
     norm: dict[str, Any] = Field(description="library norm JSON")
     note: str
     parentId: str | None = None
     author: str | None = None
+    calibration: dict[str, CalibrationEntry] = Field(
+        default_factory=dict,
+        description="per expectation id: the rationale and the owner of the threshold this version sets (R3-02)",
+    )
+    notApplicable: dict[str, NotApplicableEntry] = Field(
+        default_factory=dict,
+        description=(
+            "expectation ids to mark not applicable to this log; each is moved out of the norm with its note "
+            "and kept in the metadata"
+        ),
+    )
 
 
 class NormVersion(BaseModel):
@@ -316,6 +352,51 @@ class NormVersion(BaseModel):
 
 class NormStatusUpdate(BaseModel):
     status: Literal["draft", "reviewed", "approved"]
+    author: str | None = Field(
+        default=None, description="the person who signs the version; required to leave draft (R3-02)"
+    )
+
+
+class ThresholdRow(BaseModel):
+    constraint_id: str
+    threshold: dict[str, Any] = Field(default_factory=dict)
+    changedHere: bool = False
+    rationale: str | None = None
+    owner: str | None = None
+    decidedAt: str | None = None
+
+
+class NormCalibration(BaseModel):
+    """The calibration state of one norm version: its thresholds, their rationales and what still blocks signing."""
+
+    normVersionId: str
+    status: str
+    parentId: str | None = None
+    author: str | None = None
+    thresholds: list[ThresholdRow] = Field(default_factory=list)
+    notApplicable: list[dict[str, Any]] = Field(default_factory=list)
+    missingRationale: list[str] = Field(default_factory=list)
+    canLeaveDraft: bool = True
+
+
+class ApplicabilityKind(BaseModel):
+    id: str
+    label: str
+    shape: dict[str, Any] | None = None
+    available: bool = True
+    note: str | None = None
+
+
+class ApplicabilityOptions(BaseModel):
+    """What an expectation can be made to apply to on this log: flow types, attribute values, or nothing."""
+
+    caseTableId: str
+    caseNoun: str | None = None
+    flowTypeAttribute: str | None = None
+    flowTypes: list[dict[str, Any]] = Field(default_factory=list)
+    flowTypesAbsent: list[AbsentFlowType] = Field(default_factory=list)
+    attributes: list[dict[str, Any]] = Field(default_factory=list)
+    kinds: list[ApplicabilityKind] = Field(default_factory=list)
 
 
 class NormCheckRequest(BaseModel):
@@ -437,6 +518,10 @@ class ManifestRow(BaseModel):
     label: str
     value: str | None = None
     note: str | None = None
+    options: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="alternatives the run offers for this row, one of them in force (R3-15: rank by items or by quantity)",
+    )
 
 
 class RunManifestView(BaseModel):
@@ -533,11 +618,28 @@ class BacklogRow(BaseModel):
     plain_layer: str | None = Field(default=None, description="the most-missed expectation area in plain words")
     layer_missed_label: str | None = Field(default=None, description="what it looks like when that area is missed")
     top_constraint_plain: str | None = None
+    top_constraint_measures_logging: bool | None = Field(
+        default=None,
+        description=(
+            "true when the leading expectation is missed mostly because an event is not logged rather than "
+            "because a measured value is beyond its threshold (R3-14); `top_constraint_flag` carries the sentence"
+        ),
+    )
+    top_constraint_flag: str | None = Field(
+        default=None, description="the sentence to print beside the leading expectation when it measures logging"
+    )
     case_noun: str | None = Field(default=None, description='the business name of a case ("purchase order items")')
     points_below: str | None = Field(default=None, description='"0.9 points below the overall score of 84.4 (1 %)"')
     kind_source: Literal["analytics", "library"] | None = None
     comparison_constraint: str | None = Field(
         default=None, description="the expectation the comparison sentence is about"
+    )
+    expectation_note: str | None = Field(
+        default=None,
+        description=(
+            "set when the headline expectation and the compared expectation differ: which is missed most often "
+            "and which carries the largest share of the shortfall (R3-04)"
+        ),
     )
     comparison_reason: ComparisonReason | None = Field(
         default=None, description="set exactly when `comparison` is null; never both (R2-05)"
@@ -777,6 +879,14 @@ class FlowType(BaseModel):
     scope: dict[str, Any] = Field(description="the run scope that analyses this flow type alone")
 
 
+class AbsentFlowType(BaseModel):
+    """A flow type the rules name that this log has none of, with the reason (R3-15)."""
+
+    name: str
+    reason: Literal["missing_column", "matches_nothing"]
+    text: str | None = None
+
+
 class FlowTypes(BaseModel):
     caseTableId: str
     attribute: str
@@ -785,6 +895,9 @@ class FlowTypes(BaseModel):
     windowEnd: str | None = None
     caseNoun: str | None = None
     types: list[FlowType]
+    absent: list[AbsentFlowType] = Field(
+        default_factory=list, description="types the rules name that no case of this log carries, and why"
+    )
 
 
 class FlowTypeComparison(BaseModel):
@@ -795,6 +908,7 @@ class FlowTypeComparison(BaseModel):
     caseNoun: str | None = None
     slicing: str | None = None
     types: list[dict[str, Any]]
+    absent: list[AbsentFlowType] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------- explore board (R3-O12)
@@ -1024,6 +1138,26 @@ class Gate(BaseModel):
     note: str | None = None
     author: str | None = None
     decidedAt: str | None = None
+    scope: Literal["run", "group"] | None = Field(
+        default=None,
+        description=(
+            "`group` when the evidence is the group's own share; `run` when it is a property of the whole log, "
+            "in which case the gate is stated once per run and decided once (R3-03)"
+        ),
+    )
+
+
+class RunWideReadiness(BaseModel):
+    """The readiness gate at the run: every check, and which of its failures no group can be judged on."""
+
+    status: str = "unknown"
+    failed: list[str] = Field(default_factory=list)
+    warned: list[str] = Field(default_factory=list)
+    logWideFailed: list[str] = Field(
+        default_factory=list, description="failed checks that are the same for every group of this log"
+    )
+    checks: list[dict[str, Any]] = Field(default_factory=list)
+    text: str = ""
 
 
 class Gates(BaseModel):
@@ -1036,6 +1170,9 @@ class Gates(BaseModel):
     gates: list[Gate] = Field(default_factory=list)
     blocking: list[str] = Field(default_factory=list, description="gate ids that block saving a hypothesis or action")
     passed: bool = True
+    runWide: RunWideReadiness | None = Field(
+        default=None, description="the readiness gate stated once for the run, beside the group's own reading"
+    )
 
 
 class GateUpdate(BaseModel):
@@ -1051,7 +1188,20 @@ class WhatCanWeDoDriver(BaseModel):
     plain_name: str | None = None
     hub_node: str | None = None
     share_of_shortfall: float | None = None
-    comparison: str | None = None
+    comparison: str | None = Field(
+        default=None,
+        description=(
+            "the shares missed here and elsewhere, with the difference of those two numbers in percentage "
+            "points; one comparison, one bracket (R3-04)"
+        ),
+    )
+    median_comparison: str | None = Field(
+        default=None, description="the real-unit medians here and elsewhere, with the difference of the two"
+    )
+    measures_logging: str | None = Field(
+        default=None,
+        description="set when this expectation is missed mostly where an event is not logged (R3-14)",
+    )
     headroom_points: float | None = Field(default=None, description="score points the group would gain")
     headroom_percent: float | None = None
     meaning_when_missed: str | None = None
@@ -1413,3 +1563,126 @@ class Job(BaseModel):
             projectId=j.project_id,
             cancelRequested=j.cancel_requested,
         )
+
+
+# ---------------------------------------------------------------------------- what-if scenarios (R3-27, R1-11)
+class Transform(BaseModel):
+    """One step of a scenario's transform layer; the shape depends on `kind` (see the what-if documentation)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: Literal["cap_lag", "delete_activity", "move_event", "set_attribute", "keep_first"]
+    where: dict[str, Any] | None = Field(
+        default=None, description="canonical filter selecting the cases the step applies to; all of them without it"
+    )
+
+
+class NormChanges(BaseModel):
+    """What a scenario changes in the baseline norm; the result becomes a norm version with its own fingerprint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    constraints: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="per expectation `{id, delta?, width?, applicability?}`: the fields to set on it",
+    )
+    add: list[dict[str, Any]] = Field(default_factory=list, description="whole expectations to add")
+    remove: list[str] = Field(default_factory=list, description="expectation ids to drop")
+
+
+class WhatIfCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="what the scenario is called on screen")
+    transforms: list[Transform] = Field(default_factory=list)
+    norm: NormChanges | None = None
+    note: str | None = None
+    author: str | None = None
+    force: bool = Field(default=False, description="score again even when an identical scenario exists")
+
+
+class TransformPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transforms: list[Transform] = Field(default_factory=list)
+
+
+class TransformRecord(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    kind: str
+    spec: dict[str, Any] = Field(default_factory=dict)
+    casesSelected: int = 0
+    casesTouched: int = 0
+    eventsMoved: int = 0
+    eventsRemoved: int = 0
+
+
+class TransformPreview(BaseModel):
+    runId: str
+    caseNoun: str | None = None
+    transforms: list[TransformRecord] = Field(default_factory=list)
+
+
+class Scenario(BaseModel):
+    runId: str
+    name: str | None = None
+    baselineRunId: str | None = None
+    status: str
+    note: str | None = None
+    transforms: list[dict[str, Any]] = Field(default_factory=list)
+    createdAt: str
+
+
+class ChangeRow(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    key: str
+    keys: dict[str, Any] | None = None
+    state: Literal["changed", "entered", "left"]
+    baseline: dict[str, Any] | None = None
+    scenario: dict[str, Any] | None = None
+    deltaCases: float | None = None
+    deltaMeanPoints: float | None = Field(default=None, description="scenario mean minus baseline mean, in points")
+    deltaPriority: float | None = None
+    deltaRank: float | None = Field(default=None, description="positive when the group moves up the list")
+    unchanged: bool | None = None
+
+
+class ChangeSummary(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    groupsBaseline: int
+    groupsScenario: int
+    groupsCompared: int
+    groupsChanged: int
+    groupsUnchanged: int
+    entered: list[str] = Field(default_factory=list)
+    left: list[str] = Field(default_factory=list)
+    topTenOverlap: float | None = None
+    leaderBaseline: str | None = None
+    leaderScenario: str | None = None
+    priorityBaseline: float | None = None
+    priorityScenario: float | None = None
+    rankAgreement: float | None = Field(default=None, description="Spearman rank correlation of the two orders")
+    largestMove: str | None = None
+    text: str = ""
+
+
+class ChangeTable(BaseModel):
+    runId: str
+    baselineRunId: str
+    name: str | None = None
+    note: str | None = None
+    slicing: str
+    view: str
+    minCases: int
+    caseNoun: str | None = None
+    rows: list[ChangeRow] = Field(default_factory=list)
+    total: int = 0
+    summary: ChangeSummary
+    transforms: list[dict[str, Any]] = Field(default_factory=list)
+    normChanges: list[str] = Field(default_factory=list, description="one line per edit to the baseline norm")
+    provenance: dict[str, Any] = Field(
+        default_factory=dict, description="both runs with their fingerprints, so the comparison can be reproduced"
+    )

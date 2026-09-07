@@ -118,7 +118,9 @@ def backlog_reading(row: dict[str, Any], view: str | None, gamma: float, label: 
     parts = [f"{label}: {_fmt_int(n)} cases, {shortfall}"]
     kind = row.get("kind") or kind_of(row.get("hotspot_type"))
     if kind:
-        parts.append(f"{kind}: {kind_reading(kind)}")
+        # the row's own wording when the analytics wrote one, so that the sentence and the field agree (R3-04)
+        stated = str(row.get("kind_reading") or "")
+        parts.append(stated if stated.startswith(f"{kind}:") else f"{kind}: {stated or kind_reading(kind)}")
     area = row.get("dominant_layer_name") or row.get("dominant_layer")
     if area:
         detail = row.get("top_constraint_description")

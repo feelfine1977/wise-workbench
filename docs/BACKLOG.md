@@ -87,35 +87,60 @@ Then features:
 - Backend endpoints: filtered flow, activity profile, path analysis,
   sub-log creation.
 
-## B2b. Carried out of the third release — a readable map and a board that answers at once
+## B2b. Carried out of the third release — closed by this one
 
-Three things were built, measured against their acceptance criterion on the
-released build, and **not met**; they are named here rather than closed.
+The three items measured and not met at the last release were all measured
+again on this build:
 
-- **A readable label at the fitted zoom.** The rule is implemented
-  (`apps/frontend/src/components/flow/frame.ts`: `layersAt`,
-  `readableMaxLevel`), and the caption marks the levels that fall short, but
-  **no detail level of BPI Challenge 2019 reaches the 11 px the design asks
-  for**: a 12 px label is drawn at 3.0 to 5.8 px across the five levels and
-  the three reference windows (4.6 px at *more activities* on 1440 × 900,
-  3.0 px at 1024 × 768), and even *stages only* — six boxes and two markers
-  — does not reach it. Stopping the slider at the last readable level would
-  remove detail without making one label readable, so the slider was left
-  open. What this needs is a label drawn at a constant size on the screen
-  instead of one that scales with the drawing, or node boxes that shrink
-  with the zoom — a change in the flow library's canvas.
-- **A path list that is visible at once.** *Paths in / out* lists every path
-  of an activity from the full relation, inside the frame, with the ones the
-  detail level hides under their own divider. For an activity with 42 paths
-  (Change Quantity: 22 in, 20 out) the 264 px column holds 1,154 px of rows
-  in 586 px of height at 1440 × 900, so it **scrolls**. It needs a denser
-  row, a two-column arrangement, or grouping by the other end.
-- **The board's first filtered selection.** The count line, the ranked list
-  and the breakdown answer a click in 2 ms, 132 ms and 480 ms; the four
-  tiles are computed on the server for that filter the first time and take
-  about **8.3 s** on 251,734 items, against the one-second rule. Repeat
-  selections are immediate. The tiles need the same pre-computation or cache
-  as the ranked list.
+- **A readable label at the fitted zoom** — **closed**. Every text drawn
+  inside the map is at least 11 px on the screen at 1440 × 900, 1280 × 720
+  and 1024 × 768, on both logs and at every detail level, with the activity
+  name at 12 px; the drawing is fitted to itself rather than to the lanes,
+  so the band above it is 4.2 % of the frame instead of 44.7 %.
+- **A path list that is visible at once** — **closed**. The paths open on a
+  sheet over the map: all 49 paths of *Record Goods Receipt* are on the
+  screen without scrolling, and the canvas keeps its 1,158 px.
+- **The board's first filtered selection** — **closed for the tiles**. The
+  four tiles are read from the run's own artefacts (0.20 s the first time
+  after a start, 0.009 s again) and a filtered selection costs about 0.13 s
+  once the log is in the process; a run scored before this release pays
+  about 3 s once, for the open-case flag it has no artefact for.
+
+## B2c. Carried out of this release — the map's own geometry and the P2 list
+
+Measured on the released build and **not met**; named here rather than
+closed.
+
+- **Two drawn texts can overlap.** Every text is large enough to read, but
+  the overlays are placed without knowledge of each other. Measured on the
+  released build over the three reference windows and the four finer detail
+  levels of BPI Challenge 2019: **12 to 22 intersecting pairs**, of two
+  kinds — a path's share label over another path's (*⇒ 52 %* over *⇒ 38 %*)
+  and a badge over the activity name or the item count beside it (*≥1* over
+  *Vendor creates invoice*, *11 %* over *210k*). The placement is the flow
+  library's own overlay geometry (`core/overlays.ts`), outside this
+  repository; the apexes and the badge anchors have to be placed with
+  knowledge of each other.
+- **The map's own tooltips say *cases*.** The `<title>` of a path reads
+  *124,621 cases. median lag 37 d.*: the library writes it and takes no case
+  noun. It needs either a case noun in the library's API or the product's
+  own title element over the drawing.
+- **The coarsest detail level does not fill its frame.** At *stages only*
+  the drawing leaves 21.4 % of the frame empty above, 60.5 % below and
+  35.9 % on the right at 1440 × 900, where the other four levels leave no
+  band over 8 %. The live check measures the band at the default level only;
+  it should measure every level.
+- **The board's map panel leaves a 9.4 % band below the drawing** at
+  1440 × 900, against the same 8 % rule; the live check measures the Flow
+  step's frame, not the panel's.
+- **The P2 list of the last review is untouched**: no what-if screen, the
+  possible gain's denominator, a due date on an action, the hub index's
+  repeated names, plain names on the norm step, the distribution panel's
+  title and unit, a chip of its own for an expectation that measures
+  logging, the badges on the extract's map, the customer's noun on a card,
+  the calibration chip inside a sentence, `required` on the required fields,
+  the text repairs, the board's 1.5 s map redraw, and a run scored before
+  the comparison rule that carries no comparison sentence.
 
 ## B3. Owner walkthroughs, deployment and authentication (owner request, 2026-09-06)
 

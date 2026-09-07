@@ -287,9 +287,10 @@ def kpi_tiles(
                 "value": float(mean_score) * 100,
                 "format": "points",
                 "unit": "points",
+                # one comparison, one bracket (R3-04): the difference of the two numbers this sentence prints
                 "text": (
                     f"{mean_score * 100:.1f} points on average against {baseline * 100:.1f} over the whole run "
-                    f"({(baseline - mean_score) * 100:+.1f})."
+                    f"({float(f'{mean_score * 100:.1f}') - float(f'{baseline * 100:.1f}'):+.1f})."
                 ),
             }
         )

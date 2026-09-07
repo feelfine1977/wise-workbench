@@ -204,9 +204,11 @@ export function RankedRows({
       {rows.map((r, i) => {
         const name = groupLabel(r, shared);
         return (
-          <li key={r.key} className={cn("flex flex-wrap items-center gap-2 border-b border-border py-1 text-sm last:border-0", selected === r.key && "bg-accent-subtle")}>
+          <li key={r.key} className={cn("flex flex-wrap items-center gap-x-2 border-b border-border py-1 text-sm last:border-0", selected === r.key && "bg-accent-subtle")}>
             <span className="tnum w-5 shrink-0 text-text-subtle">{i + 1}</span>
-            <button type="button" className="min-w-0 flex-1 truncate text-left font-medium hover:underline" title={`Filter the board to ${name}`} onClick={() => onSelect(r)}>
+            {/* P1-12: the name gets the width it needs and the numbers wrap under it; sharing one line with a
+                twelve-word sentence, a bar and a control cut *Packaging* to *P…* at 1440 × 900 */}
+            <button type="button" className="min-w-[11rem] flex-1 truncate text-left font-medium hover:underline" title={name} onClick={() => onSelect(r)}>
               {name}
             </button>
             <span className="tnum shrink-0 text-xs text-text-muted">

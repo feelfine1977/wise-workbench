@@ -5,6 +5,7 @@ import type { Run } from "@wise/api-schema";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { flowTypeOf, flowTypesQuery, useCreateScopedRun, type FlowType } from "@/lib/api/cycle2";
 import { clauseForValue, filterHash, serializeFilter } from "@/lib/filter";
+import { groupingLabel } from "@/lib/sentences";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { ErrorBlock, LoadingBlock } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +105,9 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
         <HowToReadToggle id="your-process" />
         {flowTypes.data && (
           <p className="reading basis-full text-base text-text-muted">
-            The log splits into {flowTypes.data.types.length} flow types{flowTypes.data.attribute ? ` by ${flowTypes.data.attribute.replace(/^case /, "")}` : ""}; {flowTypes.data.types[0]?.name} carries {fmtPct(flowTypes.data.types[0]?.share ?? 0)} of the {fmtInt(flowTypes.data.cases)} {noun}.
+            {/* the attribute is named in words: the sentence read "by flow_type" on the dashboard and the data step (P1-13) */}
+            The log splits into {flowTypes.data.types.length} flow types{flowTypes.data.attribute ? ` by ${groupingLabel(undefined, [flowTypes.data.attribute])}` : ""}; {flowTypes.data.types[0]?.name} carries{" "}
+            {fmtPct(flowTypes.data.types[0]?.share ?? 0)} of the {fmtInt(flowTypes.data.cases)} {noun}.
           </p>
         )}
       </header>
@@ -136,9 +139,9 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
                         <MiniMap graph={t.map} title={`Process map of the ${t.name} flow`} />
                       </Suspense>
                     </button>
-                    <p className="clamp-2 text-sm text-text-muted" title={t.readiness.headline}>
-                      {t.readiness.headline}
-                    </p>
+                    {/* R3-18: the card's sub-line is what the flow type is; clamping it to two lines cut it
+                        mid-number on every card of the extract */}
+                    <p className="text-sm text-text-muted">{t.readiness.headline}</p>
                     {(t.readiness.censoredShare ?? 0) > 0.05 && (
                       <p className="text-xs text-warning">
                         <span aria-hidden>! </span>

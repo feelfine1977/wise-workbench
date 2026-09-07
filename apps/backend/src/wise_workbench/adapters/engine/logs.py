@@ -384,6 +384,25 @@ def apply_flow_typing(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series |
     return flow
 
 
+def attribute_on_any_event(log: wise.EventLog, field: str, values: list[str]) -> pd.Series | None:
+    """Cases where **any** event carries one of ``values`` in ``field``; ``None`` when the column is not there.
+
+    A flow type is a property of the item, and SAP writes its marker on the events that carry it: the returns
+    marker of the ICPM extract sits on 16 of the 267,071 events and is blank on the rest, so reducing the column
+    to the case's first value hides all ten return items and the ``returns`` type matches nothing (R3-15). Flow
+    typing therefore reads the whole case, which is the same answer for an attribute that is constant per case.
+    """
+    if field not in log.events.columns:
+        return None
+    wanted = {str(v).strip() for v in values}
+    column = log.events[field].astype(str).str.strip()
+    hit = column.isin(wanted)
+    if not bool(hit.any()):
+        return None
+    cases = set(log.events.loc[hit.to_numpy(), log.case_col])
+    return pd.Series([c in cases for c in log.case_ids], index=log.case_ids)
+
+
 def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
     """The flow type of every case: the first matching rule wins, the mapping's default otherwise.
 
@@ -391,6 +410,9 @@ def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
     canonical filter grammar (the knowledge packs' presets) by the filter engine. A rule that names a column the
     file does not have is dropped when the mapping is fitted to the file (``fit_mapping``), not here: a rule that
     survives into the mapping and then names a missing attribute is a mistake and fails the build.
+
+    An attribute rule is read over the whole case (:func:`attribute_on_any_event`), not over the case's first
+    value only.
     """
     from .filters import clause_mask, filter_masks
 
@@ -400,7 +422,10 @@ def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
         try:
             if rule.is_filter:
                 obj = rule.rule if ("and" in rule.rule) else {"and": [rule.rule]}
-                if "kind" in rule.rule:
+                any_event = _attribute_clause_mask(log, rule.rule)
+                if any_event is not None:
+                    mask = any_event
+                elif "kind" in rule.rule:
                     mask = clause_mask(log, rule.rule, censored=None)
                 else:
                     mask, _parts = filter_masks(log, obj, censored=None)
@@ -418,6 +443,16 @@ def _flow_types(log: wise.EventLog, mapping: ColumnMapping) -> pd.Series:
         flow[hit] = rule.name
         assigned |= hit
     return flow
+
+
+def _attribute_clause_mask(log: wise.EventLog, rule: dict[str, Any]) -> pd.Series | None:
+    """A single ``{"kind": "attribute", "field": …, "in"/"eq": …}`` rule read over the whole case."""
+    if rule.get("kind") != "attribute" or not rule.get("field"):
+        return None
+    values = rule.get("in") if "in" in rule else ([rule["eq"]] if "eq" in rule else None)
+    if not values:
+        return None
+    return attribute_on_any_event(log, str(rule["field"]), [str(v) for v in values])
 
 
 def apply_prepared_attributes(log: wise.EventLog, mapping: ColumnMapping) -> list[str]:
@@ -751,7 +786,10 @@ def readiness_report(
             ReadinessItem(
                 "sentinel_dates",
                 ReadinessLevel.WARN,
-                f"{len(sentinels)} timestamp value(s) look like placeholders (identical stamp on many events or a known sentinel date); "
+                # a count says its own plural (P1-13); the stamps that follow stay, and the screens keep them
+                # behind *the exact reading*
+                f"{len(sentinels)} timestamp value{'' if len(sentinels) == 1 else 's'} look like placeholders "
+                "(identical stamp on many events or a known sentinel date); "
                 f"most frequent: {sentinels[0]['timestamp']} on {sentinels[0]['events']:,} events.",
                 {"values": sentinels},
             )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import threading
 import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -12,6 +14,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from wise_workbench import __version__
+from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
 from wise_workbench.api import errors
 from wise_workbench.api.routers import api_router
 from wise_workbench.api.static import mount_spa
@@ -28,6 +31,27 @@ DESCRIPTION = (
 )
 
 
+def _warm_knowledge_packs(c: Container) -> None:
+    """Load the knowledge packs of the workspace's projects in the background.
+
+    Building a pack and its matcher takes about 1.2 s and every screen's first answer needs the case noun, so the
+    very first request of a fresh process paid for it — including the board's first paint, which has a budget of
+    one second (R3-07). The thread is a daemon and every failure is the pack's own business: without it the first
+    caller loads the pack as before.
+    """
+
+    def warm() -> None:
+        try:
+            processes = {p.process for p in c.repos.list_projects() if p.process}
+        except Exception:  # pragma: no cover - a workspace that cannot be read is reported by the first request
+            return
+        for process in sorted(processes):
+            with contextlib.suppress(Exception):
+                pack_case_noun(process)
+
+    threading.Thread(target=warm, name="wise-knowledge-warm", daemon=True).start()
+
+
 def create_app(settings: Settings | None = None, container: Container | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -39,6 +63,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
             worker.start()
             log.info("api.inprocess_worker", started=True)
         app.state.worker = worker
+        _warm_knowledge_packs(c)
         if app.state.static_dir is not None:
             log.info("api.static", directory=str(app.state.static_dir))
         elif c.settings.static_dir is not None:

@@ -79,6 +79,7 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, missed
     onSaved?.();
   };
   const plain = useUiStore((s) => s.vocabulary) === "plain";
+  const guided = useUiStore((s) => s.mode === "guided");
 
 
   return (
@@ -120,9 +121,11 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, missed
         </Field>
       </fieldset>
 
-      <Field label="owner" htmlFor="owner">
-        <Input id="owner" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="name or role" />
-      </Field>
+      {!guided && (
+        <Field label="owner" htmlFor="owner">
+          <Input id="owner" value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="name or role" />
+        </Field>
+      )}
 
       <div className="flex items-center gap-2">
         <Button onClick={save} disabled={!canSave}>
@@ -138,6 +141,9 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, missed
         {saved ? `Saved ${fmtDateTime(saved)}` : existing ? `Last saved ${fmtDateTime(existing.updatedAt)}` : "Nothing saved yet. Findings stay in this browser until they can be saved with the run."}
       </p>
 
+      {/* R3-10: guided mode reduces the pane to *What next?* and a note — the kind of problem is computed and
+          the method's terms are not a question the guided reader came to answer */}
+      {!guided && (
       <details className="text-xs">
         <summary className="cursor-pointer text-text-muted">Change the kind</summary>
         <fieldset className="mt-2 flex flex-col gap-2">
@@ -166,12 +172,15 @@ export function DecisionPane({ projectId, runId, slicing, row, layerName, missed
           )}
         </fieldset>
       </details>
-      <details className="text-xs">
-        <summary className="cursor-pointer text-text-muted">Method terms</summary>
-        <p className="mt-1 text-text-muted">
-          What next? is the method's <em>disposition</em> (investigate · defer · waive · not a hotspot); the kind of problem is the <em>hotspot type</em> ({computed ?? "not typed"}). Overriding the computed kind needs a note.
-        </p>
-      </details>
+      )}
+      {!guided && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-text-muted">Method terms</summary>
+          <p className="mt-1 text-text-muted">
+            What next? is the method's <em>disposition</em> (investigate · defer · waive · not a hotspot); the kind of problem is the <em>hotspot type</em> ({computed ?? "not typed"}). Overriding the computed kind needs a note.
+          </p>
+        </details>
+      )}
     </aside>
   );
 }

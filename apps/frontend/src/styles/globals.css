@@ -118,20 +118,131 @@
   }
 }
 
-/* The process map: zoom controls 32 px, translucent, bottom-left; nothing else floats over the map. */
-.wf-process-map .react-flow__controls {
-  box-shadow: none;
-  gap: 2px;
-  margin: 12px;
+/* R3-17 — the map's own chrome only.
+
+   The product's zoom, fit and full-window controls are a 32 px translucent stack at the bottom-left of the
+   canvas (§3.2). React Flow draws its own three-button stack in the same corner, the flow library its control
+   bar and its "press delete to remove" help text, and React Flow and bpmn.io each sign the drawing with a
+   watermark. All of them belong to the libraries rather than to the product, and on the Flow step they put
+   two zoom stacks and two marks in one corner. They are suppressed on every embedding — the Flow step, the
+   Why tab, the board panel and the flow-type thumbnails — because the rule keys on the class the product's
+   own map carries. */
+.wise-map .react-flow__controls,
+.wise-map .react-flow__attribution,
+.wise-map .react-flow__panel.react-flow__attribution,
+.wise-map .wf-controls,
+.wise-map .wf-process-map__help,
+.wise-model .bjs-powered-by,
+.wise-model .djs-palette,
+.wise-model .bjs-breadcrumbs {
+  display: none !important;
 }
-.wf-process-map .react-flow__controls button {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
-  color: var(--color-text-muted);
+
+/* R3-06 — the activity name at a constant size on the screen.
+
+   The map is drawn inside a pane the flow library scales by the fitted zoom, so a name written at 12 layout
+   units measured 11.0 px on the extract's five-activity map and 4.7 px on the purchase-to-pay log's
+   eight-activity, six-lane map: the same code, two logs. `ConstantLabels` counter-scales the size by the
+   inverse of that zoom and hands it over as `--wise-label-units`, so the name measures the same on the screen
+   at every width of process. The box grows with it — into the gap its layout cell already leaves free, from
+   its own centre, so the arrows still reach it — and the name wraps over up to three lines instead of being
+   cut off after two characters. */
+.wise-map[data-scaled="1"] .wf-node {
+  font-size: var(--wise-label-units, 12px);
+  line-height: 1.25;
+  /* the name takes the whole box and the count sits under it: side by side, a seven-figure count left the
+     name a line an inch wide and the wrapping cut it after two characters */
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  padding: 4px 6px 4px calc(var(--wise-label-units, 12px) * 0.62);
+  /* the box grows about its own centre, so the paths still meet it where the layout placed it */
+  margin-left: calc(-1 * var(--wise-node-grow-x, 0px));
+  margin-top: calc(-1 * var(--wise-node-grow-y, 0px));
 }
-.wf-process-map .react-flow__controls button:hover {
-  background: var(--color-surface);
+.wise-map[data-scaled="1"] .wf-node__label {
+  flex: 0 0 auto;
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: var(--wise-node-lines, 1);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* the band belongs to the box, so it grows with it */
+.wise-map[data-scaled="1"] .wf-node__band {
+  width: calc(var(--wise-label-units, 12px) * 0.46);
+}
+
+/* P1-4 — every other text drawn on the canvas, at a constant size on the screen too.
+
+   The counter-scale above was written for the activity name and reached the name alone, so the six other
+   classes drawn on the same canvas went on shrinking with the graph: on the purchase-to-pay log the name
+   measured 12.0 px while the stage header measured 5.3, the start marker 4.6, the path share 4.2 and both
+   halves of a badge 3.8. They are secondary to the name, so they are drawn at the smallest readable size
+   rather than at the name's — `--wise-small-units` is eleven pixels on the screen at any zoom — and the
+   shapes that hold them (the marker's circle, the badge's pill, a lane chip) grow by the same factor,
+   `--wise-map-scale`, so the text still sits inside them. These rules do not wait for `data-scaled`: a map
+   drawn at a zoom of one counter-scales no name and its badges are still eight pixels. */
+/* the lane's name is drawn above its band rather than inside it: inside, it shared the band with the badge
+   of any activity on the top row, and on the purchase-to-pay log the badge covered the word *Invoice* */
+.wise-map .wf-group__label {
+  font-size: var(--wise-small-units, 14px);
+  line-height: 1.2;
+  left: 0;
+  top: auto;
+  bottom: calc(100% + var(--wise-lane-overshoot, 0px));
+  white-space: nowrap;
+}
+.wise-map .wf-node__meta {
+  font-size: var(--wise-small-units, 9px);
+  line-height: 1.25;
+}
+.wise-map[data-scaled="1"] .wf-node__meta {
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+/* the start and end markers hold a word each, so the circle grows about its own centre to keep it inside */
+.wise-map .wf-node--event,
+.wise-map .wf-node--gateway {
+  font-size: var(--wise-small-units, 9px);
+  padding: 0;
+}
+.wise-map .wf-node--event {
+  width: calc(36px * var(--wise-map-scale, 1));
+  height: calc(36px * var(--wise-map-scale, 1));
+  margin: calc(-18px * (var(--wise-map-scale, 1) - 1)) 0 0 calc(-18px * (var(--wise-map-scale, 1) - 1));
+}
+.wise-map .wf-node--gateway {
+  width: calc(44px * var(--wise-map-scale, 1));
+  height: calc(44px * var(--wise-map-scale, 1));
+  margin: calc(-22px * (var(--wise-map-scale, 1) - 1)) 0 0 calc(-22px * (var(--wise-map-scale, 1) - 1));
+}
+.wise-map .wf-edge-label,
+.wise-map .wf-overlay-layer text {
+  font-size: var(--wise-small-units, 10px);
+}
+.wise-map .wf-badge {
+  font-size: var(--wise-small-units, 10px);
+  height: calc(22px * var(--wise-map-scale, 1));
+  padding: 0 calc(7px * var(--wise-map-scale, 1));
+  border-radius: calc(11px * var(--wise-map-scale, 1));
+  border-width: calc(1.5px * var(--wise-map-scale, 1));
+  gap: calc(4px * var(--wise-map-scale, 1));
+}
+/* the badge sits wholly above its box: half in, it covered the first line of the activity's own name */
+.wise-map .wf-badges {
+  top: calc(-1 * (22px * var(--wise-map-scale, 1) + 4px));
+  right: calc(4px * var(--wise-map-scale, 1));
+  gap: calc(4px * var(--wise-map-scale, 1));
+}
+.wise-map .wf-chip {
+  font-size: var(--wise-small-units, 10px);
+  height: calc(24px * var(--wise-map-scale, 1));
+  padding: 0 calc(8px * var(--wise-map-scale, 1));
+  border-radius: calc(12px * var(--wise-map-scale, 1));
+  max-width: calc(260px * var(--wise-map-scale, 1));
 }

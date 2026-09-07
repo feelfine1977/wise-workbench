@@ -188,6 +188,31 @@ def case_noun(process: str | None, lang: str = "en") -> str | None:
     return str(noun) or None
 
 
+def activity_name(process: str | None, activity_id: str, lang: str = "en") -> str | None:
+    """The plain name of an activity the pack knows (``o2c.rejection_change`` → *Rejection reason changed*).
+
+    The norm names activities by their canonical id, and a warning that quoted one reached the reader as
+    *activity 'o2c.rejection_change' never occurs in the log* (P1-8). ``None`` when the pack does not carry
+    the activity, and the caller then keeps whatever the norm wrote.
+    """
+    if not process or not activity_id:
+        return None
+    loaded = _load(process)
+    if loaded is None:
+        return None
+    try:
+        for a in loaded[0].activities:
+            if str(a.id) != activity_id:
+                continue
+            name = a.name
+            if isinstance(name, dict):
+                return str(name.get(lang) or name.get("en") or "") or None
+            return str(name) or None
+    except Exception:
+        return None
+    return None
+
+
 @dataclass(frozen=True)
 class GuidanceRef:
     """Plain names of one layer or constraint from the pack's generic guidance tier."""

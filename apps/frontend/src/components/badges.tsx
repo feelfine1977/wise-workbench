@@ -1,5 +1,6 @@
 import type { HotspotType, Kind, Stability } from "@wise/api-schema";
 import tokens from "@wise/design-tokens";
+import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { useUiStore } from "@/lib/stores/ui";
 import { HOTSPOT_OF_KIND, KIND_OF_HOTSPOT, confidenceOf, kindGlyph, kindReading, stabilityGlyph } from "@/lib/vocabulary";
 import { cn, hashIndex } from "@/lib/utils";
@@ -115,12 +116,17 @@ export function layerDecal(layerId: string): string {
   return tokens.semantic.categorical.layers.decals[hashIndex(layerId)] ?? "none";
 }
 
-export function LayerChip({ id, name, className }: { id: string | null | undefined; name?: string | null; className?: string }) {
+/**
+ * The expectation area, as a swatch and its name. `explain` adds the *What does this mean?* chip the
+ * knowledge hub answers (R3-05: a chip on every layer bar); the places that only list the areas leave it off.
+ */
+export function LayerChip({ id, name, className, explain }: { id: string | null | undefined; name?: string | null; className?: string; explain?: boolean }) {
   if (!id) return <span className={cn("text-xs text-text-subtle", className)}>–</span>;
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs", className)} title={id}>
       <span aria-hidden className="layer-swatch" style={{ background: layerColor(id) }} />
       <span className="truncate">{name ?? id}</span>
+      {explain && <WhatDoesThisMean kind="layer" entryId={id} label={name ?? id} />}
     </span>
   );
 }

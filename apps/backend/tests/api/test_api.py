@@ -160,7 +160,10 @@ def test_norm_versions_validate_with_the_library(client: TestClient) -> None:
         and v2["fingerprint"] != v1["fingerprint"]
     )
     assert [n["id"] for n in client.get(f"/api/v1/projects/{pid}/norms").json()] == [v1["id"], v2["id"]]
-    r = client.patch(f"/api/v1/projects/{pid}/norms/{v1['id']}", json={"status": "approved"})
+    # leaving draft is signed by a named person (R3-02)
+    unsigned = client.patch(f"/api/v1/projects/{pid}/norms/{v1['id']}", json={"status": "approved"})
+    assert unsigned.status_code == 422 and unsigned.json()["code"] == "norm.author"
+    r = client.patch(f"/api/v1/projects/{pid}/norms/{v1['id']}", json={"status": "approved", "author": "SD expert"})
     assert r.json()["status"] == "approved"
     r = client.patch(f"/api/v1/projects/{pid}/norms/{v1['id']}", json={"status": "draft"})
     assert r.status_code == 409
@@ -252,7 +255,9 @@ def test_run_lifecycle_idempotency_and_reads(client: TestClient) -> None:
     assert row["dominant_layer_name"] and row["top_constraint"] and row["top_constraint_description"]
     assert 0 < row["top_constraint_share"] <= 1
     assert row["reading"].startswith("B: 3 cases,") and "below expectation on average" in row["reading"]
-    assert f"{row['kind']}: {row['kind_reading']}" in row["reading"] and "rank 1 of 2" in row["reading"]
+    # the card's sentence prints the row's own wording of the kind, not a second one (R3-04)
+    assert row["kind_reading"] in row["reading"] and "rank 1 of 2" in row["reading"]
+    assert row["reading"].count(f"{row['kind']}:") == 1
     assert page["maxStablePI"] == row["stable_PI"]
     by_kind = client.get(
         f"/api/v1/projects/{pid}/runs/{run['id']}/backlog",

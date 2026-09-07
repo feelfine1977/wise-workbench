@@ -58,5 +58,23 @@ def records_from_frame(df: pd.DataFrame, *, index: bool = True) -> list[dict[str
 
 
 def key_label(value: Any) -> str:
+    """A group key as a person reads it (R3-08).
+
+    A customer number read from a CSV arrives as a float and prints as ``852101700.0``; every reader of the
+    comprehension test stopped on the tail. A whole number loses it here, in the one place the printed form of a
+    key is built, while the key itself — the JSON array that addresses the group — keeps the value it indexes by.
+    """
     v = jsonable(value)
-    return "(missing)" if v is None else str(v)
+    if v is None:
+        return "(missing)"
+    text = str(v)
+    if isinstance(v, float) and v.is_integer() and abs(v) < 1e15:
+        return f"{int(v)}"
+    if text.endswith(".0") and _is_whole_number(text):
+        return text[:-2]
+    return text
+
+
+def _is_whole_number(text: str) -> bool:
+    body = text[:-2].lstrip("+-")
+    return bool(body) and body.isdigit()

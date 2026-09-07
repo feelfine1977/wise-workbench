@@ -8,6 +8,7 @@
  */
 import { db, summaryFor } from "../db";
 import { verifiedCaseTable, verifiedFlowAll, VERIFIED_CASE_NOUN } from "./verified";
+import { UNCALIBRATED } from "./backlog";
 import { bpic19Norm } from "./norm";
 
 export interface MockReviewItem {
@@ -37,14 +38,16 @@ export function newReviewItem(projectId: string, kind: MockReviewItem["kind"], b
     kind,
     status: kind === "action" ? "proposed" : "open",
     title: typeof body.title === "string" ? body.title : typeof body.constraint_id === "string" ? `Hypothesis on ${body.constraint_id}` : undefined,
-    runId: typeof body.run_id === "string" ? body.run_id : null,
+    runId: typeof body.runId === "string" ? body.runId : typeof body.run_id === "string" ? body.run_id : null,
     slicing: typeof body.slicing === "string" ? body.slicing : null,
-    sliceKey: typeof body.slice_key === "string" ? body.slice_key : null,
+    sliceKey: typeof body.sliceKey === "string" ? body.sliceKey : typeof body.slice_key === "string" ? body.slice_key : null,
     view: typeof body.view === "string" ? body.view : null,
     author: typeof body.author === "string" ? body.author : null,
     note: typeof body.note === "string" ? body.note : null,
     createdAt: now,
     updatedAt: now,
+    // the fields a screen reads back on the record it just wrote (owner role, statement, links)
+    ...Object.fromEntries(Object.entries(body).filter(([k]) => ["owner_role", "countermeasure", "statement_plain", "constraint_id", "expected_direction", "links", "due"].includes(k))),
   };
   review.push(item);
   return item;
@@ -58,72 +61,8 @@ export function updateReviewItem(item: MockReviewItem, body: Record<string, unkn
   return item;
 }
 
-/** The three gates of a group (R2-02): read-only until the review endpoints are wired to a screen. */
-export type GateStatus = "pending" | "passed" | "failed" | "waived";
-
-export interface MockGate {
-  id: string;
-  kind: "readiness" | "censoring" | "replication" | "domain";
-  status: GateStatus;
-  text: string;
-}
-
-export function gatesFor(runId: string, slicing: string, sliceKey: string, view: string | undefined) {
-  const gates: MockGate[] = [
-    { id: "readiness", kind: "readiness", status: "passed", text: "The readiness report of this case table has no failing item." },
-    { id: "censoring", kind: "censoring", status: "pending", text: "14 % of these purchase order items were still open when the data was extracted; their waiting times are cut off." },
-    { id: "replication", kind: "replication", status: "pending", text: "Some of these items carry postings copied from the order header." },
-  ];
-  const blocking = gates.filter((g) => g.status !== "passed" && g.status !== "waived").map((g) => g.id);
-  return { runId, slicing, sliceKey, view: view ?? null, caseNoun: VERIFIED_CASE_NOUN, cases: null, gates, blocking, passed: blocking.length === 0 };
-}
-
-export function whatCanWeDoFor(runId: string, slicing: string, sliceKey: string, view: string | undefined) {
-  const gates = gatesFor(runId, slicing, sliceKey, view);
-  return {
-    runId,
-    slicing,
-    sliceKey,
-    view: view ?? null,
-    caseNoun: VERIFIED_CASE_NOUN,
-    reading: null,
-    drivers: [],
-    gates: gates.gates,
-    blocking: gates.blocking,
-    actions: review.filter((r) => r.kind === "action"),
-    guidanceAvailable: false,
-  };
-}
-
-export function hubIndex() {
-  return { pack: "p2p", process: "p2p", case_noun: VERIFIED_CASE_NOUN, nodes: [], edges: [], overlays: 0 };
-}
-
-export function hubPage(nodeId: string) {
-  return { node: { id: nodeId, kind: "constraint", title: nodeId }, guidance: null, related: {}, overlay: null, process: "p2p" };
-}
-
-export function guidanceFor(kind: string, entryId: string) {
-  return { kind, id: entryId, generic: null, overlay: null, hub_node: null };
-}
-
 export function guidanceQuestions(kind: string, id: string | undefined) {
   return { kind, id: id ?? null, questions: [] };
-}
-
-/** The norm builder's inventory (R3-O6): the activities and attributes a constraint may be written on. */
-export function inventoryFor(caseTableId: string) {
-  const table = db.caseTables.find((c) => c.id === caseTableId);
-  return {
-    caseTableId,
-    cases: table?.cases ?? verifiedCaseTable.cases,
-    events: table?.events ?? verifiedCaseTable.events,
-    caseNoun: VERIFIED_CASE_NOUN,
-    activities: verifiedCaseTable.activities.map((a) => ({ label: a.label, events: a.events, cases: a.cases })),
-    attributes: [],
-    attributeNames: verifiedCaseTable.attributes,
-    stages: [],
-  };
 }
 
 /** The run manifest in two blocks: what a person needs, and the fingerprints behind "Technical details" (R3-O7). */
@@ -134,9 +73,13 @@ export function manifestFor(runId: string) {
     runId,
     status: run?.status ?? "done",
     caseNoun: VERIFIED_CASE_NOUN,
-    plain: [],
+    plain: [
+      { label: "what was scored", value: `${(summary.cases ?? 0).toLocaleString("en")} ${VERIFIED_CASE_NOUN}`, note: null },
+      { label: "against", value: "the expectations of this process, version 1", note: null },
+    ],
     technical: (run?.manifest ?? {}) as Record<string, unknown>,
-    uncalibrated: [],
+    // the expectations this run flags as saying more about their threshold than about the groups (R2-09)
+    uncalibrated: UNCALIBRATED,
     params: { cases: summary.cases ?? null },
   };
 }

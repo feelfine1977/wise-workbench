@@ -72,17 +72,77 @@ export function LoadingBlock({ rows = 4, className }: { rows?: number; className
   );
 }
 
-export function ErrorBlock({ error, retry, className }: { error: unknown; retry?: () => void; className?: string }) {
+/**
+ * What went wrong, in the reader's words (R3-12).
+ *
+ * A screen that prints `422: unknown clause kind` has told the reader nothing they can act on, and a screen
+ * that keeps its skeleton has told them less. Every failure that ends a screen gets one sentence and one way
+ * out; the server's own detail and its status stay behind *what the server said*, for the person who wants
+ * them. The sentences are keyed on what the reader did, not on the number: a filter in the address that this
+ * run does not understand is the case §7.5 found, and it is the first one here.
+ */
+export function errorReading(error: unknown): { sentence: string; detail?: string; kind: "filter" | "missing" | "refused" | "unreachable" } {
+  if (error instanceof ApiError) {
+    const detail = error.problem?.detail ?? error.message;
+    const code = error.problem?.code ?? "";
+    if (error.status === 422 && /filter|clause/i.test(`${code} ${detail}`)) {
+      return { sentence: "This link carries a filter this run does not understand.", detail, kind: "filter" };
+    }
+    if (error.status === 404) return { sentence: "This is not in the workspace any more.", detail, kind: "missing" };
+    if (error.status === 422 || error.status === 409) return { sentence: "The workbench could not answer this request as it was asked.", detail, kind: "refused" };
+    if (error.status >= 500) return { sentence: "The workbench could not answer just now.", detail, kind: "unreachable" };
+    return { sentence: "The workbench could not answer this request.", detail, kind: "refused" };
+  }
+  return { sentence: "The workbench could not be reached just now.", detail: error instanceof Error ? error.message : String(error), kind: "unreachable" };
+}
+
+/**
+ * A failure that ends: one sentence, one way out, and the server's own words behind a disclosure. `action`
+ * is the way out the screen knows about — *open the run without the filter* on a screen whose address
+ * carries one; without it the block offers to try again, which is the way out of a failure that may pass.
+ */
+export function ErrorBlock({
+  error,
+  retry,
+  action,
+  className,
+}: {
+  error: unknown;
+  retry?: () => void;
+  action?: { label: string; onClick?: () => void; to?: LinkProps["to"]; params?: LinkProps["params"]; search?: LinkProps["search"] };
+  className?: string;
+}) {
   const { t } = useTranslation();
-  const message = error instanceof ApiError ? `${error.status}: ${error.problem?.detail ?? error.message}` : error instanceof Error ? error.message : String(error);
+  const reading = errorReading(error);
   return (
-    <div role="alert" className={cn("rounded-md border border-danger/40 bg-danger-subtle p-3 text-sm", className)}>
-      <p className="font-semibold text-danger">{t("app.error")}</p>
-      <p className="mt-1 font-mono text-xs text-text">{message}</p>
-      {retry && (
-        <Button variant="outline" size="sm" className="mt-2" onClick={retry}>
-          {t("app.retry")}
-        </Button>
+    <div role="alert" className={cn("rounded-md border border-danger/40 bg-danger-subtle p-3 text-sm", className)} data-error-kind={reading.kind}>
+      <p className="reading font-medium text-text" data-testid="error-sentence">
+        {reading.sentence}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {action &&
+          (action.to ? (
+            <Button asChild size="sm">
+              <Link to={action.to} params={action.params} search={action.search}>
+                {action.label}
+              </Link>
+            </Button>
+          ) : (
+            <Button size="sm" onClick={action.onClick}>
+              {action.label}
+            </Button>
+          ))}
+        {retry && reading.kind !== "filter" && (
+          <Button variant="outline" size="sm" onClick={retry}>
+            {t("app.retry")}
+          </Button>
+        )}
+      </div>
+      {reading.detail && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs text-text-muted">what the server said</summary>
+          <p className="mt-1 font-mono text-xs text-text-muted">{reading.detail}</p>
+        </details>
       )}
     </div>
   );

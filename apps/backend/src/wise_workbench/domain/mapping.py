@@ -117,6 +117,8 @@ class ColumnMapping:
     exposure_abs: bool = True
     header_events: tuple[str, ...] = ()
     flow_typing: tuple[FlowTypingRule, ...] = ()
+    # why a flow type the preset names is not in the mapping: the column it needs is not in the file (R3-15)
+    flow_typing_notes: tuple[dict[str, Any], ...] = ()
     flow_type_default: str = "other"
     closure_activities: tuple[str, ...] = ()
     derived_attributes: tuple[dict[str, Any], ...] = ()
@@ -239,6 +241,7 @@ class ColumnMapping:
             "exposureAbs": self.exposure_abs,
             "headerEvents": list(self.header_events),
             "flowTyping": [{"name": r.name, "rule": dict(r.rule)} for r in self.flow_typing],
+            "flowTypingNotes": [dict(n) for n in self.flow_typing_notes],
             "flowTypeDefault": self.flow_type_default,
             "closureActivities": list(self.closure_activities),
             "derivedAttributes": [dict(r) for r in self.derived_attributes],
@@ -285,6 +288,7 @@ class ColumnMapping:
             exposure_abs=bool(d.get("exposureAbs", True)),
             header_events=tuple(d.get("headerEvents") or ()),
             flow_typing=flow,
+            flow_typing_notes=tuple(dict(n) for n in d.get("flowTypingNotes") or ()),
             flow_type_default=str(d.get("flowTypeDefault") or "other"),
             closure_activities=tuple(d.get("closureActivities") or ()),
             derived_attributes=tuple(dict(r) for r in d.get("derivedAttributes") or ()),

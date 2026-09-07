@@ -124,7 +124,8 @@ const params: Record<string, string> = {
   presetId: "bpic2019",
   snapshotId: "snap_1",
   // the third release's operations
-  nodeId: "c_l3_invoice_to_clear_days",
+  // hub node ids carry their kind and their pack: `expectation:<template>:<constraint>`
+  nodeId: "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
   kind: "constraint",
   entryId: "c_l3_invoice_to_clear_days",
   activityId: "a_record_goods_receipt",
@@ -143,6 +144,7 @@ const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/gates/{gateId}": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/what-can-we-do": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/norms/inventory": "?caseTableId=ct_1",
+  "/projects/{projectId}/norms/applicability": "?caseTableId=ct_1",
   "/projects/{projectId}/runs/{runId}/facets": `?by=flow_type&view=Automation`,
   "/projects/{projectId}/runs/{runId}/kpis": `?view=Automation&grouping=${encodeURIComponent("case Company+case Spend area text")}`,
 };
@@ -153,6 +155,8 @@ const bodies: Record<string, unknown> = {
   "patch /projects/{projectId}/norms/{normVersionId}": { status: "approved" },
   "post /projects/{projectId}/norms/{normVersionId}/check": { caseTableId: "ct_1" },
   "post /projects/{projectId}/runs": { caseTableId: "ct_1", normVersionId: "nv_7", gamma: 20, slicings: [{ attributes: ["case Vendor"] }], scope: { flow_type: "DF2", attribute: "flow_type" } },
+  "post /projects/{projectId}/runs/{runId}/whatif": { name: "make-to-order items get their own threshold", transforms: [], norm: { constraints: [{ id: "c_l3_invoice_to_clear_days", delta: 30 }] }, note: "contract test", author: "tester" },
+  "post /projects/{projectId}/runs/{runId}/whatif/preview": { transforms: [{ kind: "cap_lag", activity: "Clear Invoice", days: 30 }] },
   "post /projects/{projectId}/case-tables/{caseTableId}/decisions/preview": { kind: "collapse_duplicates", params: {} },
   "post /projects/{projectId}/case-tables/{caseTableId}/decisions": { kind: "open_cases", params: { handling: "exclude" }, note: "contract test", author: "tester" },
   "post /projects/{projectId}/notebook/reorder": { ids: ["snap_1"] },
@@ -254,7 +258,7 @@ describe("OpenAPI contract vs MSW mocks", () => {
     expect(page.maxStablePI).toBeCloseTo(945.7, 1);
     // the verified run's analytics fields (R1-01, R1-04, RG-20) travel with the row
     expect(page.rows[0]?.stability).toBe("stable");
-    expect(page.rows[0]?.comparison).toBe("Paid within terms: 83 days here against 55 elsewhere (+25 days).");
+    expect(page.rows[0]?.comparison).toBe("Paid within terms: 83 days here against 55 elsewhere (+28 days).");
     expect(page.rows[0]?.points_below).toBe("0.9 points below the overall score of 84.4 (1 %)");
     expect(page.rows[0]?.caveats).toHaveLength(2);
     expect(page.params.case_noun).toBe("purchase order items");

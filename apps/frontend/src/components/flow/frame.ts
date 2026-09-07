@@ -58,14 +58,16 @@ export function activityCountAt(graph: Scene, level: number): number {
 }
 
 /** The label a node draws at zoom 1 (the flow library's `.wf-node` font size) and the smallest one worth offering. */
-const LABEL_PX = 12;
-const MIN_LABEL_PX = 11;
+export const LABEL_PX = 12;
+export const MIN_LABEL_PX = 11;
+/** The largest a name is drawn on the screen; above it the map reads as a poster, not as an instrument. */
+export const MAX_LABEL_PX = 14;
 /** Padding the fit leaves: 4 % of the width, 8 % of the height (§3.2). */
 const FIT_PAD_X = 0.96;
 const FIT_PAD_Y = 0.92;
 const MAX_ZOOM = 1.25;
-/** The share of the frame's height the stretch aims at, leaving room for the badge above an activity. */
-const BADGE_ROOM = 0.94;
+/** The most the lanes are ever spread; beyond this the drawing is a column of rows rather than a process. */
+const MAX_SPREAD = 24;
 
 export interface Box {
   x: number;
@@ -132,18 +134,22 @@ export function layersAt(graph: Scene, level: number): number {
 }
 
 /**
- * The last detail level whose activity labels are still readable at the fitted zoom (§3.2).
+ * The last detail level whose activity names are still readable at the fitted zoom (§3.2, R3-06).
  *
  * The stretch below gives the drawing the shape of its frame, so the fit is bound by the width: a level of
- * `L` columns is `L × 270` layout units across and the zoom is what the frame's width allows. The library
- * draws the activity's name at 12 px, so a level is offered while `12 × zoom` is at least 11 px. Levels above
- * it are not offered, and the caption sends the reader to the full window, where the frame is larger.
+ * `L` columns is `L × 270` layout units across and the zoom is what the frame's width allows. The name is
+ * then counter-scaled to that zoom (`labelUnitsAt`), so it is always drawn at eleven pixels or more; what a
+ * finer level costs is no longer the size of the name but the room its box has for it. A level is offered
+ * while the box can still show eighteen characters. Before the counter-scale the test read `12 × zoom ≥ 11`,
+ * which no process of more than four columns ever passed. Levels above the one returned are still drawn if
+ * the reader asks for them; the bar then says the process is wider than this screen and offers the full
+ * window, where the frame — and with it the zoom — is larger.
  */
 export function readableMaxLevel(graph: Scene, box: { width: number; height: number }): number {
   if (!box.width || !box.height) return DETAIL.length - 1;
   for (let i = DETAIL.length - 1; i > 0; i--) {
     const zoom = Math.min(MAX_ZOOM, (box.width * FIT_PAD_X) / (layersAt(graph, i) * CELL_WIDTH));
-    if (LABEL_PX * zoom >= MIN_LABEL_PX) return i;
+    if (drawnNodeBox(labelUnitsAt(zoom)).chars >= MIN_LABEL_CHARS) return i;
   }
   return 0;
 }
@@ -186,6 +192,147 @@ export function abstractAt<G extends Scene>(graph: G, level: number): G {
   return { ...graph, nodes, edges, groups, overlays };
 }
 
+// ---------------------------------------------------------------- names at a constant size (R3-06)
+
+/** The activity box the layout reserves, in layout units; the drawn box grows inside its cell, never past it. */
+export const NODE_WIDTH = 180;
+export const NODE_HEIGHT = 48;
+/** The widest and tallest a drawn activity box may become: its cell, less the room a path needs to reach it. */
+const MAX_NODE_WIDTH = 216;
+const MAX_NODE_HEIGHT = 232;
+/** The room the label has inside the box: the band on the left and the padding. */
+const LABEL_INSET = 40;
+/** Layout units one character of a name takes at a font size of one unit (Inter at its average width). */
+const CHAR_WIDTH = 0.52;
+/**
+ * The largest a name is written in layout units — a zoom of 0.17, which no fitted map of a process a person
+ * would read reaches. The counter-scale is otherwise not capped: the name's size on the screen is the
+ * promise, and where the box cannot then hold eighteen characters of it the bar says so.
+ */
+export const MAX_LABEL_UNITS = 64;
+/** The zoom below which the counter-scale can no longer reach eleven pixels. */
+export const MIN_READABLE_ZOOM = MIN_LABEL_PX / MAX_LABEL_UNITS;
+/** The characters of a name a level must be able to show before it counts as readable (R3-06). */
+export const MIN_LABEL_CHARS = 18;
+
+/**
+ * The size, **in layout units**, at which an activity name is drawn so that it measures a constant number of
+ * pixels on the screen (R3-06).
+ *
+ * The map is drawn inside a pane the flow library scales by the fitted zoom, so a name written at `s` layout
+ * units measures `s × zoom` pixels on the screen. The same code therefore drew an 11.0 px name on the
+ * extract's five-activity map (zoom 0.913) and a 4.7 px name on the purchase-to-pay log's eight-activity,
+ * six-lane map (zoom 0.395): legibility depended on how many lanes the process had. Counter-scaling by the
+ * inverse of the zoom removes that dependency — the name measures the same on the screen at every zoom,
+ * never below 11 px and never above 14, whatever the width of the process.
+ *
+ * Nothing here reads the DOM and nothing it returns changes the layout, so the zoom cannot depend on the
+ * label size and a refit can never be the cause of the next one.
+ */
+export function labelUnitsAt(zoom: number, target = LABEL_PX): number {
+  if (!Number.isFinite(zoom) || zoom <= 0) return target;
+  const wanted = Math.min(MAX_LABEL_PX, Math.max(MIN_LABEL_PX, target));
+  // a map drawn larger than life keeps the library's own size: counter-scaling would only shrink the name
+  return Math.min(MAX_LABEL_UNITS, Math.max(target, wanted / zoom));
+}
+
+/**
+ * The size, in layout units, of **every other text drawn on the canvas** — the stage header, the item count
+ * under a name, the start and end markers, the path labels and both halves of a badge (P1-4).
+ *
+ * The counter-scale was written for the activity name and applied to it alone, so the six other classes went
+ * on shrinking with the graph: 5.3 px for a stage header, 3.8 px for a badge, against the name's 12.0. They
+ * are all secondary to the name, so they are drawn at the smallest readable size rather than at the name's:
+ * eleven pixels on the screen, whatever the zoom, and never smaller than the library's own size on a map
+ * drawn larger than life.
+ */
+export function smallLabelUnitsAt(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 0) return MIN_LABEL_PX;
+  return Math.min(MAX_LABEL_UNITS, Math.max(MIN_LABEL_PX, MIN_LABEL_PX / zoom));
+}
+
+/** How much larger than its own drawing a badge, a marker or a chip is drawn, so its counter-scaled text fits. */
+export const mapScaleAt = (zoom: number) => smallLabelUnitsAt(zoom) / MIN_LABEL_PX;
+
+/** What a name of `units` layout units measures on the screen at `zoom` — the number the acceptance reads. */
+export const labelScreenPx = (units: number, zoom: number) => units * zoom;
+
+/** Layout units left between two drawn boxes, so a path can still be seen to arrive at one. */
+const BOX_MARGIN = 16;
+/** The name wraps over at most this many lines; below it the box would be a paragraph, not a label. */
+const MAX_LINES = 3;
+/** The item count sits under the name at this share of its size, on a line of its own. */
+const META_LINE = 0.72;
+/** Line height and the padding above and below, in units of the font size and in layout units. */
+const LINE_HEIGHT = 1.25;
+const BOX_PADDING = 12;
+
+/** The gaps between every pair of laid-out boxes, on each axis; negative where they already overlap. */
+function gapsBetween(boxes: Box[]): { dx: number; dy: number }[] {
+  const pairs: { dx: number; dy: number }[] = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i] as Box;
+      const b = boxes[j] as Box;
+      pairs.push({
+        dx: Math.max(b.x - (a.x + a.width), a.x - (b.x + b.width)),
+        dy: Math.max(b.y - (a.y + a.height), a.y - (b.y + b.height)),
+      });
+    }
+  }
+  return pairs;
+}
+
+/**
+ * How much taller every drawn box may be once it has been widened by `grownX`, without any two of them
+ * touching. Two boxes collide only when they grow into each other on **both** axes, so width costs height:
+ * widening every box by 25 units brings a pair 20 units apart across into contention, and the height they may
+ * then take is the distance between them down the page.
+ */
+export function heightRoom(pairs: { dx: number; dy: number }[], grownX: number): number {
+  let room = Infinity;
+  for (const p of pairs) {
+    if (p.dx >= grownX + BOX_MARGIN) continue;
+    room = Math.min(room, p.dy - BOX_MARGIN);
+  }
+  return room;
+}
+
+/**
+ * The box a drawn activity takes, and how many lines of its name it shows.
+ *
+ * The layout keeps its 180 × 48 cell — moving it would move the zoom, which would move the label with it —
+ * so the drawn box grows about its own centre into the space the drawing already left free, and no further:
+ * a box that grew into its neighbour would trade one unreadable name for two overlapping ones. Three widths
+ * are tried and the one that shows the most characters wins, so a drawing whose activities sit above one
+ * another keeps its width and one whose activities sit side by side keeps its height.
+ *
+ * `chars` is the length of the names to plan for; the acceptance asks for eighteen.
+ */
+export function drawnNodeBox(units: number, boxes: Box[] = [], chars = 18): { width: number; height: number; lines: number; chars: number } {
+  if (units <= LABEL_PX) return { width: NODE_WIDTH, height: NODE_HEIGHT, lines: 1, chars: Math.floor((NODE_WIDTH - LABEL_INSET) / (units * CHAR_WIDTH)) };
+  const pairs = boxes.length > 1 ? gapsBetween(boxes) : [];
+  const lineHeight = units * LINE_HEIGHT;
+  let best = { width: NODE_WIDTH, height: NODE_HEIGHT, lines: 1, chars: 0 };
+  for (const width of [NODE_WIDTH, (NODE_WIDTH + MAX_NODE_WIDTH) / 2, MAX_NODE_WIDTH]) {
+    const perLine = Math.max(1, Math.floor((width - LABEL_INSET) / (units * CHAR_WIDTH)));
+    const wantLines = Math.max(1, Math.min(MAX_LINES, Math.ceil(chars / perLine)));
+    const wantHeight = Math.min(MAX_NODE_HEIGHT, (wantLines + META_LINE) * lineHeight + BOX_PADDING);
+    const grownX = width - NODE_WIDTH;
+    const room = pairs.length ? heightRoom(pairs, grownX) : Infinity;
+    const height = Math.max(NODE_HEIGHT, Math.min(wantHeight, NODE_HEIGHT + room));
+    // the same rule the other way round: a pair the layout left 200 units apart cannot both be drawn 216
+    // wide, whatever the height. The cell is 270 units, but a layout is free to place two boxes closer than
+    // its cell, and on the extract two activities of one row then overlapped by fourteen pixels.
+    if (grownX > 0 && pairs.some((p) => p.dy < height - NODE_HEIGHT + BOX_MARGIN && p.dx < grownX + BOX_MARGIN)) continue;
+    // the lines that fit the height the drawing actually allows; the 0.02 absorbs the rounding of a division
+    const lines = Math.max(1, Math.min(wantLines, Math.floor((height - BOX_PADDING - META_LINE * lineHeight) / lineHeight + 0.02)));
+    const shown = perLine * lines;
+    if (shown > best.chars) best = { width, height, lines, chars: shown };
+  }
+  return best;
+}
+
 /** The shape of a laid-out scene, written structurally so the build without the flow library still compiles. */
 export interface LaidOut {
   nodes: Record<string, Box>;
@@ -195,22 +342,99 @@ export interface LaidOut {
 }
 
 /**
+ * The margin and the header band the flow library draws a stage lane with (`core/lanes.ts`, its own defaults):
+ * the lane is the drawing plus this margin on three sides and the margin plus the header above it.
+ */
+export const LANE_PAD = 24;
+export const LANE_LABEL = 32;
+
+/** The band the library keeps above the drawing for a lane: its margin and its label space together. */
+export const LANE_BAND = LANE_PAD + LANE_LABEL;
+/**
+ * Layout units the badge over an activity reaches above the **layout** box, once its text is at eleven pixels.
+ * `grow` is how far the drawn box has grown above that box to hold its counter-scaled name: the badge sits on
+ * the drawn box and the lane is drawn around the laid-out one, so the two are only in step when it is counted.
+ */
+export const badgeAboveAt = (zoom: number, grow = 0) => 22 * mapScaleAt(zoom) + 4 + grow;
+/** How far that badge reaches above the lane's own top edge, which is where the lane's name has to start. */
+export const laneOvershootAt = (zoom: number, grow = 0) => Math.max(0, badgeAboveAt(zoom, grow) - LANE_BAND);
+/** The room the lane's name takes, drawn above the lane rather than inside it so no badge can reach it. */
+export const laneNameHeightAt = (zoom: number) => 1.2 * smallLabelUnitsAt(zoom) + 6;
+
+/**
+ * The room around the activities that is drawn but is not the drawing (§6.1, P1-5).
+ *
+ * The lanes are not laid out with the activities: the library draws each stage band across the whole content
+ * of the map and gives it a margin and a header band of its own, and the badge over an activity is drawn
+ * outside its box. All of it has to be inside the canvas, so all of it is counted — once, here — both when
+ * the drawing is spread to the shape of its frame and when the fit is told what it must hold. Before this the
+ * fit was handed the box of everything the layout produced, routed paths included: a path that detoured far
+ * above the activities made the lanes tall, the lanes made the zoom small, and 45 % of the canvas height
+ * above the graph was lane and detour rather than process.
+ */
+export function drawingRoom(zoom: number, lanes: boolean, grow = 0): { top: number; bottom: number; x: number } {
+  const badge = badgeAboveAt(zoom, grow);
+  if (!lanes) return { top: badge, bottom: Math.max(8, grow), x: 16 };
+  // below, the lane's own margin and the room the box grew into are the same room, counted once
+  return { top: LANE_BAND + laneOvershootAt(zoom, grow) + laneNameHeightAt(zoom), bottom: Math.max(LANE_PAD, grow), x: 2 * LANE_PAD };
+}
+
+/** The box the fit must hold: the activities and the room around them. */
+export function withRoom(nodes: Box | undefined, room: { top: number; bottom: number; x: number }): Box | undefined {
+  if (!nodes) return undefined;
+  return { x: nodes.x - room.x / 2, y: nodes.y - room.top, width: nodes.width + room.x, height: nodes.height + room.top + room.bottom };
+}
+
+/**
+ * The same drawing with the layout's routed paths dropped, so each path is drawn as a curve between the two
+ * boxes it joins (P1-5).
+ *
+ * The routes are computed by the layout engine for the positions it chose, and `stretchToFrame` then spreads
+ * every y by up to six: an orthogonal detour of a hundred units became a six-hundred-unit excursion above and
+ * below the activities, which the lanes covered and the fit had to hold. A route that no longer describes the
+ * drawing it belongs to is worse than no route, and the library falls back on a curve between the handles.
+ */
+export function withoutRoutes(positions: LaidOut | undefined): LaidOut | undefined {
+  if (!positions) return positions;
+  const edges: LaidOut["edges"] = {};
+  for (const [id, route] of Object.entries(positions.edges ?? {})) edges[id] = { ...route, points: [] };
+  return { ...positions, edges };
+}
+
+/**
  * The drawing filled into the frame's height (§3.2). A process graph is much wider than it is tall, so
  * a fit that keeps it inside the canvas on all four sides would leave a third of the frame empty above and
  * below. Rather than zoom past the edges, the stage lanes are stretched: every y is spread about the top of
  * the drawing until its shape is the frame's, so the fit then fills the frame and still overflows nowhere.
  * The factor comes from the frame, which the viewport fixes, so this can never be the cause of a resize.
+ *
+ * `drawn` is the box of the **activities**, not of the lanes around them: measured on the lanes, the shape was
+ * already the frame's and the spread never happened, which is the other half of P1-5.
  */
-export function stretchToFrame(positions: LaidOut | undefined, drawn: Box | undefined, box: { width: number; height: number }): LaidOut | undefined {
+export function stretchToFrame(
+  positions: LaidOut | undefined,
+  drawn: Box | undefined,
+  box: { width: number; height: number },
+  margin: { x: number; y: number } = { x: 0, y: 0 },
+): LaidOut | undefined {
   if (!positions || !drawn || !drawn.width || !drawn.height || !box.width || !box.height) return positions;
-  // a little less than the frame's own shape: the badge above an activity is drawn outside its box, and the
-  // drawing must stay inside the canvas on every side
-  const want = (box.height * FIT_PAD_Y * BADGE_ROOM) / (box.width * FIT_PAD_X);
-  const have = drawn.height / drawn.width;
-  const factor = want / have;
-  // only ever spread, never squeeze, and never beyond six times: a squeezed drawing would overlap itself
+  // the shape the frame asks of everything drawn — the activities, and the room the lane, its name and the
+  // badge above an activity take around them — so the fit is bound on both sides at once and fills the frame
+  const shape = (box.height * FIT_PAD_Y) / (box.width * FIT_PAD_X);
+  const target = Math.max(drawn.height, shape * (drawn.width + margin.x) - margin.y);
+  // the spread moves each box down, it does not make it taller, so the drawing ends up shorter than the
+  // factor suggests: the largest spread that keeps every box inside the target is the smallest of the
+  // factors the boxes themselves allow. Read as a ratio of heights instead, the drawing came out an eighth
+  // short of its frame and the fit was bound by the width alone.
+  const factors = Object.values(positions.nodes)
+    .filter((b) => b.y > drawn.y + 1e-6)
+    .map((b) => (target - b.height) / (b.y - drawn.y));
+  const factor = factors.length ? Math.min(...factors) : 1;
+  // only ever spread, never squeeze: a squeezed drawing would overlap itself, while a spread one only opens
+  // the gaps between its rows. A flat graph — eight activities over 2,700 layout units and 120 down — needs a
+  // factor of ten to reach the shape of its frame, and a cap of six left an eighth of the canvas empty.
   if (!Number.isFinite(factor) || factor <= 1.02) return positions;
-  const k = Math.min(6, factor);
+  const k = Math.min(MAX_SPREAD, factor);
   const y = (v: number) => drawn.y + (v - drawn.y) * k;
   const nodes: Record<string, Box> = {};
   for (const [id, b] of Object.entries(positions.nodes)) nodes[id] = { ...b, y: y(b.y) };

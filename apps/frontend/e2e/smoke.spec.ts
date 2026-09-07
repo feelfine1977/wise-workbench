@@ -13,7 +13,8 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   // the analysis path across the top of every screen
   const stepper = page.getByRole("navigation", { name: "Analysis path" });
   await expect(stepper).toContainText("Data");
-  await expect(stepper).toContainText("What to do");
+  // the seventh step, in the plain words the product leads with ("What to do" is its method label)
+  await expect(stepper).toContainText("What can we do?");
   // the dashboard leads with one sentence and the flow types
   await expect(page.getByTestId("top-signal")).toContainText("Packaging");
   await expect(page.getByRole("list", { name: "Flow types" })).toContainText("DF2");
@@ -94,8 +95,11 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByRole("tab", { name: "Why" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("top-drivers")).toContainText("explains");
   await expect(page.getByTestId("why-map").getByTestId("flow-map")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("typical-causes")).toContainText("not available yet");
+  // the block that said "not available yet" in cycle 3 now carries the candidate reasons of the leading
+  // expectation, from the same hub pages as "What can we do?", with the way to that screen (R3-01)
+  await expect(page.getByTestId("typical-causes")).toContainText(/Candidates to check|carries no candidate reasons/);
   await expect(page.getByTestId("typical-causes")).not.toContainText("cycle");
+  await expect(page.getByTestId("typical-causes").getByRole("button", { name: /What can we do\?/ })).toBeVisible();
   // the how-to-read paragraph is collapsed and opens from the ? beside the title
   await expect(page.getByTestId("how-to-read")).toHaveCount(0);
   await page.getByRole("button", { name: "Show how to read this screen" }).click();

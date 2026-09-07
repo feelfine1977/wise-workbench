@@ -11,7 +11,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Card, CardTitle } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fmtDateTime, fmtInt } from "@/lib/format";
+import { fmtDateTime, fmtInt, fmtShare } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** The choices a reader makes per decision kind (the contract's `params` of `GET /decisions/kinds`). */
@@ -286,6 +286,44 @@ function DecisionDialog({
  * case table (a job); the new table's readiness report is the re-evaluation. Decisions taken are listed with
  * author and note.
  */
+/**
+ * The readiness report as a list of decisions (R3-19).
+ *
+ * The report is the machine's own log: sixteen lines in the order the checks ran, every one of them a
+ * sentence with ISO stamps, `value(s)` and the raw evidence in brackets, and a reader had to read all of them
+ * to find the one that mattered. The list below is ordered by what a reader has to do — what is still
+ * undecided first, worst first by the share of items it touches — the decided ones become ✓ lines with
+ * *Change*, and the machine's own sentence is kept behind *the exact reading*.
+ */
+
+/** The share of items a readiness item touches, for the order; the ones with no share sort by their level. */
+export function readinessShare(item: ReadinessItem, cases: number | undefined): number {
+  const ev = (item.evidence ?? {}) as { share?: number; replicatedShare?: number; cases?: number; casesShare?: number; casesFlagged?: number };
+  if (typeof ev.share === "number") return ev.share;
+  if (typeof ev.replicatedShare === "number") return ev.replicatedShare;
+  if (typeof ev.casesShare === "number") return ev.casesShare;
+  if (typeof ev.cases === "number" && cases) return ev.cases / cases;
+  if (typeof ev.casesFlagged === "number" && cases) return ev.casesFlagged / cases;
+  return 0;
+}
+
+/**
+ * The item's sentence in the reader's words: the machine's stamps, its `value(s)` and the bracketed evidence
+ * taken out. The full sentence stays one click away, so nothing is hidden — only moved off the first read.
+ */
+export function plainReadiness(message: string): string {
+  return message
+    // "(earliest 1948-01-26 23:59:00, latest 2020-04-09 23:59:00)" and every other bracketed reading
+    .replace(/\s*\([^()]*\d{4}-\d{2}-\d{2}[^()]*\)/g, "")
+    .replace(/\s*\((?:robust quantiles|same case, activity and timestamp)\)/g, "")
+    // a bare ISO stamp left in the prose
+    .replace(/\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?\b/g, (m) => m.slice(0, 10))
+    .replace(/\bvalue\(s\)/g, "values")
+    .replace(/;\s*most frequent:[^.]*\./g, ".")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuilt, className }: { readiness: Readiness | null | undefined; projectId: string; caseTableId: string; onRebuilt: (caseTableId: string) => void; className?: string }) {
   const [openItem, setOpenItem] = useState<{ item: ReadinessItem; kind: DecisionKind }>();
   const kinds = useQuery(decisionKindsQuery(projectId));
@@ -303,26 +341,69 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
   const decided = new Set(applied.map((d) => d.kind));
   const historyOf = (kindId: string) => applied.filter((d) => d.kind === kindId);
   const currentOf = (kindId: string) => historyOf(kindId)[historyOf(kindId).length - 1];
+  const cases = (readiness?.items ?? []).find((i) => i.id === "volume")?.evidence?.cases as number | undefined;
+  const caseNoun = readiness?.caseNoun ?? "cases";
+  const isDone = (it: ReadinessItem) => {
+    const k = kindOf(it);
+    return !!k && decided.has(k.kind);
+  };
+  // undecided first, the one that touches the most items first; the decided ones follow in the same order
+  const ordered = [...items].sort((a, b) => {
+    const da = isDone(a) ? 1 : 0;
+    const db = isDone(b) ? 1 : 0;
+    if (da !== db) return da - db;
+    const la = a.level === "fail" ? 2 : a.level === "warn" ? 1 : 0;
+    const lb = b.level === "fail" ? 2 : b.level === "warn" ? 1 : 0;
+    if (la !== lb) return lb - la;
+    return readinessShare(b, cases) - readinessShare(a, cases);
+  });
+  const undecided = ordered.filter((it) => !isDone(it) && !!kindOf(it));
   return (
     <div className={cn("flex flex-col gap-4", className)} data-testid="readiness-decisions">
       <Card>
         <CardTitle>What could distort the results, and what you decide about it</CardTitle>
+        <p className="reading mb-2 text-sm text-text-muted">
+          {undecided.length === 0
+            ? "Everything this report raises has been decided. The lines below say what was decided and let you change it."
+            : `${fmtInt(undecided.length)} ${undecided.length === 1 ? "reading is" : "readings are"} still open, the one that touches the most ${caseNoun} first.`}
+        </p>
         <ul className="flex flex-col divide-y divide-border">
-          {items.map((it) => {
+          {ordered.map((it) => {
             const kind = kindOf(it);
             const done = kind ? decided.has(kind.kind) : false;
+            const share = readinessShare(it, readiness ? cases : undefined);
+            const plain = plainReadiness(it.message);
             return (
-              <li key={it.id} className="flex flex-wrap items-start gap-3 py-3" data-readiness-item={it.id}>
-                <GateBadge state={it.level === "fail" ? "failed" : it.level === "warn" ? "pending" : "passed"} label={it.level} className="mt-0.5" />
-                <span className="reading min-w-0 flex-1 text-sm">{it.message}</span>
+              <li key={it.id} className="flex flex-wrap items-start gap-3 py-3" data-readiness-item={it.id} data-decided={done ? "1" : undefined}>
+                {done ? (
+                  <span aria-label="decided" className="mt-0.5 text-success" data-testid={`decided-${it.id}`}>
+                    ✓
+                  </span>
+                ) : (
+                  <GateBadge state={it.level === "fail" ? "failed" : it.level === "warn" ? "pending" : "passed"} label={it.level} className="mt-0.5" />
+                )}
+                <span className="min-w-0 flex-1 text-sm">
+                  <span className="reading block">{plain}</span>
+                  {share > 0 && !done && (
+                    <span className="text-xs text-text-subtle">
+                      touches {fmtShare(share)} of the {caseNoun}
+                    </span>
+                  )}
+                  {plain !== it.message && (
+                    <details className="mt-0.5">
+                      <summary className="cursor-pointer text-xs text-text-subtle">the exact reading</summary>
+                      <span className="reading block text-xs text-text-muted">{it.message}</span>
+                    </details>
+                  )}
+                </span>
                 {kind && (
                   <span className="flex flex-col items-end gap-0.5">
-                    <Button size="sm" variant="outline" onClick={() => setOpenItem({ item: it, kind })} aria-label={`${PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
-                      {done ? "Decide again" : (PLAIN_LABEL[kind.kind] ?? kind.label)}
+                    <Button size="sm" variant="outline" onClick={() => setOpenItem({ item: it, kind })} aria-label={`${done ? "Change" : PLAIN_LABEL[kind.kind] ?? kind.label}: ${it.id}`}>
+                      {done ? "Change" : (PLAIN_LABEL[kind.kind] ?? kind.label)}
                     </Button>
                     {done && (
                       <span className="text-[11px] text-text-subtle" data-testid={`decision-state-${kind.kind}`}>
-                        decided {historyOf(kind.kind).length === 1 ? "once" : `${historyOf(kind.kind).length} times`} · in force: v{currentOf(kind.kind)?.version}
+                        {PLAIN_LABEL[kind.kind] ?? kind.label} · decided {historyOf(kind.kind).length === 1 ? "once" : `${historyOf(kind.kind).length} times`}
                       </span>
                     )}
                   </span>

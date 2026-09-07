@@ -96,6 +96,8 @@ export interface PanelProps {
   /** Numbers are being recomputed: the previous ones stay, dimmed, with the updating dot. */
   updating?: boolean;
   error?: unknown;
+  /** The way out of a failure this panel knows about (R3-12): *open the board without the filter*. */
+  errorAction?: { label: string; onClick?: () => void };
   onRetry?: () => void;
   loading?: boolean;
   /** Height of the chart body, so a skeleton has the panel's final size. */
@@ -109,7 +111,7 @@ export interface PanelProps {
  * Panel chrome is one line: the title as a plain question, the explanation, the expansion, and — when the
  * panel is not linked — the lock chip. Nothing blanks while numbers are recomputed and nothing moves.
  */
-export function Panel({ spec, sentence, count, lock, expanded, onExpand, updating, error, onRetry, loading, bodyHeight = 200, children, actions, className }: PanelProps) {
+export function Panel({ spec, sentence, count, lock, expanded, onExpand, updating, error, errorAction, onRetry, loading, bodyHeight = 200, children, actions, className }: PanelProps) {
   return (
     <section
       aria-label={spec.title}
@@ -164,7 +166,7 @@ export function Panel({ spec, sentence, count, lock, expanded, onExpand, updatin
       {error ? (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-text-muted">This panel could not be computed for this selection.</p>
-          <ErrorBlock error={error} retry={onRetry} />
+          <ErrorBlock error={error} retry={onRetry} action={errorAction} />
         </div>
       ) : loading ? (
         <div className="flex flex-col gap-2" style={{ minHeight: bodyHeight }} role="status" aria-busy="true">

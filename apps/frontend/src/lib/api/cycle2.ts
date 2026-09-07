@@ -69,6 +69,46 @@ export interface BacklogParamsC2 {
   illustrative?: boolean;
   /** Expectations whose threshold needs calibrating on this log (R2-09): the run's own list. */
   uncalibrated?: UncalibratedExpectation[];
+  /**
+   * The data caveats of the **whole run** (R3-09), keyed by caveat id, so the page-wide line reads the same
+   * on every page of a ranked list instead of the caveats of whichever fifty rows are on the screen.
+   */
+  caveat_summary?: Record<string, RunCaveat> | RunCaveat[] | null;
+}
+
+/** One entry of `params.caveat_summary`: what a caveat looks like over the whole run. */
+export interface RunCaveat {
+  id?: string;
+  /** Groups the caveat touches, and how many groups the run ranked. */
+  groups?: number | null;
+  groupsTotal?: number | null;
+  /** The share it holds on across the run, and the largest share on any one group. */
+  share?: number | null;
+  max?: number | null;
+  /** The share above which the caveat is worth stating. */
+  threshold?: number | null;
+  text?: string | null;
+  status?: string | null;
+}
+
+/** The same entry as the server writes it (`page_share`, `max_share`); the two namings are read as one. */
+interface ServedCaveat extends RunCaveat {
+  page_share?: number | null;
+  max_share?: number | null;
+}
+
+/**
+ * The run's caveats as one list, whichever shape the backend serves them in (R3-09). `undefined` means this
+ * backend does not compute the summary yet — the caller then says which population its line describes,
+ * rather than printing a run-wide sentence built from one page.
+ */
+export function runCaveats(params: BacklogParamsC2 | undefined): RunCaveat[] | undefined {
+  const raw = params?.caveat_summary;
+  if (raw === undefined || raw === null) return undefined;
+  const list = Array.isArray(raw) ? raw : Object.entries(raw).map(([id, v]) => ({ id, ...(v as ServedCaveat) }));
+  return list
+    .filter((c): c is ServedCaveat & { id: string } => typeof c.id === "string" && c.id.length > 0)
+    .map((c) => ({ ...c, share: c.share ?? c.page_share ?? null, max: c.max ?? c.max_share ?? null }));
 }
 
 /** One entry of `params.uncalibrated`: an expectation that separates no group on this log. */
@@ -189,6 +229,7 @@ export const c2 = {
   post: <T>(path: string, body?: unknown, query?: Record<string, string | number | undefined>) => request<T>("POST", path, { body, query }),
   postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { form }),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, { body }),
+  put: <T>(path: string, body: unknown, query?: Record<string, string | number | undefined>) => request<T>("PUT", path, { body, query }),
   delete: <T>(path: string) => request<T>("DELETE", path),
 };
 

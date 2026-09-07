@@ -31,16 +31,17 @@ export function CommandPalette({ ctx }: { ctx: WorkbenchContext }) {
   const commands = useMemo<Command[]>(() => {
     const runId = ctx.run?.status === "done" ? ctx.run.id : undefined;
     const list: Command[] = [
-      { id: "dashboard", label: "Dashboard", hint: "S0", run: () => void navigate({ to: "/p/$projectId", params: { projectId: pid } }) },
-      { id: "data", label: "Data and mapping", hint: "S1–S2", run: () => void navigate({ to: "/p/$projectId/data", params: { projectId: pid } }) },
-      { id: "norms", label: "Norms", hint: "S3–S4", run: () => void navigate({ to: "/p/$projectId/norms", params: { projectId: pid } }) },
-      { id: "runs", label: "Runs", hint: "S5", run: () => void navigate({ to: "/p/$projectId/runs", params: { projectId: pid } }) },
+      // the hint says what the screen is for, never which stage of a process it belongs to (P1-13)
+      { id: "dashboard", label: "Dashboard", hint: "where the run stands", run: () => void navigate({ to: "/p/$projectId", params: { projectId: pid } }) },
+      { id: "data", label: "Data and mapping", hint: "the log and what its columns mean", run: () => void navigate({ to: "/p/$projectId/data", params: { projectId: pid } }) },
+      { id: "norms", label: "Norms", hint: "what the process is expected to do", run: () => void navigate({ to: "/p/$projectId/norms", params: { projectId: pid } }) },
+      { id: "runs", label: "Runs", hint: "what has been scored", run: () => void navigate({ to: "/p/$projectId/runs", params: { projectId: pid } }) },
     ];
     if (runId) {
       list.push({
         id: "backlog",
         label: `${vocabulary === "plain" ? "Where is it worst?" : "Backlog explorer"} · ${runId}`,
-        hint: "S6",
+        hint: "the groups, worst first",
         run: () => void navigate({ to: "/p/$projectId/runs/$runId/backlog", params: { projectId: pid, runId }, search: { slicing: ctx.slicing, view: ctx.view } }),
       });
       for (const v of ctx.run?.views ?? []) {

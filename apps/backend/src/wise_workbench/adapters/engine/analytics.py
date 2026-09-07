@@ -33,7 +33,7 @@ from wise_workbench.adapters.storage import Workspace, dumps_json
 from wise_workbench.adapters.storage.parquet import read_frame, write_frame
 from wise_workbench.application.ports import ProgressFn
 from wise_workbench.domain import ColumnMapping
-from wise_workbench.domain.comparison import Comparison, capitalised, readable_comparison
+from wise_workbench.domain.comparison import Comparison, capitalised, readable_comparison, with_printed_bracket
 
 from .tables import jsonable
 
@@ -45,6 +45,14 @@ except ImportError:  # pragma: no cover - exercised on machines without the pack
 ANALYTICS_DIR = "analytics"
 MANIFEST = "manifest.json"
 CAVEAT_KINDS = ("censoring", "replication", "duplicates", "sentinel_dates", "window_edge")
+# readiness checks a single group has its own share of, and the caveat kind that carries it (R3-03)
+GROUP_SCOPED_CHECKS: dict[str, str] = {
+    "right_censoring": "censoring",
+    "replication": "replication",
+    "duplicate_events": "duplicates",
+    "sentinel_dates": "sentinel_dates",
+    "window_edge_share": "window_edge",
+}
 CARD_CAVEAT_MIN_SHARE = 0.01  # caveats below 1 % of a group's cases stay off the card
 
 
@@ -539,7 +547,10 @@ def _labels_for(contrast: Any, labels: Callable[[str], str | None] | None) -> di
 
 
 # The form of the comparison sentence; part of the parameters hash so that cached sentences are rebuilt when it changes.
-COMPARISON_FORM = 2
+# 3: the bracket is the difference of the two printed numbers at the precision of the coarser of the two (R3-04).
+# A run scored under an earlier form keeps its stored sentences; ``load_backlog_analytics`` applies the rule to
+# them on the way out, so the form version decides what is written and never what is served.
+COMPARISON_FORM = 3
 
 
 def _count_noun(norm: wise.Norm | None, cid: str) -> str | None:
@@ -658,6 +669,30 @@ class BacklogAnalytics:
         return self.stability is not None or self.kinds is not None
 
 
+#: The columns of a stored analytics table that hold a rendered comparison sentence.
+_SENTENCE_COLUMNS = ("comparison", "sentence", "median_comparison")
+
+
+def bracketed(table: pd.DataFrame | None) -> pd.DataFrame | None:
+    """A stored table with every comparison sentence in it obeying *one comparison, one bracket* (R3-04).
+
+    The sentences are rendered by the analytics job and kept on disk, so a run scored before the rule existed
+    holds brackets that are the package's shift estimate — *83 days here against 55 elsewhere (+25 days)* —
+    and nothing recomputes them when the run is read. Repairing them here, at the one place the stored table
+    is loaded, means no consumer of this service can be served a sentence that breaks the rule, whichever
+    release scored the run.
+    """
+    if table is None or table.empty:
+        return table
+    columns = [c for c in _SENTENCE_COLUMNS if c in table.columns]
+    if not columns:
+        return table
+    out = table.copy()
+    for col in columns:
+        out[col] = [with_printed_bracket(v) if isinstance(v, str) else v for v in out[col]]
+    return out
+
+
 def load_backlog_analytics(
     ws: Workspace, run_dir: Path, slicing_id: str, attrs: list[str], view: str
 ) -> BacklogAnalytics | None:
@@ -689,7 +724,7 @@ def load_backlog_analytics(
     return BacklogAnalytics(
         stability=table("bootstrap_backlog", f"bootstrap_backlog:{slicing_id}:{view}"),
         kinds=table("problem_kinds", f"problem_kinds:{slicing_id}"),
-        comparisons=table("comparisons", f"comparisons:{slicing_id}:{view}"),
+        comparisons=bracketed(table("comparisons", f"comparisons:{slicing_id}:{view}")),
         caveats=table("caveats", f"caveats:{slicing_id}"),
         window_end=pd.Timestamp(end) if end else None,
         record_ids=record_ids,
@@ -997,6 +1032,47 @@ def slice_caveats(
 
 def manifest_json(ws: Workspace, run_dir: Path) -> dict[str, Any]:
     return AnalyticsStore(ws, run_dir).manifest()
+
+
+def readiness_report(ws: Workspace, run_dir: Path) -> dict[str, Any]:
+    """The run's readiness gate check by check, and which of the checks a group can be judged on (R3-03).
+
+    Five of the eleven checks measure something a group has its own share of — how much of it is still open, how
+    much of it carries copied or duplicated postings, how much of it sits at the window edge, how many of its
+    stamps are placeholders. The others are properties of the log as a whole (drift, precision, exposure scale,
+    timestamp concentration): they are true of every group at once, so they are stated once at the run and
+    cannot separate one group from another.
+    """
+    store = AnalyticsStore(ws, run_dir)
+    manifest = store.manifest()
+    record = (manifest.get("records") or {}).get("readiness") or {}
+    phash = str(record.get("paramsHash") or "")
+    cached = store.load("readiness", phash) if phash else None
+    checks: list[dict[str, Any]] = []
+    if cached is not None and not cached.table.empty:
+        table = cached.table.reset_index() if cached.table.index.name else cached.table
+        for rec in table.to_dict("records"):
+            name = str(rec.get("check") or rec.get("index") or "")
+            checks.append(
+                {
+                    "check": name,
+                    "status": str(rec.get("status") or "unknown"),
+                    "metric": rec.get("metric"),
+                    "value": jsonable(rec.get("value")),
+                    "warnAt": jsonable(rec.get("threshold_warn")),
+                    "failAt": jsonable(rec.get("threshold_fail")),
+                    "evidence": str(rec.get("evidence") or ""),
+                    "perGroup": GROUP_SCOPED_CHECKS.get(name),
+                }
+            )
+    return {
+        "status": str(manifest.get("readinessStatus") or "unknown"),
+        "checks": checks,
+        "failed": [c["check"] for c in checks if c["status"] == "fail"],
+        "warned": [c["check"] for c in checks if c["status"] == "warn"],
+        "logWideFailed": [c["check"] for c in checks if c["status"] == "fail" and not c["perGroup"]],
+        "perGroupFailed": [c["check"] for c in checks if c["status"] == "fail" and c["perGroup"]],
+    }
 
 
 def dumps(data: Any) -> str:

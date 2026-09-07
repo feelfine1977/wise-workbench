@@ -7,9 +7,34 @@ activity labels and the threshold in the unit the log carries. Nothing here deci
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import wise
+
+_NEVER_OCCURS = re.compile(r"^constraint '([^']+)': activity '([^']+)' never occurs")
+
+
+def warning_sentence(warning: str, *, expectation: str | None, activity: str | None) -> str:
+    """A norm warning as a sentence, with both names in words (P1-8).
+
+    The library warns *constraint 'o_deliv_delivery_present': activity 'o2c.rejection_change' never occurs in
+    the log*, and that reached the reader as the first paragraph of a group. Where both names are known it
+    becomes *A delivery exists is never missed here, because Rejection reason changed never occurs in this
+    log*; where either is not, the warning is kept as it came — a wrong name is worse than a raw one — with
+    the clause that says what it means for the reading. There is no full stop: the caller ends the sentence.
+    """
+    match = _NEVER_OCCURS.match(warning.strip())
+    if not match or not expectation or not activity:
+        return f"{warning.rstrip('.')}; this expectation is never missed for that reason"
+    return f"{expectation} is never missed here, because {activity} never occurs in this log"
+
+
+def warned_activity(warning: str) -> str | None:
+    """The activity a norm warning names, when it names one."""
+    match = _NEVER_OCCURS.match(warning.strip())
+    return match.group(2) if match else None
+
 
 UNITS = {
     "D": "days",

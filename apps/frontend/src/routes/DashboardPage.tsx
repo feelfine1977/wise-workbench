@@ -14,11 +14,22 @@ import { Card, CardTitle } from "@/components/ui/misc";
 import { useWorkbench } from "@/app/context";
 import { fmtDateTime, fmtInt, fmtPct } from "@/lib/format";
 import { backlogQuery, runSummaryQuery } from "@/lib/queries";
+import { notServed, reviewQuery, type ReviewItem } from "@/lib/api/cycle4";
 import { useFindingStore } from "@/lib/stores/findings";
-import { belowExpectation, groupLabel, missedPhrase, sharedKeyValues } from "@/lib/sentences";
+import { belowExpectation, comparisonSentence, groupLabel, missedPhrase, sharedKeyValues } from "@/lib/sentences";
 import { sliceLabel, tableRecords } from "@/lib/utils";
+import { plainReadiness } from "./data/ReadinessDecisions";
 import { distanceSentence } from "./backlog/SignalCard";
 import { YourProcess } from "./flow/YourProcess";
+
+/** What a review record is, in words: the kinds the server keeps. */
+const recordWords = (kind: string) => ({ action: "action", hypothesis: "to test", finding: "finding", gate: "check" })[kind] ?? kind;
+/** The role a record names, wherever the kind writes it. */
+const ownerOf = (r: ReviewItem) => {
+  const own = r as { owner_role?: string | null; owner?: string | null };
+  const value = own.owner_role ?? own.owner;
+  return typeof value === "string" && value ? value : undefined;
+};
 
 /**
  * The dashboard (R2-O9): one dominant sentence — the top signal of the latest run — with the next step, then
@@ -34,6 +45,21 @@ export default function DashboardPage() {
   const summary = useQuery({ ...runSummaryQuery(ctx.projectId, run?.id ?? ""), enabled: !!run && run.status === "done" });
   const slicing = ctx.slicing ?? "";
   const top = useQuery({ ...backlogQuery(ctx.projectId, run?.id ?? "", { slicing, view: ctx.view, minCases: run?.minCases ?? 20, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && run.status === "done" && !!slicing });
+  /**
+   * *Open findings* is what the **server** holds (P1-6).
+   *
+   * An action proposed on *What can we do?* was saved on the server and the dashboard read a different,
+   * browser-local list, so the exit criterion's *appears on the dashboard* failed: the card said "No finding
+   * yet" while the run held the action. It now reads the three review collections, so a record made in one
+   * browser is on the dashboard of the next one and survives a restart. The local store is kept only for the
+   * analyst's own slice disposition, which has no endpoint yet, and is shown beside them.
+   */
+  const actions = useQuery({ ...reviewQuery(ctx.projectId, "actions"), enabled: !!ctx.projectId });
+  const hypotheses = useQuery({ ...reviewQuery(ctx.projectId, "hypotheses"), enabled: !!ctx.projectId });
+  const serverFindings = useQuery({ ...reviewQuery(ctx.projectId, "findings"), enabled: !!ctx.projectId });
+  const open = (rows: ReviewItem[] | undefined) => (rows ?? []).filter((r) => !["done", "dropped", "closed", "rejected"].includes(String(r.status)));
+  const records = [...open(actions.data), ...open(hypotheses.data), ...open(serverFindings.data)].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  const recordsUnavailable = notServed(actions.error) && notServed(hypotheses.error) && notServed(serverFindings.error);
   const findings = Object.values(useFindingStore((s) => s.findings)).filter((f) => f.projectId === ctx.projectId);
   const readiness = ctx.caseTable?.readiness;
 
@@ -114,7 +140,7 @@ export default function DashboardPage() {
                   )}
                   {missedPhrase(first) ? `, mostly ${plain ? missedPhrase(first) : first.dominant_layer_name}` : ""}.
                 </p>
-                {first.comparison && <p className="reading text-base text-text-muted">{first.comparison}</p>}
+                {first.comparison && <p className="reading text-base text-text-muted">{comparisonSentence(first)}</p>}
               </>
             ) : (
               top.isPending && <LoadingBlock rows={1} />
@@ -185,7 +211,9 @@ export default function DashboardPage() {
                   {[...fails, ...warns].slice(0, 4).map((i) => (
                     <li key={i.id} className="flex items-start gap-2">
                       <GateBadge state={i.level === "fail" ? "failed" : "pending"} label={i.level} />
-                      <span className="clamp-2 text-text-muted">{i.message.split(";")[0]}</span>
+                      {/* the machine's own sentence carries ISO stamps and its `value(s)`; the reader's words
+                          are the same sentence without them, as the Data step already reads them (P1-13) */}
+                      <span className="clamp-2 text-text-muted">{plainReadiness(String(i.message)).split(";")[0]}</span>
                     </li>
                   ))}
                 </ul>
@@ -201,7 +229,36 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardTitle>Open findings</CardTitle>
-            {findings.length === 0 ? (
+            {records.length > 0 && (
+              <ul className="divide-y divide-border text-sm" data-testid="open-records">
+                {records.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center gap-3 py-2">
+                    {r.runId && r.sliceKey ? (
+                      <Link
+                        className="font-medium text-accent-text underline"
+                        to="/p/$projectId/runs/$runId/slices/$sliceKey"
+                        params={{ projectId: ctx.projectId, runId: r.runId, sliceKey: r.sliceKey }}
+                        search={{ slicing: r.slicing ?? ctx.slicing, view: r.view ?? ctx.view, tab: "why" }}
+                      >
+                        {sliceLabel({ key: r.sliceKey })}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{sliceLabel({ key: r.sliceKey ?? "the run" })}</span>
+                    )}
+                    <Badge variant="outline">{recordWords(r.kind)}</Badge>
+                    <span className="reading text-text">{r.title || r.note || "no title"}</span>
+                    {ownerOf(r) && <span className="text-text-muted">owner: {ownerOf(r)}</span>}
+                    <Badge variant="accent">{String(r.status).replace(/_/g, " ")}</Badge>
+                    {r.author && <span className="text-text-muted">{r.author}</span>}
+                    <span className="ml-auto text-xs text-text-subtle">{fmtDateTime(r.updatedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {records.length === 0 && recordsUnavailable && (
+              <p className="reading text-sm text-text-muted">This backend does not keep findings, hypotheses and actions yet, so nothing recorded survives a restart.</p>
+            )}
+            {records.length === 0 && !recordsUnavailable && findings.length === 0 ? (
               <p className="reading text-sm text-text-muted">
                 No finding yet. Findings are written on a group's decision pane; only human decisions ask for a note.{" "}
                 <Link className="text-accent-text underline" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: run.id }} search={{ slicing: ctx.slicing, view: ctx.view }}>
@@ -210,7 +267,7 @@ export default function DashboardPage() {
                 .
               </p>
             ) : (
-              <ul className="divide-y divide-border text-sm">
+              <ul className="divide-y divide-border text-sm" data-testid="local-dispositions">
                 {findings.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center gap-3 py-2">
                     <Link className="font-medium text-accent-text underline" to="/p/$projectId/runs/$runId/slices/$sliceKey" params={{ projectId: ctx.projectId, runId: f.runId, sliceKey: f.key }} search={{ slicing: f.slicing, tab: "why" }}>

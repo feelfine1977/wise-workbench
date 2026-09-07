@@ -3,9 +3,10 @@ import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, P
 import type { DecisionRequest, Snapshot, SnapshotContext, Within } from "@/lib/api/cycle2";
 import { parseFilter } from "@/lib/filter";
 import { UNCALIBRATED, pageBacklog } from "./fixtures/backlog";
-import { applyFilter, backlogParamsC2, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";
+import { applyFilter, backlogParamsC2, caveatSummary, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";
 import { facetsFor, kpisFor, pathsForFocus, scaleDistribution } from "./fixtures/board";
-import { activityProfile, constraintCheck, type GateStatus, decisionItemsFor, gatesFor, guidanceFor, guidanceQuestions, hubIndex, hubPage, inventoryFor, manifestFor, newReviewItem, review, updateReviewItem, whatCanWeDoFor } from "./fixtures/cycle3";
+import { activityProfile, constraintCheck, decisionItemsFor, guidanceQuestions, manifestFor, newReviewItem, review, updateReviewItem } from "./fixtures/cycle3";
+import { applicabilityOptionsFor, calibrationFor, changeTableFor, decideGate, gatesFor, guidanceFor, hubIndex, hubPage, inventoryFor, newScenario, scenarios, setOverlay, transformPreviewFor, whatCanWeDoFor } from "./fixtures/cycle4";
 import { buildDistribution } from "./fixtures/distribution";
 import { buildFlow } from "./fixtures/flow";
 import { bpic19Norm } from "./fixtures/norm";
@@ -27,6 +28,37 @@ function problem(status: number, title: string, detail?: string, code?: string) 
 }
 
 const num = (v: string | null, fallback: number) => (v === null || v === "" || Number.isNaN(Number(v)) ? fallback : Number(v));
+
+/**
+ * The clause kinds this run understands. The served backend refuses an unknown one with a 422 in eleven
+ * milliseconds (R3-12); the mocks refuse it the same way, so the screens can be checked against the state a
+ * pasted address actually produces rather than against one that never happens here.
+ */
+const CLAUSE_KINDS = new Set(["time", "attribute", "activity", "follows", "lag", "count", "open", "constraint", "slice", "any"]);
+
+function unknownClause(raw: string | null): string | undefined {
+  if (!raw) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "the filter in the address is not readable";
+  }
+  const walk = (clauses: unknown[]): string | undefined => {
+    for (const c of clauses) {
+      const kind = (c as { kind?: unknown })?.kind;
+      if (typeof kind !== "string" || !CLAUSE_KINDS.has(kind)) return `unknown clause kind ${String(kind)}`;
+      const nested = (c as { clauses?: unknown[] }).clauses;
+      if (Array.isArray(nested)) {
+        const bad = walk(nested);
+        if (bad) return bad;
+      }
+    }
+    return undefined;
+  };
+  const and = (parsed as { and?: unknown[] })?.and;
+  return Array.isArray(and) ? walk(and) : "a filter is an object with an \"and\" list";
+}
 
 function runOr404(runId: string) {
   return db.runs.find((r) => r.id === runId);
@@ -293,12 +325,31 @@ export const handlers = [
     await delay(latency);
     const caseTableId = new URL(request.url).searchParams.get("caseTableId");
     if (!caseTableId) return problem(422, "Unprocessable Content", "caseTableId is required", "norm.case_table");
-    return HttpResponse.json(inventoryFor(caseTableId));
+    const table = db.caseTables.find((c) => c.id === caseTableId);
+    return HttpResponse.json(inventoryFor(caseTableId, table?.cases ?? 0, table?.events ?? 0));
+  }),
+  // what an expectation can be made to apply to on this log, and which of the rules' flow types it has none
+  // of and why (R3-02, R3-15)
+  http.get(`${API}/projects/:projectId/norms/applicability`, async ({ request }) => {
+    await delay(latency);
+    const caseTableId = new URL(request.url).searchParams.get("caseTableId");
+    if (!caseTableId) return problem(422, "Unprocessable Content", "caseTableId is required", "norm.case_table");
+    const table = db.caseTables.find((c) => c.id === caseTableId);
+    if (!table) return problem(404, "Not Found", "case table not found", "norm.case_table");
+    return HttpResponse.json(applicabilityOptionsFor(caseTableId, table.cases ?? 0));
   }),
   http.get(`${API}/projects/:projectId/norms/guidance-questions`, async ({ request }) => {
     await delay(latency);
     const u = new URL(request.url);
     return HttpResponse.json(guidanceQuestions(u.searchParams.get("kind") ?? "layer", u.searchParams.get("id") ?? undefined));
+  }),
+  // every threshold of a version with its rationale and its owner, and what still keeps it in draft (R3-02)
+  http.get(`${API}/projects/:projectId/norms/:normVersionId/calibration`, async ({ params }) => {
+    await delay(latency);
+    const n = db.norms.find((x) => x.id === params.normVersionId);
+    if (!n) return problem(404, "Not Found", "norm version not found", "norm.not_found");
+    const doc = (n.norm ?? {}) as { constraints?: { id: string; type?: string; params?: Record<string, unknown> }[] };
+    return HttpResponse.json(calibrationFor(n.id, n.status, doc.constraints ?? []));
   }),
   http.post(`${API}/projects/:projectId/norms/constraints/check`, async ({ request }) => {
     const body = (await request.json().catch(() => ({}))) as { caseTableId?: string; constraint?: Record<string, unknown> };
@@ -397,6 +448,8 @@ export const handlers = [
     if (!run.views?.includes(view)) return problem(422, "Unprocessable Content", `view ${view} is not part of this run; available: ${run.views?.join(", ")}`, "backlog.view");
     const gamma = num(u.searchParams.get("gamma"), run.gamma ?? 20);
     const minCases = num(u.searchParams.get("minCases"), 20);
+    const badClause = unknownClause(u.searchParams.get("filter"));
+    if (badClause) return problem(422, "Unprocessable Content", badClause, "filter.clause");
     const filter = parseFilter(u.searchParams.get("filter"));
     const drillFrom = u.searchParams.get("drillFrom");
     const drillKey = u.searchParams.get("drillKey");
@@ -442,7 +495,13 @@ export const handlers = [
       ...page,
       rows: page.rows.map((r) => enrichRow(r, view, illustrative)),
       total: unfiltered && source.total ? source.total : page.total,
-      params: { ...page.params, ...(attributes ? { attributes } : {}), bands: [], ...backlogParamsC2(illustrative, { gamma, filter: filter ?? null, drill, scope: run.scope ?? null, cases }) },
+      params: {
+        ...page.params,
+        ...(attributes ? { attributes } : {}),
+        bands: [],
+        // the caveat line reads the run, not the page it happens to be on (R3-09)
+        ...backlogParamsC2(illustrative, { gamma, filter: filter ?? null, drill, scope: run.scope ?? null, cases, caveat_summary: caveatSummary(rows.map((r) => enrichRow(r, view, illustrative))) }),
+      },
     });
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/slicings/preview`, async ({ params, request }) => {
@@ -470,8 +529,10 @@ export const handlers = [
     await delay(latency);
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
-    const filter = parseFilter(new URL(request.url).searchParams.get("filter"));
-    return HttpResponse.json(filterPreviewFor(filter, summaryFor(run.id).cases ?? 251734));
+    const raw = new URL(request.url).searchParams.get("filter");
+    const badClause = unknownClause(raw);
+    if (badClause) return problem(422, "Unprocessable Content", badClause, "filter.clause");
+    return HttpResponse.json(filterPreviewFor(parseFilter(raw), summaryFor(run.id).cases ?? 251734));
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/analytics`, async ({ params }) => {
     await delay(latency);
@@ -502,6 +563,8 @@ export const handlers = [
     const u = new URL(request.url);
     const slicing = u.searchParams.get("slicing");
     if (!slicing) return problem(422, "Unprocessable Content", "slicing is required", "backlog.slicing");
+    const badClause = unknownClause(u.searchParams.get("filter"));
+    if (badClause) return problem(422, "Unprocessable Content", badClause, "filter.clause");
     const view = u.searchParams.get("view") || run.views?.[0] || "Finance";
     const source = backlogFor(run.id, slicing, view, run.gamma ?? 20, 1);
     // the key is a JSON array (URL-encoded in the path); a bare value is accepted for single-attribute slicings
@@ -609,6 +672,8 @@ export const handlers = [
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
     const u = new URL(request.url);
+    const bad = unknownClause(u.searchParams.get("filter"));
+    if (bad) return problem(422, "Unprocessable Content", bad, "filter.clause");
     const filter = parseFilter(u.searchParams.get("filter"));
     const sliceKey = u.searchParams.get("sliceKey") ?? undefined;
     const slicing = u.searchParams.get("slicing") ?? undefined;
@@ -651,11 +716,17 @@ export const handlers = [
   }),
   http.get(`${API}/projects/:projectId/knowledge/hub/:nodeId`, async ({ params }) => {
     await delay(latency);
-    return HttpResponse.json(hubPage(String(params.nodeId)));
+    const page = hubPage(String(params.nodeId));
+    return page ? HttpResponse.json(page) : problem(404, "Not Found", "this process pack has no page for that node", "knowledge.not_found");
   }),
   http.get(`${API}/projects/:projectId/guidance/:kind/:entryId`, async ({ params }) => {
     await delay(latency);
     return HttpResponse.json(guidanceFor(String(params.kind), String(params.entryId)));
+  }),
+  http.put(`${API}/projects/:projectId/guidance/:kind/:entryId`, async ({ params, request }) => {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    if (typeof body.note !== "string" || !body.note.trim()) return problem(422, "Unprocessable Content", "a note is required", "guidance.note");
+    return HttpResponse.json(setOverlay(String(params.kind), String(params.entryId), body));
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/manifest`, async ({ params }) => {
     await delay(latency);
@@ -694,15 +765,51 @@ export const handlers = [
     const slicing = u.searchParams.get("slicing");
     const key = u.searchParams.get("key");
     if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "gates.group");
-    const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string };
-    const gates = gatesFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined);
+    const body = (await request.json().catch(() => ({}))) as { status?: string; note?: string; author?: string };
+    const view = u.searchParams.get("view") ?? undefined;
+    const gates = gatesFor(run.id, slicing, key, view);
     const gate = gates.gates.find((g) => g.id === String(params.gateId));
     if (!gate) return problem(404, "Not Found", `unknown gate ${String(params.gateId)}`, "gates.not_found");
-    if (body.status === "waived" && !body.note) return problem(422, "Unprocessable Content", "a waived gate needs a note", "gates.note");
-    const status = (body.status ?? gate.status) as GateStatus;
-    const updated = gates.gates.map((g) => (g.id === gate.id ? { ...g, status } : g));
-    const blocking = updated.filter((g) => g.status !== "passed" && g.status !== "waived").map((g) => g.id);
-    return HttpResponse.json({ ...gates, gates: updated, blocking, passed: blocking.length === 0 });
+    if ((body.status === "waived" || body.status === "passed") && !body.note) return problem(422, "Unprocessable Content", "a waived or passed gate needs a note", "gates.note");
+    const updated = decideGate(run.id, slicing, key, gate.id, body);
+    // the contract answers with the whole gate list, so the screen sees at once what is still blocking
+    return updated ? HttpResponse.json(gatesFor(run.id, slicing, key, view)) : problem(422, "Unprocessable Content", "a waived or passed gate needs a note", "gates.note");
+  }),
+  // what-if against a frozen baseline (R3-27): the scenario is queued as a job and read back as a change table
+  http.post(`${API}/projects/:projectId/runs/:runId/whatif`, async ({ params, request }) => {
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    if (typeof body.name !== "string" || !body.name.trim()) return problem(422, "Unprocessable Content", "a scenario needs a name", "whatif.name");
+    const scenario = newScenario(run.id, body);
+    const job = createJob("whatif", `scoring ${scenario.name} against ${run.id}`, undefined, 0.2);
+    return HttpResponse.json({ ...job, resultRef: `run:${scenario.runId}` }, { status: 202 });
+  }),
+  http.post(`${API}/projects/:projectId/runs/:runId/whatif/preview`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const body = (await request.json().catch(() => ({}))) as { transforms?: Record<string, unknown>[] };
+    return HttpResponse.json(transformPreviewFor(run.id, body.transforms ?? []));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/whatif`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    return HttpResponse.json(
+      changeTableFor(
+        run.id,
+        u.searchParams.get("slicing") ?? run.slicings?.[0]?.id ?? "case Vendor",
+        u.searchParams.get("view") ?? run.views?.[0] ?? "Automation",
+        Number(u.searchParams.get("minCases") ?? run.minCases ?? 1) || 1,
+      ),
+    );
+  }),
+  http.get(`${API}/projects/:projectId/scenarios`, async ({ request }) => {
+    await delay(latency);
+    const baseline = new URL(request.url).searchParams.get("baselineRunId");
+    return HttpResponse.json(scenarios.filter((s) => !baseline || s.baselineRunId === baseline));
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/what-can-we-do`, async ({ params, request }) => {
     await delay(latency);
@@ -712,14 +819,25 @@ export const handlers = [
     const slicing = u.searchParams.get("slicing");
     const key = u.searchParams.get("key");
     if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "whatcanwedo.group");
-    return HttpResponse.json(whatCanWeDoFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined));
+    return HttpResponse.json(whatCanWeDoFor(run.id, slicing, key, u.searchParams.get("view") ?? undefined, Number(u.searchParams.get("top") ?? 3) || 3));
   }),
   ...(["hypotheses", "findings", "actions"] as const).flatMap((collection) => {
     const kind = collection === "hypotheses" ? ("hypothesis" as const) : collection === "findings" ? ("finding" as const) : ("action" as const);
     return [
-      http.get(`${API}/projects/:projectId/${collection}`, async ({ params }) => {
+      http.get(`${API}/projects/:projectId/${collection}`, async ({ params, request }) => {
         await delay(latency);
-        return HttpResponse.json(review.filter((r) => r.kind === kind && r.projectId === String(params.projectId)));
+        const u = new URL(request.url);
+        const runId = u.searchParams.get("runId");
+        const sliceKey = u.searchParams.get("sliceKey");
+        return HttpResponse.json(
+          review.filter(
+            (r) =>
+              r.kind === kind &&
+              r.projectId === String(params.projectId) &&
+              (!runId || !r.runId || r.runId === runId) &&
+              (!sliceKey || !r.sliceKey || canonical(r.sliceKey) === canonical(sliceKey)),
+          ),
+        );
       }),
       http.post(`${API}/projects/:projectId/${collection}`, async ({ params, request }) => {
         const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;

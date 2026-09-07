@@ -27,6 +27,7 @@ class JobKind(StrEnum):
     SCORE_RUN = "score_run"
     LOAD_PRESET = "load_preset"
     ANALYTICS = "analytics"
+    WHATIF = "whatif"
 
 
 FINAL_STATUSES = {JobStatus.DONE, JobStatus.FAILED, JobStatus.CANCELLED}

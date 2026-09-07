@@ -3,7 +3,7 @@ import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRout
 import { projectsQuery } from "@/lib/queries";
 import { AppShell } from "./shell/AppShell";
 import { NotFound } from "./NotFound";
-import { parseSearch, stringifySearch, validateBacklogSearch, validateBoardSearch, validateDatasetSearch, validateFlowSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { parseSearch, stringifySearch, validateActSearch, validateBacklogSearch, validateBoardSearch, validateDatasetSearch, validateFlowSearch, validateKnowledgeSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
 import { LoadingBlock } from "@/components/states";
 
 export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -107,6 +107,28 @@ export const sliceRoute = createRoute({
   component: lazyRouteComponent(() => import("@/routes/slice/SlicePage")),
 });
 
+/** The seventh step of one group: *What can we do?* (R3-01). */
+export const actRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "runs/$runId/slices/$sliceKey/act",
+  validateSearch: validateActSearch,
+  component: lazyRouteComponent(() => import("@/routes/act/ActPage")),
+});
+
+/** The knowledge hub: the index, and a page per node (R3-05). */
+export const knowledgeRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "knowledge",
+  validateSearch: validateKnowledgeSearch,
+  component: lazyRouteComponent(() => import("@/routes/knowledge/KnowledgeHubPage")),
+});
+
+export const hubNodeRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "knowledge/$nodeId",
+  component: lazyRouteComponent(() => import("@/routes/knowledge/HubNodePage")),
+});
+
 export const notebookRoute = createRoute({
   getParentRoute: () => projectRoute,
   path: "notebook",
@@ -117,7 +139,7 @@ export const notebookRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   projectsRoute,
-  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, flowRoute, boardRoute, sliceRoute, notebookRoute]),
+  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, flowRoute, boardRoute, actRoute, sliceRoute, knowledgeRoute, hubNodeRoute, notebookRoute]),
 ]);
 
 export function createAppRouter(queryClient: QueryClient, history?: Parameters<typeof createRouter>[0]["history"]) {

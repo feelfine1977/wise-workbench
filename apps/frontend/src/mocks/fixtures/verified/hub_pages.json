@@ -1,0 +1,1402 @@
+{
+ "expectation:p2p_bpic19:c_l3_invoice_to_clear_days": {
+  "node": {
+   "id": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "kind": "expectation",
+   "plain_name": "Paid within terms",
+   "method_name": "Invoice-bearing flows should clear in a reasonable time.",
+   "template": "p2p_bpic19",
+   "constraint_id": "c_l3_invoice_to_clear_days",
+   "constraint_type": "lag",
+   "layer": "timeliness_ageing",
+   "missed_label": "invoices cleared late"
+  },
+  "guidance": {
+   "kind": "constraint",
+   "id": "c_l3_invoice_to_clear_days",
+   "plain_name": "Paid within terms",
+   "missed_label": "invoices cleared late",
+   "expectation": "Invoices are cleared within the agreed days after the invoice (30 days, tolerance to 90 in the paper's norm; the real payment terms of the vendor once they are a case attribute).",
+   "meaning_when_missed": "The invoice waited longer than the target before payment, because of a block, a payment-run calendar, long terms or a dispute.",
+   "why_it_matters": "Lost discounts, vendor escalations and delivery stops when paid late; working capital paid out early when the terms are longer than the target.",
+   "how_detected": "A time rule from the first invoice evidence to the clearing on invoice-bearing items, scored between met at 30 days and fully missed at 90. In BPIC 2019 the median is 63.6 days and 88.9 % of cleared items exceed 30 days, so without payment terms this rule is a lateness meter rather than a pass-fail rule; the baseline scores open invoices by their age.",
+   "usual_reasons": [
+    {
+     "text": "Contractual terms of 60 or 90 days, so the item is on time by contract",
+     "where": "log",
+     "check": "median invoice-to-clearing days per vendor; vendors with medians near 60 or 90 days"
+    },
+    {
+     "text": "Payment block until a variance or missing receipt is resolved",
+     "where": "log",
+     "check": "block release on the same items and the lag from receipt to release"
+    },
+    {
+     "text": "The item was still open at the end of the data",
+     "where": "log",
+     "check": "censored share; score open invoices by age"
+    },
+    {
+     "text": "Payment runs on fixed dates and period-end holds",
+     "where": "outside",
+     "check": "ask accounts payable for the payment-run calendar"
+    },
+    {
+     "text": "Dispute with the vendor about price or quantity",
+     "where": "outside",
+     "check": "ask accounts payable for dispute cases on the top late vendors"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "Payment terms per vendor as a case attribute and days beyond terms as the scored quantity",
+     "countermeasure": "measurement",
+     "owner_role": "finance_controlling",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Blocked-invoice review cadence with owners per blocking reason",
+     "countermeasure": "review",
+     "owner_role": "accounts_payable",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Early-payment discounts where cash allows",
+     "countermeasure": "contract",
+     "owner_role": "vendor_management",
+     "effect_area": "timeliness_ageing"
+    }
+   ],
+   "what_to_check_first": [
+    "Payment terms of the vendors with the longest medians",
+    "Share of blocked invoices among the late ones",
+    "Censored share at the end of the data"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "Invoice posted in May, block released in August, cleared 106 days after the invoice, on 30-day terms.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Invoice posted and cleared 28 days later on the payment run.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.invoice_to_clear_days"
+   ],
+   "owner_role": "accounts_payable",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "templates": [
+    "p2p_bpic19",
+    "p2p_bpic19_v1_1"
+   ],
+   "hub_node": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+   "method_name": "Invoice-bearing flows should clear in a reasonable time."
+  },
+  "related": {
+   "stage": {
+    "id": "stage:pay",
+    "kind": "stage",
+    "plain_name": "Pay",
+    "method_name": "pay"
+   },
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_closure_clear_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_time_invoice_to_clear",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoices should clear within terms; open invoices are scored by their age."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+     "kind": "failure_mode",
+     "plain_name": "Invoice unpaid or paid late",
+     "method_name": "Invoice not cleared or cleared late"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.invoice_to_clear_days",
+     "kind": "kpi",
+     "plain_name": "Invoice to clearing days (DPO proxy)",
+     "method_name": "lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta"
+    },
+    {
+     "id": "kpi:p2p.kpi.open_invoice_share",
+     "kind": "kpi",
+     "plain_name": "Open invoice share",
+     "method_name": "share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice"
+    }
+   ],
+   "playbook": [],
+   "reasons": [
+    {
+     "id": "reason:160b3d7027",
+     "kind": "reason",
+     "plain_name": "Contractual terms of 60 or 90 days, so the item is on time by contract",
+     "method_name": "in the log: median invoice-to-clearing days per vendor; vendors with medians near 60 or 90 days"
+    },
+    {
+     "id": "reason:b2d955420f",
+     "kind": "reason",
+     "plain_name": "Payment block until a variance or missing receipt is resolved",
+     "method_name": "in the log: block release on the same items and the lag from receipt to release"
+    },
+    {
+     "id": "reason:86efcad176",
+     "kind": "reason",
+     "plain_name": "The item was still open at the end of the data",
+     "method_name": "in the log: censored share; score open invoices by age"
+    },
+    {
+     "id": "reason:c2da5beca3",
+     "kind": "reason",
+     "plain_name": "Payment runs on fixed dates and period-end holds",
+     "method_name": "outside the log: ask accounts payable for the payment-run calendar"
+    },
+    {
+     "id": "reason:6fbdff0b7b",
+     "kind": "reason",
+     "plain_name": "Dispute with the vendor about price or quantity",
+     "method_name": "outside the log: ask accounts payable for dispute cases on the top late vendors"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:5c202d3cf3",
+     "kind": "action",
+     "plain_name": "Payment terms per vendor as a case attribute and days beyond terms as the scored quantity",
+     "method_name": "measurement fix"
+    },
+    {
+     "id": "action:cd3514a902",
+     "kind": "action",
+     "plain_name": "Blocked-invoice review cadence with owners per blocking reason",
+     "method_name": "review cadence"
+    },
+    {
+     "id": "action:bf6242ef54",
+     "kind": "action",
+     "plain_name": "Early-payment discounts where cash allows",
+     "method_name": "contract"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days": {
+  "node": {
+   "id": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "kind": "expectation",
+   "plain_name": "Block released soon after the goods",
+   "method_name": "In DF2, goods/service to Remove Payment Block should be timely.",
+   "template": "p2p_bpic19",
+   "constraint_id": "c_l3_df2_goods_to_rpb_days",
+   "constraint_type": "lag",
+   "layer": "timeliness_ageing",
+   "missed_label": "block released late after the goods"
+  },
+  "guidance": {
+   "kind": "constraint",
+   "id": "c_l3_df2_goods_to_rpb_days",
+   "plain_name": "Block released soon after the goods",
+   "missed_label": "block released late after the goods",
+   "expectation": "In invoice-first flows the payment block is released within days of the receipt (2 days, tolerance to 12 in the paper's norm).",
+   "meaning_when_missed": "The goods arrived but the blocked invoice stayed blocked; the release run did not run, or the match failed on price or quantity.",
+   "why_it_matters": "The invoice ages although the goods are there; the vendor is paid late for no reason.",
+   "how_detected": "A time rule from the first receipt to the block release on invoice-first items.",
+   "usual_reasons": [
+    {
+     "text": "Release run scheduled weekly or by hand",
+     "where": "log",
+     "check": "lag distribution from receipt to release; weekday pattern of releases"
+    },
+    {
+     "text": "Price or quantity variance keeps the block after the receipt",
+     "where": "log",
+     "check": "price and quantity changes on the same items around the release"
+    },
+    {
+     "text": "Partial receipt so the quantity block stays until the rest arrives",
+     "where": "log",
+     "check": "receipt count and quantities on the late items"
+    },
+    {
+     "text": "Blocking reason other than the receipt (manual, date)",
+     "where": "outside",
+     "check": "ask accounts payable for the blocking reasons of the late items"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "Daily release run with ownership per blocking reason",
+     "countermeasure": "system_setting",
+     "owner_role": "accounts_payable",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Tolerance review for quantity and price blocks",
+     "countermeasure": "system_setting",
+     "owner_role": "finance_controlling",
+     "effect_area": "timeliness_ageing"
+    }
+   ],
+   "what_to_check_first": [
+    "Weekday pattern of the releases",
+    "Blocking reason from the source system",
+    "Partial receipts on the late items"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "Goods received on the 1st, block released on the 18th after a price change.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Goods received on the 1st, block released by the run on the 2nd.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.payment_block_rate"
+   ],
+   "owner_role": "accounts_payable",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "templates": [
+    "p2p_bpic19",
+    "p2p_bpic19_v1_1"
+   ],
+   "hub_node": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+   "method_name": "In DF2, goods/service to Remove Payment Block should be timely."
+  },
+  "related": {
+   "stage": {
+    "id": "stage:match",
+    "kind": "stage",
+    "plain_name": "Match",
+    "method_name": "match"
+   },
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l2_df2_release_after_goods",
+     "kind": "expectation",
+     "plain_name": "Block released after the goods (invoice-first flow)",
+     "method_name": "In DF2, payment-block release should happen after the first goods/service event."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid soon after the release",
+     "method_name": "In DF2, released items should clear quickly."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l2_df2_release_after_goods",
+     "kind": "expectation",
+     "plain_name": "Block released after the goods (invoice-first flow)",
+     "method_name": "In DF2, payment-block release should happen after the first goods/service event."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_df2_goods_to_rpb_days",
+     "kind": "expectation",
+     "plain_name": "Block released soon after the goods",
+     "method_name": "In DF2, goods/service to Remove Payment Block should be timely."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_df2_rpb_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid soon after the release",
+     "method_name": "In DF2, released items should clear quickly."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_flow_release_after_goods",
+     "kind": "expectation",
+     "plain_name": "Block released after the goods (invoice-first flow)",
+     "method_name": "In invoice-first flows the payment block release should follow the receipt."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.payment_block",
+     "kind": "failure_mode",
+     "plain_name": "Invoice blocked for payment",
+     "method_name": "Invoice blocked for payment"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.payment_block_rate",
+     "kind": "kpi",
+     "plain_name": "Payment block rate",
+     "method_name": "share of cases with count(p2p.payment_block_remove) > 0 among invoice-bearing flows"
+    },
+    {
+     "id": "kpi:p2p.kpi.three_way_match_first_time_rate",
+     "kind": "kpi",
+     "plain_name": "First-time three-way match rate",
+     "method_name": "1 - share of cases with violation > 0 on the exclusion of p2p.payment_block_set or the precedence receipt -> invoice (c_l2_df1_invoice_after_goods)"
+    }
+   ],
+   "playbook": [
+    {
+     "id": "p2p.pb.s8_rca"
+    }
+   ],
+   "reasons": [
+    {
+     "id": "reason:fa674bfefe",
+     "kind": "reason",
+     "plain_name": "Release run scheduled weekly or by hand",
+     "method_name": "in the log: lag distribution from receipt to release; weekday pattern of releases"
+    },
+    {
+     "id": "reason:001086b36e",
+     "kind": "reason",
+     "plain_name": "Price or quantity variance keeps the block after the receipt",
+     "method_name": "in the log: price and quantity changes on the same items around the release"
+    },
+    {
+     "id": "reason:542e885a34",
+     "kind": "reason",
+     "plain_name": "Partial receipt so the quantity block stays until the rest arrives",
+     "method_name": "in the log: receipt count and quantities on the late items"
+    },
+    {
+     "id": "reason:49f3ebb15f",
+     "kind": "reason",
+     "plain_name": "Blocking reason other than the receipt (manual, date)",
+     "method_name": "outside the log: ask accounts payable for the blocking reasons of the late items"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:5e01990f1f",
+     "kind": "action",
+     "plain_name": "Daily release run with ownership per blocking reason",
+     "method_name": "system setting"
+    },
+    {
+     "id": "action:1434bf1477",
+     "kind": "action",
+     "plain_name": "Tolerance review for quantity and price blocks",
+     "method_name": "system setting"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "expectation:p2p_bpic19:c_l7_distinct_human_resources": {
+  "node": {
+   "id": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "kind": "expectation",
+   "plain_name": "Few hands on the item",
+   "method_name": "Too many human handoffs indicate coordination cost.",
+   "template": "p2p_bpic19",
+   "constraint_id": "c_l7_distinct_human_resources",
+   "constraint_type": "metric",
+   "layer": "effort_automation",
+   "missed_label": "many people touched the item"
+  },
+  "guidance": {
+   "kind": "constraint",
+   "id": "c_l7_distinct_human_resources",
+   "plain_name": "Few hands on the item",
+   "missed_label": "many people touched the item",
+   "expectation": "At most two named users work on an item (more than 2 count, 6 saturate).",
+   "meaning_when_missed": "Several people handled the item; each hand-off is a wait and a chance for misunderstanding.",
+   "why_it_matters": "Hand-offs are coordination cost; they show where responsibilities are split.",
+   "how_detected": "A threshold rule on the number of distinct named users in the item's events.",
+   "usual_reasons": [
+    {
+     "text": "Exceptions escalate the item to other people (approvers, accounts payable, warehouse)",
+     "where": "log",
+     "check": "which activities the additional users post"
+    },
+    {
+     "text": "Shared mailboxes and rotating shifts in the warehouse or accounts payable",
+     "where": "outside",
+     "check": "ask the team leads how work is distributed"
+    },
+    {
+     "text": "Header events by other users replicated onto the item",
+     "where": "log",
+     "check": "replication diagnostics"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "End-to-end ownership per vendor or spend area in accounts payable",
+     "countermeasure": "standard_work",
+     "owner_role": "accounts_payable",
+     "effect_area": "effort_automation"
+    },
+    {
+     "text": "Exception reduction upstream",
+     "countermeasure": "standard_work",
+     "owner_role": "purchasing",
+     "effect_area": "value_commercial"
+    }
+   ],
+   "what_to_check_first": [
+    "Replication diagnostics",
+    "Which activities the additional users post"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "Five different users on one item: buyer, two approvers, a warehouse clerk and two accounts payable clerks.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Buyer and one accounts payable clerk.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.touchless_rate"
+   ],
+   "owner_role": "purchasing",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "templates": [
+    "p2p_bpic19",
+    "p2p_bpic19_v1_1"
+   ],
+   "hub_node": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+   "method_name": "Too many human handoffs indicate coordination cost."
+  },
+  "related": {
+   "stage": {
+    "id": "stage:order",
+    "kind": "stage",
+    "plain_name": "Order",
+    "method_name": "order"
+   },
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l7_manual_touches",
+     "kind": "expectation",
+     "plain_name": "Few manual touches",
+     "method_name": "Too many manual touches reduce touchless processing potential."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l7_total_events",
+     "kind": "expectation",
+     "plain_name": "Short event chain",
+     "method_name": "Very long event chains indicate execution friction."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l7_manual_share",
+     "kind": "expectation",
+     "plain_name": "Mostly automatic",
+     "method_name": "High manual share indicates low straight-through processing."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l7_manual_touches",
+     "kind": "expectation",
+     "plain_name": "Few manual touches",
+     "method_name": "Too many manual touches reduce touchless processing potential."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l7_distinct_human_resources",
+     "kind": "expectation",
+     "plain_name": "Few hands on the item",
+     "method_name": "Too many human handoffs indicate coordination cost."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l7_total_events",
+     "kind": "expectation",
+     "plain_name": "Short event chain",
+     "method_name": "Very long event chains indicate execution friction."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.manual_touch_load",
+     "kind": "failure_mode",
+     "plain_name": "Many manual touches and hand-offs",
+     "method_name": "Many manual touches and hand-offs"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.touchless_rate",
+     "kind": "kpi",
+     "plain_name": "Touchless processing rate",
+     "method_name": "1 - share of cases with violation > 0 on the metric constraint over manual_touch_count (c_l7_manual_touches)"
+    }
+   ],
+   "playbook": [],
+   "reasons": [
+    {
+     "id": "reason:32fdc6bcc5",
+     "kind": "reason",
+     "plain_name": "Exceptions escalate the item to other people (approvers, accounts payable, warehouse)",
+     "method_name": "in the log: which activities the additional users post"
+    },
+    {
+     "id": "reason:d11d855eb1",
+     "kind": "reason",
+     "plain_name": "Shared mailboxes and rotating shifts in the warehouse or accounts payable",
+     "method_name": "outside the log: ask the team leads how work is distributed"
+    },
+    {
+     "id": "reason:57778b264b",
+     "kind": "reason",
+     "plain_name": "Header events by other users replicated onto the item",
+     "method_name": "in the log: replication diagnostics"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:a12fe7ec64",
+     "kind": "action",
+     "plain_name": "End-to-end ownership per vendor or spend area in accounts payable",
+     "method_name": "standard work"
+    },
+    {
+     "id": "action:cff26f36cb",
+     "kind": "action",
+     "plain_name": "Exception reduction upstream",
+     "method_name": "standard work"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "layer:timeliness_ageing": {
+  "node": {
+   "id": "layer:timeliness_ageing",
+   "kind": "layer",
+   "plain_name": "On time",
+   "method_name": "Handovers and ageing",
+   "missed_label": "waiting too long between steps"
+  },
+  "guidance": {
+   "kind": "layer",
+   "id": "timeliness_ageing",
+   "plain_name": "On time",
+   "missed_label": "waiting too long between steps",
+   "expectation": "Receipts, invoices, block releases and payments follow each other within the agreed number of days.",
+   "meaning_when_missed": "Items age between two steps; invoices wait for a receipt or a release, released invoices wait for a payment run, and vendors wait for their money.",
+   "why_it_matters": "Lost early-payment discounts, vendor escalations and delivery stops, working capital tied up or paid out too early, and a backlog that accounts payable works through by hand.",
+   "how_detected": "Time-between-steps rules with a target and a tolerance: receipt to invoice in GR-based flows (target 10 days, tolerance to 30 in the paper's norm), invoice to payment (30 days, tolerance to 90), receipt to block release and release to payment in invoice-first flows (2 and 5 days). Each item scores between met and fully missed according to how far beyond the target it is.",
+   "usual_reasons": [
+    {
+     "text": "Long contractual payment terms (60 or 90 days) make a 30-day target look violated",
+     "where": "log",
+     "check": "median invoice-to-payment days per vendor; vendors with medians near 60 or 90 days follow terms, not a delay"
+    },
+    {
+     "text": "Payment blocks hold the invoice until a variance is resolved",
+     "where": "log",
+     "check": "share of items with a block release and the receipt-to-release lag on the same items"
+    },
+    {
+     "text": "The vendor invoices late after delivery",
+     "where": "log",
+     "check": "receipt-to-invoice lag by vendor and spend area"
+    },
+    {
+     "text": "Approval queues delay the release where approvals are logged",
+     "where": "log",
+     "check": "order-to-release lag on items with a logged release"
+    },
+    {
+     "text": "Payment runs on fixed dates and cash-management holds at period end",
+     "where": "outside",
+     "check": "ask accounts payable for the payment-run calendar and any period-end holds"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "Payment terms per vendor as a case attribute so that days beyond terms are scored instead of a fixed target",
+     "countermeasure": "measurement",
+     "owner_role": "finance_controlling",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Root-cause review of blocking reasons with a release cadence per reason",
+     "countermeasure": "review",
+     "owner_role": "accounts_payable",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Accounts payable workload levelling and a target for invoice ageing",
+     "countermeasure": "standard_work",
+     "owner_role": "accounts_payable",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Early-payment discounts where cash allows, agreed per vendor",
+     "countermeasure": "contract",
+     "owner_role": "vendor_management",
+     "effect_area": "timeliness_ageing"
+    }
+   ],
+   "what_to_check_first": [
+    "Payment terms of the vendors with the longest invoice-to-payment medians",
+    "Share of blocked invoices among the late ones",
+    "Whether the late items are still open at the end of the data"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "An invoice posted in May and cleared 106 days later after a block release in August, on a vendor with 30-day terms.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Receipt, invoice within a week, cleared on the next payment run 28 days after the invoice.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.invoice_to_clear_days",
+    "p2p.kpi.gr_to_invoice_days",
+    "p2p.kpi.payment_block_rate"
+   ],
+   "owner_role": "accounts_payable",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "hub_node": "layer:timeliness_ageing",
+   "method_name": "Handovers and ageing"
+  },
+  "related": {
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l3_df1_goods_to_invoice_days",
+     "kind": "expectation",
+     "plain_name": "Invoice soon after the goods",
+     "method_name": "In DF1, invoice should follow goods/service within a target time."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_df2_goods_to_rpb_days",
+     "kind": "expectation",
+     "plain_name": "Block released soon after the goods",
+     "method_name": "In DF2, goods/service to Remove Payment Block should be timely."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_df2_rpb_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid soon after the release",
+     "method_name": "In DF2, released items should clear quickly."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_df1_goods_to_invoice_days",
+     "kind": "expectation",
+     "plain_name": "Invoice soon after the goods",
+     "method_name": "In DF1, invoice should follow goods/service within a target time."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.invoice_before_goods_receipt",
+     "kind": "failure_mode",
+     "plain_name": "Invoice before goods receipt in a GR-based flow",
+     "method_name": "Invoice before goods receipt in a GR-based flow"
+    },
+    {
+     "id": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+     "kind": "failure_mode",
+     "plain_name": "Invoice unpaid or paid late",
+     "method_name": "Invoice not cleared or cleared late"
+    },
+    {
+     "id": "failure_mode:p2p.fm.payment_block",
+     "kind": "failure_mode",
+     "plain_name": "Invoice blocked for payment",
+     "method_name": "Invoice blocked for payment"
+    },
+    {
+     "id": "failure_mode:p2p.fm.late_goods_receipt",
+     "kind": "failure_mode",
+     "plain_name": "Goods late after the scheduled date",
+     "method_name": "Goods receipt after the scheduled delivery date"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.invoice_to_clear_days",
+     "kind": "kpi",
+     "plain_name": "Invoice to clearing days (DPO proxy)",
+     "method_name": "lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta"
+    },
+    {
+     "id": "kpi:p2p.kpi.gr_to_invoice_days",
+     "kind": "kpi",
+     "plain_name": "Goods receipt to invoice days",
+     "method_name": "lag p2p.gr -> p2p.ir in days (c_l3_df1_goods_to_invoice_days); median and p90 per slice"
+    },
+    {
+     "id": "kpi:p2p.kpi.payment_block_rate",
+     "kind": "kpi",
+     "plain_name": "Payment block rate",
+     "method_name": "share of cases with count(p2p.payment_block_remove) > 0 among invoice-bearing flows"
+    },
+    {
+     "id": "kpi:p2p.kpi.three_way_match_first_time_rate",
+     "kind": "kpi",
+     "plain_name": "First-time three-way match rate",
+     "method_name": "1 - share of cases with violation > 0 on the exclusion of p2p.payment_block_set or the precedence receipt -> invoice (c_l2_df1_invoice_after_goods)"
+    },
+    {
+     "id": "kpi:p2p.kpi.open_invoice_share",
+     "kind": "kpi",
+     "plain_name": "Open invoice share",
+     "method_name": "share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice"
+    },
+    {
+     "id": "kpi:p2p.kpi.on_time_receipt_rate",
+     "kind": "kpi",
+     "plain_name": "On-time receipt rate",
+     "method_name": "1 - share of cases with days_late > 0 where days_late = first p2p.gr date minus scheduled delivery date (derived attribute; metric constraint)"
+    }
+   ],
+   "playbook": [
+    {
+     "id": "p2p.pb.s8_rca"
+    }
+   ],
+   "reasons": [
+    {
+     "id": "reason:b79a7a0fe1",
+     "kind": "reason",
+     "plain_name": "Long contractual payment terms (60 or 90 days) make a 30-day target look violated",
+     "method_name": "in the log: median invoice-to-payment days per vendor; vendors with medians near 60 or 90 days follow terms, not a delay"
+    },
+    {
+     "id": "reason:b1dbfec174",
+     "kind": "reason",
+     "plain_name": "Payment blocks hold the invoice until a variance is resolved",
+     "method_name": "in the log: share of items with a block release and the receipt-to-release lag on the same items"
+    },
+    {
+     "id": "reason:d9c43aa6bf",
+     "kind": "reason",
+     "plain_name": "The vendor invoices late after delivery",
+     "method_name": "in the log: receipt-to-invoice lag by vendor and spend area"
+    },
+    {
+     "id": "reason:aee258594e",
+     "kind": "reason",
+     "plain_name": "Approval queues delay the release where approvals are logged",
+     "method_name": "in the log: order-to-release lag on items with a logged release"
+    },
+    {
+     "id": "reason:23a76ea8fd",
+     "kind": "reason",
+     "plain_name": "Payment runs on fixed dates and cash-management holds at period end",
+     "method_name": "outside the log: ask accounts payable for the payment-run calendar and any period-end holds"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:f70f29a4d4",
+     "kind": "action",
+     "plain_name": "Payment terms per vendor as a case attribute so that days beyond terms are scored instead of a fixed target",
+     "method_name": "measurement fix"
+    },
+    {
+     "id": "action:75f5398e78",
+     "kind": "action",
+     "plain_name": "Root-cause review of blocking reasons with a release cadence per reason",
+     "method_name": "review cadence"
+    },
+    {
+     "id": "action:e2be09d080",
+     "kind": "action",
+     "plain_name": "Accounts payable workload levelling and a target for invoice ageing",
+     "method_name": "standard work"
+    },
+    {
+     "id": "action:38a64609c4",
+     "kind": "action",
+     "plain_name": "Early-payment discounts where cash allows, agreed per vendor",
+     "method_name": "contract"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "layer:effort_automation": {
+  "node": {
+   "id": "layer:effort_automation",
+   "kind": "layer",
+   "plain_name": "Touchless where possible",
+   "method_name": "Effort and automation friction",
+   "missed_label": "too many manual touches"
+  },
+  "guidance": {
+   "kind": "layer",
+   "id": "effort_automation",
+   "plain_name": "Touchless where possible",
+   "missed_label": "too many manual touches",
+   "expectation": "Items pass from order to payment with as few manual touches, hand-offs and events as the flow needs.",
+   "meaning_when_missed": "People had to intervene several times on the item, several people touched it, or the item collected a long chain of events.",
+   "why_it_matters": "Effort in purchasing and accounts payable, waiting time at each hand-off, and errors introduced by manual work; the touchless rate is the lever for automation.",
+   "how_detected": "Threshold rules on derived counts: manual touches by named users (more than 4, saturating at 10), distinct human users (more than 2), total events (more than 10) and the manual share of events (above half); batch users are excluded by name.",
+   "usual_reasons": [
+    {
+     "text": "Exceptions (changes, blocks, cancellations) each add manual steps",
+     "where": "log",
+     "check": "which activities carry the manual touches, by constraint and activity"
+    },
+    {
+     "text": "Header events copied onto every item inflate the counts",
+     "where": "log",
+     "check": "replication diagnostics before reading touch counts; type header events away and compare"
+    },
+    {
+     "text": "No electronic vendor integration, so confirmations and invoices are keyed in",
+     "where": "outside",
+     "check": "ask purchasing which vendors send EDI confirmations and e-invoices"
+    },
+    {
+     "text": "Batch users not recognised as such and counted as manual",
+     "where": "log",
+     "check": "user names of the most frequent touches; batch or system users in the resource column"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "Touchless targets per spend area with a monthly review",
+     "countermeasure": "review",
+     "owner_role": "purchasing",
+     "effect_area": "effort_automation"
+    },
+    {
+     "text": "EDI confirmations and e-invoicing with the largest vendors",
+     "countermeasure": "automation",
+     "owner_role": "it_process_owner",
+     "effect_area": "effort_automation"
+    },
+    {
+     "text": "Exception reduction upstream (price and quantity aligned before ordering)",
+     "countermeasure": "standard_work",
+     "owner_role": "purchasing",
+     "effect_area": "value_commercial"
+    },
+    {
+     "text": "Error-proofing in the buying front end (mandatory fields, catalogue defaults)",
+     "countermeasure": "system_setting",
+     "owner_role": "it_process_owner",
+     "effect_area": "effort_automation"
+    }
+   ],
+   "what_to_check_first": [
+    "Replication diagnostics and the batch-user list before trusting the counts",
+    "Which activities and users carry the touches in the affected group",
+    "Whether the touches come with changes, blocks or cancellations on the same items"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "An item with 14 events, six of them manual edits by four different users, before it cleared.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Order, receipt, invoice and payment posted by the system and one buyer, five events in total.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.touchless_rate"
+   ],
+   "owner_role": "purchasing",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "hub_node": "layer:effort_automation",
+   "method_name": "Effort and automation friction"
+  },
+  "related": {
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l7_manual_touches",
+     "kind": "expectation",
+     "plain_name": "Few manual touches",
+     "method_name": "Too many manual touches reduce touchless processing potential."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l7_distinct_human_resources",
+     "kind": "expectation",
+     "plain_name": "Few hands on the item",
+     "method_name": "Too many human handoffs indicate coordination cost."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l7_total_events",
+     "kind": "expectation",
+     "plain_name": "Short event chain",
+     "method_name": "Very long event chains indicate execution friction."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l7_manual_share",
+     "kind": "expectation",
+     "plain_name": "Mostly automatic",
+     "method_name": "High manual share indicates low straight-through processing."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l7_manual_touches",
+     "kind": "expectation",
+     "plain_name": "Few manual touches",
+     "method_name": "Too many manual touches reduce touchless processing potential."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l7_distinct_human_resources",
+     "kind": "expectation",
+     "plain_name": "Few hands on the item",
+     "method_name": "Too many human handoffs indicate coordination cost."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.manual_touch_load",
+     "kind": "failure_mode",
+     "plain_name": "Many manual touches and hand-offs",
+     "method_name": "Many manual touches and hand-offs"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.touchless_rate",
+     "kind": "kpi",
+     "plain_name": "Touchless processing rate",
+     "method_name": "1 - share of cases with violation > 0 on the metric constraint over manual_touch_count (c_l7_manual_touches)"
+    }
+   ],
+   "playbook": [],
+   "reasons": [
+    {
+     "id": "reason:5b70649e02",
+     "kind": "reason",
+     "plain_name": "Exceptions (changes, blocks, cancellations) each add manual steps",
+     "method_name": "in the log: which activities carry the manual touches, by constraint and activity"
+    },
+    {
+     "id": "reason:faef00e4f2",
+     "kind": "reason",
+     "plain_name": "Header events copied onto every item inflate the counts",
+     "method_name": "in the log: replication diagnostics before reading touch counts; type header events away and compare"
+    },
+    {
+     "id": "reason:942a39e276",
+     "kind": "reason",
+     "plain_name": "No electronic vendor integration, so confirmations and invoices are keyed in",
+     "method_name": "outside the log: ask purchasing which vendors send EDI confirmations and e-invoices"
+    },
+    {
+     "id": "reason:fede559a97",
+     "kind": "reason",
+     "plain_name": "Batch users not recognised as such and counted as manual",
+     "method_name": "in the log: user names of the most frequent touches; batch or system users in the resource column"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:75400b5548",
+     "kind": "action",
+     "plain_name": "Touchless targets per spend area with a monthly review",
+     "method_name": "review cadence"
+    },
+    {
+     "id": "action:655863e703",
+     "kind": "action",
+     "plain_name": "EDI confirmations and e-invoicing with the largest vendors",
+     "method_name": "automation"
+    },
+    {
+     "id": "action:e80574b4ff",
+     "kind": "action",
+     "plain_name": "Exception reduction upstream (price and quantity aligned before ordering)",
+     "method_name": "standard work"
+    },
+    {
+     "id": "action:4ccff34717",
+     "kind": "action",
+     "plain_name": "Error-proofing in the buying front end (mandatory fields, catalogue defaults)",
+     "method_name": "system setting"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "stage:pay": {
+  "node": {
+   "id": "stage:pay",
+   "kind": "stage",
+   "plain_name": "Pay",
+   "method_name": "pay",
+   "order": 7
+  },
+  "guidance": null,
+  "related": {
+   "stage": {
+    "id": "stage:pay",
+    "kind": "stage",
+    "plain_name": "Pay",
+    "method_name": "pay"
+   },
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_closure_clear_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_time_invoice_to_clear",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoices should clear within terms; open invoices are scored by their age."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+     "kind": "failure_mode",
+     "plain_name": "Invoice unpaid or paid late",
+     "method_name": "Invoice not cleared or cleared late"
+    },
+    {
+     "id": "failure_mode:p2p.fm.consignment_cleared_per_item",
+     "kind": "failure_mode",
+     "plain_name": "Consignment item cleared per item",
+     "method_name": "Consignment item settled through invoice clearing"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.invoice_to_clear_days",
+     "kind": "kpi",
+     "plain_name": "Invoice to clearing days (DPO proxy)",
+     "method_name": "lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta"
+    },
+    {
+     "id": "kpi:p2p.kpi.open_invoice_share",
+     "kind": "kpi",
+     "plain_name": "Open invoice share",
+     "method_name": "share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice"
+    }
+   ],
+   "playbook": [],
+   "reasons": [],
+   "actions": []
+  },
+  "overlay": null,
+  "process": "p2p"
+ },
+ "failure_mode:p2p.fm.unpaid_or_late_invoice": {
+  "node": {
+   "id": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "kind": "failure_mode",
+   "plain_name": "Invoice unpaid or paid late",
+   "method_name": "Invoice not cleared or cleared late",
+   "missed_label": "unpaid or paid late"
+  },
+  "guidance": {
+   "kind": "failure_mode",
+   "id": "p2p.fm.unpaid_or_late_invoice",
+   "plain_name": "Invoice unpaid or paid late",
+   "missed_label": "unpaid or paid late",
+   "expectation": "Invoices are cleared within terms.",
+   "meaning_when_missed": "No clearing, or clearing long after the invoice.",
+   "why_it_matters": "Discounts, escalations and working capital; 22.6 % of BPIC 2019 invoice-bearing items have no clearing, the median lag is 63.6 days and 88.9 % of cleared items exceed 30 days; payment terms are not in the log.",
+   "how_detected": "Presence of the clearing and the invoice-to-clearing time rule; the baseline scores open invoices by age.",
+   "usual_reasons": [
+    {
+     "text": "Long contractual terms",
+     "where": "log",
+     "check": "medians per vendor near 60 or 90 days"
+    },
+    {
+     "text": "Block for a variance or missing receipt",
+     "where": "log",
+     "check": "releases on the same items"
+    },
+    {
+     "text": "Cash holds at period end",
+     "where": "outside",
+     "check": "ask accounts payable"
+    },
+    {
+     "text": "Still open at the end of the data",
+     "where": "log",
+     "check": "censored share"
+    }
+   ],
+   "usual_actions": [
+    {
+     "text": "Payment terms per vendor as a case attribute; days beyond terms scored",
+     "countermeasure": "measurement",
+     "owner_role": "finance_controlling",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Blocked-invoice review cadence",
+     "countermeasure": "review",
+     "owner_role": "accounts_payable",
+     "effect_area": "timeliness_ageing"
+    },
+    {
+     "text": "Early-payment discounts where cash allows",
+     "countermeasure": "contract",
+     "owner_role": "vendor_management",
+     "effect_area": "timeliness_ageing"
+    }
+   ],
+   "what_to_check_first": [
+    "Payment terms from the vendor master",
+    "Blocking share on the same items",
+    "Censoring at the window end"
+   ],
+   "examples": [
+    {
+     "kind": "violating",
+     "text": "Cleared 106 days after the invoice on 30-day terms.",
+     "trace": null
+    },
+    {
+     "kind": "compliant",
+     "text": "Cleared on the next run, 28 days.",
+     "trace": null
+    }
+   ],
+   "kpis": [
+    "p2p.kpi.invoice_to_clear_days",
+    "p2p.kpi.open_invoice_share"
+   ],
+   "owner_role": "accounts_payable",
+   "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
+   "sources": [
+    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "failure_modes.yaml (p2p)",
+    "BPI Challenge 2019 reports"
+   ],
+   "review_status": "draft",
+   "version": "1",
+   "hub_node": "failure_mode:p2p.fm.unpaid_or_late_invoice",
+   "method_name": "Invoice not cleared or cleared late"
+  },
+  "related": {
+   "stage": {
+    "id": "stage:pay",
+    "kind": "stage",
+    "plain_name": "Pay",
+    "method_name": "pay"
+   },
+   "expectations": [
+    {
+     "id": "expectation:p2p_bpic19:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l1_clear_invoice_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_bpic19_v1_1:c_l3_invoice_to_clear_days",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoice-bearing flows should clear in a reasonable time."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_closure_clear_present",
+     "kind": "expectation",
+     "plain_name": "Invoice paid",
+     "method_name": "Invoice-bearing flows should eventually be cleared."
+    },
+    {
+     "id": "expectation:p2p_baseline:b_time_invoice_to_clear",
+     "kind": "expectation",
+     "plain_name": "Paid within terms",
+     "method_name": "Invoices should clear within terms; open invoices are scored by their age."
+    }
+   ],
+   "failure_modes": [
+    {
+     "id": "failure_mode:p2p.fm.consignment_cleared_per_item",
+     "kind": "failure_mode",
+     "plain_name": "Consignment item cleared per item",
+     "method_name": "Consignment item settled through invoice clearing"
+    }
+   ],
+   "kpis": [
+    {
+     "id": "kpi:p2p.kpi.invoice_to_clear_days",
+     "kind": "kpi",
+     "plain_name": "Invoice to clearing days (DPO proxy)",
+     "method_name": "lag p2p.ir -> p2p.invoice_clear in days (c_l3_invoice_to_clear_days, b_time_invoice_to_clear with censor); median and share beyond delta"
+    },
+    {
+     "id": "kpi:p2p.kpi.open_invoice_share",
+     "kind": "kpi",
+     "plain_name": "Open invoice share",
+     "method_name": "share of cases with violation > 0 on presence(p2p.invoice_clear) (c_l1_clear_invoice_present), with right_censored per slice"
+    }
+   ],
+   "playbook": [],
+   "reasons": [
+    {
+     "id": "reason:bbaf0c98b1",
+     "kind": "reason",
+     "plain_name": "Long contractual terms",
+     "method_name": "in the log: medians per vendor near 60 or 90 days"
+    },
+    {
+     "id": "reason:e9dfb011c4",
+     "kind": "reason",
+     "plain_name": "Block for a variance or missing receipt",
+     "method_name": "in the log: releases on the same items"
+    },
+    {
+     "id": "reason:891ee18634",
+     "kind": "reason",
+     "plain_name": "Cash holds at period end",
+     "method_name": "outside the log: ask accounts payable"
+    },
+    {
+     "id": "reason:8a7e14097f",
+     "kind": "reason",
+     "plain_name": "Still open at the end of the data",
+     "method_name": "in the log: censored share per group"
+    }
+   ],
+   "actions": [
+    {
+     "id": "action:7e8a519b73",
+     "kind": "action",
+     "plain_name": "Payment terms per vendor as a case attribute; days beyond terms scored",
+     "method_name": "measurement fix"
+    },
+    {
+     "id": "action:a9d942bd32",
+     "kind": "action",
+     "plain_name": "Blocked-invoice review cadence",
+     "method_name": "review cadence"
+    },
+    {
+     "id": "action:bf6242ef54",
+     "kind": "action",
+     "plain_name": "Early-payment discounts where cash allows",
+     "method_name": "contract"
+    }
+   ]
+  },
+  "overlay": null,
+  "process": "p2p"
+ }
+}

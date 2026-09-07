@@ -1,6 +1,7 @@
 import { Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { HubPanel } from "@/components/knowledge/WhatDoesThisMean";
 import { useJobStore } from "@/lib/stores/jobs";
 import { useNavStore } from "@/lib/stores/nav";
 import { useUiStore } from "@/lib/stores/ui";
@@ -28,6 +29,24 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const href = useRouterState({ select: (s) => s.location.href });
   const record = useNavStore((s) => s.record);
+  const mode = useUiStore((s) => s.mode);
+  const setMode = useUiStore((s) => s.setMode);
+
+  /**
+   * Guided mode is a profile the address can set (R3-10): `?mode=guided` anywhere turns it on for this
+   * reader and is remembered, so a link handed to someone who does not run analyses every day opens the
+   * whole workbench in their words. `?mode=analyst` turns it off again.
+   */
+  const askedMode = useRef<string | null>(null);
+  useEffect(() => {
+    const asked = new URLSearchParams(href.split("?")[1] ?? "").get("mode");
+    // only a *change* of the address's mode sets the profile; otherwise pressing "Show everything" on a
+    // screen whose address still says `mode=guided` would put the reader straight back into guided mode
+    if (asked === askedMode.current) return;
+    askedMode.current = asked;
+    if (asked === "guided") setMode("guided");
+    if (asked === "analyst") setMode("analyst");
+  }, [href, setMode]);
 
   // Every location is remembered so a sub-screen's back control returns to the exact place the reader came from.
   useEffect(() => {
@@ -84,6 +103,17 @@ export function AppShell() {
       </a>
       <ContextRibbon ctx={ctx} />
       <Stepper ctx={ctx} />
+      {mode === "guided" && (
+        <div className="border-b border-border bg-accent-subtle px-8 py-1.5 text-xs text-accent-text" data-testid="guided-banner">
+          <span className="mx-auto flex w-full max-w-[1424px] flex-wrap items-center gap-3">
+            <strong>Guided</strong>
+            <span className="text-text-muted">One path through the question, with every word explained. The settings and the method's controls are out of the way.</span>
+            <button type="button" className="ml-auto underline" onClick={() => setMode("analyst")}>
+              Show everything
+            </button>
+          </span>
+        </div>
+      )}
       {/* Extra bottom padding keeps content reachable above the fixed job tray. */}
       <main
         id="main"
@@ -99,6 +129,8 @@ export function AppShell() {
       <JobTray projectId={ctx.projectId} />
       <CommandPalette ctx={ctx} />
       <HelpDrawer />
+      {/* the hub page a "What does this mean?" chip opens, over the screen the reader is on (RK-4) */}
+      <HubPanel />
     </div>
   );
 }

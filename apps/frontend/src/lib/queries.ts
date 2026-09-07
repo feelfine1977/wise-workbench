@@ -317,6 +317,28 @@ export function useCreateNormVersion(projectId: string) {
   });
 }
 
+/**
+ * Move a norm version along draft → reviewed → approved (R3-02, P1-9).
+ *
+ * The endpoint has been there since the cycle's backend work and no screen called it, so a version could be
+ * committed in the browser and never signed: the exit criterion — *the norm version moved out of `draft` by a
+ * named person* — could not be met without a request by hand. Leaving draft asks for that person; the server
+ * refuses it, with its own sentence, while a threshold this version set still carries no rationale or owner.
+ */
+export function useSetNormStatus(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { normVersionId: string; status: "draft" | "reviewed" | "approved"; author: string }) =>
+      unwrap(
+        await api.PATCH("/projects/{projectId}/norms/{normVersionId}", {
+          params: { path: { projectId, normVersionId: input.normVersionId } },
+          body: { status: input.status, author: input.author },
+        }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.norms(projectId) }),
+  });
+}
+
 export function useCreateRun(projectId: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -262,6 +262,27 @@ export function validateDatasetSearch(input: Partial<DatasetSearch> & SearchSche
   return { caseTable: str(s.caseTable), tab: oneOf(s.tab, DATASET_TABS) ?? "readiness" };
 }
 
+/** The hub's search box keeps its word in the address, so a page of the hub can be shared as it was read. */
+export interface KnowledgeSearch {
+  q?: string;
+}
+export function validateKnowledgeSearch(input: Partial<KnowledgeSearch> & SearchSchemaInput): KnowledgeSearch {
+  const s = input as Record<string, unknown>;
+  return { q: str(s.q) };
+}
+
+/** *What can we do?* — the seventh step of one group; it carries the group's context, nothing else. */
+export interface ActSearch {
+  slicing?: string;
+  view?: string;
+  /** The expectation a reason or an action was opened from. */
+  constraint?: string;
+}
+export function validateActSearch(input: Partial<ActSearch> & SearchSchemaInput): ActSearch {
+  const s = input as Record<string, unknown>;
+  return { slicing: str(s.slicing), view: str(s.view), constraint: str(s.constraint) };
+}
+
 export const RUN_TABS = ["monitor", "flow", "compare"] as const;
 export type RunTab = (typeof RUN_TABS)[number];
 export interface RunSearch {

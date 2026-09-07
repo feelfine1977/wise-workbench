@@ -54,7 +54,7 @@ describe("accessibility of the main screens (axe)", () => {
   });
   it("norm version", async () => {
     renderApp("/p/p2p2018/norms/nv_7?tab=constraints");
-    await screen.findByText(/Calibration lens/, {}, T);
+    await screen.findByTestId("norm-builder", {}, T);
     await expectNoSeriousA11yViolations(document.body);
   });
 });

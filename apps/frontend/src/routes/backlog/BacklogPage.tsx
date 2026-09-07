@@ -5,10 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useWorkbench } from "@/app/context";
 import { backlogRoute } from "@/app/router";
 import { stripBacklogDefaults, type BacklogSearch, type BacklogTab } from "@/app/search";
-import { filterPreviewQuery, uncalibratedById, type BacklogParamsC2, type RunC2, type Within } from "@/lib/api/cycle2";
+import { filterPreviewQuery, runCaveats, uncalibratedById, type BacklogParamsC2, type RunC2, type Within } from "@/lib/api/cycle2";
 import { Explain } from "@/components/explain";
 import { FreezeButton } from "@/components/guide/Freeze";
-import { CaveatChips, caveatShort } from "@/components/guide/CaveatChips";
+import { CaveatChips, caveatFloor, caveatShort, runCaveatSentence } from "@/components/guide/CaveatChips";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
 import { Term, useVocabulary } from "@/components/Term";
@@ -22,6 +22,7 @@ import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { backlogQuery, normQuery } from "@/lib/queries";
 import { groupLabel, groupingLabel, pageWideCaveats, sharedKeyValues } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
+import { useUiStore } from "@/lib/stores/ui";
 import { rankingRule } from "@/lib/vocabulary";
 import { drillAttributeFor, sliceLabel } from "@/lib/utils";
 import { BacklogTable } from "./BacklogTable";
@@ -112,6 +113,7 @@ export default function BacklogPage() {
   const layers = useMemo(() => (norm.data?.norm as { layers?: { id: string; name: string }[] } | undefined)?.layers ?? [], [norm.data]);
   const layerNames = useMemo(() => Object.fromEntries(layers.map((l) => [l.id, l.name])), [layers]);
 
+  const guided = useUiStore((s) => s.mode === "guided");
   const confident = !!search.confident;
   const rows = useMemo(() => {
     const all = backlog.data?.rows ?? [];
@@ -165,9 +167,30 @@ export default function BacklogPage() {
   const uncalibrated = uncalibratedById(params);
   const noConfidenceComputed = confident && rows.length === 0 && (backlog.data?.rows ?? []).length > 0 && (backlog.data?.rows ?? []).every((r) => (r.stability ?? "unknown") === "unknown");
   const scope = run.scope?.flow_type;
-  // caveats that hold on nearly every group of the page are stated once here, not on every card
-  const pageCaveats = pageWideCaveats(rows);
-  // a group whose share lies far outside the page-wide range keeps its own chip (R2-06)
+  /**
+   * The caveat line above the list (R3-09). It is read from the **run's own** summary, so it is the same
+   * sentence on page 1, page 2 and page 3 of one ranked list; before this it was recomputed over whichever
+   * fifty rows were on the screen and read *up to 44 %* on the first page and *up to 91 %* on the second, for
+   * one run. A backend that does not serve the summary yet falls back to the page's own rows, and the line
+   * then says which population it describes rather than implying the run.
+   */
+  const summary = runCaveats(params);
+  /**
+   * *On nearly every group of this run* has to be true of what follows it: only a caveat that touches at
+   * least four groups in five is stated there. Read without the rule, the line said *duplicated events* of a
+   * run where six groups of twenty-three carry them, and *copied postings* of five.
+   */
+  const runWideCaveats = summary?.filter((c) => (c.share ?? 0) > caveatFloor(String(c.id)) && (!total || (c.groups ?? 0) >= 0.8 * total));
+  const pageCaveats =
+    runWideCaveats?.map((c) => ({
+      id: String(c.id),
+      share: c.share ?? undefined,
+      max: c.max ?? undefined,
+      // the chip's tooltip and its accessible name are a sentence about the run, never the caveat's id
+      text: c.text ?? runCaveatSentence(String(c.id), c.share ?? undefined, c.max ?? undefined, caseNoun),
+      groups: c.groups ?? undefined,
+    })) ?? pageWideCaveats(rows).map((c) => ({ ...c, groups: undefined as number | undefined }));
+  // a group whose share lies far outside the run-wide range keeps its own chip (R2-06)
   const hideCaveats = new Map(pageCaveats.map((c) => [c.id, c.share]));
 
   const footer = (
@@ -266,16 +289,21 @@ export default function BacklogPage() {
           )}
         </p>
         {pageCaveats.length > 0 && (
-          <p className="flex flex-wrap items-center gap-2 text-sm text-text-muted" data-testid="page-caveats">
-            <span>On nearly every group here:</span>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted" data-testid="page-caveats">
+            <span>{runWideCaveats ? `On nearly every group of this run:` : `On nearly every group on this page:`}</span>
             <CaveatChips caveats={pageCaveats.map((c) => ({ id: c.id, share: c.share ?? null, status: "warn", text: c.text }))} max={4} />
             <span className="text-xs text-text-subtle" data-testid="page-caveat-range">
               {pageCaveats
                 .filter((c) => c.share !== undefined && c.max !== undefined)
-                .map((c) => `${caveatShort(c.id)}: ${fmtPct(c.share ?? 0, (c.share ?? 0) < 0.1 ? 1 : 0)} on average, up to ${fmtPct(c.max ?? 0, (c.max ?? 0) < 0.1 ? 1 : 0)}`)
+                .map(
+                  (c) =>
+                    `${caveatShort(c.id)}: ${fmtPct(c.share ?? 0, (c.share ?? 0) < 0.1 ? 1 : 0)} on average, up to ${fmtPct(c.max ?? 0, (c.max ?? 0) < 0.1 ? 1 : 0)}${
+                      c.groups !== undefined ? ` on ${fmtInt(c.groups)} of ${fmtInt(total)} groups` : ""
+                    }`,
+                )
                 .join(" · ")}
             </span>
-          </p>
+          </div>
         )}
         {!plain && backlog.data && (
           <p className="flex flex-wrap items-center gap-2 text-xs" data-testid="method-strip">
@@ -299,7 +327,9 @@ export default function BacklogPage() {
       </header>
 
       <Refine ref={filterRef} search={search} layers={layers} runGamma={run.gamma ?? 20} filter={filter} preview={preview.data} within={within} onChange={(p) => patch(p)} onReset={reset} caseNoun={caseNoun}>
-        {switchers}
+        {/* the ribbon owns the switchers; guided mode has already put them away, so this row does not put
+            them back beside the list (R3-10, R3-30) */}
+        {guided ? null : switchers}
       </Refine>
 
       <Tabs value={search.tab} onValueChange={(v) => setTab(v as BacklogTab)}>

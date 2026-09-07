@@ -3,7 +3,7 @@ import { Maximize2, Minimize2, MoreHorizontal, X } from "lucide-react";
 import type { FlowGraph } from "@wise/api-schema";
 import { canonicalOverlays, defaultStyle, diff, diffStyle, filterPositions, palettes, type FlowGraph as LibraryGraph, type Overlay } from "@wise/flow";
 import { ProcessMap, useStableLayout, type Selection } from "@wise/flow/react";
-import { getNodesBounds, useNodesInitialized, useReactFlow } from "@xyflow/react";
+import { getNodesBounds, useNodesInitialized, useReactFlow, useStore } from "@xyflow/react";
 import elkWorkerUrl from "elkjs/lib/elk-worker.min.js?url";
 import "@xyflow/react/dist/style.css";
 import "@wise/flow/tokens.css";
@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { addClause, clauseForActivity, clauseForConstraint, clauseForStage, describeClause, mapActivities, toggleClause } from "@/lib/filter";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CELL_HEIGHT, CELL_WIDTH, DEFAULT_DETAIL, DETAIL, abstractAt, activityCountAt, boundsOf, fittedZoom, readableMaxLevel, stretchToFrame, type LaidOut } from "./frame";
+import { CELL_HEIGHT, CELL_WIDTH, DEFAULT_DETAIL, DETAIL, LABEL_PX, MIN_LABEL_CHARS, NODE_HEIGHT, NODE_WIDTH, abstractAt, activityCountAt, boundsOf, drawnNodeBox, fittedZoom, labelScreenPx, labelUnitsAt, drawingRoom, laneOvershootAt, mapScaleAt, readableMaxLevel, smallLabelUnitsAt, stretchToFrame, withRoom, withoutRoutes, type Box, type LaidOut } from "./frame";
 
 const ModelView = lazy(() => import("./ModelView"));
 
@@ -134,10 +134,54 @@ function ZoomControls({ onFull, full }: { onFull?: () => void; full?: boolean })
   );
 }
 
+/**
+ * Activity names at a constant size on the screen (R3-06).
+ *
+ * The library writes a name at 12 layout units inside a pane it scales by the zoom, so the same code drew
+ * 11.0 px on a five-activity map and 4.7 px on an eight-activity, six-lane one. This counter-scales the name
+ * by the inverse of the zoom the fit chose and gives the box the room to hold it, as three custom properties
+ * the library's own stylesheet already reads (`--wf-node-width`, `--wf-node-height`) or that the sheet in
+ * `globals.css` reads (`--wise-label-units`). Nothing here changes the layout — the boxes the layout reserves
+ * stay 180 × 48 and the drawn box grows into the gap its cell already leaves — so the zoom cannot depend on
+ * the label size and this can never be the cause of a refit.
+ *
+ * The properties are written straight onto the element rather than through React state: the zoom changes on
+ * every frame of a pan and a state write would re-render the whole map with it.
+ */
+function ConstantLabels({ container, boxes }: { container: React.RefObject<HTMLDivElement | null>; boxes: Box[] }) {
+  const zoom = useStore((s) => s.transform[2]);
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const units = labelUnitsAt(zoom);
+    // the box grows only as far as the room the drawing left: one that grew into its neighbour would trade
+    // one unreadable name for two overlapping ones
+    const box = drawnNodeBox(units, boxes);
+    el.style.setProperty("--wise-label-units", `${units.toFixed(2)}px`);
+    // every other text drawn on the canvas — the stage header, the item count, the start and end markers, the
+    // path labels and both halves of a badge — at eleven pixels on the screen, and the shapes that hold them
+    // grown by the same factor so the text still sits inside them (P1-4)
+    el.style.setProperty("--wise-small-units", `${smallLabelUnitsAt(zoom).toFixed(2)}px`);
+    el.style.setProperty("--wise-map-scale", mapScaleAt(zoom).toFixed(3));
+    el.style.setProperty("--wise-lane-overshoot", `${laneOvershootAt(zoom, (box.height - NODE_HEIGHT) / 2).toFixed(1)}px`);
+    el.style.setProperty("--wf-node-width", `${box.width.toFixed(1)}px`);
+    el.style.setProperty("--wf-node-height", `${box.height.toFixed(1)}px`);
+    el.style.setProperty("--wise-node-lines", String(box.lines));
+    el.style.setProperty("--wise-node-grow-x", `${((box.width - NODE_WIDTH) / 2).toFixed(1)}px`);
+    el.style.setProperty("--wise-node-grow-y", `${((box.height - NODE_HEIGHT) / 2).toFixed(1)}px`);
+    // the name and the count share a line at the library's own size and stack once the name is counter-scaled
+    el.dataset.scaled = units > LABEL_PX ? "1" : "0";
+    el.dataset.labelPx = labelScreenPx(units, zoom).toFixed(1);
+  }, [container, zoom, boxes]);
+  return null;
+}
+
 /** Changes under this many pixels are noise: they never refit and never re-measure (§3.2). */
 const MIN_RESIZE = 2;
 /** Layout units the badge above an activity reaches over its own box. */
 const BADGE_OVERHANG = 24;
+/** What one badge takes across the screen once its text is at eleven pixels: the glyph, the share and the pill. */
+const BADGE_WIDTH_PX = 62;
 /** When a fit is attempted after the drawn graph changes, in milliseconds. */
 const FIT_ATTEMPTS = [120, 350, 800, 1600];
 
@@ -159,8 +203,10 @@ function FitToView({ container, fitKey, bounds: given }: { container: React.RefO
     // the laid-out box when the scene is placed by us: it carries the stage lanes, which `getNodesBounds`
     // measures only once React Flow has sized them and which the fit would otherwise leave hanging out.
     // The badge of an activity is drawn above its box, so the box the fit is given reaches that far up.
+    // the given box already carries the room the lane and the badge take (`drawingRoom`); a measured one is
+    // the boxes alone, so the badge over an activity is added to it here
     const measured = given ?? getNodesBounds(nodes);
-    const bounds = { ...measured, y: measured.y - BADGE_OVERHANG, height: measured.height + BADGE_OVERHANG };
+    const bounds = given ? measured : { ...measured, y: measured.y - BADGE_OVERHANG, height: measured.height + BADGE_OVERHANG };
     const box = el.getBoundingClientRect();
     if (!bounds.width || !bounds.height || !box.width || !box.height) return;
     fitting.current = true;
@@ -214,11 +260,17 @@ function FitToView({ container, fitKey, bounds: given }: { container: React.RefO
 }
 
 /**
- * Every path in and out of the focused activity (§3.6, R3-O8): the other end, the items on the path and
- * the median wait, the ones the current level does not draw under a divider with the step that shows them.
- * It is a column inside the frame, not a block under the page fold, so the whole answer is on the screen.
+ * Every path in and out of the focused activity (§3.6, R3-O8, R3-11).
+ *
+ * It was a 264 px column **inside** the frame holding 1,175 px of rows: opening it shrank the canvas from
+ * 1,158 to 894 px and the activity names with it, the flow library drew the same list a second time in its
+ * own panel, and the *hidden at this detail level* sentence was printed three times. It is now a sheet over
+ * the map — the canvas keeps its width — sortable by items and by median wait, with every row acting as
+ * *filter to this path*, and `Escape` closes it.
  */
-function PathPanel({
+type PathSort = "items" | "wait";
+
+function PathSheet({
   focusLabel,
   incoming,
   outgoing,
@@ -227,6 +279,7 @@ function PathPanel({
   noun,
   onShowHidden,
   onClose,
+  onFilter,
   canShowHidden,
 }: {
   focusLabel: string;
@@ -238,43 +291,102 @@ function PathPanel({
   noun: string;
   onShowHidden?: () => void;
   onClose: () => void;
+  /** Keep only the items that take this path; without it the rows are read-only. */
+  onFilter?: (path: FlowPath, direction: "in" | "out") => void;
   canShowHidden: boolean;
 }) {
-  const rows = [...incoming.map((p) => ({ p, direction: "in" as const })), ...outgoing.map((p) => ({ p, direction: "out" as const }))];
+  const [sort, setSort] = useState<PathSort>("items");
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+
+  const items = (p: FlowPath) => p.cases ?? p.count ?? 0;
+  const wait = (p: FlowPath) => (p.median_lag === null || p.median_lag === undefined ? -1 : p.median_lag);
+  const rows = [...incoming.map((p) => ({ p, direction: "in" as const })), ...outgoing.map((p) => ({ p, direction: "out" as const }))].sort((a, b) =>
+    sort === "items" ? items(b.p) - items(a.p) : wait(b.p) - wait(a.p),
+  );
   const drawn = rows.filter(({ p, direction }) => isDrawn(p, direction));
   const hidden = rows.filter(({ p, direction }) => !isDrawn(p, direction));
   const other = (p: FlowPath, direction: "in" | "out") => {
     const raw = direction === "in" ? p.from : p.to;
     return typeof raw === "string" && raw ? raw : labelOfId(String(p.node ?? ""));
   };
-  const line = ({ p, direction }: { p: FlowPath; direction: "in" | "out" }, key: string) => (
-    <li key={key} className="flex items-baseline justify-between gap-2 border-b border-border py-1 last:border-0">
-      <span className="min-w-0 flex-1 truncate" title={other(p, direction)}>
-        <span aria-hidden className="mr-1 text-text-subtle">{direction === "in" ? "→" : "←"}</span>
+  const line = ({ p, direction }: { p: FlowPath; direction: "in" | "out" }, key: string, dim = false) => (
+    <tr key={key} className={cn("border-b border-border last:border-0", dim && "opacity-70")}>
+      <td className="py-0.5 pr-2 align-top">
+        <span aria-hidden className="mr-1 text-text-subtle">
+          {direction === "in" ? "→" : "←"}
+        </span>
         {other(p, direction)}
-      </span>
-      <span className="tnum shrink-0 text-right text-[11px] text-text-muted">
-        {fmtInt(p.cases ?? p.count ?? 0)} {noun}
-        {p.median_lag !== null && p.median_lag !== undefined ? ` · ${fmtNum(p.median_lag / 24, 1)} d` : ""}
-      </span>
-    </li>
+      </td>
+      <td className="tnum py-0.5 pr-2 text-right align-top">{fmtInt(items(p))}</td>
+      <td className="tnum py-0.5 pr-2 text-right align-top">{p.median_lag !== null && p.median_lag !== undefined ? `${fmtNum(p.median_lag / 24, 1)} d` : "–"}</td>
+      <td className="py-0.5 text-right align-top">
+        {onFilter && (
+          <button type="button" className="text-accent-text underline" onClick={() => onFilter(p, direction)}>
+            filter to this path
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+  /** The rows split into the columns the sheet draws them in, so the whole answer fits without scrolling. */
+  const split = <T,>(rows: T[]): T[][] => (rows.length > 12 ? [rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))] : [rows]);
+  const columns = split(drawn);
+  const hiddenColumns = split(hidden);
+  const head = (
+    <thead>
+      <tr className="border-b border-border text-[11px] uppercase tracking-wide text-text-subtle">
+        <th className="py-0.5 pr-2 text-left font-medium">the other end</th>
+        <th className="py-0.5 pr-2 text-right font-medium">
+          <button type="button" aria-pressed={sort === "items"} className={cn("underline-offset-2", sort === "items" ? "text-text underline" : "hover:underline")} onClick={() => setSort("items")}>
+            {noun}
+          </button>
+        </th>
+        <th className="py-0.5 pr-2 text-right font-medium">
+          <button type="button" aria-pressed={sort === "wait"} className={cn("underline-offset-2", sort === "wait" ? "text-text underline" : "hover:underline")} onClick={() => setSort("wait")}>
+            median wait
+          </button>
+        </th>
+        <th className="py-0.5" />
+      </tr>
+    </thead>
   );
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-border bg-surface p-3 text-xs text-text" aria-label={`Paths in and out of ${focusLabel}`} data-testid="path-panel">
-      <div className="flex items-start justify-between gap-2">
+    <div
+      className="absolute inset-x-0 bottom-0 z-20 max-h-full overflow-y-auto border-t border-border bg-surface/97 px-3 py-2 text-[11px] leading-tight text-text shadow-lg backdrop-blur-sm"
+      role="dialog"
+      aria-label={`Paths in and out of ${focusLabel}`}
+      data-testid="path-panel"
+    >
+      <div className="mb-1 flex items-start justify-between gap-2">
         <p className="reading text-[11px] text-text-muted">
-          <strong className="text-text">{focusLabel}</strong> has {incoming.length} {incoming.length === 1 ? "path" : "paths"} in and {outgoing.length} out.
+          <strong className="text-text">{focusLabel}</strong> has {incoming.length} {incoming.length === 1 ? "path" : "paths"} in and {outgoing.length} out. Escape closes this.
         </p>
         <button type="button" className="rounded-sm px-1 text-text-muted hover:bg-surface-sunken" aria-label="Hide the paths" onClick={onClose}>
           ×
         </button>
       </div>
-      <ul className="flex flex-col" data-testid="path-list">
-        {drawn.map((r, i) => line(r, `d-${i}`))}
-      </ul>
+      {/* two columns on a wide frame: forty-two paths in one column is a scroll, and the whole answer has to
+          be on the screen at once (R3-11) */}
+      <div className={cn("grid gap-x-6", drawn.length > 12 ? "lg:grid-cols-2" : "")}>
+        {columns.map((rows, c) => (
+          <table key={c} className="w-full self-start" data-testid={c === 0 ? "path-list" : undefined}>
+            {head}
+            <tbody>{rows.map((r, i) => line(r, `d-${c}-${i}`))}</tbody>
+          </table>
+        ))}
+      </div>
       {hidden.length > 0 && (
         <>
-          <p className="flex items-center gap-2 border-t border-border pt-2 text-[11px] text-text-subtle" data-testid="paths-divider">
+          <p className="flex items-center gap-2 border-t border-border pt-1.5 text-[11px] text-text-subtle" data-testid="paths-divider">
             hidden at this detail level ({hidden.length})
             {canShowHidden && onShowHidden && (
               <button type="button" className="text-accent-text underline" onClick={onShowHidden}>
@@ -282,10 +394,16 @@ function PathPanel({
               </button>
             )}
           </p>
-          <ul className="flex flex-col opacity-70">{hidden.map((r, i) => line(r, `h-${i}`))}</ul>
+          <div className={cn("grid gap-x-6", hidden.length > 12 ? "lg:grid-cols-2" : "")}>
+            {hiddenColumns.map((rows, c) => (
+              <table key={c} className="w-full self-start">
+                <tbody>{rows.map((r, i) => line(r, `h-${c}-${i}`, true))}</tbody>
+              </table>
+            ))}
+          </div>
         </>
       )}
-    </aside>
+    </div>
   );
 }
 
@@ -681,15 +799,88 @@ export function FlowMap({
 
   const shownActivities = activityCountAt(graph, drawnLevel);
   const totalActivities = meta.nodesTotal ?? graph.nodes.filter((n) => n.kind === "activity").length;
-  // the drawing stretched to the shape of its frame, so the fit fills it and still overflows nowhere
-  const drawnBounds = useMemo(() => {
-    if (!laidOut?.nodes) return undefined;
-    return boundsOf([...Object.values(laidOut.nodes), ...Object.values(laidOut.groups ?? {})]);
-  }, [laidOut]);
-  const drawnPositions = useMemo(
-    () => (kind === "compact" || collapsing ? positions : ((stretchToFrame(laidOut, drawnBounds, canvasBox) as unknown as typeof positions) ?? positions)),
-    [kind, collapsing, positions, laidOut, drawnBounds, canvasBox],
-  );
+  /**
+   * The drawing stretched to the shape of its frame and the lanes drawn to it (§3.2, §6.1, P1-5).
+   *
+   * Both halves read the box of the **activities**: the stretch spreads them until their shape is the frame's,
+   * and the lane is then redrawn around them. Measured on the lanes instead, the shape was already the frame's,
+   * so nothing was spread, and the lane's own room for its name was counted as drawing: 45 % of the canvas
+   * height above the graph, and every map fitted at 0.38 for a drawing that fits at 0.46.
+   */
+  const drawnBounds = useMemo(() => boundsOf(Object.values(laidOut?.nodes ?? {})), [laidOut]);
+  /** Whether the library draws stage lanes for this scene; without them the drawing is its own box. */
+  const hasLanes = (shown.groups ?? []).some((g) => g.kind === "stage" && !g.parent);
+  const drawnPositions = useMemo(() => {
+    if (kind === "compact" || collapsing) return positions;
+    // the zoom the activities alone would be fitted at says how large the counter-scaled lane name and the
+    // badge over an activity are drawn, and so how much room the drawing needs around it; one pass, from the
+    // frame and the layout only, so nothing here depends on what is then drawn
+    const rough = fittedZoom(drawnBounds ?? { width: 0, height: 0 }, canvasBox);
+    const grow = Math.max(0, (drawnNodeBox(labelUnitsAt(rough), Object.values(laidOut?.nodes ?? {})).height - NODE_HEIGHT) / 2);
+    const room = drawingRoom(rough, hasLanes, grow);
+    const spread = withoutRoutes(stretchToFrame(laidOut, drawnBounds, canvasBox, { x: room.x, y: room.top + room.bottom }));
+    if (!spread) return positions;
+    const bounds = withRoom(boundsOf(Object.values(spread.nodes)), room) ?? spread.bounds;
+    return { ...spread, bounds } as unknown as typeof positions;
+  }, [kind, collapsing, positions, laidOut, drawnBounds, canvasBox, hasLanes]);
+  // the boxes as they are drawn, which say how far a counter-scaled name may grow before it touches its
+  // neighbour (R3-06); the layout is never moved for a label, only read
+  const drawnBoxes = useMemo<Box[]>(() => Object.values(((drawnPositions as unknown as LaidOut | undefined)?.nodes ?? {}) as Record<string, Box>), [drawnPositions]);
+  /**
+   * How much of a name this level can show. The zoom is the one the fit will choose — the same arithmetic
+   * `FitToView` runs, on the same box — so the answer is known before anything is drawn and no reading of the
+   * DOM takes part in it. Where the drawing leaves the boxes too little room for eighteen characters, the bar
+   * says so and offers the full window rather than drawing a row of two-letter stubs (R3-06).
+   */
+  /** The zoom the fit will choose for this drawing in this frame: the same arithmetic `FitToView` runs. */
+  const fitZoom = useMemo(() => {
+    const bounds = (drawnPositions as unknown as LaidOut | undefined)?.bounds;
+    if (kind === "compact" || !bounds) return undefined;
+    return fittedZoom(bounds, canvasBox);
+  }, [kind, drawnPositions, canvasBox]);
+  const nameRoom = useMemo(() => (fitZoom === undefined ? undefined : drawnNodeBox(labelUnitsAt(fitZoom), drawnBoxes)), [fitZoom, drawnBoxes]);
+  const namesFit = !nameRoom || nameRoom.chars >= MIN_LABEL_CHARS;
+  /**
+   * The badges one activity may carry, at the size they are now drawn (P1-4).
+   *
+   * A badge is a pill of counter-scaled text laid along the top edge of the box, growing leftwards from its
+   * right corner: at eleven pixels, three of them are wider than the box and reach over the activity beside
+   * it — on the extract five of them read `≤1 0 % - ≤1 0 % - ≥1 5 % - ≥1 5 % ⇒ 89 %` in one illegible row.
+   * A badge that cannot be drawn inside its own box is dropped rather than drawn over its neighbour, worst
+   * share first, which is also what the legend promises: *the worst expectation at this activity*.
+   */
+  const badgesPerNode = useMemo(() => {
+    if (kind === "compact" || !fitZoom || !nameRoom) return Infinity;
+    return Math.max(1, Math.floor((nameRoom.width * fitZoom) / BADGE_WIDTH_PX));
+  }, [kind, fitZoom, nameRoom]);
+  const drawnOverlays = useMemo(() => {
+    if (!Number.isFinite(badgesPerNode)) return overlays;
+    // one arc between two activities, as the legend describes it: a second arc over the same pair puts its
+    // words on the same pixels as the first and neither can be read
+    const seenArcs = new Set<string>();
+    const share = (o: { payload?: unknown }) => Number((o.payload as { value?: number } | undefined)?.value ?? 0);
+    const kept = new Set<unknown>();
+    const byTarget = new Map<string, typeof overlays>();
+    for (const o of overlays) {
+      if (o.kind !== "badge") continue;
+      const target = String(o.target ?? "");
+      byTarget.set(target, [...(byTarget.get(target) ?? []), o]);
+    }
+    for (const list of byTarget.values()) for (const o of [...list].sort((a, b) => share(b) - share(a)).slice(0, badgesPerNode)) kept.add(o);
+    return overlays.filter((o) => {
+      if (o.kind === "badge") return kept.has(o);
+      if (o.kind !== "arc") return true;
+      const p = o.payload as { source?: string; target?: string; value?: number } | undefined;
+      const key = `${String(p?.source ?? "")}→${String(p?.target ?? "")}`;
+      if (seenArcs.has(key)) return false;
+      seenArcs.add(key);
+      return true;
+    });
+  }, [overlays, badgesPerNode]);
+  /** What a thumbnail is a picture of: its activities and the paths between them, never its lanes (R3-18). */
+  const compactBounds = useMemo(() => (kind === "compact" ? boundsOf(drawnBoxes) : undefined), [kind, drawnBoxes]);
+  /** Below this width the legend's fixed column is a fifth of the frame; it becomes a pop-over (R3-22). */
+  const legendOverCanvas = kind !== "compact" && frameBox.width > 0 && frameBox.width < 1200;
 
   // the full window is a mode of its own: focus moves into it so Escape and the accelerators are heard
   useEffect(() => {
@@ -766,7 +957,7 @@ export function FlowMap({
 
   if (kind === "compact") {
     return (
-      <div ref={container} className={cn("overflow-hidden rounded-md border border-border bg-surface", className)} style={{ height }} data-testid="mini-map">
+      <div ref={container} className={cn("wise-map overflow-hidden rounded-md border border-border bg-surface", className)} style={{ height }} data-testid="mini-map">
         <ProcessMap
           graph={shown}
           positions={positions}
@@ -778,14 +969,20 @@ export function FlowMap({
           minimap={false}
           contextMenu={false}
           selfLoops={false}
+          // R3-18: a thumbnail draws its flow, not its lanes. The stage lanes are 1,475 layout units tall
+          // against a 48-unit activity, so a fit that had to hold them drew a lane header and a row of specks
+          // — two of the three thumbnails on the extract showed nothing else.
+          lanes={lanes}
           lod={{ labels: 0, edgeLabels: 99, badges: 99, arcs: 99, chips: 99, hatch: 99, selfLoops: 99 }}
           locale="en"
           layout={{ elkWorkerUrl }}
           ariaLabel={title}
           containerStyle={{ height: "100%" }}
         >
-          {/* the small map is fitted too: without it the card drew an empty box  */}
-          <FitToView container={container} fitKey={`compact-${shown.nodes.length}-${height}`} />
+          {/* the small map is fitted to its activities and paths, which is what the card is a picture of */}
+          <FitToView container={container} fitKey={`compact-${shown.nodes.length}-${height}-${drawnBoxes.length}`} bounds={compactBounds} />
+          {/* a thumbnail is a picture of the flow, and a picture with unreadable names is not one (R3-06, R3-18) */}
+          <ConstantLabels container={container} boxes={drawnBoxes} />
         </ProcessMap>
       </div>
     );
@@ -826,6 +1023,28 @@ export function FlowMap({
   const notDrawn = selected && !drawnIds.has(selected.id) ? selected.label : selectedEdge && !drawnIds.has(selectedEdge.id) ? `${labelOf(graph, selectedEdge.source)} → ${labelOf(graph, selectedEdge.target)}` : undefined;
   const fitKey = `${drawnLevel}|${mode}|${isFull}|${layout.status}|${frameHeight}|${compare}|${focus ?? ""}|${selectedId ?? ""}|${drawnNodeKey}`;
 
+  /**
+   * The legend, wherever it is placed. Below 1200 px it costs the canvas a fifth of its width — and with it a
+   * fifth of the zoom, which is a fifth of every activity name — so on a narrow frame it becomes a button in
+   * the bar with a pop-over over the canvas instead of a fixed column beside it (R3-22, and R3-06's own
+   * acceptance at 1024 × 768).
+   */
+  const legend = (open: boolean, onOpenChange: (open: boolean) => void, className?: string) => (
+    <MapLegend
+      graph={shown}
+      compare={compare}
+      hidden={hiddenOverlays}
+      onToggle={(k) => setHiddenOverlays((s) => toggleSet(s, k))}
+      areas={areas}
+      hiddenAreas={hiddenAreas}
+      onToggleArea={(a) => setHiddenAreas((s) => toggleSet(s, a))}
+      onFilterArea={onFilterChange ? (a) => applyClauses([{ kind: "any", clauses: a.constraints.map((c) => clauseForConstraint(c, "violating", plain(c))) }]) : undefined}
+      open={open}
+      onOpenChange={onOpenChange}
+      className={className}
+    />
+  );
+
   const filterBar = (
     <div className={cn("flex min-h-[44px] shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border py-1.5 text-sm", isFull ? "px-2" : "px-1")} data-testid="flow-bar">
       {chips !== false && (
@@ -857,14 +1076,26 @@ export function FlowMap({
           {DETAIL[drawnLevel]?.label} · {shownActivities} of {totalActivities} activities
         </span>
       </label>
-      {level > maxLevel && !isFull && (
+      {(level > maxLevel || !namesFit) && !isFull && (
         <span className="text-xs text-warning" data-testid="detail-warning">
-          more activities than fit this screen — open the full window
+          the names are cut at this level — open the full window
         </span>
       )}
       {layout.status === "pending" && <span aria-live="polite">placing {shownActivities} activities…</span>}
       {layout.status === "error" && <span role="alert">layout failed: {layout.error?.message}</span>}
       <span className="ml-auto flex items-center gap-1">
+        {mode !== "table" && legendOverCanvas && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="legend-button">
+                ▤ legend
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] p-0">
+              {legend(true, () => undefined, "w-full border-l-0")}
+            </PopoverContent>
+          </Popover>
+        )}
         {baseline &&
           (compare ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent-subtle py-0.5 pl-2.5 pr-1 text-xs text-accent-text" data-testid="compare-state">
@@ -1043,11 +1274,11 @@ export function FlowMap({
         <ModelView scene={shown} abstraction={DETAIL[drawnLevel]?.abstraction} overlays={overlays} selected={selected?.id} onSelect={(id) => setSelection({ nodes: id ? [id] : [], edges: [], groups: [] })} height={frameHeight} graph={graph} />
       </Suspense>
     ) : (
-      <div ref={container} className="min-w-0 flex-1 overflow-hidden">
+      <div ref={container} className="wise-map min-w-0 flex-1 overflow-hidden">
         <ProcessMap
           graph={sceneForMap}
           positions={drawnPositions}
-          overlays={overlays}
+          overlays={drawnOverlays}
           style={style}
           abstraction={DETAIL[drawnLevel]?.abstraction}
           controls={false}
@@ -1063,7 +1294,8 @@ export function FlowMap({
           focus={focus === undefined ? undefined : (focus ?? null)}
           onFocusChange={(f) => onFocusChange?.(typeof f === "string" ? f : Array.isArray(f) ? f[0] : undefined)}
           paths={libraryPaths}
-          pathList
+          // the flow library lists the same paths in a panel of its own; one answer, drawn once (R3-11)
+          pathList={false}
           selection={librarySelection}
           onSelect={select}
           onAction={(action, target) => {
@@ -1076,6 +1308,8 @@ export function FlowMap({
           announce={announce}
         >
           <FitToView container={container} fitKey={fitKey} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} />
+          {/* the names are drawn at a constant size on the screen, whatever the width of the process (R3-06) */}
+          <ConstantLabels container={container} boxes={drawnBoxes} />
           <ZoomControls onFull={() => setFull(!isFull)} full={isFull} />
         </ProcessMap>
       </div>
@@ -1094,8 +1328,11 @@ export function FlowMap({
       )}
     </p>
   ) : null;
+  // one answer, one sentence: while the sheet lists the paths it says how many are hidden, so the line under
+  // the frame does not say it a second time (R3-11)
+  const pathsShown = mode !== "table" && !!focus && !!paths && !!(paths.incoming?.length || paths.outgoing?.length);
   const hiddenPathsLine =
-    focus && hiddenPaths > 0 ? (
+    focus && hiddenPaths > 0 && !pathsShown ? (
       <p className="truncate px-1 pt-1 text-xs text-text-muted" data-testid="paths-hidden">
         {hiddenPaths} {hiddenPaths === 1 ? "path is" : "paths are"} below this detail level.{" "}
         <button type="button" className="text-accent-text underline" onClick={() => setLevel(maxLevel)}>
@@ -1141,8 +1378,8 @@ export function FlowMap({
         data-testid="map-frame"
       >
         {body}
-        {mode !== "table" && focus && paths && (paths.incoming?.length || paths.outgoing?.length) ? (
-          <PathPanel
+        {pathsShown ? (
+          <PathSheet
             focusLabel={labelOf(graph, focus)}
             incoming={paths.incoming ?? []}
             outgoing={paths.outgoing ?? []}
@@ -1155,16 +1392,24 @@ export function FlowMap({
             canShowHidden={level < DETAIL.length - 1}
             onShowHidden={() => setLevel(DETAIL.length - 1)}
             onClose={() => onFocusChange?.(undefined)}
+            onFilter={
+              onFilterChange
+                ? (p, direction) => {
+                    const end = String(p.node ?? idOf(graph, String((direction === "in" ? p.from : p.to) ?? "")));
+                    applyClauses([{ kind: "follows", a: direction === "in" ? end : focus, b: direction === "in" ? focus : end, directly: true }]);
+                  }
+                : undefined
+            }
           />
         ) : null}
-        {mode !== "table" && <MapLegend graph={shown} compare={compare} hidden={hiddenOverlays} onToggle={(k) => setHiddenOverlays((s) => toggleSet(s, k))} areas={areas} hiddenAreas={hiddenAreas} onToggleArea={(a) => setHiddenAreas((s) => toggleSet(s, a))} onFilterArea={onFilterChange ? (a) => applyClauses([{ kind: "any", clauses: a.constraints.map((c) => clauseForConstraint(c, "violating", plain(c))) }]) : undefined} open={legendOpen} onOpenChange={(o) => {
+        {mode !== "table" && !legendOverCanvas && legend(legendOpen, (o) => {
           setLegendOpen(o);
           try {
             window.localStorage.setItem(LEGEND_KEY, o ? "open" : "closed");
           } catch {
             /* a browser without storage keeps the legend open for this visit only */
           }
-        }} />}
+        })}
         {isFull && card && <div className="absolute inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 backdrop-blur-sm">{card}</div>}
       </div>
       {/* The card's band is reserved whether or not something is selected: opening it must never resize the

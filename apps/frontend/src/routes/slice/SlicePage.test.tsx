@@ -17,12 +17,15 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     await screen.findByRole("heading", { level: 1, name: /^Packaging\b/ }, T);
     const sentence = screen.getByTestId("why-sentence");
     expect(sentence).toHaveTextContent(/^109,199 purchase order items · 0\.9 % below expectation · invoices cleared late in 97\s?% of them; the shortfall is 93\s?% this one expectation\.$/);
-    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+25 days\)\.$/);
+    // the card and the Why screen print one bracket, and it is the difference of the two numbers (R3-04)
+    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
     expect(screen.getAllByText(/confidence high/).length).toBe(1);
     // the compact strip: priority, rank, average met with everyone, one caveat
     const strip = screen.getByTestId("why-strip");
     expect(strip).toHaveTextContent(/priority946/);
-    expect(strip).toHaveTextContent(/rank1 of 30/);
+    // one run, one population: the rank counts the groups the ranked list ranks, not a second population
+    // the row was scored under (R3-09)
+    expect(strip).toHaveTextContent(/rank1 of 23/);
     expect(strip).toHaveTextContent(/average met84\s?% \(everyone 84\s?%\)/);
     expect(within(strip).getByRole("list", { name: "Data caveats for this group" })).toHaveTextContent(/14\s?%.*still open/);
     // six one-word tabs, Why first and selected
@@ -44,8 +47,14 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(await screen.findByTestId("why-map", {}, T)).toBeInTheDocument();
     expect(await screen.findByTestId("flow-map", {}, T)).toBeInTheDocument();
     expect(screen.getByTestId("why-caveats")).toHaveTextContent(/14\s?% of purchase order items still open/);
-    expect(screen.getByTestId("typical-causes")).toHaveTextContent(/Typical causes are not available yet/);
-    expect(screen.getByTestId("typical-causes").textContent).not.toMatch(/cycle \d/);
+    // R3-01: the first candidate causes of the leading expectation, from the same hub pages as What can we do?,
+    // split into what the log can show and what has to be asked, with the way to the seventh step
+    const causes = await screen.findByTestId("typical-causes", {}, T);
+    await waitFor(() => expect(causes).toHaveTextContent(/Contractual terms of 60 or 90 days/), T);
+    expect(causes).toHaveTextContent(/in the log — check/);
+    expect(causes).toHaveTextContent(/Candidates to check, not findings/);
+    expect(within(causes).getByRole("button", { name: /What can we do\?/ })).toBeEnabled();
+    expect(causes.textContent).not.toMatch(/cycle \d/);
     // the full picture stays behind "Show all"
     expect(screen.queryByTestId("drivers-table")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Show all \d+ expectations/ }));

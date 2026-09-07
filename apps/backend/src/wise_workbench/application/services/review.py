@@ -3,7 +3,10 @@
 Three gates stand between a number and a claim about a group, and they are computed from what the run already
 knows rather than asked of the reader:
 
-* **readiness** — the analytics gate on the log as a whole (one window end, drift, replication, exposure);
+* **readiness** — the analytics gate, read per group: the five of its checks that have a share for a single
+  group (censoring, replication, duplicates, sentinel stamps, window edge) decide whether *this* group passes,
+  and the checks that are properties of the whole log (drift, precision, exposure scale) are stated and decided
+  once, at the run, under ``runWide`` (R3-03);
 * **censoring** — the share of the group's cases still open at that window end;
 * **replication** — the share of the group's cases carrying copied postings.
 
@@ -30,6 +33,7 @@ from wise_workbench.domain import (
     validate_gate_update,
     validate_hypothesis,
 )
+from wise_workbench.domain.comparison import Comparison, capitalised, percent, readable_comparison
 from wise_workbench.ids import new_id
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -37,6 +41,41 @@ if TYPE_CHECKING:  # pragma: no cover
 
 CENSORING_WARN, CENSORING_FAIL = 0.20, 0.40
 REPLICATION_WARN, REPLICATION_FAIL = 0.20, 0.50
+_CHECK_WORDS = {
+    "censoring": "still open at the end of the data",
+    "replication": "carrying copied postings",
+    "duplicates": "duplicating an earlier event",
+    "sentinel_dates": "carrying a placeholder timestamp",
+    "window_edge": "activated within the last window of the data",
+}
+_LOG_WIDE_WORDS = {
+    "duplicate_events": "duplicate events",
+    "frequency_drift": "a change in how often activities occur",
+    "vocabulary_drift": "a change in the activity labels",
+    "logging_asymmetry": "one side of an event pair missing",
+    "timestamp_precision": "mixed timestamp precision",
+    "timestamp_concentration": "events piled on one timestamp",
+    "exposure_sanity": "exposure values on different scales",
+    "sentinel_dates": "placeholder timestamps",
+    "right_censoring": "items still open at the end of the data",
+    "replication": "copied postings",
+    "window_edge_share": "items activated at the window edge",
+}
+
+
+def _run_wide_text(report: dict[str, Any]) -> str:
+    """What the readiness gate says once, at the run: the checks that are true of every group at once."""
+    status = str(report.get("status") or "unknown")
+    if status == "unknown":
+        return "The data-readiness gate has not been computed for this run."
+    log_wide = [str(c) for c in (report.get("logWideFailed") or [])]
+    if not log_wide:
+        return f"The data-readiness gate on this log reads {status}; every failed check has a share per group."
+    words = ", ".join(_LOG_WIDE_WORDS.get(c, c.replace("_", " ")) for c in log_wide)
+    return (
+        f"The data-readiness gate on this log reads {status}. {len(log_wide)} of its failed checks are properties "
+        f"of the whole log and are the same for every group ({words}); they are decided once, here."
+    )
 
 
 class ReviewService:
@@ -45,27 +84,26 @@ class ReviewService:
 
     # ------------------------------------------------------------- gates
     def gates(self, project_id: str, run_id: str, *, slicing: str, slice_key: str, view: str | None = None) -> dict:
-        """The three gates of one group: computed evidence, merged with any decision taken on them."""
+        """The three gates of one group: computed evidence, merged with any decision taken on them.
+
+        The readiness gate is **group-aware** (R3-03). Its evidence is a table of checks on the log, and five of
+        them — censoring, replication, duplicates, sentinel stamps, the window edge — have a share for every
+        group. The gate a group must pass is read from *its own* shares; the checks that are properties of the
+        whole log (drift, precision, exposure scale) are stated once, at the run, under ``runWide``, where they
+        are also decided once. A gate that reads ``fail`` identically on all 57 groups of a log is a door, not a
+        gate, and blocks nothing by itself.
+        """
         detail = self.c.runs.slice_detail(
             project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, drilldown=None
         )
         row = detail["row"]
         noun = detail["params"].get("case_noun") or "cases"
-        shares = {str(cav["id"]): cav.get("share") for cav in detail.get("caveats") or []}
-        analytics = self.c.runs.analytics(project_id, run_id)
-        readiness_status = str(analytics.get("manifest", {}).get("readinessStatus") or "unknown")
+        caveats = list(detail.get("caveats") or [])
+        shares = {str(cav["id"]): cav.get("share") for cav in caveats}
+        report = self.c.runs.readiness_report(project_id, run_id)
+        measured = bool((detail.get("analytics") or {}).get("available")) and bool(report.get("checks"))
         computed = [
-            {
-                "id": "readiness",
-                "kind": "readiness",
-                "status": {"fail": "failed", "warn": "pending", "pass": "passed"}.get(readiness_status, "pending"),
-                "evidence": {"readinessStatus": readiness_status},
-                "text": (
-                    f"The data-readiness gate on this log is {readiness_status}."
-                    if readiness_status != "unknown"
-                    else "The data-readiness gate has not been computed for this run."
-                ),
-            },
+            self._readiness_gate(report, caveats, noun, row, measured=measured),
             self._share_gate(
                 "censoring",
                 shares.get("censoring"),
@@ -82,16 +120,22 @@ class ReviewService:
                 f"carrying copied postings: counts on those {noun} are inflated",
                 noun,
             ),
+            self._domain_gate(project_id, run_id, detail, noun),
         ]
-        stored = {
+        group_items = self.c.repos.list_review_items(
+            project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=slicing, slice_key=slice_key
+        )
+        stored = {str(item.body.get("gate")): item for item in group_items}
+        # the readiness gate is decided once for the run, so a waiver on it is stored without a group
+        run_scoped = {
             str(item.body.get("gate")): item
-            for item in self.c.repos.list_review_items(
-                project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=slicing, slice_key=slice_key
-            )
+            for item in self.c.repos.list_review_items(project_id, kind=str(ReviewKind.GATE), run_id=run_id)
+            if item.slice_key is None
         }
         gates = []
         for gate in computed:
-            item = stored.get(gate["id"])
+            scope = str(gate.get("scope") or "group")
+            item = run_scoped.get(gate["id"]) if scope == "run" else stored.get(gate["id"])
             gates.append(
                 {
                     **gate,
@@ -100,6 +144,7 @@ class ReviewService:
                     "note": item.note if item is not None else None,
                     "author": item.author if item is not None else None,
                     "decidedAt": item.updated_at.isoformat() if item is not None else None,
+                    "scope": scope,
                 }
             )
         blocking = [g["id"] for g in gates if g["status"] == "failed"]
@@ -113,6 +158,172 @@ class ReviewService:
             "gates": gates,
             "blocking": blocking,
             "passed": not blocking,
+            "runWide": {
+                "status": report.get("status", "unknown"),
+                "failed": list(report.get("failed") or []),
+                "warned": list(report.get("warned") or []),
+                "logWideFailed": list(report.get("logWideFailed") or []),
+                "checks": list(report.get("checks") or []),
+                "text": _run_wide_text(report),
+            },
+        }
+
+    def _readiness_gate(
+        self,
+        report: dict[str, Any],
+        caveats: list[dict[str, Any]],
+        noun: str,
+        row: dict[str, Any],
+        *,
+        measured: bool = False,
+    ) -> dict[str, Any]:
+        """The readiness gate of one group: the worst of the checks the group has its own share of.
+
+        ``measured`` says the shares were computed for this group. A group with no caveat of its own is then a
+        group whose every share is small enough not to be worth showing — that is a pass, not an unknown, and it
+        is the difference between a gate and a door: the leading customer of a log whose censoring fails overall
+        may itself have almost nothing open.
+        """
+        by_kind = {str(c.get("id")): c for c in caveats}
+        checks = [c for c in (report.get("checks") or []) if c.get("perGroup")]
+        if not checks and report.get("status", "unknown") == "unknown":
+            return {
+                "id": "readiness",
+                "kind": "readiness",
+                "status": "pending",
+                "evidence": {"runStatus": "unknown"},
+                "text": "The data-readiness gate has not been computed for this run.",
+            }
+        own: list[dict[str, Any]] = []
+        for check in checks:
+            caveat = by_kind.get(str(check["perGroup"]))
+            if caveat is None or caveat.get("share") is None:
+                continue
+            own.append(
+                {
+                    "check": check["check"],
+                    "caveat": check["perGroup"],
+                    "share": float(caveat["share"]),
+                    "status": str(caveat.get("status") or "pass"),
+                    "text": caveat.get("text"),
+                }
+            )
+        failing = [e for e in own if e["status"] == "fail"]
+        warning = [e for e in own if e["status"] == "warn"]
+        cases = row.get("n_cases")
+        who = f"these {int(cases):,} {noun}" if isinstance(cases, int | float) and cases else f"these {noun}"
+        log_wide = [str(c) for c in (report.get("logWideFailed") or [])]
+        beside = ""
+        if str(report.get("status")) in ("fail", "warn"):
+            beside = f" The log as a whole reads {report.get('status')}" + (
+                # a count says its own plural: the gate sentence read "on 1 check(s)" (P1-13)
+                f", on {len(log_wide)} check{'' if len(log_wide) == 1 else 's'} no group can be judged on."
+                if log_wide
+                else " on its own checks."
+            )
+        evidence = {
+            "runStatus": report.get("status", "unknown"),
+            "runFailed": list(report.get("failed") or []),
+            "logWideFailed": log_wide,
+            "groupChecks": own,
+        }
+        if not own and measured:
+            return {
+                "id": "readiness",
+                "kind": "readiness",
+                "status": "passed",
+                "scope": "group",
+                "evidence": evidence,
+                "text": (
+                    f"Every readiness check with a share of its own is below the reporting threshold for {who}.{beside}"
+                ),
+            }
+        if not own:
+            # nothing about this group separates it from the rest: the gate is the log's, and decided once
+            return {
+                "id": "readiness",
+                "kind": "readiness",
+                "status": {"fail": "failed", "warn": "pending", "pass": "passed"}.get(
+                    str(report.get("status")), "pending"
+                ),
+                "scope": "run",
+                "evidence": evidence,
+                "text": (
+                    f"No readiness check has a share of its own for {who}, so this gate is the log's and is "
+                    f"decided once for the run: it reads {report.get('status', 'unknown')}."
+                ),
+            }
+        words = "; ".join(
+            f"{e['share'] * 100:.0f} % {_CHECK_WORDS.get(e['caveat'], e['caveat'])}" for e in (failing or warning)
+        )
+        if failing:
+            worst, text = "fail", f"Readiness on this group: {words} among {who}.{beside}"
+        elif warning:
+            worst, text = (
+                "warn",
+                f"Readiness on this group: nothing fails, and {words} among {who} is close to the limit.{beside}",
+            )
+        else:
+            worst, text = "pass", f"Every readiness check with a share of its own is clean for {who}.{beside}"
+        return {
+            "id": "readiness",
+            "kind": "readiness",
+            "status": {"fail": "failed", "warn": "pending", "pass": "passed"}[worst],
+            "scope": "group",
+            "evidence": evidence,
+            "text": text,
+        }
+
+    def _domain_gate(self, project_id: str, run_id: str, detail: dict[str, Any], noun: str) -> dict[str, Any]:
+        """Does the norm say anything about this group? (R3-27, the fourth gate of the vocabulary.)
+
+        A claim about a group rests on the expectations that carry its shortfall. When the first of those is
+        flagged — a placeholder threshold that every group misses, or an expectation whose shortfall counts
+        missing events rather than measured values — the number is about the norm or about the logging, not
+        about the group, and the claim is not yet in the domain the norm covers. The gate fails on the leading
+        driver and warns when a flagged expectation is further down the list.
+        """
+        flagged = {str(r["id"]): r for r in self.c.runs.uncalibrated_flags(project_id, run_id)}
+        drivers = [str(r.get("constraint") or "") for r in _rows(detail.get("drivers") or {}) if r.get("constraint")]
+        if not drivers:
+            return {
+                "id": "domain",
+                "kind": "domain",
+                "status": "pending",
+                "scope": "group",
+                "evidence": {"drivers": [], "flagged": sorted(flagged)},
+                "text": f"No expectation carries a share of the shortfall of these {noun} yet.",
+            }
+        hits = [(cid, flagged[cid]) for cid in drivers[:3] if cid in flagged]
+        if not hits:
+            return {
+                "id": "domain",
+                "kind": "domain",
+                "status": "passed",
+                "scope": "group",
+                "evidence": {"drivers": drivers[:3], "flagged": []},
+                "text": (
+                    f"The expectations carrying the shortfall of these {noun} are calibrated and measure what "
+                    "they name."
+                ),
+            }
+        leading = drivers[0] in flagged
+        first = hits[0][1]
+        return {
+            "id": "domain",
+            "kind": "domain",
+            "status": "failed" if leading else "pending",
+            "scope": "group",
+            "evidence": {
+                "drivers": drivers[:3],
+                "flagged": [cid for cid, _ in hits],
+                "reasons": {cid: row.get("reason") for cid, row in hits},
+            },
+            "text": (
+                ("The expectation this group's shortfall rests on is flagged: " if leading else "A flagged ")
+                + ("" if leading else "expectation is among the three carrying this group's shortfall: ")
+                + str(first.get("text") or first.get("id"))
+            ),
         }
 
     def _share_gate(self, kind: str, share: Any, warn: float, fail: float, what: str, noun: str) -> dict[str, Any]:
@@ -148,15 +359,19 @@ class ReviewService:
     ) -> dict[str, Any]:
         status, note = validate_gate_update(status, note)
         current = self.gates(project_id, run_id, slicing=slicing, slice_key=slice_key)
-        known = {g["id"] for g in current["gates"]}
-        if gate_id not in known:
-            raise NotFoundError(f"gate {gate_id!r} is not one of {sorted(known)}", code="gate.not_found")
+        scopes = {str(g["id"]): str(g.get("scope") or "group") for g in current["gates"]}
+        if gate_id not in scopes:
+            raise NotFoundError(f"gate {gate_id!r} is not one of {sorted(scopes)}", code="gate.not_found")
+        # a gate whose evidence is the log's, not the group's, is decided once for the whole run (R3-03)
+        run_scoped = scopes[gate_id] == "run"
+        stored_slicing = None if run_scoped else slicing
+        stored_key = None if run_scoped else slice_key
         existing = [
             item
             for item in self.c.repos.list_review_items(
-                project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=slicing, slice_key=slice_key
+                project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=stored_slicing, slice_key=stored_key
             )
-            if item.body.get("gate") == gate_id
+            if item.body.get("gate") == gate_id and (not run_scoped or item.slice_key is None)
         ]
         if existing:
             self.c.repos.update_review_item(
@@ -171,9 +386,9 @@ class ReviewService:
                     status=status,
                     title=f"{gate_id} gate",
                     run_id=run_id,
-                    slicing=slicing,
-                    slice_key=slice_key,
-                    body={"gate": gate_id},
+                    slicing=stored_slicing,
+                    slice_key=stored_key,
+                    body={"gate": gate_id, "scope": "run" if run_scoped else "group"},
                     author=author,
                     note=note,
                 )
@@ -277,6 +492,8 @@ class ReviewService:
                 "n_rest": row.get("n_evaluated_elsewhere"),
                 "share_of_shortfall": row.get("share_of_shortfall"),
                 "reading": _comparison_line(row, detail["params"].get("case_noun") or "cases"),
+                "median_reading": _median_line(row, detail["params"].get("case_noun") or "cases"),
+                "measures_logging": self.c.runs.measures_logging(project_id, run_id).get(wanted) if run_id else None,
             }
         return None
 
@@ -393,6 +610,7 @@ class ReviewService:
             str(r.get("constraint") or r.get("layer")): r for r in headroom if r.get("constraint") or r.get("layer")
         }
         drivers = _rows(detail.get("drivers") or {})
+        logging_sentences = self.c.runs.measures_logging(project_id, run_id)
         contrast = {str(r.get("constraint")): r for r in _rows(detail.get("contrast") or {})}
         entries: list[dict[str, Any]] = []
         for driver in drivers[:top]:
@@ -414,6 +632,8 @@ class ReviewService:
                     "hub_node": (guidance or {}).get("hub_node"),
                     "share_of_shortfall": driver.get("share_of_shortfall"),
                     "comparison": _comparison_line(contrast.get(cid) or {}, noun),
+                    "median_comparison": _median_line(contrast.get(cid) or {}, noun),
+                    "measures_logging": logging_sentences.get(cid),
                     "headroom_points": gain.get("gain_points"),
                     "headroom_percent": gain.get("gain_percent"),
                     "meaning_when_missed": block.get("meaning_when_missed"),
@@ -463,18 +683,44 @@ class ReviewService:
 
 
 def _comparison_line(row: dict[str, Any], noun: str) -> str | None:
-    """The contrast row in one sentence: missed here against elsewhere, and the real-unit shift when there is one."""
+    """The contrast row in one sentence: missed here against elsewhere, with the difference of those two shares.
+
+    One comparison, one bracket (R3-04): the bracket is the difference of the two numbers this sentence prints,
+    in percentage points. The real-unit medians are a second comparison and get their own sentence
+    (:func:`_median_line`); the analytics package's shift estimate is neither, and stays a labelled column of the
+    contrast table.
+    """
     if not row:
         return None
     here, rest = row.get("share_missed_group"), row.get("share_missed_elsewhere")
     name = row.get("plain") or row.get("description") or row.get("constraint")
     if here is None or rest is None:
         return None
-    text = f"{name}: missed in {float(here) * 100:.0f} % of these {noun} against {float(rest) * 100:.0f} % elsewhere"
-    shift, unit = row.get("shift"), row.get("unit")
-    if shift is not None and unit:
-        text += f" ({float(shift):+.1f} {unit})"
-    return text + "."
+    sentence = readable_comparison(
+        Comparison(kind="rate", name=str(name), rate_slice=float(here), rate_rest=float(rest)),
+        items=noun,
+    )
+    if sentence.kind == "none":
+        return f"{name}: missed in {percent(float(here))} of these {noun}, the same share as elsewhere."
+    return capitalised(sentence.text)
+
+
+def _median_line(row: dict[str, Any], noun: str) -> str | None:
+    """The real-unit half of a contrast row: the two medians and the difference of the two printed numbers."""
+    if not row:
+        return None
+    here, rest = row.get("median_group"), row.get("median_elsewhere")
+    unit = row.get("unit")
+    if here is None or rest is None or not unit:
+        return None
+    name = row.get("plain") or row.get("description") or row.get("constraint")
+    sentence = readable_comparison(
+        Comparison(
+            kind="lag", name=f"{name} (median)", value_slice=float(here), value_rest=float(rest), unit=str(unit)
+        ),
+        items=noun,
+    )
+    return None if sentence.kind == "none" else capitalised(sentence.text)
 
 
 def _rows(table: dict[str, Any]) -> list[dict[str, Any]]:

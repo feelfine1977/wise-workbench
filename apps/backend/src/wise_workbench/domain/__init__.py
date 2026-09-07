@@ -20,7 +20,7 @@ from .mapping import (
     FlowTypingRule,
     PreparedAttribute,
 )
-from .norm import NormStatus, NormVersion
+from .norm import NormStatus, NormVersion, changed_thresholds, missing_rationales, thresholds_of
 from .notebook import Snapshot
 from .project import Project, utcnow
 from .review import (
@@ -83,7 +83,10 @@ __all__ = [
     "Snapshot",
     "SourceKind",
     "ValidationError",
+    "changed_thresholds",
+    "missing_rationales",
     "slicing_id",
+    "thresholds_of",
     "utcnow",
     "validate_action",
     "validate_decision",

@@ -8,7 +8,11 @@ import { sliceRoute } from "@/app/router";
 import type { SliceTab } from "@/app/search";
 import { filterPreviewQuery, flowFocusedQuery, type BacklogRowC2, type Filter, type RunC2, type SliceDetailC2 } from "@/lib/api/cycle2";
 import { runManifestQuery } from "@/lib/api/cycle3";
-import { CalibrationChip, ConfidenceMark, GateBadge, KindBadge, type GateState } from "@/components/badges";
+import { whatCanWeDoQuery } from "@/lib/api/cycle4";
+import { ReasonList } from "@/components/knowledge/HubTemplate";
+import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
+import { GatesBlock } from "@/components/review/Gates";
+import { CalibrationChip, ConfidenceMark, KindBadge } from "@/components/badges";
 import { DistributionLens } from "@/components/DistributionLens";
 import { Metric, backlogExplain } from "@/components/explain";
 import { BackControl } from "@/components/guide/BackControl";
@@ -47,38 +51,44 @@ type FlowConstraintMeta = { description?: { id?: string; activities?: string[]; 
 
 const UNIT_WORD: Record<string, string> = { D: "days", H: "hours", M: "minutes", S: "seconds", count: "postings" };
 
-/** Checks before acting, read from the validation row (display only until the review endpoints exist). */
-function checksOf(v: Validation, noun: string): { kind: string; state: GateState; evidence: string }[] {
-  const out: { kind: string; state: GateState; evidence: string }[] = [];
-  if (v.censored_share !== undefined) {
-    out.push({ kind: "still open at the end of the data", state: v.censored_share > 0.1 ? "pending" : "passed", evidence: `${fmtPct(v.censored_share, 1)} of these ${noun} were still open when the data was extracted${v.retained !== undefined ? `; without them the shortfall keeps ${fmtPct(Math.min(v.retained, 9.99), 0)} of its size` : ""}` });
-  }
-  if (v.replicated_share !== undefined) {
-    out.push({ kind: "duplicated events", state: v.replicated_share >= 0.5 ? "failed" : "passed", evidence: v.replicated_share > 0 ? `${fmtPct(v.replicated_share, 1)} of these ${noun} carry postings copied from the order header` : `no duplicated header events in this group` });
-  }
-  out.push({ kind: "plausibility", state: "pending", evidence: "awaiting the owner's reading" });
-  return out;
-}
-
 const plainConstraint = (d: { description?: string; constraint: string }) => (d.description ?? d.constraint).replace(/\.$/, "");
 
-/** The real-unit sentence of one contrast row: "83 days here against 55 elsewhere (+25 days)"; the backend's own sentence wins. */
+/**
+ * The real-unit sentence of one contrast row: "83 days here against 55 elsewhere (+28 days)". The backend's
+ * own sentence wins and is printed as it is served — the server keeps the bracket in agreement with the two
+ * numbers beside it (R3-04); where the sentence is built here, the bracket is the difference of the two
+ * numbers **as they are rounded for the screen** and never the shift estimate, which keeps its own labelled
+ * row in the contrast table.
+ */
 function contrastSentence(c: Contrast | undefined, comparison: Comparison | undefined, noun: string): string | undefined {
   if (comparison?.sentence) return comparison.sentence;
   if (!c) return undefined;
   if (c.median_group !== null && c.median_group !== undefined && c.median_elsewhere !== null && c.median_elsewhere !== undefined) {
     const unit = UNIT_WORD[c.unit ?? ""] ?? c.unit ?? "";
-    const shift = c.shift ?? c.median_group - c.median_elsewhere;
-    return `${fmtNum(c.median_group, c.median_group >= 10 ? 0 : 1)} ${unit} here against ${fmtNum(c.median_elsewhere, c.median_elsewhere >= 10 ? 0 : 1)} elsewhere (${shift >= 0 ? "+" : ""}${fmtNum(shift, Math.abs(shift) >= 10 ? 0 : 1)} ${unit})`;
+    const digitsOf = (v: number) => (v >= 10 ? 0 : 1);
+    const hereDigits = digitsOf(c.median_group);
+    const elseDigits = digitsOf(c.median_elsewhere);
+    const digits = Math.min(hereDigits, elseDigits);
+    const difference = Number((Number(c.median_group.toFixed(hereDigits)) - Number(c.median_elsewhere.toFixed(elseDigits))).toFixed(digits));
+    const sign = difference > 0 ? "+" : difference < 0 ? "−" : "";
+    return `${fmtNum(c.median_group, hereDigits)} ${unit} here against ${fmtNum(c.median_elsewhere, elseDigits)} elsewhere (${sign}${fmtNum(Math.abs(difference), digits)} ${unit})`;
   }
   return `${fmtPct(c.share_missed_group, 0)} of these ${noun} miss it against ${fmtPct(c.share_missed_elsewhere, 0)} elsewhere`;
 }
 
-/** The two sentences above the lens, from the contrast row: the medians in real units and the shares beyond the expectation. */
+/**
+ * The sentences above the lens, from the contrast row: the medians in real units, the shares beyond the
+ * expectation, and — on a line of its own and named for what it is — the shift estimate, which is a third
+ * number and not the difference of the two above it (R3-04).
+ */
 function lensSentences(c: Contrast | undefined, name: string, label: string, noun: string, threshold: number | null | undefined, unit: string | undefined) {
   if (!c) return undefined;
   const unitWord = UNIT_WORD[c.unit ?? unit ?? ""] ?? c.unit ?? unit ?? "";
   const medians = c.median_group !== null && c.median_group !== undefined && c.median_elsewhere !== null && c.median_elsewhere !== undefined;
+  const shift = c.shift;
+  const difference = medians ? Number(c.median_group!.toFixed(c.median_group! >= 10 ? 0 : 1)) - Number(c.median_elsewhere!.toFixed(c.median_elsewhere! >= 10 ? 0 : 1)) : undefined;
+  // the shift only earns a line where it says something other than the subtraction the reader can do
+  const shiftDiffers = medians && shift !== null && shift !== undefined && difference !== undefined && Math.abs(shift - difference) > Math.max(0.05, Math.abs(difference) * 0.02);
   return (
     <>
       {medians && (
@@ -89,6 +99,16 @@ function lensSentences(c: Contrast | undefined, name: string, label: string, nou
       <p>
         <strong className="tnum">{fmtPct(c.share_missed_group, 0)}</strong> of {label}'s {noun} miss it{threshold !== null && threshold !== undefined && medians ? ` (expected ${fmtNum(threshold, threshold >= 10 ? 0 : 1)} ${unitWord})` : ""} — everyone else: <strong className="tnum">{fmtPct(c.share_missed_elsewhere, 0)}</strong>.
       </p>
+      {shiftDiffers && (
+        <p className="text-text-subtle" data-testid="shift-estimate">
+          Typical difference between one item here and one elsewhere:{" "}
+          <strong className="tnum">
+            {shift! > 0 ? "+" : shift! < 0 ? "−" : ""}
+            {fmtNum(Math.abs(shift!), Math.abs(shift!) >= 10 ? 0 : 1)} {unitWord}
+          </strong>{" "}
+          — an estimate over the whole distribution, not the difference of the two numbers above.
+        </p>
+      )}
     </>
   );
 }
@@ -147,13 +167,21 @@ export default function SlicePage() {
   const flowSlice = useQuery({ ...flowQuery(ctx.projectId, runId, { slicing, sliceKey, filter: search.filter }), enabled: mapWanted && !!slicing });
   const focused = useQuery({ ...flowFocusedQuery(ctx.projectId, runId, { slicing, sliceKey, focus: search.activity ?? "", filter }), enabled: mapWanted && !!search.activity });
   const preview = useQuery({ ...filterPreviewQuery(ctx.projectId, runId, filter), enabled: !!run && !!filter });
-  // the first page of the list, to drop the part of the name every group shares
-  const keyCount = Object.keys(slice.data?.row.keys ?? {}).length;
-  const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing && keyCount > 1 });
+  // The first page of the list: it drops the part of the name every group shares, and it is where the rank's
+  // population comes from. One run, one population (R3-09): the list said "57 groups" and this screen said
+  // "1 of 69" for the same run, because the row's own `n_ranked` was computed under another `minCases`. The
+  // rank is stated against the list the reader came from, and the row's own count only when there is no list.
+  // the same request the ranked list makes, `minCases` included, or the two screens would count two
+  // populations and print two different totals for one run
+  const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
+  const ranked = page1.data?.total;
   // the run's uncalibrated expectations, so a driver that separates no group is flagged here too
   const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId), enabled: !!run });
   const uncalibrated = useMemo(() => new Map((manifest.data?.uncalibrated ?? []).map((u) => [u.id, u])), [manifest.data]);
+  // the reasons and actions of the seventh step, so the Why screen's "typical causes" block and the
+  // "What can we do?" screen read one source (R3-01, RK-7)
+  const actAnswer = useQuery({ ...whatCanWeDoQuery(ctx.projectId, runId, { slicing, sliceKey, view }), enabled: !!run && !!slicing && search.tab === "why" });
   const [highlight, setHighlight] = useState<string>();
   const [showAll, setShowAll] = useState(false);
   const findings = useFindingStore((s) => s.findings);
@@ -201,6 +229,22 @@ export default function SlicePage() {
 
   const backHref = { href: `/p/${ctx.projectId}/runs/${runId}/backlog?slicing=${encodeURIComponent(slicing)}${view ? `&view=${encodeURIComponent(view)}` : ""}`, label: plain ? "Where is it worst?" : "Backlog" };
 
+  // R3-12: the reason screen ends on one sentence with one way out when the address carries a filter this
+  // run does not understand
+  if (slice.isError) {
+    return (
+      <ErrorBlock
+        error={slice.error}
+        retry={() => void slice.refetch()}
+        action={
+          filter
+            ? { label: "Open this group without the filter", onClick: () => void navigate({ to: ".", search: (x) => ({ ...x, filter: undefined, fh: undefined }) }) }
+            : { label: "Back to the ranked list", to: "/p/$projectId/runs/$runId/backlog" as const, params: { projectId: ctx.projectId, runId }, search: { slicing, view } }
+        }
+      />
+    );
+  }
+
   return (
     <QueryState query={slice} rows={8}>
       {(detail: SliceDetail) => {
@@ -224,6 +268,10 @@ export default function SlicePage() {
         const subgroups = tableRecords<{ attribute: string; value: string; cases: number; share: number }>(c2.subgroups);
         const flowMeta = (flowSlice.data?.meta ?? {}) as { constraints?: FlowConstraintMeta[] };
         const constraintsOfActivity = (id: string) => (flowMeta.constraints ?? []).filter((c) => [...(c.description?.activities ?? []), ...(c.description?.a ?? []), ...(c.description?.b ?? [])].includes(id)).map((c) => c.description?.id).filter((x): x is string => !!x);
+        // the leading expectation of the card and of the reason screen must be the same one (R3-04): the
+        // answer's own first driver wins, and the block says so when the two disagree
+        const actDriver = (actAnswer.data?.drivers ?? []).find((d) => d.constraint_id === top[0]?.constraint) ?? actAnswer.data?.drivers?.[0];
+        const actReasons = (actDriver?.usual_reasons ?? []).slice(0, 2);
         const topContrast = contrast.find((c) => c.constraint === constraint);
         const lensTitle = constraint ? plainOf(constraint) : "";
         const unitLabel = constraint ? `${UNIT_WORD[dist.data?.unit ?? topContrast?.unit ?? ""] ?? dist.data?.unit ?? ""} · ${lensTitle}` : undefined;
@@ -279,7 +327,14 @@ export default function SlicePage() {
                 </div>
               </div>
             )}
-            {flowSlice.isError && !noMap && <ErrorBlock error={flowSlice.error} retry={() => void flowSlice.refetch()} />}
+            {/* R3-12: a filter the run does not understand ends this block on one sentence with one way out */}
+            {flowSlice.isError && !noMap && (
+              <ErrorBlock
+                error={flowSlice.error}
+                retry={() => void flowSlice.refetch()}
+                action={filter ? { label: "Open this group without the filter", onClick: () => changeFilter(undefined) } : undefined}
+              />
+            )}
             {flowSlice.data && (
               <Suspense fallback={<LoadingBlock rows={6} />}>
                 <FlowMap {...mapProps} graph={flowSlice.data} height={height} title={`Process map of ${name} with the expectations drawn on it`} />
@@ -300,6 +355,8 @@ export default function SlicePage() {
             constraintId={constraint}
             mode={plain ? "plain" : "method"}
             sliders="method"
+            title={lensTitle}
+            noun={noun}
             groupName={name}
             unitLabel={plain ? unitLabel : undefined}
             sentences={plain ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined) : undefined}
@@ -344,6 +401,13 @@ export default function SlicePage() {
                   <>
                     {" · "}
                     {plain ? missed : area}
+                    <WhatDoesThisMean
+                      className="ml-1.5"
+                      nodeId={refs?.find((g) => g.kind === "constraint" && g.id === row.top_constraint)?.hub_node}
+                      kind={row.top_constraint ? "constraint" : "layer"}
+                      entryId={row.top_constraint ?? row.dominant_layer ?? ""}
+                      label={plain ? missed : area}
+                    />
                     {row.top_constraint_share !== null && row.top_constraint_share !== undefined ? (
                       <>
                         {" "}
@@ -371,9 +435,9 @@ export default function SlicePage() {
                 </div>
                 <div className="flex min-w-[120px] flex-col rounded-md border border-border bg-surface px-3 py-1.5">
                   <span className="text-[11px] uppercase tracking-wide text-text-subtle">rank</span>
-                  <span className="tnum font-semibold">
+                  <span className="tnum font-semibold" title={ranked !== undefined && row.n_ranked && row.n_ranked !== ranked ? `${fmtInt(ranked)} groups are ranked at the list's smallest group size; the run scored ${fmtInt(row.n_ranked)}` : undefined}>
                     {row.rank}
-                    {row.n_ranked ? ` of ${fmtInt(row.n_ranked)}` : ""}
+                    {ranked !== undefined ? ` of ${fmtInt(ranked)}` : row.n_ranked ? ` of ${fmtInt(row.n_ranked)}` : ""}
                   </span>
                 </div>
                 <div className="flex min-w-[160px] flex-col rounded-md border border-border bg-surface px-3 py-1.5">
@@ -451,6 +515,7 @@ export default function SlicePage() {
                             <li key={d.constraint} className="flex flex-col gap-1.5">
                               <p className="reading text-base">
                                 <strong title={plain ? `${plainConstraint(d)} (${d.constraint})` : plainConstraint(d)}>{plain ? plainOf(d.constraint) : plainConstraint(d)}</strong>
+                                <WhatDoesThisMean className="ml-1.5" nodeId={refs?.find((g) => g.kind === "constraint" && g.id === d.constraint)?.hub_node} kind="constraint" entryId={d.constraint} label={plainOf(d.constraint)} />
                                 {!plain && <span className="ml-2 font-mono text-[11px] text-text-subtle">{d.constraint}</span>}
                                 {/* an expectation almost every case misses separates no group  */}
                                 {uncalibrated.has(d.constraint) && <CalibrationChip className="ml-2 align-middle" text={uncalibrated.get(d.constraint)?.text} />}
@@ -551,24 +616,29 @@ export default function SlicePage() {
                             <span className="text-text-muted">No data caveat touches this group.</span>
                           </li>
                         )}
-                        {checksOf(validation, noun)
-                          .filter((g) => g.state === "passed")
-                          .slice(0, 1)
-                          .map((g) => (
-                            <li key={g.kind} className="flex items-start gap-2">
-                              <span aria-hidden className="text-success">✓</span>
-                              <span className="text-text-muted">{g.evidence}.</span>
-                            </li>
-                          ))}
                       </ul>
                       <button type="button" className="mt-2 text-sm text-accent-text underline" onClick={() => setTab("trust")}>
                         All checks →
                       </button>
                     </Card>
-                    <Card className="border-dashed" data-testid="typical-causes">
+                    {/* R3-01: the first two candidate reasons of the leading expectation, drawn from the same hub
+                        pages as "What can we do?", with the way to that screen. */}
+                    <Card data-testid="typical-causes">
                       <CardTitle>Typical causes for this pattern</CardTitle>
-                      <p className="reading text-sm text-text-muted">Typical causes are not available yet: candidate reasons for the missed expectations, each with what to check in the log and what to ask outside it.</p>
-                      <Button variant="outline" size="sm" className="mt-3" disabled title="What can we do? is not available yet">
+                      {actAnswer.isPending && <LoadingBlock rows={3} />}
+                      {actReasons.length > 0 ? (
+                        <>
+                          <p className="text-xs text-text-subtle">Candidates to check, not findings — for {actDriver?.plain_name ?? plainOf(top[0]?.constraint ?? "")}.</p>
+                          <ReasonList reasons={actReasons} className="mt-2" />
+                        </>
+                      ) : (
+                        !actAnswer.isPending && (
+                          <p className="reading text-sm text-text-muted">
+                            This run's process pack carries no candidate reasons for the expectations of this group. What can we do? still lists the possible gain and the actions.
+                          </p>
+                        )
+                      )}
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, constraint: top[0]?.constraint } })}>
                         What can we do? →
                       </Button>
                     </Card>
@@ -722,17 +792,27 @@ export default function SlicePage() {
                   <TabsContent value="trust">
                     <Card>
                       <CardTitle>{plain ? "Can the data be trusted?" : "Validation row"}</CardTitle>
-                      <ul className="mt-1 flex flex-col gap-2">
-                        {checksOf(validation, noun).map((g) => (
-                          <li key={g.kind} className="flex items-start gap-2 text-sm">
-                            <GateBadge state={g.state} />
-                            <span>
-                              <span className="font-medium">{g.kind}</span> <span className="text-text-muted">— {g.evidence}</span>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      {/*
+                        P1-10 — one gate, one verdict, one list.
+
+                        This tab drew the checks twice: a summary built here from the validation row, with
+                        thresholds of its own, above the decision list the server computes. The same check on
+                        the same group read "○ pending" in one block and "✓ passed" in the other. The list
+                        below is the only one, and it is the one that can be decided.
+                      */}
                       <CaveatChips caveats={caveats} className="mt-3" max={6} />
+                      {/* R3-03: the gates of this group with pass · fail · waive, and the hypothesis they gate */}
+                      <div className="mt-4 border-t border-border pt-4">
+                        <CardTitle>Checks before acting, and what you want to test</CardTitle>
+                        <GatesBlock
+                          projectId={ctx.projectId}
+                          runId={runId}
+                          slicing={slicing}
+                          sliceKey={sliceKey}
+                          view={view}
+                          constraints={drivers.filter((d) => d.delta_gap > 0).map((d) => ({ id: d.constraint, label: plainOf(d.constraint) }))}
+                        />
+                      </div>
                       <details className="mt-3 text-sm">
                         <summary className="cursor-pointer text-text-muted">The four numbers</summary>
                         <dl className="tnum mt-2 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
@@ -752,7 +832,6 @@ export default function SlicePage() {
                           )}
                         </dl>
                       </details>
-                      <p className="mt-3 text-xs text-text-muted">Passing, failing or waiving a check with a note is not available yet; the checks are shown as they were computed.</p>
                     </Card>
                   </TabsContent>
 
@@ -798,7 +877,10 @@ export default function SlicePage() {
                     label="Freeze this screen for the notebook"
                     because="your reading is saved; a snapshot with a note keeps it for the report"
                     onClick={() => document.querySelector<HTMLElement>("[data-freeze-trigger]")?.click()}
-                    alternative={{ label: "Open What can we do? (not available yet)" }}
+                    alternative={{
+                      label: "Open What can we do?",
+                      onClick: () => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view } }),
+                    }}
                   />
                 )}
               </div>

@@ -383,3 +383,79 @@ them yet the panels fall back to the second-release endpoints and say so with th
 | 3 | *Decide again* on a decided item | the dialog says which version is in force and with which choice, keeps every option (the current one marked *current*), and the list under it shows every decision with *in force* / *replaced* | R3-O1, R3-O3 |
 | 4 | Why → Flow | the decision pane collapses to its button, the map takes all twelve columns, `⤢` fills the window, **Open full →** carries the chips and the group as a chip into the Flow step | R3-O10 |
 | 5 | a card of a group whose caveat is far above the page-wide range | the chip stays on the card (*44 % still open at the end*) and the header prints the range (*still open at the end: 16 % on average, up to 44 %*) | R2-06 |
+
+## Cycle 4 (2026-09-07) — the four screens the server answers, the map at a readable size, and the truthfulness set
+
+Observed on 2026-09-07 on the mocks (`npm run dev -- --port 5199`, `VITE_USE_MOCKS=1`) and on a live backend
+on port 8123 (`apps/backend/.venv/bin/wise-workbench --workspace <copy> serve --port 8123` on a copy of the
+verify workspace, so the release on 8000 is left alone), against the verified run `run_0mtoq44vd14f208ur`
+(company × spend area, Automation, γ = 20). The four screens read the fourth-release operations —
+`GET …/what-can-we-do`, `…/gates` with `POST …/gates/{id}`, `…/knowledge/hub` with `…/hub/{node}` and
+`…/guidance/{kind}/{id}`, `…/norms/inventory` with `…/norms/applicability` and `…/norms/{id}/calibration` —
+and every one of them says so in one sentence where a backend does not serve it yet, instead of a status code.
+
+### CP-4.1 — *What can we do?*, the seventh step (R3-01)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | open a group's Why screen and press **What can we do? →** | the group's name, one reading sentence, then one card per driver: the expectation in plain words with a *What does this mean?* chip, the share of the shortfall, **n points of possible gain (m %)**, the comparison sentence, *What to check first*, *What usually causes it* split *in the log — check* / *outside the log — ask*, and *What usually helps* with the countermeasure kind and the owner role | the stepper's seventh step is reachable and marked *you are here* |
+| 2 | **Mark to test** on a reason | the checks below fill with the reason's words and the hypothesis form focuses; a check without a reading blocks the form and says which one | a gate the whole run fails is stated once at the run, never once per group (R3-03) |
+| 3 | **Propose this action** | the form opens with the action's words, its countermeasure kind and its owner role filled in; it needs a name before it saves | the proposal appears under *Open findings* and survives a reload |
+
+### CP-4.2 — the norm builder (R3-02)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | open `…/norms/{version}?tab=constraints` | the plain name and the rule as a sentence, the id in a tooltip, the draft chip, and a *a threshold to calibrate* chip on every flagged expectation | no stage code, no release name, no fingerprint column (R3-13) |
+| 2 | **the rule** | the pickers list this log's own activities as a listbox with how many items carry each one; the rule reads back as a sentence | an activity the log does not have cannot be named |
+| 3 | **who it applies to** | flow types with their counts, an attribute restriction, and *Not applicable to this log* with a required note | the sentence under the editor says what was chosen |
+| 4 | change a threshold on the lens | **Save as the next version** stays disabled until a reason **and** an owner are given | a threshold never leaves the lens without a name behind it |
+
+### CP-4.3 — the knowledge hub (R3-05)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | ribbon `⋯` → **Knowledge hub** | every node of the pack by kind — stage, expectation area, expectation, failure mode, indicator, usual reason, usual action — with a search over the plain and the method names | the count line says how many pages the pack has |
+| 2 | open one | the panel's template: what it means, why it matters, how it is detected, what usually causes it, what usually helps, what to check first, the related nodes, and *your organisation's note* | the note is added to the pack's text, never instead of it |
+| 3 | press a *What does this mean?* chip on a card, a driver row, an expectation area or a data caveat | the same page opens beside the screen; `Escape` closes it and the screen has not moved | the caveat chip **is** the control: pressing *16 % still open at the end* opens its page |
+
+### CP-4.4 — the map at a readable size (R3-06, R3-11, R3-17, R3-22)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | open the Flow step at 1440 × 900 | every activity name is drawn at **12.0 px on the screen** whatever the fitted zoom (measured: zoom 0.380, name 12.0 px, where the same code drew 4.7 px in cycle 3), wrapped over up to three lines, the count under the name | measured at 1440 × 900, 1280 × 720 and 1024 × 768 at every detail level by `e2e/flow-frame.spec.ts` |
+| 2 | look at the bottom-left corner | one zoom stack, the product's own | no React Flow control bar, no React Flow or bpmn.io watermark, on any embedding (R3-17) |
+| 3 | narrow the window below 1200 px | the legend becomes a **▤ legend** button with a pop-over and the canvas takes the whole frame | the fifth of the frame the legend column took is back (R3-22) |
+| 4 | **Paths in / out** on an activity | a sheet over the map with every path in and out, two columns, sortable by items and by median wait, *filter to this path* on every row, *hidden at this detail level* said once | the canvas keeps its width (1,158 px before and after) and `Escape` closes the sheet (R3-11) |
+| 5 | Data → *Your process* | all four flow-type thumbnails draw their activities and paths inside the 286 × 170 frame, and the sub-line under each is complete | two of them drew a lane header and nothing else in cycle 3 (R3-18) |
+
+### CP-4.5 — the truthfulness set (R3-04, R3-09, R3-13, R3-16)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | read card 1 of the verified run | *Paid within terms: 83 days here against 55 elsewhere (**+28 days**)* — the difference of the two numbers beside it, not the shift estimate the run serves (+25) | the same bracket on the card, the Why screen, the reading of *What can we do?* and the dashboard |
+| 2 | open **Compared** | the shift estimate has a line of its own, named for what it is, only where it differs from the subtraction the reader can do | no two numbers on one screen contradict a third |
+| 3 | page 1 → 2 → 3 of the ranked list | the caveat line above the list is the same sentence on all three, read from the run's own summary, and says on how many of the run's groups each caveat holds | it read *up to 44 %* on page 1 and *up to 91 %* on page 2 for one run in cycle 3 (R3-09) |
+| 4 | compare the list's group count with the rank on the Why screen | *23 groups* and *rank 1 of 23* | one run, one population |
+| 5 | the run screen, the datasets table, the norm screen | the run's own noun (*251,734 purchase order items scored*), *Company × Spend area* rather than the column names, no content-hash column, no id glued to a file name; the fingerprints stay under *Technical details* | `src/routes/words.test.tsx` greps every visible string of five screens |
+| 6 | the distribution panel | the expectation's plain name as the title, the axis in the reader's words, the y-axis labelled with the run's noun, every tick formatted | no raw field name and no unformatted float (R3-16) |
+
+### CP-4.6 — the states that end, and Guided mode (R3-12, R3-19, R3-10)
+
+| Step | What you do | What you see | Pass when |
+|---|---|---|---|
+| 1 | paste an address whose filter carries a clause this run does not know (`filter={"and":[{"kind":"resource_pool",…}]}`) | *This link carries a filter this run does not understand.* with **Open the run without the filter**, on the Flow step, the board's panels and the reason screen; the server's own words behind *what the server said* | never a status code, never a skeleton that does not end; a 4xx is not retried (R3-12) |
+| 2 | Data → data caveats | the readings that still need a decision first, the one that touches the most items at the top, each with *touches n % of the purchase order items*; the decided ones as ✓ lines with **Change**; the machine's sentence behind *the exact reading* | no ISO stamp and no `value(s)` in what a reader reads first (R3-19) |
+| 3 | open any screen with `?mode=guided` | a banner, three steps (**Signals → Why → What can we do?**), the how-to-read paragraph open, the ribbon without the perspective, the grouping and γ, *Refine* reduced to three questions, and the decision pane reduced to *What next?* and a note | **Show everything** gives the whole workbench back and the profile is remembered (R3-10) |
+
+### Automated equivalents (observed 2026-09-07, Node 18.20.8)
+
+```sh
+cd apps/frontend
+npx tsc -b                                  # clean
+npm run lint                                # 0 errors, 10 warnings (react-refresh export hygiene)
+npm test                                    # 29 files, 238 tests
+npm run build:live                          # built in 14.7 s
+npm run e2e                                 # 20 passed, 2 skipped (mocks)
+E2E_API_URL=http://127.0.0.1:8123 npm run e2e   # 14 passed, 8 skipped (the mock-only specs)
+```

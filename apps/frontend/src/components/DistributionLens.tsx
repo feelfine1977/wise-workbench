@@ -35,12 +35,29 @@ export interface DistributionLensProps {
   groupName?: string;
   /** The x-axis in words with its unit ("days from invoice receipt to clearing"). */
   unitLabel?: string;
+  /** What the run calls one case ("purchase order items"); the axes and the sentences use it (R3-16). */
+  noun?: string;
 }
 
 const UNIT_WORD: Record<string, string> = { D: "days", H: "hours", M: "minutes", S: "seconds" };
+
+/**
+ * One value on an axis or in a tooltip, always formatted (R3-16). The lens is drawn on shares as well as on
+ * days, and an unformatted axis printed `0.0374236111111111` where the values are small.
+ */
+const tick = (v: number): string => {
+  if (!Number.isFinite(v)) return "–";
+  const a = Math.abs(v);
+  if (a === 0) return "0";
+  if (a >= 100) return fmtInt(Math.round(v));
+  if (a >= 10) return fmtNum(v, 0);
+  if (a >= 1) return fmtNum(v, 1);
+  if (a >= 0.01) return fmtNum(v, 2);
+  return fmtNum(v, 3);
+};
 const STAT_LABEL: Record<string, string> = {
-  n: "cases with a value",
-  nCases: "cases in scope",
+  n: "with a value",
+  nCases: "in scope",
   mean: "mean",
   median: "median",
   p90: "90th percentile",
@@ -65,7 +82,7 @@ const total = (d: Distribution) => {
  * calibration lens) or, in the method's words, under "Try another threshold"; the cumulative curve is a
  * toggle; the statistics sit behind "more" with plain labels.
  */
-export function DistributionLens({ distribution, rest, title, constraintId, direction = "high", threshold, width, onChange, onCommit, className, height = 300, mode = "method", sliders = "always", sentences, groupName = "this group", unitLabel }: DistributionLensProps) {
+export function DistributionLens({ distribution, rest, title, constraintId, direction = "high", threshold, width, onChange, onCommit, className, height = 300, mode = "method", sliders = "always", sentences, groupName = "this group", unitLabel, noun = "cases" }: DistributionLensProps) {
   const [inner, setInner] = useState({ threshold: distribution.threshold ?? 0, width: distribution.width ?? 1 });
   const [cumulative, setCumulative] = useState(false);
   const t = threshold ?? inner.threshold;
@@ -167,7 +184,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     }
     return {
       animation: false,
-      grid: { left: 60, right: cumulative ? 56 : 24, top: 36, bottom: 44 },
+      grid: { left: 62, right: cumulative ? 56 : 24, top: 44, bottom: 48 },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "line" },
@@ -176,23 +193,26 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           const first = arr[0];
           if (!first) return "";
           const x = first.value?.[0] ?? 0;
-          const lines = [`${fmtNum(x, x >= 10 ? 0 : 1)} ${unitWord}`];
+          const lines = [`${tick(x)} ${unitWord}`];
           for (const p of arr) {
             if (p.seriesName === "cumulative") lines.push(`cumulative: ${fmtPct(p.value[1], 0)}`);
-            else lines.push(`${p.seriesName}: ${fmtPct(p.value[1], 1)} of cases${p.seriesName === groupName ? ` (${fmtInt(p.value[3])})` : ""}`);
+            else lines.push(`${p.seriesName}: ${fmtPct(p.value[1], 1)} of ${noun}${p.seriesName === groupName ? ` (${fmtInt(p.value[3])})` : ""}`);
           }
           return lines.join("<br/>");
         },
       },
       legend: { top: 0, right: 8, data: [...(restShares ? ["everyone else"] : []), groupName, ...(cumulative ? ["cumulative"] : [])] },
-      xAxis: { type: "value", name: unitLabel ?? unitWord, nameLocation: "middle", nameGap: 28, min: xMin, max: xMax },
+      // every tick is formatted: the axis printed 0.0374236111111111 where the values are small (R3-16)
+      xAxis: { type: "value", name: unitLabel ?? unitWord, nameLocation: "middle", nameGap: 30, min: xMin, max: xMax, axisLabel: { formatter: (v: number) => tick(v) } },
       yAxis: [
-        { type: "value", name: "share of cases", nameTextStyle: { align: "left" }, max: maxShare, splitLine: { show: true }, axisLabel: { formatter: (v: number) => fmtPct(v, v < 0.01 ? 1 : 0) } },
+        // the y-axis is labelled with the run's own noun, and its title sits above the plot rather than
+        // rotated across it
+        { type: "value", name: `share of ${noun}`, nameLocation: "end", nameTextStyle: { align: "left" }, nameGap: 14, max: maxShare, splitLine: { show: true }, axisLabel: { formatter: (v: number) => fmtPct(v, v < 0.01 ? 1 : 0) } },
         ...(cumulative ? [{ type: "value" as const, name: "cumulative", min: 0, max: 1, position: "right" as const, splitLine: { show: false }, axisLabel: { formatter: (v: number) => fmtPct(v) } }] : []),
       ],
       series,
     };
-  }, [bins, restShares, distribution.ecdf, direction, t, w, unitWord, unitLabel, xMin, xMax, tk, nGroup, groupName, plain, cumulative]);
+  }, [bins, restShares, distribution.ecdf, direction, t, w, unitWord, unitLabel, noun, xMin, xMax, tk, nGroup, groupName, plain, cumulative]);
 
   // Draggable handles: positioned in pixels after render, dragging converts back to data.
   const positionHandles = useCallback(
@@ -290,7 +310,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
       <section className={cn("flex flex-col gap-2", className)} aria-label={title ?? `Distribution of ${constraintId ?? "signal"}`} data-testid="lens-empty">
         {title && <h3 className="text-sm font-semibold">{title}</h3>}
         <p className="reading text-sm text-text-muted">
-          No case of {groupName} has a value for this expectation, so there is nothing to draw — not a share of 100 %. The expectation may not apply here, or the events it measures are missing.
+          No {noun.replace(/s$/, "")} of {groupName} has a value for this expectation, so there is nothing to draw — not a share of 100 %. The expectation may not apply here, or the events it measures are missing.
         </p>
       </section>
     );
@@ -311,7 +331,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           </div>
         ) : (
           <p className="tnum text-xs text-text-muted" aria-live="polite">
-            {fmtInt(stats.n)} cases in scope · <strong className="text-text">{fmtPct(stats.shareViolating, 1)}</strong> beyond ϑ · {fmtPct(stats.shareFull, 1)} beyond ϑ{direction === "high" ? "+" : "−"}W · mean violation{" "}
+            {fmtInt(stats.n)} {noun} in scope · <strong className="text-text">{fmtPct(stats.shareViolating, 1)}</strong> beyond ϑ · {fmtPct(stats.shareFull, 1)} beyond ϑ{direction === "high" ? "+" : "−"}W · mean violation{" "}
             <strong className="text-text">{fmtNum(stats.meanViolation, 3)}</strong>
             {restBeyond !== undefined ? ` · everyone else ${fmtPct(restBeyond, 1)} beyond ϑ` : ""}
             <Explain
@@ -319,8 +339,8 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
               title="Violation under a soft threshold"
               formula={`ν(x) = clip((x − ϑ) / W, 0, 1)   (direction ${direction})\nshare beyond ϑ = 1 − ECDF(ϑ)\nmean violation = Σ n_bin · ν(mid_bin) / n`}
               inputs={[
-                { label: "ϑ", value: `${fmtNum(t, 2)} ${unit}` },
-                { label: "W", value: `${fmtNum(w, 2)} ${unit}` },
+                { label: "ϑ", value: `${fmtNum(t, 2)} ${unitWord}` },
+                { label: "W", value: `${fmtNum(w, 2)} ${unitWord}` },
                 { label: "ECDF(ϑ)", value: fmtPct(stats.cdfAtThreshold, 1) },
               ]}
               caveats={["Bins approximate the mean violation; the ECDF gives the shares exactly.", "Committing a change creates a norm version with a note."]}
@@ -330,10 +350,10 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
         )}
       </header>
       {sliders === "always" && controls}
-      <EChart ref={chartRef} option={option} height={height} ariaLabel={`Distribution of ${constraintId ?? "the signal"} for ${groupName}${restShares ? " and everyone else" : ""}; expected ${fmtNum(t, 2)} ${unit}, tolerance ${fmtNum(w, 2)} ${unit}`} onReady={setInstance} notMerge={false} />
+      <EChart ref={chartRef} option={option} height={height} ariaLabel={`${title ?? "Distribution"} for ${groupName}${restShares ? " and everyone else" : ""}; expected ${fmtNum(t, 2)} ${unitWord}, tolerance ${fmtNum(w, 2)} ${unitWord}`} onReady={setInstance} notMerge={false} />
       <p className="text-xs text-text-subtle">
-        {groupName} against everyone else{restShares ? "" : " (the whole log)"}, {fmtInt(stats.n)} cases with a value
-        {distribution.beyond?.share ? `; ${fmtPct(distribution.beyond.share, distribution.beyond.share < 0.01 ? 1 : 0)} of cases beyond ${fmtNum(xMax, 0)} ${unitWord} are not drawn` : ""}.
+        {groupName} against everyone else{restShares ? "" : " (the whole log)"}, {fmtInt(stats.n)} {noun} with a value
+        {distribution.beyond?.share ? `; ${fmtPct(distribution.beyond.share, distribution.beyond.share < 0.01 ? 1 : 0)} of ${noun} beyond ${tick(xMax)} ${unitWord} are not drawn` : ""}.
       </p>
       <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">
         <label className="flex items-center gap-2">
@@ -352,7 +372,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
             <dl className="tnum mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 sm:grid-cols-[auto_1fr_auto_1fr]">
               {statEntries.map(([k, v]) => (
                 <div key={k} className="contents">
-                  <dt>{plain ? STAT_LABEL[k] : k}</dt>
+                  <dt>{plain ? `${k === "n" || k === "nCases" ? `${noun} ` : ""}${STAT_LABEL[k]}` : k}</dt>
                   <dd className="text-text">{plain ? fmtStat(k, v as number) : fmtNum(v as number, 2)}</dd>
                 </div>
               ))}

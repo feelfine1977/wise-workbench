@@ -8,7 +8,17 @@ from typing import TYPE_CHECKING, Any
 
 from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
 from wise_workbench.adapters.knowledge import guidance_complete, guidance_ref
-from wise_workbench.domain import CaseTableStatus, NormStatus, NormVersion, NotFoundError, ValidationError
+from wise_workbench.domain import (
+    CaseTableStatus,
+    NormStatus,
+    NormVersion,
+    NotFoundError,
+    ValidationError,
+    changed_thresholds,
+    missing_rationales,
+    thresholds_of,
+)
+from wise_workbench.domain.project import utcnow
 from wise_workbench.ids import new_id
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -26,11 +36,25 @@ class NormService:
         note: str,
         parent_id: str | None = None,
         author: str | None = None,
+        calibration: dict[str, Any] | None = None,
+        not_applicable: dict[str, Any] | None = None,
     ) -> NormVersion:
+        """A new immutable version.
+
+        ``calibration`` records, per expectation, why its threshold is what it is and who owns it; the version
+        does not leave ``draft`` without one for every threshold it changed (R3-02). ``not_applicable`` moves an
+        expectation out of the norm with a note that says why, so that a layer-balanced score stops averaging a
+        constant; the expectation itself is kept in the metadata and can be brought back.
+        """
         self.c.repos.get_project(project_id)
         if not isinstance(document, dict):
             raise ValidationError("norm must be a JSON object", code="norm.invalid")
+        document = _with_calibration(document, calibration, not_applicable, author)
         canonical, fingerprint = self.c.engine.validate_norm(document)
+        canonical.setdefault("metadata", {})
+        for block in ("calibration", "not_applicable"):
+            if (document.get("metadata") or {}).get(block):
+                canonical["metadata"][block] = (document["metadata"])[block]
         parent: NormVersion | None = None
         if parent_id:
             parent = self.c.repos.get_norm_version(parent_id)
@@ -85,9 +109,130 @@ class NormService:
         self.c.repos.get_project(project_id)
         return self.c.repos.list_norm_versions(project_id)
 
-    def set_status(self, project_id: str, norm_version_id: str, status: NormStatus) -> NormVersion:
-        n = self.get(project_id, norm_version_id).with_status(status)
-        return self.c.repos.update_norm_status(n)
+    def set_status(
+        self, project_id: str, norm_version_id: str, status: NormStatus, *, author: str | None = None
+    ) -> NormVersion:
+        """Move a version along ``draft → reviewed → approved``.
+
+        Leaving ``draft`` is the moment a norm becomes something a person stands behind, so it is refused while a
+        threshold this version set carries no rationale and no owner, and it is refused without a named person
+        (R3-02).
+        """
+        n = self.get(project_id, norm_version_id)
+        if status != NormStatus.DRAFT and n.status == NormStatus.DRAFT:
+            if not str(author or n.author or "").strip():
+                raise ValidationError(
+                    "a norm version leaves draft under the name of the person who signs it", code="norm.author"
+                )
+            parent = self.c.repos.get_norm_version(n.parent_id).document if n.parent_id else None
+            missing = missing_rationales(n.document, parent, n.uncalibrated)
+            if missing:
+                raise ValidationError(
+                    "these thresholds have no rationale and no owner yet: " + ", ".join(missing),
+                    code="norm.rationale_required",
+                    errors=[{"field": cid, "message": "a rationale and an owner are required"} for cid in missing],
+                )
+        moved = n.with_status(status)
+        if author and not moved.author:
+            moved = replace(moved, author=author)
+        return self.c.repos.update_norm_status(moved)
+
+    def calibration(self, project_id: str, norm_version_id: str) -> dict[str, Any]:
+        """What this version's thresholds are, which of them it set, and which of those still lack a rationale."""
+        n = self.get(project_id, norm_version_id)
+        parent = self.c.repos.get_norm_version(n.parent_id).document if n.parent_id else None
+        entries = n.calibration_entries
+        thresholds = thresholds_of(n.document)
+        changed = changed_thresholds(n.document, parent)
+        rows = []
+        for cid, values in sorted(thresholds.items()):
+            entry = entries.get(cid) or {}
+            rows.append(
+                {
+                    "constraint_id": cid,
+                    "threshold": values,
+                    "changedHere": cid in changed,
+                    "rationale": entry.get("rationale"),
+                    "owner": entry.get("owner"),
+                    "decidedAt": entry.get("decidedAt"),
+                }
+            )
+        missing = missing_rationales(n.document, parent, n.uncalibrated)
+        return {
+            "normVersionId": n.id,
+            "status": str(n.status),
+            "parentId": n.parent_id,
+            "author": n.author,
+            "thresholds": rows,
+            "notApplicable": [
+                {"constraint_id": cid, **{k: v for k, v in entry.items() if k != "constraint"}}
+                for cid, entry in sorted(n.not_applicable.items())
+            ],
+            "missingRationale": missing,
+            "canLeaveDraft": not missing,
+        }
+
+    def applicability_options(self, project_id: str, case_table_id: str) -> dict[str, Any]:
+        """What an expectation can be made to apply to on this log (R3-02): flow types, attribute values, nothing.
+
+        The applicability editor writes one of these clauses onto an expectation, so the options it offers are
+        the log's own: the flow types the case table carries with their counts, every case attribute with its
+        values, and *not applicable to this log*, which moves the expectation out of the norm with a note.
+        """
+        inventory = self.inventory(project_id, case_table_id, limit=50)
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        flow_types: list[dict[str, Any]] = []
+        absent: list[dict[str, Any]] = []
+        try:
+            payload = self.c.mappings.flow_types(project_id, case_table_id, attribute=None, abstraction=0.05)
+            flow_types = [
+                {"value": t["name"], "cases": t["cases"], "share": t["share"]} for t in payload.get("types") or []
+            ]
+            absent = list(payload.get("absent") or [])
+        except (ValidationError, NotFoundError):  # a case table without flow typing offers attributes only
+            flow_types = []
+        return {
+            "caseTableId": case_table_id,
+            "caseNoun": inventory.get("caseNoun"),
+            "flowTypeAttribute": "flow_type" if flow_types else None,
+            "flowTypes": flow_types,
+            "flowTypesAbsent": absent,
+            "attributes": inventory.get("attributes") or [],
+            "kinds": [
+                {
+                    "id": "flow_type",
+                    "label": "one or more flow types",
+                    "shape": {"attr": "flow_type", "in": ["standard"]},
+                    "available": bool(flow_types),
+                },
+                {
+                    "id": "attribute",
+                    "label": "a case attribute equal to one of a set of values",
+                    "shape": {
+                        "attr": mapping.case_attributes[0] if mapping.case_attributes else "attribute",
+                        "in": ["value"],
+                    },
+                    "available": bool(mapping.case_attributes),
+                },
+                {
+                    "id": "always",
+                    "label": "every case of this log",
+                    "shape": {},
+                    "available": True,
+                },
+                {
+                    "id": "not_applicable",
+                    "label": "not applicable to this log",
+                    "shape": None,
+                    "available": True,
+                    "note": (
+                        "the expectation is moved out of this version with a note; it is kept in the metadata "
+                        "and can be brought back"
+                    ),
+                },
+            ],
+        }
 
     # ------------------------------------------------------------- norm builder (R3-O6)
     def inventory(
@@ -170,3 +315,69 @@ class NormService:
         self.c.repos.update_norm_validation(replace(n, validation=tuple(str(i) for i in out.get("issues", []))))
         out["warnings"] = list(out.get("issues", []))
         return out
+
+
+def _with_calibration(
+    document: dict[str, Any],
+    calibration: dict[str, Any] | None,
+    not_applicable: dict[str, Any] | None,
+    author: str | None,
+) -> dict[str, Any]:
+    """Merge the rationales and the *not applicable* decisions into the document's metadata."""
+    if not calibration and not not_applicable:
+        return document
+    out = dict(document)
+    metadata = dict(out.get("metadata") or {})
+    now = utcnow().isoformat()
+    if calibration:
+        block = dict(metadata.get("calibration") or {})
+        for cid, entry in calibration.items():
+            body = dict(entry or {})
+            rationale, owner = str(body.get("rationale") or "").strip(), str(body.get("owner") or "").strip()
+            if not rationale or not owner:
+                raise ValidationError(
+                    f"the threshold of {cid} needs a rationale and an owner", code="norm.rationale_required"
+                )
+            block[str(cid)] = {
+                "rationale": rationale,
+                "owner": owner,
+                "decidedAt": body.get("decidedAt") or now,
+                "decidedBy": body.get("decidedBy") or author,
+            }
+        metadata["calibration"] = block
+    if not_applicable:
+        block = dict(metadata.get("not_applicable") or {})
+        kept = []
+        removed = {str(cid) for cid in not_applicable}
+        for constraint in out.get("constraints") or []:
+            cid = str(constraint.get("id") or "")
+            if cid not in removed:
+                kept.append(constraint)
+                continue
+            note = str((not_applicable[cid] or {}).get("note") or "").strip()
+            if not note:
+                raise ValidationError(
+                    f"marking {cid} not applicable needs a note that says why", code="norm.not_applicable_note"
+                )
+            block[cid] = {
+                "note": note,
+                "author": (not_applicable[cid] or {}).get("author") or author,
+                "decidedAt": (not_applicable[cid] or {}).get("decidedAt") or now,
+                "constraint": dict(constraint),
+            }
+        unknown = sorted(removed - {str(c.get("id")) for c in out.get("constraints") or []} - set(block))
+        if unknown:
+            raise ValidationError(f"the norm has no expectation {unknown}", code="norm.not_applicable")
+        out["constraints"] = kept
+        # a view weights the expectations by name, so an expectation that is no longer there leaves its weights too
+        views = []
+        for view in out.get("views") or []:
+            copy_view = dict(view)
+            weights = copy_view.get("constraint_weights")
+            if isinstance(weights, dict):
+                copy_view["constraint_weights"] = {k: v for k, v in weights.items() if str(k) not in removed}
+            views.append(copy_view)
+        out["views"] = views
+        metadata["not_applicable"] = block
+    out["metadata"] = metadata
+    return out
