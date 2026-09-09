@@ -28,7 +28,13 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     await user.click(screen.getByRole("button", { name: "Analyse per flow type" }));
     const tray = await screen.findByRole("region", { name: "Jobs" }, T);
     await waitFor(() => expect(within(tray).getAllByText(/^Score (DF2|DF1|Consignment|2-way)/).length).toBe(4), T);
-    await waitFor(() => expect(within(tray).getAllByText("done").length).toBe(4), { timeout: 15000 });
+    // Both the status badge and the progress message say "done". Check each job
+    // instead of a transient label count that can pass with only two jobs finished.
+    await waitFor(() => {
+      const jobs = within(tray).getAllByRole("listitem");
+      expect(jobs).toHaveLength(4);
+      for (const job of jobs) expect(job).toHaveAttribute("data-job-status", "done");
+    }, T);
     await waitFor(() => expect(screen.getByText("Every flow type has its run")).toBeInTheDocument(), T);
     // the Data step's ribbon shows project and dataset only; the scope switcher belongs to the Signals step
     expect(screen.queryByRole("combobox", { name: "Switch scope" })).not.toBeInTheDocument();
