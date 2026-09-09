@@ -169,7 +169,7 @@ def test_norm_versions_validate_with_the_library(client: TestClient) -> None:
     assert r.status_code == 409
 
 
-def test_run_lifecycle_idempotency_and_reads(client: TestClient) -> None:
+def test_run_lifecycle_idempotency_and_reads(client: TestClient, dependency_profile: str) -> None:
     ids = upload_running_example(client)
     pid = ids["project"]
     check = client.post(
@@ -306,7 +306,20 @@ def test_run_lifecycle_idempotency_and_reads(client: TestClient) -> None:
     )
     assert detail["worstCases"][0]["caseId"] == "E" and detail["worstCases"][0]["violated"] == ["c1", "c2", "c3"]
     assert detail["validation"]["n_cases"] == 3 and "reading" in detail["validation"]
-    assert detail["headroom"]["columns"][:2] == ["constraint", "plain"] and "priority" in detail["reading"]
+    assert "priority" in detail["reading"]
+    if dependency_profile == "full":
+        assert detail["headroom"]["columns"][:2] == ["constraint", "plain"]
+        assert detail["analytics"]["available"] is True
+    else:
+        assert detail["headroom"]["columns"] == ["layer", "headroom", "note"]
+        assert len(detail["headroom"]["rows"]) == 5
+        assert all(
+            row[1:] == [None, "not available: wise-analytics is not installed"] for row in detail["headroom"]["rows"]
+        )
+        assert detail["analytics"]["available"] is False
+        assert detail["analytics"]["recordIds"] == {}
+        assert detail["contrast"] == {"columns": [], "rows": []}
+        assert detail["subgroups"] == {"columns": [], "rows": []}
     assert (
         client.get(f"/api/v1/projects/{pid}/runs/{run['id']}/slices/B", params={"slicing": "company"}).status_code
         == 200

@@ -7,18 +7,12 @@ import pytest
 
 from wise_knowledge import load_pack
 
-BPIC2019_CSV = Path(
-    os.environ.get("WISE_BPIC19_CSV", "~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv")
-).expanduser()
-HACKATHON_DIR = Path(
-    os.environ.get("WISE_HACKATHON_DIR", "~/code/PhD/WISE/WISE/hackathon_2026/outputs_icpm2026")
-).expanduser()
-OCEL_P2P_EVENTS = Path(
-    os.environ.get("WISE_OCEL2_P2P_EVENTS", "~/code/PhD/WISE/OC-WISE/data/ocel2.ocel.events.csv")
-).expanduser()
-WISE_LIB_NORM = Path(
-    os.environ.get("WISE_LIB_BPIC19_NORM", "~/code/PhD/WISE/wise-lib/examples/bpic19_norm.json")
-).expanduser()
+# Missing inputs remain explicit opt-ins; synthetic tests need no local datasets.
+_UNCONFIGURED = Path(__file__).parent / "unconfigured-inputs"
+BPIC2019_CSV = Path(os.environ.get("WISE_BPIC19_CSV", str(_UNCONFIGURED / "bpic19.csv"))).expanduser()
+HACKATHON_DIR = Path(os.environ.get("WISE_HACKATHON_DIR", str(_UNCONFIGURED))).expanduser()
+OCEL_P2P_EVENTS = Path(os.environ.get("WISE_OCEL2_P2P_EVENTS", str(_UNCONFIGURED / "ocel.csv"))).expanduser()
+WISE_LIB_NORM = Path(os.environ.get("WISE_LIB_BPIC19_NORM", str(_UNCONFIGURED / "norm.json"))).expanduser()
 
 
 @pytest.fixture(scope="session")

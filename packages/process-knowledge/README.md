@@ -2,7 +2,7 @@
 
 Curated, human-authored process knowledge, one folder per process, plus the
 Python package `wise_knowledge` that validates, loads, graphs and matches it
-and serves the knowledge hub. Two packs ship: `p2p/` (purchase-to-pay,
+and serves the knowledge hub. Two packs ship under `src/wise_knowledge/data`: `p2p/` (purchase-to-pay,
 evidenced by BPI Challenge 2019, the OCEL 2.0 P2P vocabulary and the
 hackathon purchase extract) and `o2c/` (order-to-cash, evidenced by the ICPM
 2026 hackathon sales extract; invoice and payment stages from vocabulary).
@@ -18,12 +18,34 @@ distribution (F8). User-visible text follows `docs/CUSTOMER_JOURNEY.md` §8
 and the plain-language rule of `docs/panel/guidance_and_insight_panel.md`
 §2: the plain words first, the method term second.
 
+## Installed resources
+
+`src/wise_knowledge/data/` is the single source for schemas, packs, mappings,
+presets, templates and `datasets.yaml`; edit content there. Wheels and sdists
+include it as package data. `knowledge_root()` resolves it with
+`importlib.resources`, including when running outside the checkout. Pack and
+template paths remain usable for the process lifetime. Both built-in entry
+points (`p2p` and `o2c`) resolve to these same resources.
+
+`WISE_KNOWLEDGE_ROOT` remains an explicit override for a complete custom
+content tree containing `schema/` and the pack directories. Third-party packs
+can still register the `wise_knowledge.packs` entry-point group.
+
+Build with `python -m build`. The backend's
+[distribution smoke test](../../apps/backend/DISTRIBUTION.md) verifies the
+knowledge sdist → wheel → installed-resources path alongside the application
+wheel. Actual dataset tests require explicitly configured `WISE_BPIC19_CSV`,
+`WISE_HACKATHON_DIR` or `WISE_OCEL2_P2P_EVENTS`; there is no author-directory
+fallback. `WISE_LIB_BPIC19_NORM` optionally checks an external reference norm;
+the ordinary test checks the known public classic v0.1.0 SHA-256 without it.
+
 ## Layout
 
 ```
 process-knowledge/
   README.md, CHECKPOINT.md          this file; how to try CP-D1 and CP-D2 with expected output
   pyproject.toml                    package wise-knowledge, script wise-knowledge
+  src/wise_knowledge/data/           installed content root (the following content paths are relative to it)
   datasets.yaml                     registry of evidence logs (validated by schema/datasets.schema.json)
   schema/                           JSON Schemas (draft 2020-12)
     common.schema.json              shared $defs: ids, texts en/de, sources, evidence, review status
@@ -211,7 +233,7 @@ and of the failure mode, for the explanation panel.
 ```bash
 cd packages/process-knowledge
 python3 -m venv .venv
-.venv/bin/pip install -e ~/code/PhD/WISE/wise-lib      # wise-pm, used to validate and score the templates
+.venv/bin/pip install 'git+https://github.com/feelfine1977/wise-pm.git@v0.1.0' # classic template validation
 .venv/bin/pip install -e '.[dev]'                        # pyyaml, jsonschema, rapidfuzz, networkx, pandas, pytest, ruff
 
 .venv/bin/wise-knowledge validate                        # datasets.yaml and every pack (schemas, cross references, templates, guidance, presets)

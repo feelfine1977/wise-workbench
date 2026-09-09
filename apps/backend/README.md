@@ -9,28 +9,23 @@ exactly one place, `adapters/engine/`, and its norm JSON is stored exactly as
 
 ## Install
 
+Use a fresh environment and an explicit classic method-library input:
+
 ```bash
 cd apps/backend
 python3 -m venv .venv
-.venv/bin/pip install -e ~/code/PhD/WISE/wise-lib        # the method library (editable checkout), or
-                                                         # pip install "git+https://github.com/feelfine1977/wise-pm.git@v0.1.0"
-.venv/bin/pip install -e .                               # the service and the wise-workbench command
-.venv/bin/pip install -e '.[dev]'                        # plus pytest, ruff, mypy for the checks
-.venv/bin/pip install -e ../../packages/process-knowledge # stage groups, plain names of layers and expectations, case nouns
-.venv/bin/pip install -e ../../packages/wise-analytics    # stability badges, kinds, comparison sentences, caveats, contrast, headroom
+.venv/bin/python -m pip install 'git+https://github.com/feelfine1977/wise-pm.git@v0.1.0'
+.venv/bin/python -m pip install ../../packages/process-knowledge ../../packages/wise-analytics -e '.[dev,full]'
 ```
 
-Both packages are optional at import time: without `wise-analytics` every
-rank reads "confidence not computed" and the slice detail has no contrast;
-without `wise-knowledge` the map has no stage groups and layers keep the
-norm's names.
+Knowledge is an installed runtime dependency. The `full` extra adds analytics
+(stability, contrast, headroom and provenance). For the minimal backend omit
+`../../packages/wise-analytics` and use `.[dev]`; its analytics responses
+explicitly report unavailable results. No sibling checkout or uv path override
+is required. Optional extras also include `xes`, `postgres`, `docx` and `llm`.
 
-A fresh virtual environment with the library and `pip install -e .` is
-enough to run `wise-workbench` (checked with Python 3.12 and 3.13). With
-`uv`: `uv sync --extra dev` (the `[tool.uv.sources]` entry points `wise-pm`
-at `../../../wise-lib`).
-
-Optional extras: `xes` (pm4py for XES import), `postgres`, `analytics`.
+See [distribution and clean CI](DISTRIBUTION.md) for the two dependency test
+profiles, supplied-frontend wheel builder, and installation outside a checkout.
 
 ## Run
 
@@ -64,8 +59,8 @@ workspace), `WISE_HOST`, `WISE_PORT`, `WISE_STATIC_DIR`, `WISE_INPROCESS_WORKER`
 (`json` | `console`), `WISE_LOG_LEVEL`, `WISE_JOB_LEASE_SECONDS`,
 `WISE_JOB_MAX_ATTEMPTS`, `WISE_SCORE_CACHE_SIZE`, `WISE_MAPPING_SAMPLE_EVENTS`,
 `WISE_MAX_UPLOAD_BYTES`, for the public log preset `WISE_BPIC19_CSV`
-(default `~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv`) and
-`WISE_BPIC19_NORM` (default `~/code/PhD/WISE/wise-lib/examples/bpic19_norm.json`),
+(unset by default) and
+`WISE_BPIC19_NORM` (default the installed knowledge package's public BPIC template),
 and for the analytics job `WISE_ANALYTICS_AUTO` (queue it after every scoring
 job, default on), `WISE_ANALYTICS_BOOTSTRAP_B` (200 replicates),
 `WISE_ANALYTICS_COMPARISON_TOP` (comparison sentences for the top 12 groups of
@@ -198,8 +193,8 @@ checksums; identical inputs return the existing run.
 ## Tests and checks
 
 ```bash
-.venv/bin/python -m pytest                                  # 100 passed, 4 skipped (BPIC opt-in), ~34 s
-WISE_BPIC19_CSV=~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv .venv/bin/python -m pytest tests/golden/test_bpic19.py
+.venv/bin/python -m pytest --dependency-profile=full
+WISE_BPIC19_CSV=/path/to/BPI_Challenge_2019.csv .venv/bin/python -m pytest tests/golden/test_bpic19.py
 .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests
 .venv/bin/mypy
 .venv/bin/wise-workbench openapi --yaml --out ../../packages/api-schema/openapi.yaml   # regenerate the contract (the drift test fails otherwise)

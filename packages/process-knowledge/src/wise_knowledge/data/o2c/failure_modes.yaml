@@ -7,7 +7,7 @@ pack: o2c
 version: 1
 review_status: draft
 sources:
-  - packages/process-knowledge/o2c/README.md §2 (first entries with measured shares)
+  - packages/process-knowledge/src/wise_knowledge/data/o2c/README.md §2 (first entries with measured shares)
   - ICPM 2026 hackathon sales extract and stock movements, measured 2026-09-05
   - OCEL 2.0 Order Management (simulated), vocabulary only
   - SAP SD documentation (schedule lines, delivery and credit blocks, returns, billing, dunning)

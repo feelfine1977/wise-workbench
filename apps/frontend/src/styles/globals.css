@@ -118,21 +118,13 @@
   }
 }
 
-/* R3-17 — the map's own chrome only.
-
-   The product's zoom, fit and full-window controls are a 32 px translucent stack at the bottom-left of the
-   canvas (§3.2). React Flow draws its own three-button stack in the same corner, the flow library its control
-   bar and its "press delete to remove" help text, and React Flow and bpmn.io each sign the drawing with a
-   watermark. All of them belong to the libraries rather than to the product, and on the Flow step they put
-   two zoom stacks and two marks in one corner. They are suppressed on every embedding — the Flow step, the
-   Why tab, the board panel and the flow-type thumbnails — because the rule keys on the class the product's
-   own map carries. */
+/* The host supplies one set of navigation controls. BPMN attribution remains visible,
+   as required by bpmn-js; it is not part of the redundant navigation chrome. */
 .wise-map .react-flow__controls,
 .wise-map .react-flow__attribution,
 .wise-map .react-flow__panel.react-flow__attribution,
 .wise-map .wf-controls,
 .wise-map .wf-process-map__help,
-.wise-model .bjs-powered-by,
 .wise-model .djs-palette,
 .wise-model .bjs-breadcrumbs {
   display: none !important;

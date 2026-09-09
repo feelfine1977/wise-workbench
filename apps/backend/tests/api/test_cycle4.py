@@ -27,13 +27,12 @@ from typing import Any
 
 import pandas as pd
 import pytest
+import wise_analytics as wa
 from fastapi.testclient import TestClient
 
 from tests.conftest import make_settings, wait_job
 from wise_workbench.api.app import create_app
 from wise_workbench.domain.comparison import bracket_check, bracket_is_difference
-
-wa = pytest.importorskip("wise_analytics")
 
 MAPPING = {
     "caseId": "case",

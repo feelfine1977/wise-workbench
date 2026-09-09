@@ -16,12 +16,11 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
+import wise_analytics as wa
 from fastapi.testclient import TestClient
 
 from tests.conftest import make_settings, wait_job
 from wise_workbench.api.app import create_app
-
-wa = pytest.importorskip("wise_analytics")
 
 MAPPING = {
     "caseId": "case",

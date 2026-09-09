@@ -127,3 +127,22 @@ def test_committed_contract_equals_the_generated_document(generated: dict, contr
         "packages/api-schema/openapi.yaml differs from the backend's OpenAPI document; regenerate it with "
         "`.venv/bin/wise-workbench openapi --yaml --out ../../packages/api-schema/openapi.yaml`"
     )
+
+
+def test_problem_response_descriptions_are_runtime_independent(generated: dict) -> None:
+    descriptions = []
+    for path in generated["paths"].values():
+        for operation in path.values():
+            if not isinstance(operation, dict):
+                continue
+            response = operation.get("responses", {}).get("422", {})
+            schema = response.get("content", {}).get("application/json", {}).get("schema", {})
+            if schema.get("$ref") == "#/components/schemas/Problem":
+                descriptions.append(response["description"])
+    assert descriptions and set(descriptions) == {"Unprocessable Content"}
+
+
+def test_committed_contract_yaml_is_byte_stable(generated: dict, contract: dict) -> None:
+    assert yaml.safe_dump(generated, sort_keys=False, allow_unicode=True, width=1000) == CONTRACT.read_text(
+        encoding="utf-8"
+    )

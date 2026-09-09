@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
 
 import pytest
-from conftest import WISE_LIB_NORM, requires
+from conftest import WISE_LIB_NORM
 
 wise = pytest.importorskip("wise")
 
@@ -21,11 +22,11 @@ def test_every_template_loads_and_validates(p2p, o2c):
 
 
 def test_paper_norm_is_verbatim(p2p):
-    requires(WISE_LIB_NORM)
-    if not WISE_LIB_NORM.is_file():
-        pytest.skip("wise-lib checkout not available")
-    ours = p2p.template("p2p_bpic19").path.read_text(encoding="utf-8")
-    assert ours == WISE_LIB_NORM.read_text(encoding="utf-8")
+    # Public classic wise-pm v0.1.0 examples/bpic19_norm.json (byte identity).
+    ours = p2p.template("p2p_bpic19").path.read_bytes()
+    assert hashlib.sha256(ours).hexdigest() == "45c2949c3311d1e032956f8d2fd30bd5b644d8412700cf20a930bbc8a0061e2b"
+    if WISE_LIB_NORM.is_file():
+        assert ours == WISE_LIB_NORM.read_bytes()
     norm = wise.Norm.load(p2p.template("p2p_bpic19").path)
     assert len(norm.constraints) == 29 and norm.view_names == ["Finance", "Logistics", "Compliance", "Automation"]
 

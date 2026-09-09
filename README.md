@@ -1,31 +1,61 @@
-# WISE Workbench — design workspace
+# WISE Workbench
 
-Design workspace for an application that analyses event logs with the
-`wise` library (norm-based, slice-first prioritisation) and guides analysts
-and process owners through an improvement process, with a local LLM
-(Ollama) as an assistant.
+WISE Workbench helps analysts and process owners build an evidence-based improvement roadmap aligned with business objectives. It turns event logs and explicit expectations into ranked groups, then connects investigation to findings, hypotheses, actions and an analysis notebook.
 
-This folder holds the design, not yet the implementation:
+It is a working local application: FastAPI/Python backend, React/TypeScript frontend, SQLite metadata and Parquet analysis files. It does not yet optimise a roadmap under budget, capacity or dependency constraints.
 
-| Path | Content |
+## Start in a new checkout
+
+Use Python 3.12 or 3.13 and Node 24. No sibling repositories or private reference workspace are required.
+
+```bash
+git clone https://github.com/feelfine1977/wise-workbench.git
+cd wise-workbench
+tools/install.sh --dev
+apps/backend/.venv/bin/python tools/demo.py --workspace "$HOME/WISE Demo"
+WISE_WORKSPACE="$HOME/WISE Demo" tools/start.sh
+```
+
+`tools/install.sh` installs the classic method at its pinned release commit, the local analytics and knowledge packages, and the frontend's locked dependencies. The flow renderer is included as a versioned npm artifact; see [vendor provenance](vendor/README.md). The demo uses only the library's public five-case example and refuses an existing nonempty directory. It demonstrates the workflow, not a meaningful business ranking.
+
+If port 8000 is occupied, use `tools/start.sh --no-build --port 8002`. The syntax is `--port 8002` or `--port=8002`. The large-chunk message from Vite is a build warning, not a startup failure. Stop the foreground server with Ctrl-C.
+
+## What you can use
+
+- Map columns, inspect data caveats and record versioned preprocessing decisions.
+- Identify flow types and compare the full population or start scoped analyses.
+- Import/version norms, score logs and rank groups by WISE priority.
+- Filter a process map and linked board; switch to a generated BPMN model.
+- Inspect drivers, distributions, cases and validation gates; record findings, hypotheses and actions.
+- Browse process knowledge and freeze analysis screens with notes; export a Markdown notebook.
+
+## Current limits
+
+The norm editor's calibration rationale/owner persistence and not-applicable operation need repair before treating its approval path as complete. Order-to-cash thresholds are draft and its customer ranking is not a validated business backlog. Some comparison sentences, gate refusal messages and hypothesis test results are still missing from screens. What-if exists in the backend but has no complete user workflow. Map labels can overlap. A movable dashboard builder, PowerPoint export, authentication and supported Docker images are planned.
+
+Run locally on `127.0.0.1`; the current application has no login or multi-user access boundary. Ranking is relative to the selected population and norm, and is not evidence of causation or guaranteed savings.
+
+## Components and ownership
+
+| Component | Responsibility |
 |---|---|
-| `docs/panel/` | Reports of the expert panel: process mining / BPM / Lean–Six Sigma, backend + frontend architecture, ML analytics, LLM assistant, the knowledge-architecture follow-up (RAG, knowledge graph, MCP, frameworks, process-specific understanding), process-flow visualisation (flow library, BPMN, visualisation catalogue) the UI/UX design panel (navigation, screen concepts, interaction patterns, design system, accessibility, workshops), the guidance and insight panel (plain language, signal → reason → remedy), the knowledge-hub panel (stakeholder guidance on layers, meaning → reasons → actions per process), and the interactive-flow requirements benchmarked against Celonis, Disco, Apromore, Signavio, UiPath and pm4py (RF-01 to RF-53). |
-| `docs/CUSTOMER_JOURNEY.md` | Personas, journey stages, and the feature catalogue derived from them. |
-| `docs/ARCHITECTURE.md` | Architecture draft: components, stack, domain model, APIs, deployment. |
-| `docs/ROADMAP.md` | MVP → v1 → v2 and the main risks. |
-| `docs/DATASETS.md` | Inventory of public event logs (BPI Challenge 2011–2020, 4TU logs, OCEL 2.0) with their fit to the method and the knowledge-pack order derived from them. |
-| `docs/DECISIONS.md` | Decisions taken by the owner, dated. |
-| `docs/IMPLEMENTATION_PLAN.md` | Increments, workstreams, contracts, test strategy, and the checkpoints where the owner tries each feature. |
-| `docs/BACKLOG.md` | What is still to do, by increment, plus owner actions. |
-| `docs/DEPLOYMENT_AUTH_PLAN.md` | Deployment stages D0–D5, hosting choices, authentication modes and roles, work items by cycle. |
-| `docs/adr/` | Architecture decision records. |
-| `docker/` | Docker installation: deployment guide with `single` / `team` / `dev` profiles, draft `compose.yml`, GPU overlay, Caddy config, `.env.example`. |
-| `apps/backend`, `apps/frontend`, `apps/desktop` | Repository skeleton for the implementation (README per module describing its responsibility; placeholder `pyproject.toml`, `pnpm-workspace.yaml`, `justfile`). |
-| `packages/wise-analytics` | Skeleton of the analytics package (uncertainty, contrast, readiness, headroom, monitoring). |
-| `packages/process-knowledge` | Curated process knowledge (ontologies with system label packs, stages, failure modes, KPIs, glossary, playbooks, norm templates) for P2P, O2C, order management, production, ITSM. |
-| `packages/api-schema`, `packages/design-tokens` | Shared packages: generated API client, design tokens. |
+| [wise-pm](https://github.com/feelfine1977/wise-pm) | Norm semantics, scoring and prioritisation; classic runtime is the default |
+| [wise-flow](https://github.com/feelfine1977/wise-flow) | Graph/layout, interaction and map/BPMN rendering |
+| `apps/backend`, `apps/frontend` | Project workflow, API, investigation, review and documentation |
+| `packages/wise-analytics` | Statistical analytics and data-quality diagnostics |
+| `packages/process-knowledge` | Packaged schemas, guidance, presets and norm templates |
+| `packages/api-schema`, `packages/design-tokens` | Generated HTTP types and shared visual tokens |
 
-The `wise` library itself lives in a separate repository
-(`github.com/feelfine1977/wise-pm`) and is used as a dependency. The
-process-flow visualisation library `@wise/flow` is also a separate
-repository; its design workspace is `../wise-flow/`.
+The optional method extensions stay on the separate `feat/actionability-ocpm-local-llm` branch of wise-pm. Installing or discovering them does not authorise their use. Workbench's capability selection UI/runtime integration is still planned; see [ADR 0012](docs/adr/0012-optional-actionability-extension.md).
+
+## Documentation
+
+- [Start here](docs/START_HERE.md) and [installation/deployment](docs/DEPLOY.md)
+- [Analysis workflow and user guide](docs/USER_GUIDE.md)
+- [Compatibility and release checks](docs/COMPATIBILITY.md)
+- [Documentation index: current guides versus design proposals](docs/README.md)
+- [Frontend development](apps/frontend/README.md) and [backend development](apps/backend/README.md)
+
+## Licence
+
+Workbench and wise-flow use **PolyForm Noncommercial 1.0.0**; wise-pm uses **MIT**. Public source availability does not grant unrestricted commercial use of the application or renderer. For uses not covered by the current licence, seek separate permission from the relevant copyright holder before distribution or deployment. No commercial licence is implied here. See [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). BPMN model views retain the attribution required by bpmn-js.

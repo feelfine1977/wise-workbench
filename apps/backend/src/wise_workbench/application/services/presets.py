@@ -26,9 +26,9 @@ class PresetService:
                     "id": preset.id,
                     "name": preset.name,
                     "description": preset.description,
-                    "available": csv.exists() and norm.exists(),
-                    "source": str(csv),
-                    "norm": str(norm),
+                    "available": csv is not None and csv.is_file() and norm is not None and norm.is_file(),
+                    "source": str(csv) if csv is not None else "not configured",
+                    "norm": str(norm) if norm is not None else "not configured",
                     "mapping": fit_mapping(preset.mapping, set())
                     | {"caseAttributes": list(preset.mapping["caseAttributes"])},
                     "slicing": list(preset.slicing),
@@ -53,7 +53,7 @@ class PresetService:
         if preset is None:
             raise NotFoundError(f"unknown preset {preset_id!r}; known: {sorted(known)}", code="preset.not_found")
         csv, norm = preset_paths(self.c.settings, preset)
-        missing = [str(p) for p in (csv, norm) if not p.exists()]
+        missing = [str(p) if p is not None else "not configured" for p in (csv, norm) if p is None or not p.is_file()]
         if missing:
             raise ValidationError(
                 f"preset {preset_id!r} is not available on this machine; missing: {missing}",

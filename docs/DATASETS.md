@@ -5,7 +5,7 @@ from publicly available processes, above all the BPI Challenge logs. This
 file is the inventory: what is published, what is already on disk, how each
 log fits the WISE method, and which knowledge pack it feeds. Counts marked
 "≈" come from the literature and are confirmed on download; the registry in
-`packages/process-knowledge/datasets.yaml` records the checked values.
+`packages/process-knowledge/src/wise_knowledge/data/datasets.yaml` records the checked values.
 
 ## 1. The BPI Challenge series
 
@@ -64,7 +64,7 @@ marked "verified".
 |---|---|---|
 | `~/code/PhD/WISE/WISE/Untitled/data/BPI_Challenge_2019.csv` (also `~/Downloads`, XES and OCEL versions) | BPIC 2019 | used by the library's evaluation test |
 | `~/code/PhD/WISE/OC-WISE/data/ocel2-p2p.*` | OCEL 2.0 Procure-to-Pay | vocabulary source |
-| `~/code/PhD/WISE/WISE/hackathon_2026/data/ICPM Data - *.csv` and `outputs_icpm2026/*_Eventlog.csv` | ICPM 2026 hackathon (SAP SD/MM extract, Jan 2023 – Jan 2026): 51,164 sales order items with 267,071 events over 16 activities (order, confirmation, schedule-line changes, delivery blocks, picking, packing, goods issue; 68 customers, 71 SKUs, 20 return items); 1,412 purchase order items with 13,567 events over 10 activities; 59,629 stock movements; material master with history | use permitted by the owner (2026-09-05); raw files stay local; the O2C pack draft built on it is `packages/process-knowledge/o2c/README.md` |
+| `~/code/PhD/WISE/WISE/hackathon_2026/data/ICPM Data - *.csv` and `outputs_icpm2026/*_Eventlog.csv` | ICPM 2026 hackathon (SAP SD/MM extract, Jan 2023 – Jan 2026): 51,164 sales order items with 267,071 events over 16 activities (order, confirmation, schedule-line changes, delivery blocks, picking, packing, goods issue; 68 customers, 71 SKUs, 20 return items); 1,412 purchase order items with 13,567 events over 10 activities; 59,629 stock movements; material master with history | use permitted by the owner (2026-09-05); raw files stay local; the O2C pack draft built on it is `packages/process-knowledge/src/wise_knowledge/data/o2c/README.md` |
 | `~/Downloads/ps_data/*` | a small sales process log (inquiry → quotation → order) with derived rework flags | demo material only |
 
 ## 5. What this means for the knowledge packs
@@ -79,7 +79,7 @@ extract, with credit applications as the first v1 pack:
 | Order | Pack | Evidence logs | Knowledge sources besides the logs |
 |---|---|---|---|
 | 1 (MVP) | P2P | BPIC 2019, OCEL P2P, hackathon purchase orders | BPIC 2019 winner reports, SAP MM documentation, the paper's evaluation |
-| 2 (MVP) | O2C (order-to-delivery evidenced; invoice and payment stages from vocabulary) | hackathon sales and stock data, OCEL Order Management | SAP SD documentation, APQC PCF; draft in `packages/process-knowledge/o2c/` |
+| 2 (MVP) | O2C (order-to-delivery evidenced; invoice and payment stages from vocabulary) | hackathon sales and stock data, OCEL Order Management | SAP SD documentation, APQC PCF; draft in `packages/process-knowledge/src/wise_knowledge/data/o2c/` |
 | 3 (v1) | Application handling: credit | BPIC 2012, BPIC 2017 (BPIC 2017 already serves the MVP as the censoring stress test) | BPIC 2012/2017 reports, credit-process literature |
 | 4 (v1) | ITSM | BPIC 2013, BPIC 2014, Helpdesk | ITIL 4 practice guides, BPIC 2013/2014 reports |
 | 5 (v1) | Application handling: permits, subsidies, expense claims | BPIC 2015, BPIC 2018, BPIC 2020, WABO receipt | challenge reports, statutory deadlines |
@@ -124,7 +124,7 @@ variants.
 
 ## 7. Registry and reproducibility
 
-`packages/process-knowledge/datasets.yaml` lists every log with DOI,
+`packages/process-knowledge/src/wise_knowledge/data/datasets.yaml` lists every log with DOI,
 licence, files, checksums after download, the column-mapping preset, the
 canonical-activity mapping and the reference norm. The workbench offers
 these as one-click "public log presets" (feature F41) for demos, training

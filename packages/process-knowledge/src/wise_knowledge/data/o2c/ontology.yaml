@@ -17,7 +17,7 @@ sources:
   - ICPM 2026 hackathon sales extract (SAP SD, Jan 2023 to Jan 2026), use permitted by the owner on 2026-09-05, not redistributed
   - OCEL 2.0 Order Management (simulated), Zenodo, doi:10.5281/zenodo.8337463
   - SAP ERP SD documentation, sales (VA*), shipping (VL*), billing (VF*) and accounts receivable (F-28, F150)
-  - packages/process-knowledge/o2c/README.md (draft of 2026-09-05)
+  - packages/process-knowledge/src/wise_knowledge/data/o2c/README.md (draft of 2026-09-05)
   - APQC Process Classification Framework, 5.0 Deliver physical products and 9.2 Manage accounts receivable
 object_types:
   - id: inquiry

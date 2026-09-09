@@ -1,5 +1,7 @@
 # CHECKPOINT — workstream D, knowledge packs (CP-D1, CP-D2)
 
+> Historical checkpoint. Current packaging, resource paths and install commands are in [README.md](README.md). Content now ships under `src/wise_knowledge/data/`; the old checkout-only distribution note below is superseded.
+
 How to try the features by hand. Paths assume the workbench at
 `~/code/PhD/WISE/wise-workbench` and the library checkout at
 `~/code/PhD/WISE/wise-lib`. Every command below was run on 2026-09-06 with

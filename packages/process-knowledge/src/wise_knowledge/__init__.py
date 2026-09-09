@@ -1,6 +1,6 @@
 """Curated process knowledge for WISE Workbench.
 
-The package reads the YAML/JSON packs shipped under ``packages/process-knowledge``
+The package reads the YAML/JSON resources shipped under ``wise_knowledge/data``
 (one folder per process), validates them against the JSON Schemas in
 ``schema/``, returns typed dataclasses, builds the knowledge graph as node and
 edge tables, and matches log activity labels to canonical activities.

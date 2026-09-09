@@ -4,6 +4,10 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import "@/lib/i18n";
 import { server } from "@/mocks/node";
 import { resetDb } from "@/mocks/db";
+import { useJobStore } from "@/lib/stores/jobs";
+import { useUiStore } from "@/lib/stores/ui";
+import { useNavStore } from "@/lib/stores/nav";
+import { focusManager, onlineManager } from "@tanstack/react-query";
 
 // jsdom lacks a few browser APIs the shell relies on.
 class RO {
@@ -60,5 +64,11 @@ afterEach(() => {
   server.resetHandlers();
   resetDb();
   window.localStorage.clear();
+  // Storage cleanup alone does not reset the in-memory stores between journeys.
+  useJobStore.setState(useJobStore.getInitialState(), true);
+  useUiStore.setState(useUiStore.getInitialState(), true);
+  useNavStore.setState(useNavStore.getInitialState(), true);
+  focusManager.setFocused(undefined);
+  onlineManager.setOnline(true);
 });
 afterAll(() => server.close());

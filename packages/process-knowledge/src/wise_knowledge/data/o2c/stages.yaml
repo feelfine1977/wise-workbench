@@ -3,7 +3,7 @@ pack: o2c
 version: 1
 review_status: draft
 sources:
-  - packages/process-knowledge/o2c/README.md §1 (stage table with measured coverage)
+  - packages/process-knowledge/src/wise_knowledge/data/o2c/README.md §1 (stage table with measured coverage)
   - ICPM 2026 hackathon sales extract, measured 2026-09-05
   - SAP SD documentation (sales, shipping, billing), APQC PCF 5.0 and 9.2
 case_notion:

@@ -1,17 +1,23 @@
-"""Where the packs and schemas live.
+"""Installed schemas and packs, with an explicit WISE_KNOWLEDGE_ROOT override.
 
-The content (``schema/``, ``p2p/``, ``o2c/``, ``datasets.yaml``) sits next to
-the ``src/`` tree of this package rather than inside the importable module, so
-that domain leads edit YAML without touching Python. The root is found in this
-order: the ``WISE_KNOWLEDGE_ROOT`` environment variable, then the checkout
-that contains this file. Third-party packs register a directory through the
-``wise_knowledge.packs`` entry-point group.
+Content has one source: ``wise_knowledge/data``. Resource extraction (when a
+loader needs it) lives until process exit because Pack/Template objects expose
+filesystem paths. Third-party packs use the ``wise_knowledge.packs`` entry points.
 """
 
 from __future__ import annotations
 
+import atexit
 import os
+import sys
+from contextlib import ExitStack
+from functools import cache
 from importlib import metadata
+
+if sys.version_info >= (3, 12):
+    from importlib.resources import as_file, files
+else:
+    from importlib_resources import as_file, files
 from pathlib import Path
 
 ENV_ROOT = "WISE_KNOWLEDGE_ROOT"
@@ -19,6 +25,15 @@ ENTRY_POINT_GROUP = "wise_knowledge.packs"
 PACK_FILES = ("ontology", "stages", "failure_modes", "kpis", "glossary", "playbooks", "slicing")
 GUIDANCE_FILE = "guidance"  # optional for third-party packs; required once a pack ships templates
 PRESETS_DIR = "presets"
+
+
+_RESOURCE_CONTEXTS = ExitStack()
+atexit.register(_RESOURCE_CONTEXTS.close)
+
+
+@cache
+def _installed_root() -> Path:
+    return _RESOURCE_CONTEXTS.enter_context(as_file(files("wise_knowledge").joinpath("data")))
 
 
 def knowledge_root() -> Path:
@@ -29,13 +44,7 @@ def knowledge_root() -> Path:
         if not (root / "schema").is_dir():
             raise FileNotFoundError(f"{ENV_ROOT}={root} has no schema/ directory")
         return root
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        if (parent / "schema" / "ontology.schema.json").is_file():
-            return parent
-    raise FileNotFoundError(
-        "knowledge root not found; set WISE_KNOWLEDGE_ROOT to the packages/process-knowledge directory"
-    )
+    return _installed_root()
 
 
 def schema_dir() -> Path:

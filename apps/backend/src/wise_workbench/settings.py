@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from wise_knowledge.paths import knowledge_root
 
 
 class Settings(BaseSettings):
@@ -31,22 +32,10 @@ class Settings(BaseSettings):
         ]
     )
     # Public logs for the presets (``POST /projects/{id}/datasets/presets/{preset}``).
-    bpic19_csv: Path = Field(
-        default_factory=lambda: (
-            Path.home() / "code" / "PhD" / "WISE" / "WISE" / "Untitled" / "data" / "BPI_Challenge_2019.csv"
-        )
-    )
-    bpic19_norm: Path = Field(
-        default_factory=lambda: Path.home() / "code" / "PhD" / "WISE" / "wise-lib" / "examples" / "bpic19_norm.json"
-    )
-    # Directories searched for the log file of a knowledge pack's preset (``presets/*.yaml`` names the file only;
-    # the raw extracts stay local and are never copied into the workspace). ``WISE_PRESET_DATA_DIRS`` overrides.
-    preset_data_dirs: list[Path] = Field(
-        default_factory=lambda: [
-            Path.home() / "code" / "PhD" / "WISE" / "WISE" / "hackathon_2026" / "outputs_icpm2026",
-            Path.home() / "code" / "PhD" / "WISE" / "WISE" / "Untitled" / "data",
-        ]
-    )
+    bpic19_csv: Path | None = None
+    bpic19_norm: Path = Field(default_factory=lambda: knowledge_root() / "p2p" / "templates" / "p2p_bpic19.json")
+    # Explicit directories for knowledge preset logs; extracts stay local.
+    preset_data_dirs: list[Path] = Field(default_factory=list)
     # The built single-page application (``index.html`` and ``assets/``) served at ``/`` with history fallback.
     # ``WISE_STATIC_DIR`` names it explicitly; otherwise the package's own ``static`` directory is used, then
     # ``apps/frontend/dist`` of a source checkout. Without any of them only the API and ``/docs`` are served.

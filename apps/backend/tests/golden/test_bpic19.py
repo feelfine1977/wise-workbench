@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import WISE_LIB, make_settings
+from tests.conftest import BPIC19_NORM, make_settings
 from wise_workbench.container import Container
 from wise_workbench.domain import RunParams, Slicing
 from wise_workbench.domain.comparison import bracket_is_difference
@@ -18,7 +18,7 @@ from wise_workbench.jobs import Worker
 from wise_workbench.presets import BPIC19_MAPPING
 
 CSV = os.environ.get("WISE_BPIC19_CSV")
-NORM = WISE_LIB / "examples" / "bpic19_norm.json"
+NORM = BPIC19_NORM
 pytestmark = pytest.mark.skipif(
     not CSV or not Path(CSV).exists() or not NORM.exists(), reason="set WISE_BPIC19_CSV to the BPI Challenge 2019 CSV"
 )

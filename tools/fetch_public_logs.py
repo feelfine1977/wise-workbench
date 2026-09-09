@@ -1,4 +1,4 @@
-"""Download public event logs listed in packages/process-knowledge/datasets.yaml.
+"""Download public event logs listed in packages/process-knowledge/src/wise_knowledge/data/datasets.yaml.
 
 Resolves each 4TU DOI to an article or collection, lists its files through the
 4TU API, downloads them with MD5 verification into a data directory outside
@@ -95,7 +95,7 @@ def main() -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--data", required=True, type=Path)
     ap.add_argument("--registry", type=Path,
-                    default=Path(__file__).resolve().parents[1] / "packages/process-knowledge/datasets.yaml")
+                    default=Path(__file__).resolve().parents[1] / "packages/process-knowledge/src/wise_knowledge/data/datasets.yaml")
     a = ap.parse_args()
     reg = load_registry(a.registry)
     ids = list(reg) if a.all else a.ids

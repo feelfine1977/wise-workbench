@@ -119,6 +119,30 @@ test("F5 · the model shows the same scene as a BPMN diagram, and back changes n
   await expect(page.getByTestId("selected-activity")).toContainText("Record Goods Receipt");
 });
 
+test("BPMN attribution remains visible in compact and full-window views", async ({ page }) => {
+  await openFlow(page);
+  await page.getByRole("group", { name: "How the process is drawn" }).getByRole("button", { name: "model" }).click();
+  await expect(page.getByTestId("model-view")).toBeVisible({ timeout: 30_000 });
+  // Attribution is part of the renderer's licence, including compact and full-window placements.
+  const attribution = page.locator(".wise-model .bjs-powered-by");
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    for (const full of [false, true]) {
+      if (full) await page.getByTestId("full-window").click();
+      await expect(attribution).toBeVisible();
+      await expect.poll(() => attribution.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const owner = element.closest('[data-testid="model-view"]')!.getBoundingClientRect();
+        const hit = element.ownerDocument.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return rect.width > 0 && rect.height > 0 && rect.left >= owner.left && rect.right <= owner.right
+          && rect.top >= owner.top && rect.bottom <= owner.bottom && !!hit && element.contains(hit);
+      })).toBe(true);
+      if (full) await page.keyboard.press("Escape");
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 test("B1 and B2 · one click on the board moves every panel, and removing the chip restores them", async ({ page }) => {
   await page.goto(BOARD);
   await expect(page.getByTestId("kpi-tiles")).toBeVisible({ timeout: 30_000 });

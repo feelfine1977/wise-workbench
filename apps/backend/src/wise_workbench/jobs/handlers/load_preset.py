@@ -34,15 +34,11 @@ from wise_workbench.presets import Preset, all_presets
 from . import build_cases, ingest, score_run
 
 
-def preset_paths(settings: Any, preset: Preset) -> tuple[Path, Path]:
-    """The log file and the starting norm of a preset: from the settings (built-in) or resolved (pack presets)."""
-    csv = (
-        Path(getattr(settings, preset.csv_setting)) if preset.csv_setting else Path(preset.csv_path or "")
-    ).expanduser()
-    norm = (
-        Path(getattr(settings, preset.norm_setting)) if preset.norm_setting else Path(preset.norm_path or "")
-    ).expanduser()
-    return csv, norm
+def preset_paths(settings: Any, preset: Preset) -> tuple[Path | None, Path | None]:
+    """Configured log and norm files; an unconfigured path is unavailable."""
+    csv = getattr(settings, preset.csv_setting) if preset.csv_setting else preset.csv_path
+    norm = getattr(settings, preset.norm_setting) if preset.norm_setting else preset.norm_path
+    return Path(csv).expanduser() if csv else None, Path(norm).expanduser() if norm else None
 
 
 def fit_mapping(doc: dict[str, Any], columns: set[str]) -> dict[str, Any]:
@@ -207,9 +203,9 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
     except KeyError:
         raise NotFoundError(f"unknown preset {preset_id!r}", code="preset.not_found") from None
     csv, norm_path = preset_paths(c.settings, preset)
-    if not csv.exists():
+    if csv is None or not csv.is_file():
         raise NotFoundError(f"the log file of preset {preset_id!r} is not at {csv}", code="preset.unavailable")
-    if not norm_path.exists():
+    if norm_path is None or not norm_path.is_file():
         raise NotFoundError(f"the norm file of preset {preset_id!r} is not at {norm_path}", code="preset.unavailable")
     c.repos.get_project(project_id)
 

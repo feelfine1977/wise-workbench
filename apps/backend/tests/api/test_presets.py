@@ -6,14 +6,13 @@ import csv
 import io
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
-from tests.conftest import WISE_LIB, make_settings, wait_job
+from tests.conftest import BPIC19_NORM, make_settings, wait_job
 from wise_workbench.api.app import create_app
 from wise_workbench.presets import suggest_mapping
 
-NORM = WISE_LIB / "examples" / "bpic19_norm.json"
+NORM = BPIC19_NORM
 
 COLUMNS = [
     "eventID",
@@ -195,7 +194,6 @@ def test_suggest_mapping_recognises_the_bpic_columns_and_trims_them() -> None:
     }
 
 
-@pytest.mark.skipif(not NORM.exists(), reason="the paper's norm is not checked out")
 def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
     log = tmp_path / "BPI_Challenge_2019.csv"
     log.write_bytes(small_bpic_csv())

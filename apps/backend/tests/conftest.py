@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import io
 import os
 import tempfile
@@ -28,7 +29,40 @@ from wise_workbench.container import Container
 from wise_workbench.settings import Settings
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WISE_LIB = Path.home() / "code" / "PhD" / "WISE" / "wise-lib"
+from wise_knowledge.paths import knowledge_root
+
+BPIC19_NORM = knowledge_root() / "p2p" / "templates" / "p2p_bpic19.json"
+FULL_ONLY_MODULES = {"test_cycle2.py", "test_cycle3.py", "test_cycle4.py"}
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--dependency-profile", choices=("full", "minimal"), default=os.environ.get("WISE_TEST_PROFILE", "full")
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    profile = config.getoption("--dependency-profile")
+    if profile not in {"full", "minimal"}:
+        raise pytest.UsageError("WISE_TEST_PROFILE must be full or minimal")
+    present = importlib.util.find_spec("wise_analytics") is not None
+    if profile == "full" and not present:
+        raise pytest.UsageError(
+            "full profile requires wise-analytics; install packages/wise-analytics or select --dependency-profile=minimal"
+        )
+    if profile == "minimal" and present:
+        raise pytest.UsageError("minimal profile requires an environment without wise-analytics")
+
+
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+    if config.getoption("--dependency-profile") == "minimal" and collection_path.name in FULL_ONLY_MODULES:
+        return True
+    return None
+
+
+@pytest.fixture(scope="session")
+def dependency_profile(pytestconfig: pytest.Config) -> str:
+    return str(pytestconfig.getoption("--dependency-profile"))
 
 
 def make_settings(tmp_path: Path, **overrides: Any) -> Settings:

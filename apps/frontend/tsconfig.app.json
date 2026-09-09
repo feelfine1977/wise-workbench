@@ -1,11 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["vite/client", "@testing-library/jest-dom"],
+    "types": [
+      "vite/client",
+      "@testing-library/jest-dom"
+    ],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -23,15 +30,26 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@wise/api-schema": ["../../packages/api-schema/generated/index.ts"],
-      "@wise/api-schema/*": ["../../packages/api-schema/generated/*"],
-      "@wise/design-tokens": ["../../packages/design-tokens/tokens.json"],
-      "@wise/design-tokens/*": ["../../packages/design-tokens/*"],
-      "@wise/flow": ["./node_modules/@wise/flow/dist/index.d.ts", "./stubs/wise-flow/index.d.ts"],
-      "@wise/flow/react": ["./node_modules/@wise/flow/dist/react/index.d.ts", "./stubs/wise-flow/react.d.ts"],
-      "@wise/flow/bpmn": ["./node_modules/@wise/flow/dist/bpmn/index.d.ts", "./stubs/wise-flow/bpmn.d.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@wise/api-schema": [
+        "../../packages/api-schema/generated/index.ts"
+      ],
+      "@wise/api-schema/*": [
+        "../../packages/api-schema/generated/*"
+      ],
+      "@wise/design-tokens": [
+        "../../packages/design-tokens/tokens.json"
+      ],
+      "@wise/design-tokens/*": [
+        "../../packages/design-tokens/*"
+      ]
     }
   },
-  "include": ["src", "../../packages/api-schema/generated/**/*.ts", "../../packages/design-tokens/tokens.json"]
+  "include": [
+    "src",
+    "../../packages/api-schema/generated/**/*.ts",
+    "../../packages/design-tokens/tokens.json"
+  ]
 }

@@ -1,152 +1,83 @@
-# Running WISE Workbench today
+# Installation and deployment
 
-This page is for the person who runs the application on a laptop or a
-workstation. The team and server profiles (Docker, Postgres, login) are
-described in `docker/DEPLOYMENT.md` and arrive with a later cycle; nothing on
-this page needs Docker.
+The supported distribution is a local application served by one Python process. Use Python 3.12/3.13 and Node 24 LTS for source builds. Node 22 is also in the renderer's supported test matrix. The old Node 18/20 setup is outside current support ([Node release lifecycle](https://nodejs.org/en/about/previous-releases)).
 
-## One command
-
-From a checkout of this repository with the backend installed (see "Install"
-below):
+## Install a source checkout
 
 ```bash
-tools/start.sh
+git clone https://github.com/feelfine1977/wise-workbench.git
+cd wise-workbench
+tools/install.sh --dev
 ```
 
-The script builds the frontend once (`apps/frontend`, `npm run build:live`),
-starts the backend and opens `http://127.0.0.1:8000/` in the default browser.
-`tools/start.sh --no-build` skips the build when `apps/frontend/dist` already
-exists; every other argument is passed on to the server, for example
-`tools/start.sh --no-open --port 8010`.
+The script creates `apps/backend/.venv` if needed, installs classic wise-pm at commit `df5db50b839cc124b489a269894f5a2bfe7dc634` (`v0.1.0`), installs this checkout's analytics, knowledge and backend packages, and runs `npm ci` for the frontend. `--dev` includes test tools; omit it for a local user installation. It does not create a global Python installation. Select an interpreter with `WISE_BOOTSTRAP_PYTHON=python3.13 tools/install.sh --dev`.
 
-The same without the script, once the frontend is built:
+The normal product profile includes analytics, knowledge and the actual flow renderer. Knowledge is a required backend dependency. The backend without analytics remains a reduced API profile, tested separately; it is not the full product. No sibling repository and no author-specific data path is required. Renderer assets are installed from the artifact recorded in `vendor/README.md`.
+
+## Start and create an example
 
 ```bash
-cd apps/backend && .venv/bin/wise-workbench serve --open
+apps/backend/.venv/bin/python tools/demo.py --workspace "$HOME/WISE Demo"
+WISE_WORKSPACE="$HOME/WISE Demo" tools/start.sh
 ```
 
-`wise-workbench serve` serves three things on one port: the application at
-`/`, the API under `/api/v1` and its documentation at `/docs`. Stop it with
-Ctrl-C; jobs that were running are finished or restarted by the next start
-(they are crash-safe, see `apps/backend/CHECKPOINT.md`, CP-A4).
+The demo refuses a nonempty directory. It generates the library's public five-case example, ingests it, imports its norm, scores it and computes analytics. These are demonstration cases, not a statistically meaningful backlog.
 
-## Install
+`tools/start.sh` builds the frontend with mocks disabled and opens `http://127.0.0.1:8000/`. The API is under `/api/v1` and interactive API documentation is at `/docs`. On subsequent starts, `--no-build` reuses the build. Stop with Ctrl-C.
 
-Python 3.11 or newer and Node 18 or newer. The `wise` library is a separate
-repository (`github.com/feelfine1977/wise-pm`); the workbench expects it
-next to this checkout as `../wise-lib`, or installs it from GitHub.
+For your own data, choose an empty workspace and upload a log through the Data screen. `WISE_WORKSPACE` defaults to `~/WISE Workbench`. A workspace is application data, not source code; keep it outside Git.
+
+## Ports and rebuilds
 
 ```bash
-cd apps/backend
-python3 -m venv .venv
-.venv/bin/pip install -e ../../../wise-lib          # or: pip install "git+https://github.com/feelfine1977/wise-pm.git@v0.1.0"
-.venv/bin/pip install -e .                          # the backend and the wise-workbench command
-.venv/bin/pip install -e ../../packages/process-knowledge   # optional: stage groups, plain names and guidance on every screen
-.venv/bin/pip install -e ../../packages/wise-analytics      # optional: confidence in rank, kinds, caveat shares, comparisons
-cd ../frontend && npm install                       # once; the flow library is optional (see apps/frontend/README.md)
+WISE_WORKSPACE="$HOME/WISE Demo" tools/start.sh --no-build --port 8002
 ```
 
-`pip install -e apps/backend` alone gives a working `wise-workbench`; the
-development extras (`.[dev]`) are only needed for the tests.
+Use a space or equals sign (`--port 8002`, `--port=8002`), not a colon. An occupied-port error means a process is already listening; the build itself may have succeeded. Inspect the identified process or choose another port. Do not repeatedly rebuild to fix a port collision. `--replace` terminates the listener, so use it only when you own that process and intend to stop it.
 
-The process map's stage boxes (Request, Order, Receive, Invoice, Match, Pay),
-the plain names of the expectations and the readiness decisions' wording
-come from the knowledge package; without it the map has no stage groups and
-the screens fall back on the norm's own descriptions. The analytics package
-computes a run's confidence in rank, kinds of problem, caveat shares and
-real-unit comparisons after every scoring job (about 50 s on BPIC 2019;
-`WISE_ANALYTICS_AUTO=0` turns the automatic job off, `POST
-/api/v1/projects/{p}/runs/{r}/analytics` queues it by hand); without it the
-cards read *confidence not computed* and everything else works. The flow library `@wise/flow` is expected as a sibling
-checkout `../wise-flow` with a built `dist/`; without it the frontend builds
-with a stand-in and the Flow tabs show a notice instead of a map.
+Restart Python after backend changes. A frontend rebuild changes static files but does not reload backend code. Vite's large-chunk warning does not prevent a successful build.
 
-## The workspace folder
+## Package an application wheel
 
-Everything the application writes goes into one folder, the workspace
-(`WISE_WORKSPACE`, default `~/WISE Workbench`). It is readable without the
-application:
+A plain backend wheel is an API package. A full application wheel must contain a live frontend build; `tools/build_release.py` creates that artifact from this checkout and the supplied build. After `npm run build:live` in `apps/frontend`, run `python tools/build_release.py --frontend-dist apps/frontend/dist --frontend-mode live --out dist`. The explicit live-mode declaration is recorded with the artifact. The builder refuses a missing frontend and works in temporary build directories; it does not depend on a user's reference workspace.
 
-```
-<workspace>/
-  workspace.json  workbench.db  cache/  tmp/
-  projects/<project id>/
-    datasets/<dataset id>/        source/<file> (uploads only)  events.parquet  schema.json  manifest.json
-    case_tables/<case table id>/  cases.parquet  events.parquet (typed)  quality.json  activities.json  manifest.json
-    norms/<norm id>/vNNN.json     every norm version, immutable, in the library's format
-    runs/<run id>/                frame.parquet  violations.parquet  in_scope.parquet  summary.json
-                                  backlogs/<grouping>__<perspective>.parquet  drivers/…  diagnostics/…  manifest.json (written last)
-```
+Install the resulting application wheel together with the knowledge and analytics wheels and the classic method release in a fresh environment. Keep the generated checksums and dependency versions with the release. Verify `/`, a deep SPA route, `/api/v1/system/health`, and knowledge-pack discovery from outside the checkout. The CI artifact job exercises this boundary; see [COMPATIBILITY](COMPATIBILITY.md).
 
-`workbench.db` is the metadata (SQLite): projects, datasets, mappings, norm
-versions, runs and jobs. The Parquet files are readable with pandas or
-DuckDB without the application.
+The backend serves packaged `static/` when present. `WISE_STATIC_DIR=/path/to/dist` or `serve --static /path/to/dist` explicitly selects another build. Do not ship a mock build as a live application.
 
-Uploaded logs are copied into the workspace; the public-log preset reads the
-CSV in place from `WISE_BPIC19_CSV` (only its hash is stored). Every run
-manifest records the content hash of the log, the norm fingerprint, the
-parameter hash and the library version, so a result can be traced to its
-inputs.
-
-**Backup**: stop the application and copy the folder (`cp -r`, a ZIP, a
-snapshot). `workbench.db` and `projects/` belong together; `cache/` and
-`tmp/` can be left out. Restoring is copying the folder back and pointing
-`WISE_WORKSPACE` at it. The verified BPIC 2019 workspace used in the
-documentation is `~/code/PhD/WISE/wise-workbench-data/workspace_verify`.
-
-## Environment variables
-
-All settings are read from the environment with the prefix `WISE_`
-(`apps/backend/src/wise_workbench/settings.py`); `--workspace`, `--host`,
-`--port`, `--static` and `--no-worker` on the command line override them.
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `WISE_WORKSPACE` | `~/WISE Workbench` | the workspace folder |
-| `WISE_DATABASE_URL` | `sqlite:///<workspace>/workbench.db` | metadata database; Postgres is possible but untested in this release |
-| `WISE_HOST`, `WISE_PORT` | `127.0.0.1`, `8000` | where the server listens; `0.0.0.0` exposes it on the network (no login exists yet) |
-| `WISE_STATIC_DIR` | package `static/`, then `apps/frontend/dist` | the built frontend to serve at `/` |
-| `WISE_INPROCESS_WORKER` | `1` | run jobs inside the server; `0` needs `wise-workbench worker` in another terminal |
-| `WISE_CORS_ORIGINS` | the Vite ports 5173 and 4173 | comma-separated origins allowed to call the API from another origin (not needed when the backend serves the frontend) |
-| `WISE_BPIC19_CSV`, `WISE_BPIC19_NORM` | paths under `~/code/PhD/WISE` | the public-log preset: the BPI Challenge 2019 CSV and `bpic19_norm.json` from the library's examples |
-| `WISE_LOG_FORMAT`, `WISE_LOG_LEVEL` | `json`, `INFO` | `console` is easier to read in a terminal |
-| `WISE_JOB_LEASE_SECONDS`, `WISE_JOB_HEARTBEAT_SECONDS`, `WISE_JOB_POLL_SECONDS`, `WISE_JOB_MAX_ATTEMPTS` | `60`, `5`, `0.5`, `3` | job leasing and retry |
-| `WISE_SCORE_CACHE_SIZE` | `4` | scored runs kept in memory for the Why? screens |
-| `WISE_MAPPING_SAMPLE_EVENTS` | `200000` | events sampled to validate a mapping |
-| `WISE_MAX_UPLOAD_BYTES` | 4 GiB | upload limit |
-
-## Ports
-
-| Port | Used by |
-|---|---|
-| 8000 | `wise-workbench serve`: application, API, `/docs` |
-| 5173 | `npm run dev` in `apps/frontend` (development only; proxies `/api` to `VITE_API_URL`) |
-| 4173 | the Playwright end-to-end tests (`npm run e2e`) |
-
-## Development mode
-
-Two terminals: the backend as above (without `--open`), and in
-`apps/frontend`:
+## Development
 
 ```bash
+apps/backend/.venv/bin/python -m uvicorn wise_workbench.main:app --reload --app-dir apps/backend/src
+```
+
+In a second terminal:
+
+```bash
+cd apps/frontend
 VITE_API_URL=http://127.0.0.1:8000 npm run dev
 ```
 
-Open `http://127.0.0.1:5173/`. The dev server reloads on every change and
-proxies the API. Without `VITE_API_URL` the frontend runs on mock data
-generated from the contract (`packages/api-schema/openapi.yaml`).
+Without `VITE_API_URL`, development mode uses fixture responses. `npm run build:live` disables mocks. `just` is an optional shortcut for the same Python/npm commands, not another package manager.
 
-## Ollama
+## Workspace, backup and configuration
 
-The design reserves a place for a local language model (Ollama) as an
-optional assistant. This release does not use it: nothing is sent anywhere,
-no model is loaded, and the application works fully without Ollama
-installed.
+SQLite holds project/job metadata; Parquet/JSON artifacts under `projects/` hold data, norms and runs. Back up the complete workspace while the application is stopped. Restore the database and project artifacts together. Cache and temporary files can be rebuilt.
 
-## What comes later
+| Setting | Meaning |
+|---|---|
+| `WISE_WORKSPACE` | Workspace directory, default `~/WISE Workbench` |
+| `WISE_HOST`, `WISE_PORT` | Default `127.0.0.1:8000` |
+| `WISE_STATIC_DIR` | Override the built frontend location |
+| `WISE_INPROCESS_WORKER` | Default worker in the API process; use `0` with a separate `wise-workbench worker` |
+| `WISE_LOG_FORMAT`, `WISE_LOG_LEVEL` | Logging format and level |
+| `WISE_BPIC19_CSV`, `WISE_BPIC19_NORM` | Explicit optional reference dataset/norm paths |
+| `WISE_ANALYTICS_AUTO` | Whether scoring queues analytics automatically |
 
-`docker/DEPLOYMENT.md` describes the `single`, `team` and `dev` profiles
-(Docker images, Postgres, Caddy with login), and
-`docs/DEPLOYMENT_AUTH_PLAN.md` the stages towards them. The one-command start
-on this page is stage D0 of that plan.
+Reference logs require explicit dataset paths. The BPIC19 norm defaults to the packaged template; normal installation and the public demo need no reference log.
+
+## Deployment limits and licences
+
+There is no login, role-based access, or supported multi-user deployment yet. Keep the service on localhost. Postgres and Docker files describe future profiles and are not validated production distributions. The actionability extension stays separate from classic; runtime capability selection is still a design ([ADR 0012](adr/0012-optional-actionability-extension.md)).
+
+Workbench and its flow renderer use PolyForm Noncommercial 1.0.0. Check the actual licence before organisational deployment; public source alone does not grant commercial rights. Core wise-pm is MIT. Retain dependency notices and visible BPMN attribution.

@@ -6,18 +6,21 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  WISE_PM: git+https://github.com/feelfine1977/wise-pm.git@v0.1.0
+  WISE_PM: git+https://github.com/feelfine1977/wise-pm.git@df5db50b839cc124b489a269894f5a2bfe7dc634
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
   backend:
-    name: backend (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    name: full backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -34,31 +37,56 @@ jobs:
           cache-dependency-path: |
             apps/backend/pyproject.toml
             packages/process-knowledge/pyproject.toml
-      - name: Install the library, the knowledge package and the backend
+            packages/wise-analytics/pyproject.toml
+      - name: Install the full product profile
         run: |
-          python -m pip install --upgrade pip
           python -m pip install "$WISE_PM"
-          python -m pip install -e ../../packages/process-knowledge
-          python -m pip install -e ".[dev]"
+          python -m pip install -e ../../packages/process-knowledge -e ../../packages/wise-analytics -e ".[dev]"
+          python -c "import wise, wise_knowledge, wise_analytics; assert wise.__version__ == '0.1.0'"
       - name: Lint and format
         run: |
           ruff check src tests
           ruff format --check src tests
       - name: Types
         run: mypy
-      - name: Tests
+      - name: Full API and regression tests
         env:
           WISE_LOG_FORMAT: console
           WISE_LOG_LEVEL: WARNING
+          WISE_TEST_PROFILE: full
         run: python -m pytest -q
-      - name: Contract drift
+      - name: Exact contract drift on each Python runtime
         run: |
           wise-workbench openapi --yaml --out /tmp/openapi.yaml
           diff -u ../../packages/api-schema/openapi.yaml /tmp/openapi.yaml
 
+  backend-minimal:
+    name: minimal backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install the API and knowledge without analytics
+        run: |
+          python -m pip install "$WISE_PM"
+          python -m pip install -e ../../packages/process-knowledge -e ".[dev]"
+          python -c "from importlib.util import find_spec; assert find_spec('wise_analytics') is None; assert find_spec('wise_knowledge') is not None"
+      - name: Explicit fallback contract
+        env:
+          WISE_TEST_PROFILE: minimal
+        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py
+
   analytics:
     name: analytics package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: packages/wise-analytics
@@ -67,23 +95,14 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: packages/wise-analytics/pyproject.toml
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install "$WISE_PM"
-          python -m pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check src tests
-      - name: Types
-        run: mypy src
-      - name: Tests
-        run: python -m pytest -q
+      - run: python -m pip install "$WISE_PM" -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - run: python -m pytest -q
 
   knowledge:
     name: knowledge package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: packages/process-knowledge
@@ -92,21 +111,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: packages/process-knowledge/pyproject.toml
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install "$WISE_PM"
-          python -m pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check .
-      - name: Tests
-        run: python -m pytest -q
+      - run: python -m pip install "$WISE_PM" -e ".[dev]"
+      - run: ruff check .
+      - run: python -m pytest -q
 
   frontend:
-    name: frontend (Node 20)
-    runs-on: ubuntu-latest
+    name: frontend with packaged flow (Node 24)
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/frontend
@@ -114,25 +125,62 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
-      # `@wise/flow` is an optional file: dependency on the sibling checkout `../wise-flow`. It is absent
-      # here, so npm leaves a dangling link and the build resolves the stub in `stubs/wise-flow` instead
-      # (see apps/frontend/README.md).
-      - name: Install
-        run: npm ci
-      - name: Design tokens
-        run: npm run tokens
-      - name: Lint
-        run: npm run lint
-      - name: Types
-        run: npx tsc -b
+      - name: Verify renderer artifact and install locked dependencies
+        run: |
+          node ../../tools/verify-vendor.mjs
+          npm ci
+          test ! -L node_modules/@wise/flow
+          node --input-type=module -e "import('@wise/flow').then(m => { if (!m.abstract) process.exit(1) })"
+      - run: npm run tokens
+      - run: npm run lint
+      - run: npm run typecheck
       - name: Unit, contract and accessibility tests
         run: npm test
       - name: Generated types match the contract
         run: |
           npm run generate
           git diff --exit-code -- ../../packages/api-schema/generated
-      - name: Build
+      - name: Build the live application
         run: npm run build:live
+      - name: Map, model, attribution and linked-board browser checks
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e -- e2e/flow-board.spec.ts --workers=1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-live
+          path: apps/frontend/dist/
+          if-no-files-found: error
+
+  distribution:
+    name: installed application and knowledge wheels
+    needs: frontend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-live
+          path: apps/frontend/dist/
+      - name: Build standalone artifacts
+        run: |
+          python -m pip install build
+          python tools/build_release.py --frontend-dist apps/frontend/dist --frontend-mode live --out /tmp/wise-wheels
+          python -m build packages/process-knowledge --outdir /tmp/wise-wheels
+          python -m build packages/wise-analytics --wheel --outdir /tmp/wise-wheels
+      - name: Install outside checkout and exercise resources and SPA
+        run: |
+          python -m venv /tmp/wise-installed
+          /tmp/wise-installed/bin/python -m pip install "$WISE_PM" /tmp/wise-wheels/*.whl
+          /tmp/wise-installed/bin/python -I tools/smoke_installed.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-wheels
+          path: /tmp/wise-wheels/
+          if-no-files-found: error

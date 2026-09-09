@@ -1,6 +1,6 @@
 """Opt-in: the ICPM 2026 sales extract through the O2C preset, against the hackathon's own backlog (R2-04).
 
-Set ``WISE_PRESET_DATA_DIRS`` (or leave the default) so that ``Sales_Eventlog.csv`` is found; the extract stays
+Set ``WISE_PRESET_DATA_DIRS`` so that ``Sales_Eventlog.csv`` is found; the extract stays
 local and is read in place. Takes a few minutes.
 
 What the comparison can and cannot show. The reference file ``WISE_backlog_sales_by_customer.csv`` was produced
@@ -37,7 +37,7 @@ def _paths() -> tuple[Path, Path] | None:
     if preset is None:
         return None
     csv_path, norm_path = load_preset.preset_paths(settings, preset)
-    if not csv_path.exists() or not norm_path.exists():
+    if csv_path is None or norm_path is None or not csv_path.is_file() or not norm_path.is_file():
         return None
     return csv_path, norm_path
 

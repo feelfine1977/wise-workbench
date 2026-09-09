@@ -1,5 +1,7 @@
 # User guide — WISE Workbench
 
+Current setup and limitations are maintained in [START_HERE](START_HERE.md) and the [repository README](../README.md#current-limits). The norm calibration/approval workflow described below has known persistence defects; its description is not proof that approval is currently reachable.
+
 For an analyst who has an event log of a purchase-to-pay (or similar) process
 and wants to know where it falls short of expectations, without knowing the
 method behind the application. Every screen is described with the labels it

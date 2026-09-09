@@ -9,8 +9,7 @@ import type { FlowGraph } from "@wise/api-schema";
 import { liteFromGraph } from "@wise/flow/bpmn";
 import type { FlowGraph as LibraryGraph, Overlay } from "@wise/flow";
 import { BpmnView } from "@wise/flow/react";
-import "bpmn-js/dist/assets/diagram-js.css";
-import "bpmn-js/dist/assets/bpmn-js.css";
+import "@wise/flow/bpmn.css";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +61,7 @@ export default function ModelView({ scene, abstraction, overlays, selected, onSe
   }
 
   return (
-    // `wise-model` carries the rule that suppresses bpmn.io's own watermark and palette (R3-17)
+    // The host hides the editing palette; bpmn-js attribution remains visible.
     <div className={cn("wise-model flex h-full min-w-0 flex-col", className)} data-testid="model-view">
       <BpmnView
         graph={lite}

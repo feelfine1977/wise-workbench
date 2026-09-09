@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=22 <25"
   },
   "scripts": {
     "tokens": "node ../../packages/design-tokens/build.mjs",
@@ -58,10 +58,8 @@
     "react-dom": "^19.2.0",
     "react-i18next": "^16.6.6",
     "tailwind-merge": "^3.6.0",
-    "zustand": "^5.0.8"
-  },
-  "optionalDependencies": {
-    "@wise/flow": "file:../../../wise-flow"
+    "zustand": "^5.0.8",
+    "@wise/flow": "file:../../vendor/wise-flow-0.3.1.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
