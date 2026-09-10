@@ -129,10 +129,11 @@ def missing_rationales(
     calibration = (document.get("metadata") or {}).get("calibration") or {}
     changed = set(changed_thresholds(document, parent))
     still_flagged = {str(x).split(".")[0] for x in (declared_uncalibrated or [])}
-    wanted = changed | (still_flagged & set(thresholds_of(document)))
+    pending = set((document.get("metadata") or {}).get("calibration_pending") or [])
+    wanted = changed | ((still_flagged | pending) & set(thresholds_of(document)))
     missing = []
     for cid in sorted(wanted):
         entry = calibration.get(cid) or {}
-        if not str(entry.get("rationale") or "").strip() or not str(entry.get("owner") or "").strip():
+        if cid in pending or not str(entry.get("rationale") or "").strip() or not str(entry.get("owner") or "").strip():
             missing.append(cid)
     return missing

@@ -243,12 +243,14 @@ export function validateNotebookSearch(input: Partial<NotebookSearch> & SearchSc
 export const NORM_TABS = ["constraints", "json", "history"] as const;
 export type NormTab = (typeof NORM_TABS)[number];
 export interface NormSearch {
+  /** Explicit mapped case table, including before the first run. */
+  caseTable?: string;
   tab: NormTab;
   constraint?: string;
 }
 export function validateNormSearch(input: Partial<NormSearch> & SearchSchemaInput): NormSearch {
   const s = input as Record<string, unknown>;
-  return { tab: oneOf(s.tab, NORM_TABS) ?? "constraints", constraint: str(s.constraint) };
+  return { caseTable: str(s.caseTable), tab: oneOf(s.tab, NORM_TABS) ?? "constraints", constraint: str(s.constraint) };
 }
 
 export const DATASET_TABS = ["readiness", "mapping", "flows"] as const;

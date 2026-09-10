@@ -1,0 +1,78 @@
+import { expect, test } from "@playwright/test";
+
+/** The integration runner supplies an explicitly seeded synthetic project/version; never discover a user's workspace. */
+const API = process.env.E2E_API_URL;
+const PROJECT = process.env.E2E_PROJECT_ID;
+const VERSION = process.env.E2E_NORM_VERSION_ID;
+const CASE_TABLE = process.env.E2E_CASE_TABLE_ID;
+test.skip(!API || !PROJECT || !VERSION || !CASE_TABLE, "requires the isolated synthetic backend fixture and E2E_NORM_VERSION_ID / E2E_CASE_TABLE_ID");
+
+test("calibration survives reload, refusal retains the signer, and exclusion retains its saved decision", async ({ page, request }, testInfo) => {
+  page.setDefaultTimeout(15_000);
+  const pageErrors: string[] = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
+  const base = `${API}/api/v1/projects/${encodeURIComponent(PROJECT!)}/norms`;
+  const seed = await request.get(`${base}/${encodeURIComponent(VERSION!)}`); expect(seed.ok()).toBe(true);
+  const original = await seed.json() as { norm: { constraints: { id: string; type: string; params: { delta?: number; width?: number } }[] } };
+  const constraint = original.norm.constraints.find(c => c.type === "lag");
+  expect(constraint, "seed a lag rule and mapped synthetic case table for this workflow").toBeTruthy();
+  const uncalibrated = structuredClone(original.norm);
+  uncalibrated.constraints.find(c => c.id === constraint!.id)!.params.delta = (constraint!.params.delta ?? 1) + 1;
+  const draftResponse = await request.post(base, { data: { norm: uncalibrated, parentId: VERSION, note: "Synthetic changed threshold awaiting calibration" } });
+  expect(draftResponse.ok()).toBe(true);
+  const draft = await draftResponse.json() as { id: string };
+  await page.goto(`/p/${PROJECT}/norms/${draft.id}?tab=constraints&constraint=${encodeURIComponent(constraint!.id)}&caseTable=${encodeURIComponent(CASE_TABLE!)}`);
+  await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
+  const dialog = page.getByTestId("sign-norm");
+  await dialog.getByLabel("Who signs it").fill("Explicit reviewer");
+  const refusedResponse = page.waitForResponse(r => r.url() === `${base}/${draft.id}` && r.request().method() === "PATCH");
+  await dialog.getByRole("button", { name: "Mark reviewed", exact: true }).click();
+  expect((await refusedResponse).status()).toBe(422);
+  await expect(dialog.getByRole("alert")).toContainText(/rationale|owner/i);
+  await expect(dialog.getByLabel("Who signs it")).toHaveValue("Explicit reviewer");
+  await page.screenshot({ path: testInfo.outputPath("refusal.png"), fullPage: true });
+  const refusedVersion = await (await request.get(`${base}/${draft.id}`)).json() as { status: string; author?: string };
+  expect(refusedVersion.status).toBe("draft");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "the rule", exact: true }).click();
+  await page.getByLabel("within", { exact: true }).fill(String((constraint!.params.delta ?? 1) + 2));
+  await page.getByLabel("why this change (required)", { exact: true }).fill("Synthetic service decision");
+  await page.getByLabel("who owns it (required)", { exact: true }).fill("Calibration owner");
+  const createdResponse = page.waitForResponse(r => r.url() === base && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Save as the next version" }).click();
+  const response = await createdResponse; expect(response.status()).toBe(201);
+  const created = await response.json() as { id: string };
+  await expect(page).toHaveURL(new RegExp(`/norms/${created.id}\\?`));
+  await expect(page.getByTestId("saved-calibration")).toContainText("Synthetic service decision");
+  await page.reload();
+  await expect(page.getByTestId("saved-calibration")).toContainText("Calibration owner");
+  expect(new URL(page.url()).searchParams.get("caseTable")).toBe(CASE_TABLE);
+  await page.screenshot({ path: testInfo.outputPath("calibration.png"), fullPage: true });
+  await expect(page.getByTestId("saved-calibration").locator("time")).toHaveAttribute("datetime", /\d{4}-\d{2}-\d{2}T/);
+
+  await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
+  await dialog.getByLabel("Who signs it").fill("Explicit reviewer");
+  await dialog.getByRole("button", { name: "Mark reviewed", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload(); await expect(page.getByText("signed by Explicit reviewer", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Approve this version", exact: true }).click();
+  await dialog.getByLabel("Who signs it").fill("Explicit approver");
+  await dialog.getByRole("button", { name: "Approve this version", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload(); await expect(page.getByText("signed by Explicit approver", { exact: true })).toBeVisible();
+
+  await page.screenshot({ path: testInfo.outputPath("approved.png"), fullPage: true });
+  await page.getByRole("button", { name: "who it applies to", exact: true }).click();
+  await page.getByLabel("Not applicable to this log", { exact: false }).check();
+  await page.getByLabel("why (required)", { exact: true }).fill("The synthetic extract cannot evaluate this expectation");
+  await page.getByLabel("why this change (required)", { exact: true }).fill("Record the scope decision");
+  await page.getByLabel("who owns it (required)", { exact: true }).fill("Scope owner");
+  await page.getByRole("button", { name: "Save as the next version" }).click();
+  await expect(page.getByTestId("saved-exclusions")).toContainText("The synthetic extract cannot evaluate this expectation");
+  await page.reload();
+  await expect(page.getByTestId("saved-exclusions")).toContainText("Scope owner");
+  await expect(page.getByTestId("saved-exclusions").locator("time")).toHaveAttribute("datetime", /\d{4}-\d{2}-\d{2}T/);
+  expect(new URL(page.url()).searchParams.get("caseTable")).toBe(CASE_TABLE);
+  await page.screenshot({ path: testInfo.outputPath("exclusion.png"), fullPage: true });
+  expect(pageErrors).toEqual([]);
+});

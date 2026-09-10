@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SearchSchemaInput } from "@tanstack/react-router";
-import { BACKLOG_DEFAULTS, parseSearch, stringifySearch, stripBacklogDefaults, validateBacklogSearch, validateSliceSearch } from "./search";
+import { BACKLOG_DEFAULTS, parseSearch, stringifySearch, stripBacklogDefaults, validateBacklogSearch, validateSliceSearch, validateNormSearch } from "./search";
 
 const input = (v: Record<string, unknown>) => v as unknown as Parameters<typeof validateBacklogSearch>[0] & SearchSchemaInput;
 
@@ -50,4 +50,14 @@ describe("typed search params", () => {
     expect(validateBacklogSearch(input(parsed)).page).toBe(2);
     expect(validateBacklogSearch(input(parsed)).slicing).toBe("case Vendor");
   });
+});
+
+it("retains an exact norm case-table selection through URL parsing and rejects non-string selections", () => {
+  for (const caseTable of ["ct_mapped /2", "42", "true"]) {
+    const parsed = parseSearch(stringifySearch({ caseTable, tab: "history", constraint: "c2" }));
+    expect(validateNormSearch(parsed as unknown as Parameters<typeof validateNormSearch>[0])).toEqual({ caseTable, tab: "history", constraint: "c2" });
+  }
+  for (const caseTable of [undefined, "", 42, true, ["ct"]]) {
+    expect(validateNormSearch({ caseTable } as unknown as Parameters<typeof validateNormSearch>[0]).caseTable).toBeUndefined();
+  }
 });

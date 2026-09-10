@@ -448,6 +448,7 @@ class Repositories:
             if row is None:
                 raise NotFoundError(f"norm version {n.id!r} not found", code="norm.not_found")
             row.status = str(n.status)
+            row.author = n.author
         return n
 
     def update_norm_validation(self, n: NormVersion) -> NormVersion:

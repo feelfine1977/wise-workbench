@@ -6,8 +6,7 @@
  *   attribute values and their counts (`GET …/norms/inventory`), so a rule can never name an activity the
  *   log does not have;
  * - the **applicability editor**: which flow types the expectation is meant for, an attribute restriction,
- *   or *not applicable to this log* with a note — the fifteen expectations of the extract that cannot fail
- *   or cannot pass are marked here;
+ *   or *not applicable to this log* with a note when an expectation is outside scope or cannot be judged;
  * - the **commit dialog**, which asks for a rationale **and** an owner before a threshold leaves the lens.
  *
  * Nothing here writes JSON the reader has to look at: every change is described in one sentence and saved
@@ -96,9 +95,14 @@ const UNITS: Record<string, string> = { D: "days", H: "hours", M: "minutes", S: 
 export const unitWord = (u: string) => UNITS[u] ?? u;
 
 /** Applicability in one sentence: what the expectation is meant for. */
-export function applicabilitySentence(c: Constraint, caseNoun: string): string {
-  const a = (c.applicability ?? {}) as { flow_types?: string[]; attribute?: string; values?: string[]; not_applicable?: boolean; note?: string };
-  if (a.not_applicable) return `Not applicable to this log${a.note ? ` — ${a.note}` : ""}.`;
+export interface ExclusionDraft {
+  excluded: boolean;
+  note: string;
+}
+
+export function applicabilitySentence(c: Constraint, caseNoun: string, exclusion?: ExclusionDraft): string {
+  if (exclusion?.excluded) return `Not applicable to this log${exclusion.note ? ` — ${exclusion.note}` : ""}.`;
+  const a = (c.applicability ?? {}) as { flow_types?: string[]; attribute?: string; values?: string[] };
   const parts: string[] = [];
   if (a.flow_types?.length) parts.push(`${a.flow_types.join(" and ")} flows`);
   if (a.attribute && a.values?.length) parts.push(`${quantityWords(a.attribute)} ${a.values.join(" or ")}`);
@@ -279,6 +283,8 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
 
 export interface ApplicabilityEditorProps {
   constraint: Constraint;
+  exclusion: ExclusionDraft;
+  onExclusionChange: (next: ExclusionDraft) => void;
   flowTypes: { name: string; cases?: number }[];
   attributes: AttributeInventory[];
   caseNoun: string;
@@ -286,28 +292,28 @@ export interface ApplicabilityEditorProps {
 }
 
 /**
- * Which items an expectation is meant for — and, for the fifteen that cannot fail or cannot pass on a given
- * log, *not applicable to this log* with a note, so a layer-balanced score stops averaging constants.
+ * Which items an expectation is meant for, with a separate documented decision to exclude an expectation
+ * that is outside the agreed scope or cannot be judged from this log.
  */
-export function ApplicabilityEditor({ constraint, flowTypes, attributes, caseNoun, onChange }: ApplicabilityEditorProps) {
-  const a = (constraint.applicability ?? {}) as { flow_types?: string[]; attribute?: string; values?: string[]; not_applicable?: boolean; note?: string };
+export function ApplicabilityEditor({ constraint, exclusion, onExclusionChange, flowTypes, attributes, caseNoun, onChange }: ApplicabilityEditorProps) {
+  const a = (constraint.applicability ?? {}) as { flow_types?: string[]; attribute?: string; values?: string[] };
   const set = (patch: Record<string, unknown>) => onChange({ ...constraint, applicability: { ...(constraint.applicability ?? {}), ...patch } });
   const chosen = attributes.find((x) => x.name === a.attribute);
   return (
     <div className="flex flex-col gap-3" data-testid="applicability-editor">
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" className="mt-1" checked={!!a.not_applicable} onChange={(e) => set({ not_applicable: e.target.checked || undefined })} />
+        <input type="checkbox" className="mt-1" checked={exclusion.excluded} onChange={(e) => onExclusionChange({ ...exclusion, excluded: e.target.checked })} />
         <span>
           <span className="font-medium">Not applicable to this log</span>
-          <span className="block text-xs text-text-muted">The expectation cannot fail or cannot pass here — the events it needs are not in this extract. It is then left out of the score instead of averaged as a constant.</span>
+          <span className="block text-xs text-text-muted">Use this when the expectation is outside the agreed scope or cannot be judged from this log. An applicable expectation that every case meets remains included.</span>
         </span>
       </label>
-      {a.not_applicable && (
+      {exclusion.excluded && (
         <Field label="why (required)" htmlFor="applicability-note">
-          <Textarea id="applicability-note" value={a.note ?? ""} onChange={(e) => set({ note: e.target.value })} placeholder="This extract has no return and no invoice events, so the rule is never evaluated." />
+          <Textarea id="applicability-note" required aria-required="true" value={exclusion.note} onChange={(e) => onExclusionChange({ ...exclusion, note: e.target.value })} placeholder="This extract has no return and no invoice events, so the rule is never evaluated." />
         </Field>
       )}
-      {!a.not_applicable && (
+      {!exclusion.excluded && (
         <>
           <fieldset className="flex flex-col gap-1.5">
             <legend className="text-xs font-medium text-text-muted">Only these kinds of flow</legend>
@@ -353,7 +359,7 @@ export function ApplicabilityEditor({ constraint, flowTypes, attributes, caseNou
         </>
       )}
       <p className="reading rounded-md border border-border bg-surface-sunken p-2 text-sm" data-testid="applicability-sentence">
-        {applicabilitySentence(constraint, caseNoun)}
+        {applicabilitySentence(constraint, caseNoun, exclusion)}
       </p>
     </div>
   );
@@ -367,14 +373,14 @@ export interface CommitFields {
 }
 
 /** A threshold is a human decision: it does not leave the lens without a reason and a name behind it. */
-export function CommitFieldsForm({ value, onChange }: { value: CommitFields; onChange: (next: CommitFields) => void }) {
+export function CommitFieldsForm({ value, onChange, threshold = false }: { value: CommitFields; onChange: (next: CommitFields) => void; threshold?: boolean }) {
   return (
     <>
-      <Field label="why this threshold (required)" htmlFor="commit-rationale">
-        <Textarea id="commit-rationale" value={value.rationale} onChange={(e) => onChange({ ...value, rationale: e.target.value })} placeholder="What the distribution shows and what was agreed." autoFocus />
+      <Field label={`${threshold ? "why this threshold" : "why this change"} (required)`} htmlFor="commit-rationale">
+        <Textarea id="commit-rationale" required aria-required="true" value={value.rationale} onChange={(e) => onChange({ ...value, rationale: e.target.value })} placeholder="What the distribution shows and what was agreed." autoFocus />
       </Field>
       <Field label="who owns it (required)" htmlFor="commit-owner">
-        <Input id="commit-owner" value={value.owner} onChange={(e) => onChange({ ...value, owner: e.target.value })} placeholder="A name or a role — the person who answers for this number" />
+        <Input id="commit-owner" required aria-required="true" value={value.owner} onChange={(e) => onChange({ ...value, owner: e.target.value })} placeholder="A name or a role — the person who answers for this number" />
       </Field>
     </>
   );

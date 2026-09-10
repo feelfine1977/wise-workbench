@@ -12,6 +12,20 @@ const normKeys = {
   guidanceQuestions: (p: string, kind: string, id: string) => ["projects", p, "norms", "guidance-questions", kind, id] as const,
 };
 
+export type NormCalibration = S["NormCalibration"];
+export type CalibrationEntry = S["CalibrationEntry"];
+export type NotApplicableEntry = S["NotApplicableEntry"];
+export type { NormVersionCreate } from "@wise/api-schema";
+
+/** Saved decisions are read from the version, not inferred from an editor or a run. */
+export const normCalibrationQuery = (projectId: string, normVersionId: string) =>
+  queryOptions({
+    queryKey: ["projects", projectId, "norms", normVersionId, "calibration"] as const,
+    queryFn: () => http.get<NormCalibration>(`/projects/${enc(projectId)}/norms/${enc(normVersionId)}/calibration`),
+    enabled: !!normVersionId,
+    retry: false,
+  });
+
 export type Inventory = S["Inventory"];
 
 export type ActivityInventory = S["ActivityInventory"];

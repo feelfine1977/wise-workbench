@@ -21,6 +21,14 @@ Do not require invented shares, favourable outcomes or a benchmark ranking.
 Preserve exact scoped evidence; do not infer causal benefit from priority or
 hypothetical headroom. These rules supersede stronger historical examples.
 
+The norm-persistence part of M2a is implemented: calibration and exclusion
+reasons/owners/dates survive reload; changed rules require a current decision;
+review and approval persist the explicit signer and show refusals without
+losing input. A public five-case browser workflow exercises these operations
+against the actual backend. This does not close M2a: scoped evidence, persistent
+finding/disposition and shared action eligibility still precede the goal board.
+It also does not establish business calibration or a human usability result.
+
 The remaining sections preserve original requirements and observations.
 Consult the repository README for current implemented behavior and limitations.
 

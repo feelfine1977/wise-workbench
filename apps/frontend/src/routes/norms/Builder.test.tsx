@@ -14,7 +14,7 @@ describe("the norm in the reader's words", () => {
     expect(ruleSentence(lag)).toBe("Clear Invoice follows Record Goods Receipt within 30 days, tolerated to 90");
     expect(applicabilitySentence(lag, "purchase order items")).toBe("Applies to every one of these purchase order items.");
     expect(applicabilitySentence({ ...lag, applicability: { flow_types: ["standard"] } }, "items")).toBe("Applies to standard flows.");
-    expect(applicabilitySentence({ ...lag, applicability: { not_applicable: true, note: "this extract has no invoice events" } }, "items")).toBe(
+    expect(applicabilitySentence(lag, "items", { excluded: true, note: "this extract has no invoice events" })).toBe(
       "Not applicable to this log — this extract has no invoice events.",
     );
     expect(thresholdOf(lag)).toEqual({ threshold: 30, width: 90, keys: ["delta", "width"] });
@@ -66,7 +66,7 @@ describe("the norm builder (R3-02, R3-O6)", () => {
     // a change does not leave the pane without a reason and an owner
     const save = screen.getByRole("button", { name: /Save as the next version/ });
     expect(save).toBeDisabled();
-    await user.type(screen.getByLabelText(/why this threshold \(required\)/), "the rule cannot be evaluated here");
+    await user.type(screen.getByLabelText(/why this change \(required\)/), "the rule cannot be evaluated here");
     expect(save).toBeDisabled();
     await user.type(screen.getByLabelText(/who owns it \(required\)/), "SD expert");
     expect(save).toBeEnabled();

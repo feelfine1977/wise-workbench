@@ -20,13 +20,14 @@ import { Card, CardTitle } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDateTime, fmtInt, fmtNum } from "@/lib/format";
 import { distributionQuery } from "@/lib/api/analytics";
-import { normQuery, normsQuery, useCreateNormVersion } from "@/lib/api/norms";
+import { normQuery, normsQuery, normCalibrationQuery, useCreateNormVersion, type NormVersionCreate } from "@/lib/api/norms";
+import { normRefusal } from "./normErrors";
 import { flowTypesQuery } from "@/lib/api/runs";
 import { runManifestQuery } from "@/lib/api/runs";
 import { inventoryQuery } from "@/lib/api/norms";
 import { CalibrationChip } from "@/components/badges";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
-import { ApplicabilityEditor, CommitFieldsForm, NewConstraintButton, RuleEditor, StatusChip, applicabilitySentence, ruleSentence, thresholdOf, type CommitFields, type Constraint } from "./Builder";
+import { ApplicabilityEditor, CommitFieldsForm, NewConstraintButton, RuleEditor, StatusChip, applicabilitySentence, ruleSentence, thresholdOf, type CommitFields, type Constraint, type ExclusionDraft } from "./Builder";
 import { NEXT_STATUS, SignVersion } from "./SignVersion";
 import { cn } from "@/lib/utils";
 import type { NormTab } from "@/app/search";
@@ -37,6 +38,7 @@ interface NormJson {
   layers?: { id: string; name: string }[];
   views?: { name: string; layer_weights?: Record<string, number> }[];
   constraints?: Constraint[];
+  metadata?: { not_applicable?: Record<string, { constraint?: Constraint }> };
 }
 
 /**
@@ -57,6 +59,7 @@ export default function NormPage() {
   const norm = useQuery(normQuery(ctx.projectId, normVersionId));
   const norms = useQuery(normsQuery(ctx.projectId));
   const create = useCreateNormVersion(ctx.projectId);
+  const calibration = useQuery(normCalibrationQuery(ctx.projectId, normVersionId));
   const json = norm.data?.norm as NormJson | undefined;
   const constraints = useMemo(() => json?.constraints ?? [], [json]);
   const runId = ctx.runs.find((r) => r.status === "done")?.id;
@@ -67,6 +70,7 @@ export default function NormPage() {
   const [signing, setSigning] = useState(false);
   // the rule and the applicability of the selected expectation while they are being edited
   const [edited, setEdited] = useState<Constraint>();
+  const [exclusion, setExclusion] = useState<ExclusionDraft>({ excluded: false, note: "" });
   const [pane, setPane] = useState<"lens" | "rule" | "applies">("lens");
   const inventory = useQuery({ ...inventoryQuery(ctx.projectId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
   const flowTypes = useQuery({ ...flowTypesQuery(ctx.projectId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
@@ -91,24 +95,47 @@ export default function NormPage() {
   }, [fromWhy, lastSlice, lensName, selected?.id, setSubline]);
 
   const setTab = (tab: NormTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab }) });
-  const selectConstraint = (id: string) => void navigate({ to: ".", search: (s) => ({ ...s, constraint: id }) });
+  const selectConstraint = (id: string) => {
+    setEdited(undefined);
+    setPending(undefined);
+    setExclusion({ excluded: false, note: "" });
+    setFields({ rationale: "", owner: "" });
+    setPane("lens");
+    create.reset();
+    void navigate({ to: ".", search: (s) => ({ ...s, constraint: id }) });
+  };
+  const savedDecision = calibration.data?.thresholds?.find((row) => row.constraint_id === (edited ?? selected)?.id);
+  const saveError = create.isError ? (
+    <p role="alert" className="reading text-sm text-danger" data-testid="norm-save-error">
+      This version could not be saved. Your changes are still here. {normRefusal(create.error, Object.fromEntries([...constraints, ...(edited ? [edited] : [])].map(c => [c.id, plainOf(c)])), "save")}
+    </p>
+  ) : null;
 
-  /** Every change of the norm is the next version, with the reason and the owner in its note (R3-02). */
-  const saveVersion = (patch: (c: Constraint) => Constraint, what: string, extra?: Constraint) => {
-    if (!json || !fields.rationale.trim() || !fields.owner.trim()) return;
-    const id = (edited ?? selected)?.id;
+  /** Save decision metadata through the public request fields; the server owns canonicalization. */
+  const saveVersion = (patch: (c: Constraint) => Constraint, what: string, extra?: Constraint, exclude = false) => {
+    if (!json || !fields.rationale.trim() || !fields.owner.trim() || (exclude && !exclusion.note.trim())) return;
+    const id = extra?.id ?? (edited ?? selected)?.id;
     const next: NormJson = {
       ...json,
       constraints: [...constraints.map((c) => (c.id === id ? patch(c) : c)), ...(extra ? [extra] : [])],
     };
+    const changed = next.constraints?.find((c) => c.id === id);
+    const body: NormVersionCreate = {
+      norm: next as Record<string, unknown>,
+      note: `${what} — ${fields.rationale.trim()} (owner: ${fields.owner.trim()})`,
+      parentId: normVersionId,
+      ...(changed && thresholdOf(changed) && !exclude ? { calibration: { [changed.id]: { rationale: fields.rationale.trim(), owner: fields.owner.trim() } } } : {}),
+      ...(id && exclude ? { notApplicable: { [id]: { note: exclusion.note.trim(), author: fields.owner.trim() } } } : {}),
+    };
     create.mutate(
-      { norm: next as Record<string, unknown>, note: `${what} — ${fields.rationale.trim()} (owner: ${fields.owner.trim()})`, parentId: normVersionId },
+      body,
       {
         onSuccess: (created) => {
           setPending(undefined);
           setEdited(undefined);
+          setExclusion({ excluded: false, note: "" });
           setFields({ rationale: "", owner: "" });
-          void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: created.id }, search: { tab: "constraints", constraint: id } });
+          void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: created.id }, search: { caseTable: search.caseTable, tab: exclude ? "history" : "constraints", constraint: exclude ? undefined : id } });
         },
       },
     );
@@ -122,9 +149,10 @@ export default function NormPage() {
   };
 
   /** A rule or an applicability edited in the pane, saved as the next version. */
-  const commitEdited = (what: string) => {
+  const commitEdited = (what: string, exclude = false) => {
     if (!edited) return;
-    saveVersion(() => edited, `${plainOf(edited)}: ${what}`);
+    const extra = constraints.some(c => c.id === edited.id) ? undefined : edited;
+    saveVersion(c => extra ? c : edited, `${plainOf(edited)}: ${what}`, extra, exclude);
   };
 
   const byLayer = useMemo(() => {
@@ -177,7 +205,7 @@ export default function NormPage() {
             </header>
             <HowToRead id="norm">
               The list on the left is every expectation of this process, by area, with the rule in one sentence. Pick one and the pane on the right shows how the {caseNoun} are spread around its threshold, lets you change the rule
-              with the activities and values this log actually has, and lets you say which {caseNoun} it is meant for — including <strong>not applicable to this log</strong>, for a rule that cannot fail or cannot pass here.
+              with the activities and values this log actually has, and lets you say which {caseNoun} it is meant for — including <strong>not applicable to this log</strong>, for an expectation outside the agreed scope or one that cannot be judged from this log.
               Every change is the next version and asks for a reason and an owner, because a threshold is a decision somebody answers for.
             </HowToRead>
             <Tabs value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
@@ -201,7 +229,6 @@ export default function NormPage() {
                           {list.map((c) => {
                             const t = thresholdOf(c);
                             const flag = uncalibrated.get(c.id);
-                            const na = !!(c.applicability as { not_applicable?: boolean } | undefined)?.not_applicable;
                             return (
                               <li key={c.id}>
                                 <button
@@ -214,7 +241,6 @@ export default function NormPage() {
                                   <span className="flex w-full items-baseline gap-2">
                                     {/* the plain name is the label; the id lives in the tooltip (R3-13) */}
                                     <span className="min-w-0 flex-1 font-medium">{plainOf(c)}</span>
-                                    {na && <Badge variant="outline" className="shrink-0 text-[10px]">not applicable here</Badge>}
                                   </span>
                                   <span className="text-xs text-text-muted">{ruleSentence(c)}</span>
                                   {flag && <CalibrationChip className="mt-0.5" text={flag.text} />}
@@ -231,6 +257,7 @@ export default function NormPage() {
                         layers={json?.layers ?? []}
                         onCreate={(c) => {
                           setEdited(c);
+                          setExclusion({ excluded: false, note: "" });
                           setPane("rule");
                           void navigate({ to: ".", search: (sp) => ({ ...sp, constraint: c.id }) });
                         }}
@@ -264,8 +291,16 @@ export default function NormPage() {
                           </span>
                         </div>
                         <p className="reading mb-3 text-sm text-text-muted" data-testid="norm-sentence">
-                          {ruleSentence((edited ?? selected) as Constraint)}. {applicabilitySentence((edited ?? selected) as Constraint, caseNoun)}
+                          {ruleSentence((edited ?? selected) as Constraint)}. {applicabilitySentence((edited ?? selected) as Constraint, caseNoun, pane === "applies" ? exclusion : undefined)}
                         </p>
+                        {calibration.isError && <p role="alert" className="mb-3 text-sm text-danger">Saved decisions could not be read. Your edits are still here; reload to try again.</p>}
+                        {savedDecision && (savedDecision.rationale || savedDecision.owner) && (
+                          <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-3 text-sm" data-testid="saved-calibration">
+                            <dt className="text-text-muted">Saved reason</dt><dd>{savedDecision.rationale || "Not recorded"}</dd>
+                            <dt className="text-text-muted">Owner</dt><dd>{savedDecision.owner || "Not recorded"}</dd>
+                            <dt className="text-text-muted">Decision recorded</dt><dd>{savedDecision.decidedAt ? <time dateTime={savedDecision.decidedAt}>{fmtDateTime(savedDecision.decidedAt)}</time> : "Not recorded"}</dd>
+                          </dl>
+                        )}
                         {selected && uncalibrated.get(selected.id) && <CalibrationChip className="mb-3" text={uncalibrated.get(selected.id)?.text} />}
 
                         {pane === "lens" && (
@@ -298,12 +333,12 @@ export default function NormPage() {
                             <RuleEditor projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={edited} caseNoun={caseNoun} onChange={setEdited} />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
                               <CommitFieldsForm value={fields} onChange={setFields} />
-                              {create.isError && <ErrorBlock error={create.error} />}
+                              {saveError}
                               <div className="flex gap-2">
                                 <Button size="sm" disabled={!fields.rationale.trim() || !fields.owner.trim() || create.isPending} onClick={() => commitEdited("the rule was changed")}>
                                   Save as the next version
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setPane("lens"); }}>
+                                <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setExclusion({ excluded: false, note: "" }); create.reset(); setPane("lens"); }}>
                                   Discard
                                 </Button>
                               </div>
@@ -316,6 +351,8 @@ export default function NormPage() {
                           <>
                             <ApplicabilityEditor
                               constraint={edited}
+                              exclusion={exclusion}
+                              onExclusionChange={setExclusion}
                               flowTypes={(flowTypes.data?.types ?? []).map((f) => ({ name: f.name, cases: f.cases }))}
                               attributes={inventory.data?.attributes ?? []}
                               caseNoun={caseNoun}
@@ -323,12 +360,12 @@ export default function NormPage() {
                             />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
                               <CommitFieldsForm value={fields} onChange={setFields} />
-                              {create.isError && <ErrorBlock error={create.error} />}
+                              {saveError}
                               <div className="flex gap-2">
-                                <Button size="sm" disabled={!fields.rationale.trim() || !fields.owner.trim() || create.isPending} onClick={() => commitEdited("who it applies to was changed")}>
+                                <Button size="sm" disabled={!fields.rationale.trim() || !fields.owner.trim() || (exclusion.excluded && !exclusion.note.trim()) || create.isPending} onClick={() => commitEdited(exclusion.excluded ? "not applicable to this log" : "who it applies to was changed", exclusion.excluded)}>
                                   Save as the next version
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setPane("lens"); }}>
+                                <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setExclusion({ excluded: false, note: "" }); create.reset(); setPane("lens"); }}>
                                   Discard
                                 </Button>
                               </div>
@@ -349,6 +386,24 @@ export default function NormPage() {
                 <div className="grid gap-4 lg:grid-cols-2">
                   <Card>
                     <CardTitle>This version</CardTitle>
+                    {calibration.isError && <p role="alert" className="mb-3 text-sm text-danger">Saved decisions could not be read. Reload to try again.</p>}
+                    {!!calibration.data?.notApplicable?.length && (
+                      <section className="mb-4" aria-label="Not applicable to this log" data-testid="saved-exclusions">
+                        <h3 className="font-medium">Not applicable to this log</h3>
+                        <ul className="mt-2 flex flex-col gap-2">
+                          {calibration.data.notApplicable.map((entry) => {
+                            const id = typeof entry.constraint_id === "string" ? entry.constraint_id : "";
+                            const original = json?.metadata?.not_applicable?.[id]?.constraint;
+                            const date = typeof entry.decidedAt === "string" ? entry.decidedAt : undefined;
+                            return <li key={id}>
+                              <p className="font-medium">{original ? plainOf(original) : id}</p>
+                              <p>{typeof entry.note === "string" ? entry.note : "No note recorded"}</p>
+                              <p className="text-xs text-text-muted">Decision by {typeof entry.author === "string" ? entry.author : "not recorded"} · {date ? <time dateTime={date}>{fmtDateTime(date)}</time> : "Date not recorded"}</p>
+                            </li>;
+                          })}
+                        </ul>
+                      </section>
+                    )}
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                       <dt className="text-text-muted">note</dt>
                       <dd>{nv.note}</dd>
@@ -411,8 +466,8 @@ export default function NormPage() {
               {selected ? plainOf(selected) : ""}: {fmtNum(pending?.threshold, 2)}, tolerated to {fmtNum(pending?.width, 2)}. A threshold is a decision somebody answers for, so it needs a reason and an owner.
             </DialogDescription>
           </DialogHeader>
-          <CommitFieldsForm value={fields} onChange={setFields} />
-          {create.isError && <ErrorBlock error={create.error} />}
+          <CommitFieldsForm value={fields} onChange={setFields} threshold />
+          {saveError}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPending(undefined)}>
               Cancel

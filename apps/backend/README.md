@@ -212,3 +212,33 @@ WISE_BPIC19_CSV=/path/to/BPI_Challenge_2019.csv .venv/bin/python -m pytest tests
 .venv/bin/mypy
 .venv/bin/wise-workbench openapi --yaml --out ../../packages/api-schema/openapi.yaml   # regenerate the contract (the drift test fails otherwise)
 ```
+
+
+## Norm decision persistence
+
+Create a version with the dedicated `calibration` and `notApplicable` request
+maps. Calibration entries bind rationale/owner to the expectation being
+reviewed; new server-generated decision dates are explicit UTC timestamps.
+A threshold or applicability change invalidates its inherited calibration
+unless the request explicitly reaffirms it. Outstanding decisions are carried
+through descendant drafts in `metadata.calibration_pending`; exclusions retain
+the original constraint and decision in `metadata.not_applicable`.
+
+Every real transition into reviewed/approved needs an explicit nonblank
+`author`. The status and current signer are stored together. Same-status calls
+are idempotent, and refused transitions leave the record unchanged. This field
+records a declared signer; it is not authentication or a full signature history.
+No migration or classic library change is needed.
+
+The required public browser workflow creates its own temporary workspace from
+`wise.running_p2p_events()` and never reads an existing analysis. With the
+backend installed, locked frontend dependencies and Playwright Chromium ready:
+
+```bash
+PYTHONPATH=apps/backend/src apps/backend/.venv/bin/python tools/check_norm_workflow.py
+```
+
+Run this command from the repository root. It starts an API on an available
+loopback port, invokes the norm browser spec, then removes its workspace and
+stops its server. Vite uses port 4173 and refuses if it is already occupied.
+The norm API tests also run in the minimal dependency profile.

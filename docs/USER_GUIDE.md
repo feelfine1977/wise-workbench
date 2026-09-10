@@ -1,6 +1,6 @@
 # User guide — WISE Workbench
 
-Current setup and limitations are maintained in [START_HERE](START_HERE.md) and the [repository README](../README.md#current-limits). The norm calibration/approval workflow described below has known persistence defects; its description is not proof that approval is currently reachable.
+Current setup and limitations are maintained in [START_HERE](START_HERE.md) and the [repository README](../README.md#current-limits). The norm workflow records calibration and exclusion decisions per expectation and preserves the current signer on reload. Software approval records the responsible person's decision; appropriate business thresholds still require domain review.
 
 For an analyst who has an event log of a purchase-to-pay (or similar) process
 and wants to know where it falls short of expectations, without knowing the
@@ -321,7 +321,7 @@ Where norms come from in this release:
   (open `http://127.0.0.1:8000/docs`, *norms*, **Try it out**). The document
   is validated by the library; errors come back as a list.
 
-The norm builder forms are not part of this release.
+The norm builder also provides rule and applicability forms; see section 12 for saving, reviewing and approving a version.
 
 Open a version. The header reads its name and version (**WISE BPIC'19 norm ·
 v1**), the status badge, the scoring mode and the counts: "layer_balanced ·
@@ -928,14 +928,27 @@ not applicable leaves the version with a required note and leaves the
 perspectives' weights with it, instead of being averaged in as a constant;
 the whole expectation is kept, so it can be brought back.
 
-**Committing a change** asks two questions and will not save without them:
-*why this threshold (required)* and *who owns it (required)*.
+**Committing a change** asks for *why this change (required)* and *who owns
+it (required)*; the threshold lens calls the first field *why this threshold
+(required)*. The saved expectation shows its rationale, owner and decision
+date after a reload. These are separate from the version note. An unchanged
+expectation retains its earlier decision. Changing its threshold or
+applicability needs an explicit new decision, even when the same rationale
+still applies. Copying an unresolved draft does not clear this requirement.
+
+For **Not applicable to this log**, also fill in *why (required)*. This is a
+scope decision: a rule that everyone meets can still be a valid expectation.
+After saving, **Version notes** lists the excluded expectation, its reason,
+decision author and date; the original rule remains in the version's metadata.
+If saving is refused, the form displays the error and retains the edits.
 
 **Signing a version.** **Mark reviewed** and **Approve this version** sit
-beside the status, and each asks for the person who signs. A version cannot
-leave *draft* without a named person, and not while a threshold this version
-set has no reason and no owner: the server answers with the thresholds that
-are missing one and the screen shows that refusal. `GET
+beside the status, and each asks for the person who signs. Every actual
+review or approval needs an explicitly entered name; the current signer is
+saved and shown after a reload. A refusal keeps that name in the open dialog.
+A version cannot be signed while a required calibration decision is missing:
+the server identifies the expectations that still need a reason and owner.
+A repeated request for the same status does not replace the recorded signer. `GET
 …/norms/{id}/calibration` is the same list — every threshold with its reason
 and owner, what this version changed, what is marked not applicable, and
 what still keeps it in draft.

@@ -31,7 +31,7 @@ If port 8000 is occupied, use `tools/start.sh --no-build --port 8002`. The synta
 
 ## Current limits
 
-The norm editor's calibration rationale/owner persistence and not-applicable operation need repair before treating its approval path as complete. Order-to-cash thresholds are draft and its customer ranking is not a validated business backlog. Some comparison sentences, gate refusal messages and hypothesis test results are still missing from screens. What-if exists in the backend but has no complete user workflow. Map labels can overlap. A movable dashboard builder, PowerPoint export, authentication and supported Docker images are planned.
+Norm calibration and exclusion decisions persist with their reasons, owners and dates; review/approval records the current signer. This records a decision, not authentication or proof that the thresholds fit the business. Order-to-cash thresholds are draft and its customer ranking is not a validated business backlog. Some comparison sentences, gate refusal messages and hypothesis test results are still missing from screens. What-if exists in the backend but has no complete user workflow. Map labels can overlap. A movable dashboard builder, PowerPoint export, authentication and supported Docker images are planned.
 
 Run locally on `127.0.0.1`; the current application has no login or multi-user access boundary. Ranking is relative to the selected population and norm, and is not evidence of causation or guaranteed savings.
 

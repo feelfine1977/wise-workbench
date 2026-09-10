@@ -82,7 +82,7 @@ jobs:
       - name: Explicit fallback contract
         env:
           WISE_TEST_PROFILE: minimal
-        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py
+        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py tests/api/test_norm_persistence.py
 
   analytics:
     name: analytics package
@@ -149,6 +149,17 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run e2e -- e2e/flow-board.spec.ts --workers=1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install minimal backend for the public norm workflow
+        working-directory: .
+        run: python -m pip install "$WISE_PM" ./packages/process-knowledge ./apps/backend
+      - name: Norm edit, save, reload, refusal and approval in the browser
+        working-directory: .
+        env:
+          PYTHONPATH: apps/backend/src
+        run: python tools/check_norm_workflow.py
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-live

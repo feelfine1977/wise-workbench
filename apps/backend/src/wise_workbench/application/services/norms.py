@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import builtins
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
@@ -18,7 +19,6 @@ from wise_workbench.domain import (
     missing_rationales,
     thresholds_of,
 )
-from wise_workbench.domain.project import utcnow
 from wise_workbench.ids import new_id
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -49,17 +49,23 @@ class NormService:
         self.c.repos.get_project(project_id)
         if not isinstance(document, dict):
             raise ValidationError("norm must be a JSON object", code="norm.invalid")
-        document = _with_calibration(document, calibration, not_applicable, author)
-        canonical, fingerprint = self.c.engine.validate_norm(document)
-        canonical.setdefault("metadata", {})
-        for block in ("calibration", "not_applicable"):
-            if (document.get("metadata") or {}).get(block):
-                canonical["metadata"][block] = (document["metadata"])[block]
         parent: NormVersion | None = None
         if parent_id:
             parent = self.c.repos.get_norm_version(parent_id)
             if parent.project_id != project_id:
                 raise NotFoundError(f"parent norm version {parent_id!r} not found in project", code="norm.not_found")
+        pending = []
+        if parent:
+            previous = self.c.repos.get_norm_version(parent.parent_id).document if parent.parent_id else None
+            pending = missing_rationales(parent.document, previous, parent.uncalibrated)
+        document = _with_calibration(
+            document, calibration, not_applicable, author, parent=parent.document if parent else None, pending=pending
+        )
+        canonical, fingerprint = self.c.engine.validate_norm(document)
+        canonical.setdefault("metadata", {})
+        for block in ("calibration", "not_applicable"):
+            if (document.get("metadata") or {}).get(block):
+                canonical["metadata"][block] = (document["metadata"])[block]
         norm_id = parent.norm_id if parent else new_id("norm")
         number = self.c.repos.next_norm_number(norm_id)
         version = NormVersion(
@@ -119,10 +125,14 @@ class NormService:
         (R3-02).
         """
         n = self.get(project_id, norm_version_id)
-        if status != NormStatus.DRAFT and n.status == NormStatus.DRAFT:
-            if not str(author or n.author or "").strip():
+        moved = n.with_status(status)
+        if status == n.status:
+            return n
+        if status != NormStatus.DRAFT:
+            signer = str(author or "").strip()
+            if not signer:
                 raise ValidationError(
-                    "a norm version leaves draft under the name of the person who signs it", code="norm.author"
+                    "a review or approval needs the name of the person signing it", code="norm.author"
                 )
             parent = self.c.repos.get_norm_version(n.parent_id).document if n.parent_id else None
             missing = missing_rationales(n.document, parent, n.uncalibrated)
@@ -132,9 +142,7 @@ class NormService:
                     code="norm.rationale_required",
                     errors=[{"field": cid, "message": "a rationale and an owner are required"} for cid in missing],
                 )
-        moved = n.with_status(status)
-        if author and not moved.author:
-            moved = replace(moved, author=author)
+            moved = replace(moved, author=signer)
         return self.c.repos.update_norm_status(moved)
 
     def calibration(self, project_id: str, norm_version_id: str) -> dict[str, Any]:
@@ -322,15 +330,24 @@ def _with_calibration(
     calibration: dict[str, Any] | None,
     not_applicable: dict[str, Any] | None,
     author: str | None,
+    *,
+    parent: dict[str, Any] | None = None,
+    pending: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Merge the rationales and the *not applicable* decisions into the document's metadata."""
-    if not calibration and not not_applicable:
+    """Merge decisions; changed expectations need an explicit decision for this version."""
+    stale = set(changed_thresholds(document, parent)) - set(calibration or {})
+    outstanding = (set(pending or []) | stale) - set(calibration or {})
+    if not calibration and not not_applicable and not outstanding:
         return document
     out = dict(document)
     metadata = dict(out.get("metadata") or {})
-    now = utcnow().isoformat()
+    block = dict(metadata.get("calibration") or {})
+    for cid in stale:
+        block.pop(cid, None)
+    if "calibration" in metadata:
+        metadata["calibration"] = block
+    now = datetime.now(UTC).isoformat()
     if calibration:
-        block = dict(metadata.get("calibration") or {})
         for cid, entry in calibration.items():
             body = dict(entry or {})
             rationale, owner = str(body.get("rationale") or "").strip(), str(body.get("owner") or "").strip()
@@ -379,5 +396,12 @@ def _with_calibration(
             views.append(copy_view)
         out["views"] = views
         metadata["not_applicable"] = block
+    # Carry unresolved decisions across unchanged descendants as well. Cloning
+    # a draft must not erase the reason that it cannot yet be signed.
+    outstanding &= set(thresholds_of(out))
+    if outstanding:
+        metadata["calibration_pending"] = sorted(outstanding)
+    else:
+        metadata.pop("calibration_pending", None)
     out["metadata"] = metadata
     return out
