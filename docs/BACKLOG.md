@@ -27,6 +27,15 @@ review and approval persist the explicit signer and show refusals without
 losing input. A public five-case browser workflow exercises these operations
 against the actual backend. This does not close M2a: scoped evidence, persistent
 finding/disposition and shared action eligibility still precede the goal board.
+
+The first [action commitment boundary](ACTION_REVIEW.md) now records immutable
+proposal context and applies the same evidence/gate checks to creation and
+updates. Unassessed drafts remain usable; pending, unavailable, stale and
+unsupported filtered evidence cannot silently authorise commitment. Supported
+filters now record exact membership and selected-item readiness; decisions are
+bound to that selection and its measured checks. Broader filter grammar and
+context propagation through findings/hypotheses remain open, so GR-02/GR-03 and
+M2a are not closed by this bounded change.
 It also does not establish business calibration or a human usability result.
 
 The remaining sections preserve original requirements and observations.

@@ -375,8 +375,13 @@ def test_the_readiness_gate_is_read_from_the_group_and_stated_once_at_the_run(wo
     for row in page["rows"][:8]:
         gates = _get(world, "gates", slicing="company,spend_area", key=row["key"], view="Finance")
         by_id = {g["id"]: g for g in gates["gates"]}
-        assert set(by_id) == {"readiness", "censoring", "replication", "domain"}
         readiness = by_id["readiness"]
+        expected_ids = {"readiness", "censoring", "replication", "domain"}
+        if readiness["scope"] == "group":
+            expected_ids.add("run_readiness")
+            assert by_id["run_readiness"]["scope"] == "run"
+            assert by_id["run_readiness"]["evidence"]["checks"]
+        assert set(by_id) == expected_ids
         statuses[row["key"]] = readiness["computed_status"]
         own = readiness["evidence"]["groupChecks"]
         if own:

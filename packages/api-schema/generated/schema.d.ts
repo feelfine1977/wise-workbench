@@ -997,7 +997,7 @@ export interface paths {
         };
         /**
          * Get Gates
-         * @description The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. A hypothesis or an action on a group with a failed gate is refused with 409 until the gate is passed or waived with a note.
+         * @description The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. An optional case filter measures this selection and binds group decisions to it. Unsupported and empty selections are refused. Action proposals remain recordable; commitment requires all checks passed or waived.
          */
         get: operations["getGates"];
         put?: never;
@@ -1117,7 +1117,7 @@ export interface paths {
         put?: never;
         /**
          * Create Action
-         * @description What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Refused with 409 while a gate of the group has failed.
+         * @description What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Proposed drafts are allowed; agreement, execution and completion require saved evidence and resolved gates.
          */
         post: operations["createAction"];
         delete?: never;
@@ -1431,6 +1431,13 @@ export interface components {
             /** View */
             view?: string | null;
             /**
+             * Filter
+             * @description Saved case filter. Nonempty filters allow a proposal but cannot authorise commitment until exact filtered readiness is supported.
+             */
+            filter?: {
+                [key: string]: unknown;
+            } | string | null;
+            /**
              * Mechanism
              * @description what produces the shortfall
              */
@@ -1457,6 +1464,63 @@ export interface components {
             note?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * ActionEvidenceContext
+         * @description Server-recorded scope; it identifies evidence, not an approval or a current readiness verdict.
+         */
+        ActionEvidenceContext: {
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version?: 1;
+            /** Runid */
+            runId: string;
+            /** Normversionid */
+            normVersionId: string;
+            /** Normfingerprint */
+            normFingerprint: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Contenthash */
+            contentHash: string;
+            /** Paramshash */
+            paramsHash: string;
+            /** Manifestfingerprint */
+            manifestFingerprint: string;
+            /** View */
+            view: string;
+            /** Slicing */
+            slicing: string;
+            /** Slicekey */
+            sliceKey: string;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            /** Flowscope */
+            flowScope?: {
+                [key: string]: unknown;
+            } | null;
+            /** Scenario */
+            scenario?: string | null;
+            /** Comparator */
+            comparator: {
+                [key: string]: unknown;
+            };
+            /**
+             * Populationcases
+             * @description Number of items in the exact assessed group and filter; unavailable if the filter cannot be measured.
+             */
+            populationCases?: number | null;
+            /** Selectionstate */
+            selectionState?: ("measured" | "unavailable") | null;
+            /** Selectionfingerprint */
+            selectionFingerprint?: string | null;
+            /** Selectionreason */
+            selectionReason?: string | null;
         };
         /** ActivityCount */
         ActivityCount: {
@@ -3209,6 +3273,11 @@ export interface components {
             caseNoun?: string | null;
             /** Cases */
             cases?: number | null;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            selection?: components["schemas"]["ReviewSelection"] | null;
             /** Gates */
             gates?: components["schemas"]["Gate"][];
             /**
@@ -4070,6 +4139,19 @@ export interface components {
             createdAt: string;
             /** Updatedat */
             updatedAt: string;
+            readonly evidenceContext?: components["schemas"]["ActionEvidenceContext"] | null;
+            /**
+             * Evidencestate
+             * @description Recorded scope is not a readiness verdict. Missing on legacy records.
+             */
+            readonly evidenceState?: ("unassessed" | "recorded") | null;
+            /**
+             * Commitmentcheck
+             * @description Evidence and decisions checked at the last commitment write, not a promise of ongoing validity.
+             */
+            readonly commitmentCheck?: {
+                [key: string]: unknown;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -4083,6 +4165,22 @@ export interface components {
             note?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** ReviewSelection */
+        ReviewSelection: {
+            /**
+             * State
+             * @constant
+             */
+            state: "measured";
+            /** Cases */
+            cases: number;
+            /** Wholegroupcases */
+            wholeGroupCases: number;
+            /** Fingerprint */
+            fingerprint: string;
+            /** Decisionfingerprint */
+            decisionFingerprint?: string | null;
         };
         /** Run */
         Run: {
@@ -6941,6 +7039,7 @@ export interface operations {
                 /** @description the group's key (JSON array) */
                 key: string;
                 view?: string | null;
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -6978,13 +7077,13 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -6995,6 +7094,8 @@ export interface operations {
                 slicing: string;
                 /** @description the group's key (JSON array) */
                 key: string;
+                view?: string | null;
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -7021,6 +7122,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7396,13 +7506,22 @@ export interface operations {
                     "application/json": components["schemas"]["ReviewItem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

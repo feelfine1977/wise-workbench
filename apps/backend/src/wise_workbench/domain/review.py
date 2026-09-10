@@ -117,6 +117,12 @@ def validate_action(body: dict[str, Any]) -> dict[str, Any]:
     counter = out.get("countermeasure")
     if counter is not None and str(counter) not in COUNTERMEASURES:
         raise ValidationError(f"countermeasure must be one of {list(COUNTERMEASURES)}", code="action.countermeasure")
+    if out.get("owner_role") is not None and not isinstance(out["owner_role"], str):
+        raise ValidationError(
+            "Name the owner role as text.",
+            code="action.owner_role",
+            errors=[{"field": "owner_role", "message": "Enter a role name"}],
+        )
     out["status"] = status
     out["links"] = [str(x) for x in out.get("links") or []]
     return out

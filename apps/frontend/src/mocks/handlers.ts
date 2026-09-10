@@ -772,6 +772,7 @@ export const handlers = [
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
     const u = new URL(request.url);
+    if (u.searchParams.has("filter")) return problem(422, "Unprocessable Content", "The demo cannot measure checks for filtered selections.", "gates.filter_unsupported");
     const slicing = u.searchParams.get("slicing");
     const key = u.searchParams.get("key");
     if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "gates.group");
@@ -781,6 +782,7 @@ export const handlers = [
     const run = runOr404(String(params.runId));
     if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
     const u = new URL(request.url);
+    if (u.searchParams.has("filter")) return problem(422, "Unprocessable Content", "The demo cannot measure checks for filtered selections.", "gates.filter_unsupported");
     const slicing = u.searchParams.get("slicing");
     const key = u.searchParams.get("key");
     if (!slicing || !key) return problem(422, "Unprocessable Content", "slicing and key are required", "gates.group");
@@ -847,14 +849,16 @@ export const handlers = [
         await delay(latency);
         const u = new URL(request.url);
         const runId = u.searchParams.get("runId");
-        const sliceKey = u.searchParams.get("sliceKey");
+        const sliceKey = u.searchParams.get("key");
+        const slicing = u.searchParams.get("slicing");
         return HttpResponse.json(
           review.filter(
             (r) =>
               r.kind === kind &&
               r.projectId === String(params.projectId) &&
-              (!runId || !r.runId || r.runId === runId) &&
-              (!sliceKey || !r.sliceKey || canonical(r.sliceKey) === canonical(sliceKey)),
+              (!runId || r.runId === runId) &&
+              (!slicing || r.slicing === slicing) &&
+              (!sliceKey || (r.sliceKey != null && canonical(r.sliceKey) === canonical(sliceKey))),
           ),
         );
       }),

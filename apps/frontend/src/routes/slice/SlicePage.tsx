@@ -5,7 +5,7 @@ import type { SliceDetail, WorstCase } from "@wise/api-schema";
 import { useWorkbench } from "@/app/context";
 import { ApiError } from "@/lib/api";
 import { sliceRoute } from "@/app/router";
-import type { SliceTab } from "@/app/search";
+import { stringifySearch, type SliceTab } from "@/app/search";
 import { filterPreviewQuery, type BacklogRow as BacklogRowC2, type SliceDetail as SliceDetailC2 } from "@/lib/api/exploration";
 import { flowFocusedQuery } from "@/lib/api/flow";
 import type { Filter } from "@/lib/api/filter-types";
@@ -225,7 +225,7 @@ export default function SlicePage() {
   }, [flowSlice.data, drivers]);
 
   const label = slice.data?.row ? groupLabel(slice.data.row, shared) : undefined;
-  const href = `/p/${ctx.projectId}/runs/${runId}/slices/${encodeURIComponent(sliceKey)}?slicing=${encodeURIComponent(slicing)}${view ? `&view=${encodeURIComponent(view)}` : ""}`;
+  const href = `/p/${ctx.projectId}/runs/${runId}/slices/${encodeURIComponent(sliceKey)}${stringifySearch({ ...search, slicing, view })}`;
   useEffect(() => {
     if (label) setLastSlice(href, label);
   }, [label, href, setLastSlice]);
@@ -645,7 +645,7 @@ export default function SlicePage() {
                           </p>
                         )
                       )}
-                      <Button variant="outline" size="sm" className="mt-3" onClick={() => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, constraint: top[0]?.constraint } })}>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, filter: search.filter, within: search.within, constraint: top[0]?.constraint } })}>
                         What can we do? →
                       </Button>
                     </Card>
@@ -799,6 +799,11 @@ export default function SlicePage() {
                   <TabsContent value="trust">
                     <Card>
                       <CardTitle>{plain ? "Can the data be trusted?" : "Validation row"}</CardTitle>
+                      {(search.filter !== undefined || search.within !== undefined) && (
+                        <p className="reading mt-2 text-sm text-text-muted" data-testid="trust-scope-note">
+                          Caveats and diagnostic numbers describe the whole group. Checks for the current selection appear separately below.
+                        </p>
+                      )}
                       {/*
                         P1-10 — one gate, one verdict, one list.
 
@@ -817,6 +822,8 @@ export default function SlicePage() {
                           slicing={slicing}
                           sliceKey={sliceKey}
                           view={view}
+                          filter={search.filter}
+                          within={search.within}
                           constraints={drivers.filter((d) => d.delta_gap > 0).map((d) => ({ id: d.constraint, label: plainOf(d.constraint) }))}
                         />
                       </div>
@@ -886,7 +893,7 @@ export default function SlicePage() {
                     onClick={() => document.querySelector<HTMLElement>("[data-freeze-trigger]")?.click()}
                     alternative={{
                       label: "Open What can we do?",
-                      onClick: () => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view } }),
+                      onClick: () => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, filter: search.filter, within: search.within } }),
                     }}
                   />
                 )}
@@ -898,5 +905,3 @@ export default function SlicePage() {
     </QueryState>
   );
 }
-
-

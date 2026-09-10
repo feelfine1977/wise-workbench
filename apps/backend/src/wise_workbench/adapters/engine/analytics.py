@@ -149,6 +149,7 @@ def gate_report(
     items: str = "cases",
     closure_label: str = "closure",
     k: int = 10,
+    window_end: str | None = None,
 ) -> Any | None:
     """The readiness gate on a log (and, when given, a result and slicing); ``None`` without the package."""
     if wa is None:
@@ -165,6 +166,7 @@ def gate_report(
             gamma=gamma,
             closure=list(mapping.closure_activities) or None,
             window=mapping.censoring_window,
+            window_end=window_end,
             document_col=document,
             k=k,
             items=items,

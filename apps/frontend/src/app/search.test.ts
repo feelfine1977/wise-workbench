@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { SearchSchemaInput } from "@tanstack/react-router";
-import { BACKLOG_DEFAULTS, parseSearch, stringifySearch, stripBacklogDefaults, validateBacklogSearch, validateSliceSearch, validateNormSearch } from "./search";
+import { BACKLOG_DEFAULTS, parseSearch, stringifySearch, stripBacklogDefaults, validateBacklogSearch, validateSliceSearch, validateActSearch, validateNormSearch } from "./search";
 
 const input = (v: Record<string, unknown>) => v as unknown as Parameters<typeof validateBacklogSearch>[0] & SearchSchemaInput;
 
 describe("typed search params", () => {
+  it.each(["{", "7", "null", "false", '{"and":[null,{"kind":"open","value":true}]}'])("keeps malformed or partial selection %s across the action journey", (selection) => {
+    const parsed = parseSearch(`?filter=${encodeURIComponent(selection)}&within=${encodeURIComponent(selection)}`);
+    for (const validate of [validateBacklogSearch, validateSliceSearch, validateActSearch]) {
+      const result = validate(parsed as { filter?: string; within?: string } & SearchSchemaInput);
+      expect(result.filter).toBe(selection);
+      expect(result.within).toBe(selection);
+    }
+  });
   it("fills defaults and rejects unknown values", () => {
     const s = validateBacklogSearch(input({ slicing: "case Vendor", kind: "bogus", sort: "-nope", page: "3", pageSize: 5000, tab: "nope" }));
     expect(s.slicing).toBe("case Vendor");

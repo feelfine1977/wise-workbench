@@ -1255,6 +1255,36 @@ class EngineAdapter:
             **{k: v for k, v in extra.items() if k != "record_ids"},
         }
 
+    def review_selection(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        view: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Assess selection membership and quality without borrowing a cached whole-group answer."""
+        from .review_selection import assess
+
+        result = self._get_result(run, ctx)
+        cases = apply_bands(result.cases, bands, reference=self._get_frame(run, ctx)) if bands else result.cases
+        group = _slice_mask(cases, effective_attributes(attributes, bands), key)
+        return assess(
+            result,
+            self._run_log(ctx),
+            ctx,
+            attributes,
+            key,
+            view,
+            bands=bands,
+            group=group,
+            filter_obj=filter_obj,
+            window_end=self._window_end(ctx),
+        )
+
     def _slice_analytics(
         self,
         run: Run,

@@ -2825,7 +2825,7 @@ paths:
       tags:
       - review
       summary: Get Gates
-      description: The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. A hypothesis or an action on a group with a failed gate is refused with 409 until the gate is passed or waived with a note.
+      description: The readiness, censoring and replication gates of one group, each with the evidence that decided it and any decision taken on it. An optional case filter measures this selection and binds group decisions to it. Unsupported and empty selections are refused. Action proposals remain recordable; commitment requires all checks passed or waived.
       operationId: getGates
       parameters:
       - name: projectId
@@ -2862,6 +2862,14 @@ paths:
           - type: string
           - type: 'null'
           title: View
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Filter
       responses:
         '200':
           description: Successful Response
@@ -2882,11 +2890,11 @@ paths:
                 $ref: '#/components/schemas/Problem'
           description: Conflict
         '422':
-          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
   /projects/{projectId}/runs/{runId}/gates/{gateId}:
     post:
       tags:
@@ -2927,6 +2935,22 @@ paths:
           description: the group's key (JSON array)
           title: Key
         description: the group's key (JSON array)
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Filter
       requestBody:
         required: true
         content:
@@ -2946,6 +2970,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
         '422':
           content:
             application/json:
@@ -3292,7 +3322,7 @@ paths:
       tags:
       - review
       summary: Create Action
-      description: 'What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Refused with 409 while a gate of the group has failed.'
+      description: 'What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a status. Proposed drafts are allowed; agreement, execution and completion require saved evidence and resolved gates.'
       operationId: createAction
       parameters:
       - name: projectId
@@ -3358,12 +3388,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReviewItem'
-        '422':
-          description: Validation Error
+        '409':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
   /projects/{projectId}/runs/{runId}/what-can-we-do:
     get:
       tags:
@@ -4129,6 +4165,14 @@ components:
           - type: string
           - type: 'null'
           title: View
+        filter:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: string
+          - type: 'null'
+          title: Filter
+          description: Saved case filter. Nonempty filters allow a proposal but cannot authorise commitment until exact filtered readiness is supported.
         mechanism:
           anyOf:
           - type: string
@@ -4196,6 +4240,103 @@ components:
       required:
       - title
       title: ActionCreate
+    ActionEvidenceContext:
+      properties:
+        version:
+          type: integer
+          const: 1
+          title: Version
+          default: 1
+        runId:
+          type: string
+          title: Runid
+        normVersionId:
+          type: string
+          title: Normversionid
+        normFingerprint:
+          type: string
+          title: Normfingerprint
+        caseTableId:
+          type: string
+          title: Casetableid
+        contentHash:
+          type: string
+          title: Contenthash
+        paramsHash:
+          type: string
+          title: Paramshash
+        manifestFingerprint:
+          type: string
+          title: Manifestfingerprint
+        view:
+          type: string
+          title: View
+        slicing:
+          type: string
+          title: Slicing
+        sliceKey:
+          type: string
+          title: Slicekey
+        filter:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Filter
+        flowScope:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Flowscope
+        scenario:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Scenario
+        comparator:
+          additionalProperties: true
+          type: object
+          title: Comparator
+        populationCases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Populationcases
+          description: Number of items in the exact assessed group and filter; unavailable if the filter cannot be measured.
+        selectionState:
+          anyOf:
+          - type: string
+            enum:
+            - measured
+            - unavailable
+          - type: 'null'
+          title: Selectionstate
+        selectionFingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionfingerprint
+        selectionReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionreason
+      type: object
+      required:
+      - runId
+      - normVersionId
+      - normFingerprint
+      - caseTableId
+      - contentHash
+      - paramsHash
+      - manifestFingerprint
+      - view
+      - slicing
+      - sliceKey
+      - comparator
+      title: ActionEvidenceContext
+      description: Server-recorded scope; it identifies evidence, not an approval or a current readiness verdict.
     ActivityCount:
       properties:
         label:
@@ -7041,6 +7182,16 @@ components:
           - type: integer
           - type: 'null'
           title: Cases
+        filter:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Filter
+        selection:
+          anyOf:
+          - $ref: '#/components/schemas/ReviewSelection'
+          - type: 'null'
         gates:
           items:
             $ref: '#/components/schemas/Gate'
@@ -8470,6 +8621,29 @@ components:
         updatedAt:
           type: string
           title: Updatedat
+        evidenceContext:
+          anyOf:
+          - $ref: '#/components/schemas/ActionEvidenceContext'
+          - type: 'null'
+          readOnly: true
+        evidenceState:
+          anyOf:
+          - type: string
+            enum:
+            - unassessed
+            - recorded
+          - type: 'null'
+          title: Evidencestate
+          description: Recorded scope is not a readiness verdict. Missing on legacy records.
+          readOnly: true
+        commitmentCheck:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Commitmentcheck
+          description: Evidence and decisions checked at the last commitment write, not a promise of ongoing validity.
+          readOnly: true
       additionalProperties: true
       type: object
       required:
@@ -8501,6 +8675,33 @@ components:
       additionalProperties: true
       type: object
       title: ReviewItemUpdate
+    ReviewSelection:
+      properties:
+        state:
+          type: string
+          const: measured
+          title: State
+        cases:
+          type: integer
+          title: Cases
+        wholeGroupCases:
+          type: integer
+          title: Wholegroupcases
+        fingerprint:
+          type: string
+          title: Fingerprint
+        decisionFingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decisionfingerprint
+      type: object
+      required:
+      - state
+      - cases
+      - wholeGroupCases
+      - fingerprint
+      title: ReviewSelection
     Run:
       properties:
         caseTableId:

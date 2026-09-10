@@ -82,7 +82,7 @@ jobs:
       - name: Explicit fallback contract
         env:
           WISE_TEST_PROFILE: minimal
-        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py tests/api/test_norm_persistence.py
+        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py tests/api/test_norm_persistence.py tests/api/test_action_eligibility.py
 
   analytics:
     name: analytics package

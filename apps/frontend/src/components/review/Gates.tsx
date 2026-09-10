@@ -12,13 +12,14 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { blockingGates, gatesQuery, isRunWide, reviewQuery, useCreateReviewItem, useDecideGate, type Gate, type ReviewItem } from "@/lib/api/review";
 import { notServed } from "@/lib/api/compatibility";
+import { ApiError } from "@/lib/api";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { GateBadge } from "@/components/badges";
 import { LoadingBlock } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
-import { fmtDateTime, fmtPct, fmtShare } from "@/lib/format";
+import { fmtDateTime, fmtInt, fmtPct, fmtShare } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const GATE_WORDS: Record<string, string> = {
@@ -82,17 +83,16 @@ function GateRow({
             </p>
           )}
         </div>
-        {runWide ? (
+        {runWide && (
           <Link to="/p/$projectId/runs/$runId" params={{ projectId, runId }} search={{ tab: "monitor" as const }} className="shrink-0 text-xs text-accent-text underline">
             Read it once at the run →
           </Link>
-        ) : (
-          <Button variant="outline" size="sm" className="shrink-0" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-            {gate.status === "pending" ? "Decide" : "Change"}
-          </Button>
         )}
+        <Button variant="outline" size="sm" className="shrink-0" disabled={pending} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {gate.status === "pending" ? "Decide" : "Change"}
+        </Button>
       </div>
-      {open && !runWide && (
+      {open && (
         <form
           className="flex flex-col gap-2 rounded-md border border-border bg-surface-sunken p-3"
           onSubmit={(e) => {
@@ -102,6 +102,7 @@ function GateRow({
             setOpen(false);
           }}
         >
+          {runWide && <p className="reading text-sm text-text-muted">This decision applies to the whole run.</p>}
           <fieldset className="flex flex-wrap gap-2">
             <legend className="sr-only">What this check should read</legend>
             {(["passed", "failed", "waived"] as const).map((s) => (
@@ -140,6 +141,9 @@ export interface GatesBlockProps {
   slicing: string;
   sliceKey: string;
   view?: string;
+  /** Exact selection input from the address; never parsed or simplified here. */
+  filter?: string;
+  within?: string;
   /** The expectations a hypothesis can be written on, in plain words. */
   constraints?: { id: string; label: string }[];
   /**
@@ -151,39 +155,68 @@ export interface GatesBlockProps {
 }
 
 /** Everything the Data trust tab and *What can we do?* share: the gates, the hypothesis form, the records. */
-export function GatesBlock({ projectId, runId, slicing, sliceKey, view, constraints, draft, className }: GatesBlockProps) {
-  const gates = useQuery({ ...gatesQuery(projectId, runId, { slicing, sliceKey, view }), enabled: !!slicing && !!sliceKey });
-  const decide = useDecideGate(projectId, runId, { slicing, sliceKey, view });
+export function GatesBlock(props: GatesBlockProps) {
+  // A changed scope starts fresh decision forms and mutation state, even when gate IDs are shared.
+  return <GatePanel key={JSON.stringify([props.projectId, props.runId, props.slicing, props.sliceKey, props.view, props.filter, props.within])} {...props} />;
+}
+
+export function GatePanel({ projectId, runId, slicing, sliceKey, view, filter, within, constraints, draft, className }: GatesBlockProps) {
+  const filtered = filter !== undefined;
+  const selected = filtered || within !== undefined;
+  const gates = useQuery({ ...gatesQuery(projectId, runId, { slicing, sliceKey, view, filter }), enabled: !!slicing && !!sliceKey && within === undefined });
+  const decide = useDecideGate(projectId, runId, { slicing, sliceKey, view, filter });
   const list = gates.data?.gates ?? [];
   const blocking = blockingGates(list);
+  const noun = gates.data?.caseNoun ?? "cases";
 
+  if (within !== undefined) return (
+    <p role="status" className={cn("reading text-sm text-warning", className)} data-testid="gates-unavailable">
+      Checks and decisions are unavailable for this drilled selection. Its parent group cannot be recorded yet; whole-group checks cannot replace it. Hypothesis creation is unavailable in this selection.
+    </p>
+  );
   if (gates.isPending) return <LoadingBlock rows={4} className={className} />;
-  if (gates.isError) {
+  if (gates.isError || (filtered && decide.isError)) {
+    const error = gates.error ?? decide.error;
     return (
-      <p className={cn("reading text-sm text-text-muted", className)} data-testid="gates-unavailable">
-        {notServed(gates.error)
-          ? "This backend does not compute the checks before acting for one group yet, so nothing is blocked here. The data caveats above are what is known."
-          : "The checks could not be read just now. The data caveats above are what is known."}
-      </p>
+      <div className={cn("flex flex-col gap-2", className)} data-testid="gates-unavailable">
+        <p role="alert" className="reading text-sm text-warning">
+          {filtered
+            ? "Checks and decisions are unavailable for this exact filtered selection. Whole-group checks do not establish whether this selection can be acted on. Hypothesis creation is unavailable in this selection."
+            : notServed(error)
+              ? "This backend does not compute the checks before acting for one group yet, so nothing is blocked here. The data caveats above are what is known."
+              : "The checks could not be read just now. The data caveats above are what is known."}
+          {error instanceof ApiError && error.problem?.detail ? ` ${error.problem.detail}` : ""}
+        </p>
+        <div><Button variant="outline" size="sm" onClick={() => { decide.reset(); void gates.refetch(); }}>Retry these checks</Button></div>
+      </div>
     );
   }
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div>
+        {filtered && gates.data.selection && (
+          <p className="reading mb-2 text-sm text-text" data-testid="gate-selection-counts">
+            Selected {noun}: <strong>{fmtInt(gates.data.selection.cases)} of {fmtInt(gates.data.selection.wholeGroupCases)}</strong> in the whole group. Checks use this exact selection.
+          </p>
+        )}
         <p className="reading text-sm text-text-muted">
-          {blocking.length === 0
+          {filtered
+            ? `These checks describe the selected ${noun}. Recording a reading does not accept a proposal; acceptance requires current, unchanged evidence and all required checks passed or waived.`
+            : blocking.length === 0
             ? "Every check that applies to this group has a reading. A hypothesis can be recorded."
             : `${blocking.length === 1 ? "One check" : `${blocking.length} checks`} on this group ${blocking.length === 1 ? "has" : "have"} no reading yet. Pass, fail or waive ${blocking.length === 1 ? "it" : "them"} with a note before a hypothesis is recorded.`}
         </p>
         <ul className="mt-1 flex flex-col" data-testid="gate-list">
           {list.map((g) => (
-            <GateRow key={g.id} gate={g} runWide={isRunWide(g)} onDecide={(input) => decide.mutate(input)} pending={decide.isPending} projectId={projectId} runId={runId} />
+            <GateRow key={g.id} gate={g} runWide={isRunWide(g)} onDecide={(input) => decide.mutate(input)} pending={decide.isPending || (filtered && gates.isFetching)} projectId={projectId} runId={runId} />
           ))}
         </ul>
-        {decide.isError && <p className="text-xs text-danger">The reading could not be saved on this backend; it stays on the screen only.</p>}
+        {decide.isError && <p role="alert" className="text-xs text-danger">The reading could not be confirmed. Read the checks again before retrying.</p>}
       </div>
-      <HypothesisForm
+      {selected ? (
+        <p className="reading text-sm text-text-muted" data-testid="hypothesis-selection-notice">Hypotheses use whole-group checks. Hypothesis creation is unavailable while a filter or drilled selection is active.</p>
+      ) : <HypothesisForm
         key={draft?.nonce ?? 0}
         projectId={projectId}
         runId={runId}
@@ -193,7 +226,7 @@ export function GatesBlock({ projectId, runId, slicing, sliceKey, view, constrai
         constraints={constraints}
         draft={draft}
         blocking={blocking}
-      />
+      />}
       <HypothesisList projectId={projectId} runId={runId} sliceKey={sliceKey} />
     </div>
   );

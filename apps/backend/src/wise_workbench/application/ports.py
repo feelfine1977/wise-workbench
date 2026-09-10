@@ -157,6 +157,17 @@ class Engine(Protocol):
     def slice_detail(
         self, run: Run, ctx: RunContext, attributes: list[str], key: list[Any], view: str | None, drilldown: str | None
     ) -> dict[str, Any]: ...
+    def review_selection(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        view: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any],
+    ) -> dict[str, Any]: ...
     def trace(self, run: Run, ctx: RunContext, case_id: str) -> dict[str, Any]: ...
     def diagnostics(self, run: Run, ctx: RunContext, attributes: list[str], view: str | None) -> Table: ...
     def signals(

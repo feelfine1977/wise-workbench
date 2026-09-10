@@ -2,6 +2,7 @@
 import type { UsualReason, UsualAction } from "./knowledge";
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { http } from "./transport";
+import { ApiError } from "@/lib/api";
 import type { components } from "@wise/api-schema";
 type S = components["schemas"];
 const enc = encodeURIComponent;
@@ -9,7 +10,7 @@ const IMMUTABLE = 1000 * 60 * 30;
 
 const reviewKeys = {
   whatCanWeDo: (p: string, r: string, slicing: string, key: string, view: string) => ["projects", p, "runs", r, "what-can-we-do", slicing, key, view] as const,
-  gates: (p: string, r: string, slicing: string, key: string, view: string) => ["projects", p, "runs", r, "gates", slicing, key, view] as const,
+  gates: (p: string, r: string, slicing: string, key: string, view: string, filter?: string) => ["projects", p, "runs", r, "gates", slicing, key, view, filter ?? null] as const,
   review: (p: string, collection: string) => ["projects", p, collection] as const,
 };
 
@@ -44,15 +45,38 @@ export const whatCanWeDoQuery = (projectId: string, runId: string, params: { sli
     retry: false,
   });
 
-export const gatesQuery = (projectId: string, runId: string, params: { slicing: string; sliceKey: string; view?: string }) =>
+interface GateScope {
+  slicing: string;
+  sliceKey: string;
+  view?: string;
+  /** Raw search.filter, including invalid or empty input, for strict server validation. */
+  filter?: string;
+}
+
+/** A legacy whole-group answer must never be presented as measured filtered evidence. */
+function checkedGates(data: Gates, filter?: string): Gates {
+  if (filter !== undefined) {
+    const selection = data.selection;
+    if (!data.filter || typeof data.filter !== "object" || Array.isArray(data.filter) || selection?.state !== "measured" ||
+      !Number.isSafeInteger(selection.cases) || selection.cases <= 0 ||
+      !Number.isSafeInteger(selection.wholeGroupCases) || selection.wholeGroupCases < selection.cases ||
+      typeof selection.fingerprint !== "string" || !selection.fingerprint.trim()) {
+      throw new ApiError(409, { status: 409, title: "Selection checks unavailable", detail: "Checks for this exact selection could not be measured. No whole-group checks were substituted." });
+    }
+  }
+  return data;
+}
+
+export const gatesQuery = (projectId: string, runId: string, params: GateScope) =>
   queryOptions({
-    queryKey: reviewKeys.gates(projectId, runId, params.slicing, params.sliceKey, params.view ?? ""),
-    queryFn: () =>
-      http.get<Gates>(`/projects/${enc(projectId)}/runs/${enc(runId)}/gates`, {
+    queryKey: reviewKeys.gates(projectId, runId, params.slicing, params.sliceKey, params.view ?? "", params.filter),
+    queryFn: async () =>
+      checkedGates(await http.get<Gates>(`/projects/${enc(projectId)}/runs/${enc(runId)}/gates`, {
         slicing: params.slicing,
         key: params.sliceKey,
         view: params.view,
-      }),
+        filter: params.filter,
+      }), params.filter),
     staleTime: 0,
     retry: false,
   });
@@ -64,20 +88,20 @@ export interface GateDecision {
 }
 
 /**
- * Pass, fail or waive one gate, with a note and an author that the endpoint requires (§1.8). The answer
- * replaces the cached gate list, so the hypothesis form unblocks in the same tick as the decision.
+ * Pass, fail or waive one gate in the exact requested scope, then re-read that scope's checks.
+ * Filtered decisions never replace or invalidate the whole-group hypothesis checks.
  */
-export function useDecideGate(projectId: string, runId: string, params: { slicing: string; sliceKey: string; view?: string }) {
+export function useDecideGate(projectId: string, runId: string, params: GateScope) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { gateId: string } & GateDecision) =>
-      http.post<Gates>(
+      checkedGates(await http.post<Gates>(
         `/projects/${enc(projectId)}/runs/${enc(runId)}/gates/${enc(input.gateId)}`,
         { status: input.status, note: input.note, author: input.author },
-        { slicing: params.slicing, key: params.sliceKey, view: params.view },
-      ),
+        { slicing: params.slicing, key: params.sliceKey, view: params.view, filter: params.filter },
+      ), params.filter),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: reviewKeys.gates(projectId, runId, params.slicing, params.sliceKey, params.view ?? "") });
+      void qc.invalidateQueries({ queryKey: reviewKeys.gates(projectId, runId, params.slicing, params.sliceKey, params.view ?? "", params.filter), exact: true });
       void qc.invalidateQueries({ queryKey: reviewKeys.whatCanWeDo(projectId, runId, params.slicing, params.sliceKey, params.view ?? "") });
     },
   });
@@ -94,6 +118,8 @@ export function blockingGates(gates: Gate[] | undefined): Gate[] {
 
 /** A gate whose evidence names the log rather than the group: the readiness report of the case table. */
 export function isRunWide(gate: Gate): boolean {
+  if (gate.scope === "run") return true;
+  if (gate.scope === "group") return false;
   if (gate.kind === "readiness") {
     const evidence = (gate.evidence ?? {}) as { share?: number | null; scope?: string };
     // a readiness gate the backend computes per group carries the group's own share; without one it is the log's
@@ -111,7 +137,7 @@ export const reviewQuery = (projectId: string, collection: ReviewCollection, par
       http.get<ReviewItem[]>(`/projects/${enc(projectId)}/${collection}`, {
         runId: params?.runId,
         slicing: params?.slicing,
-        sliceKey: params?.sliceKey,
+        key: params?.sliceKey,
       }),
     staleTime: 0,
     retry: false,

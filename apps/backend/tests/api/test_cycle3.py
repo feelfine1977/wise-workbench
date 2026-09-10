@@ -631,7 +631,7 @@ def test_gates_block_a_hypothesis_until_they_are_waived_with_a_note(world: dict[
     row = _worst(world)
     params = {"slicing": "company,spend_area", "key": row["key"], "view": "Finance"}
     gates = c.get(f"/api/v1/projects/{pid}/runs/{rid}/gates", params=params).json()
-    assert [g["id"] for g in gates["gates"]] == ["readiness", "censoring", "replication", "domain"]
+    assert [g["id"] for g in gates["gates"]] == ["readiness", "censoring", "replication", "domain", "run_readiness"]
     assert all(g["text"] for g in gates["gates"]) and gates["cases"] == row["n_cases"]
 
     body = {
@@ -716,6 +716,17 @@ def test_findings_and_actions_are_saved_on_the_server(world: dict[str, Any]) -> 
     saved = action.json()
     assert saved["status"] == "proposed" and saved["countermeasure"] == "system_setting"
     assert c.get(f"/api/v1/projects/{pid}/actions", params={"runId": rid}).json()[0]["id"] == saved["id"]
+    # Agreement needs explicit decisions, independently of any earlier hypothesis test.
+    gate_params = {"slicing": "company,spend_area", "key": row["key"], "view": saved["view"]}
+    current_gates = c.get(f"/api/v1/projects/{pid}/runs/{rid}/gates", params=gate_params).json()["gates"]
+    for gate in current_gates:
+        if gate["status"] not in {"passed", "waived"}:
+            decided = c.post(
+                f"/api/v1/projects/{pid}/runs/{rid}/gates/{gate['id']}",
+                params=gate_params,
+                json={"status": "waived", "note": "Reviewed for this test action", "author": "process owner"},
+            )
+            assert decided.status_code == 200, decided.text
     moved = c.patch(f"/api/v1/projects/{pid}/actions/{saved['id']}", json={"status": "agreed"}).json()
     assert moved["status"] == "agreed"
     bad = c.post(f"/api/v1/projects/{pid}/actions", json={"title": "x", "countermeasure": "wishful_thinking"})
@@ -732,5 +743,5 @@ def test_what_can_we_do_lists_reasons_and_actions_with_owner_and_headroom(world:
     top = out["drivers"][0]
     assert top["constraint_id"] and top["share_of_shortfall"] is not None
     assert top["headroom_points"] is not None
-    assert [g["id"] for g in out["gates"]] == ["readiness", "censoring", "replication", "domain"]
+    assert [g["id"] for g in out["gates"]] == ["readiness", "censoring", "replication", "domain", "run_readiness"]
     assert isinstance(out["actions"], list)

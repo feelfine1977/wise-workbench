@@ -2,18 +2,32 @@ import { createElement, type PropsWithChildren } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { server } from "@/mocks/node";
 import { filterParam, canonicalParam, filterPreviewQuery, slicingPreviewQuery, runCaveats, uncalibratedById } from "./exploration";
 import type { Filter } from "./filter-types";
 import { flowFocusedQuery, bpmnUrl, pathsOf } from "./flow";
 import { runManifestQuery, scopeOf, flowTypeOf } from "./runs";
 import { notebookQuery, useCreateSnapshot, snapshotImageUrl } from "./notebook";
 import { guidanceQuery, hubPageQuery, useSetOverlay } from "./knowledge";
-import { gatesQuery, whatCanWeDoQuery, useDecideGate, useCreateReviewItem, useUpdateReviewItem, blockingGates } from "./review";
+import { gatesQuery, whatCanWeDoQuery, useDecideGate, useCreateReviewItem, useUpdateReviewItem, blockingGates, reviewQuery, isRunWide } from "./review";
 import { inventoryQuery } from "./norms";
 
 afterEach(() => vi.unstubAllGlobals());
 const filter: Filter = { and: [{ kind: "attribute", field: "company", in: ["B", "A"] }, { kind: "open", value: true }] };
 const wrapper = (client: QueryClient) => ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client }, children);
+
+it.each(["actions", "hypotheses", "findings"] as const)("sends the scoped %s review key using the API spelling", async (collection) => {
+  let params: Record<string, string> | undefined;
+  server.use(http.get(`*/api/v1/projects/p/${collection}`, ({ request }) => {
+    params = Object.fromEntries(new URL(request.url).searchParams);
+    return HttpResponse.json([]);
+  }));
+  const query = reviewQuery("p", collection, { runId: "r", slicing: "company", sliceKey: '["B"]' });
+  await new QueryClient().fetchQuery(query);
+  expect(params).toEqual({ runId: "r", slicing: "company", key: '["B"]' });
+  expect(query.queryKey).toEqual(["projects", "p", collection, "r", "company", '["B"]']);
+});
 
 it("keeps raw and canonical filters distinct, along with existing key options", async () => {
   expect(filterParam(filter)).toBe(JSON.stringify(filter));
@@ -42,7 +56,7 @@ it("keeps query retry/enabled/invalidations boundaries, including current key om
   expect(hubPageQuery("p", "node", "one").queryKey).toEqual(hubPageQuery("p", "node", "two").queryKey);
   expect(guidanceQuery("p", "layer", "", "norm")).toMatchObject({ enabled: false, retry: false, queryKey: ["projects", "p", "guidance", "layer", "", "norm"] });
   const params = { slicing: "company", sliceKey: '["B"]', view: "Finance" };
-  expect(gatesQuery("p", "r", params)).toMatchObject({ queryKey: ["projects", "p", "runs", "r", "gates", "company", '["B"]', "Finance"], staleTime: 0, retry: false });
+  expect(gatesQuery("p", "r", params)).toMatchObject({ queryKey: ["projects", "p", "runs", "r", "gates", "company", '["B"]', "Finance", null], staleTime: 0, retry: false });
   expect(whatCanWeDoQuery("p", "r", { ...params, top: 1 }).queryKey).toEqual(whatCanWeDoQuery("p", "r", { ...params, top: 9 }).queryKey);
 });
 
@@ -79,7 +93,10 @@ it("preserves gate body/query spellings and both precise invalidations", async (
   const [raw, init] = fetch.mock.calls[0]!;
   expect((init as RequestInit).body).toBe('{"status":"waived","note":"reason","author":"reader"}');
   expect(Object.fromEntries(new URL(raw as string).searchParams)).toEqual({ slicing: "company", key: '["B"]', view: "Finance" });
-  expect(invalidate.mock.calls.map(([arg]) => arg?.queryKey)).toEqual(["gates", "what-can-we-do"].map(k => ["projects", "p", "runs", "r", k, "company", '["B"]', "Finance"]));
+  expect(invalidate.mock.calls).toEqual([
+    [{ queryKey: gatesQuery("p", "r", { slicing: "company", sliceKey: '["B"]', view: "Finance" }).queryKey, exact: true }],
+    [{ queryKey: ["projects", "p", "runs", "r", "what-can-we-do", "company", '["B"]', "Finance"] }],
+  ]);
 });
 
 it("preserves open review request bodies and collection invalidation", async () => {
@@ -95,6 +112,8 @@ it("preserves open review request bodies and collection invalidation", async () 
 });
 
 it("keeps view helpers and run-wide gate classification", () => {
+  expect(isRunWide({ id: "group", kind: "readiness", status: "passed", text: "Group", scope: "group" })).toBe(false);
+  expect(isRunWide({ id: "run_readiness", kind: "readiness", status: "failed", text: "Whole run", scope: "run" })).toBe(true);
   expect(scopeOf(undefined)).toBeUndefined(); expect(flowTypeOf(undefined)).toBeUndefined();
   expect(runCaveats(undefined)).toBeUndefined();
   expect(runCaveats({ caveat_summary: { c: { share: 0.2, max: 0.4 } } })).toEqual([{ id: "c", share: 0.2, max: 0.4 }]);

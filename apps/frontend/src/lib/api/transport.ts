@@ -13,7 +13,8 @@ async function problemOf(res: Response): Promise<Problem | undefined> {
 
 async function request<T>(method: string, path: string, init: { body?: unknown; form?: FormData; query?: Record<string, string | number | undefined> } = {}): Promise<T> {
   const url = new URL(`${apiBase}${path}`);
-  for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
+  // An empty filter is still selection input: dropping it would silently request the whole group.
+  for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && (v !== "" || k === "filter")) url.searchParams.set(k, String(v));
   const headers: Record<string, string> = {};
   let body: BodyInit | undefined;
   if (init.form) body = init.form;

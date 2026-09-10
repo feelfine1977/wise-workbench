@@ -1,14 +1,109 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { http, HttpResponse } from "msw";
+import { server } from "@/mocks/node";
 import { useUiStore } from "@/lib/stores/ui";
+import { useFindingStore } from "@/lib/stores/findings";
 import { renderApp } from "@/test/utils";
 
 const T = { timeout: 8000 };
 const PACKAGING = `/p/p2p2018/runs/run_41/slices/${encodeURIComponent('["companyID_0000", "Packaging"]')}?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation`;
 
 describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
-  beforeEach(() => useUiStore.getState().setVocabulary("plain"));
+  beforeEach(() => {
+    useUiStore.getState().setVocabulary("plain");
+    useFindingStore.setState(useFindingStore.getInitialState(), true);
+  });
+
+  it("Data trust checks the raw filter and withholds hypotheses even when selected checks pass", async () => {
+    const filter = '{"and":[{"kind":"open","value":true},{"kind":"open","value":true}]}';
+    const requests: (string | null)[] = [];
+    server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/gates", ({ request }) => {
+      requests.push(new URL(request.url).searchParams.get("filter"));
+      return HttpResponse.json({
+        caseNoun: "purchase order items",
+        filter: { and: [{ kind: "open", value: true }] },
+        selection: { state: "measured", cases: 1, wholeGroupCases: 2, fingerprint: "selected-items" },
+        gates: [{ id: "selected-trust", kind: "domain", scope: "group", status: "passed", text: "Selected checks passed." }],
+      });
+    }));
+    renderApp(`${PACKAGING}&tab=trust&filter=${encodeURIComponent(filter)}`);
+    const counts = await screen.findByTestId("gate-selection-counts", {}, T);
+    expect(counts).toHaveTextContent("Selected purchase order items: 1 of 2 in the whole group. Checks use this exact selection.");
+    expect(screen.getByTestId("trust-scope-note")).toHaveTextContent("Caveats and diagnostic numbers describe the whole group");
+    expect(requests).toEqual([filter]);
+    expect(screen.getByTestId("gate-selected-trust")).toHaveAttribute("data-gate-status", "passed");
+    expect(screen.getByTestId("hypothesis-selection-notice")).toHaveTextContent("Hypotheses use whole-group checks");
+    expect(screen.queryByTestId("hypothesis-form")).not.toBeInTheDocument();
+  });
+
+  it("Data trust retains malformed raw filter input for refusal instead of checking the whole group", async () => {
+    const requests: (string | null)[] = [];
+    server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/gates", ({ request }) => {
+      requests.push(new URL(request.url).searchParams.get("filter"));
+      return HttpResponse.json({ detail: "The filter must be an object." }, { status: 422 });
+    }));
+    renderApp(`${PACKAGING}&tab=trust&filter=7`);
+    expect(await screen.findByTestId("gates-unavailable", {}, T)).toHaveTextContent("The filter must be an object.");
+    expect(requests).toEqual(["7"]);
+    expect(screen.queryByTestId("gate-list")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hypothesis-form")).not.toBeInTheDocument();
+  });
+
+  it.each(["", '&filter=%7B%22and%22%3A%5B%7B%22kind%22%3A%22open%22%2C%22value%22%3Atrue%7D%5D%7D'])("Data trust withholds decisions and hypotheses for drilled context %s", async (filterParam) => {
+    const parent = JSON.stringify({ slicing: "case Company+case Spend area text", key: '["companyID_0000", "Packaging"]' });
+    const requests: string[] = [];
+    server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/gates", ({ request }) => { requests.push(request.url); return HttpResponse.json({ gates: [] }); }));
+    renderApp(`${PACKAGING}&tab=trust&within=${encodeURIComponent(parent)}${filterParam}`);
+    expect(await screen.findByTestId("gates-unavailable", {}, T)).toHaveTextContent("Checks and decisions are unavailable for this drilled selection.");
+    expect(requests).toEqual([]);
+    expect(screen.queryByTestId("gate-list")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hypothesis-form")).not.toBeInTheDocument();
+  });
+
+  it.each(["typical causes", "decision", "stepper", "backlog stepper"])("preserves filter and parent group through the %s route into Act", async (entry) => {
+    const filter = JSON.stringify({ and: [{ kind: "open", value: true }] });
+    const parent = JSON.stringify({ slicing: "case Company+case Spend area text", key: '["companyID_0000", "Packaging"]' });
+    let submitted: Record<string, unknown> | undefined;
+    server.use(http.post("*/api/v1/projects/p2p2018/actions", async ({ request }) => {
+      submitted = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({ status: 422, code: "review.immutable_context", detail: "Proposals for drilled selections are not supported yet." }, { status: 422 });
+    }));
+    if (entry === "backlog stepper") {
+      server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/what-can-we-do", () => HttpResponse.json({ drivers: [{
+        constraint_id: "selection-review",
+        plain_name: "Review the selection",
+        usual_actions: [{ text: "Review the selected cases", countermeasure: "review", owner_role: "process_owner" }],
+      }] })));
+    }
+    const user = userEvent.setup();
+    const start = entry === "backlog stepper" ? `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Automation` : PACKAGING;
+    renderApp(`${start}&filter=${encodeURIComponent(filter)}&within=${encodeURIComponent(parent)}`);
+    if (entry === "backlog stepper") {
+      const signals = await screen.findByRole("list", { name: "Signals" }, T);
+      await user.click(within(signals).getAllByRole("button", { name: /^Why\? / })[0]!);
+    }
+    await screen.findByTestId("why-strip", {}, T);
+    if (entry === "typical causes") {
+      await user.click(within(await screen.findByTestId("typical-causes", {}, T)).getByRole("button", { name: /What can we do/ }));
+    } else if (entry === "decision") {
+      await user.click(screen.getByRole("radio", { name: "Investigate" }));
+      await user.type(screen.getByLabelText("note *"), "Review this selection");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(await screen.findByRole("button", { name: "Open What can we do?" }, T));
+    } else {
+      await user.click(within(screen.getByRole("navigation", { name: "Analysis path" })).getByRole("button", { name: /What can we do/ }));
+    }
+    const driver = (await screen.findAllByTestId("driver-card", {}, T))[0]!;
+    await user.click(within(driver).getAllByRole("button", { name: "Propose this action" })[0]!);
+    const form = await screen.findByRole("form", { name: "Propose an action" }, T);
+    await user.type(within(form).getByLabelText("Who is proposing it"), "Reviewer");
+    await user.click(within(form).getByRole("button", { name: "Save the proposal" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent("Proposals for drilled selections are not supported yet.");
+    expect(submitted).toMatchObject({ filter, within: parent, status: "proposed" });
+    expect(form).toBeInTheDocument();
+  });
 
   it("one sentence with the concentration clause, Why first with the expectations, the lens and the map, caveats, no ids", async () => {
     const user = userEvent.setup();

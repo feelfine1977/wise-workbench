@@ -16,8 +16,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkbench } from "@/app/context";
 import { actRoute } from "@/app/router";
+import { stringifySearch } from "@/app/search";
 import type { RunWithScope as RunC2 } from "@/lib/api/runs";
-import { blockingGates, gatesQuery, reviewQuery, useCreateReviewItem, type Driver, type ReviewItem, type WhatCanWeDo } from "@/lib/api/review";
+import { reviewQuery, useCreateReviewItem, type Driver, type ReviewItem, type WhatCanWeDo } from "@/lib/api/review";
 import { notServed } from "@/lib/api/compatibility";
 import type { UsualAction, UsualReason } from "@/lib/api/knowledge";
 import { whatCanWeDoQuery } from "@/lib/api/review";
@@ -33,6 +34,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/misc";
 import { fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { backlogQuery } from "@/lib/api/exploration";
+import { ApiError } from "@/lib/api";
 import { groupLabel, sharedKeyValues } from "@/lib/sentences";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +52,7 @@ function DriverCard({
   driver: Driver;
   rank: number;
   noun: string;
-  onTest: (driver: Driver, reason: UsualReason) => void;
+  onTest?: (driver: Driver, reason: UsualReason) => void;
   onPropose: (driver: Driver, action: UsualAction) => void;
   /** The proposal form, when it was opened from one of this driver's actions: it belongs where it was asked for. */
   form?: React.ReactNode;
@@ -104,7 +106,7 @@ function DriverCard({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section>
           <h4 className="text-sm font-semibold text-text">What usually causes it</h4>
-          <p className="text-xs text-text-subtle">Candidates to check, not findings. Mark one to test and it becomes a hypothesis with its gates.</p>
+          <p className="text-xs text-text-subtle">Candidates to check, not findings. {onTest ? "Mark one to test and it becomes a hypothesis with its gates." : "Hypothesis creation uses whole-group checks and is unavailable in this selection."}</p>
           <ul className="mt-2 flex flex-col gap-2.5 text-sm" data-testid="driver-reasons">
             {(driver.usual_reasons ?? []).map((r, i) => {
               const outside = r.where === "outside";
@@ -115,11 +117,11 @@ function DriverCard({
                     <span className={cn("mr-1 rounded-sm px-1 py-0.5 text-[11px]", outside ? "bg-warning-subtle text-warning" : "bg-surface-sunken text-text-muted")}>{outside ? "outside the log — ask" : "in the log — check"}</span>
                     {r.check ?? (outside ? "the people who run the step" : `the events of these ${noun}`)}
                   </span>
-                  <span>
+                  {onTest && <span>
                     <Button variant="outline" size="sm" onClick={() => onTest(driver, r)}>
                       Mark to test
                     </Button>
-                  </span>
+                  </span>}
                 </li>
               );
             })}
@@ -160,6 +162,8 @@ function ActionForm({
   slicing,
   sliceKey,
   view,
+  filter,
+  within,
   draft,
   onDone,
 }: {
@@ -168,6 +172,8 @@ function ActionForm({
   slicing: string;
   sliceKey: string;
   view?: string;
+  filter?: string;
+  within?: string;
   draft: { title: string; countermeasure?: string | null; owner_role?: string | null; constraint?: string } | undefined;
   onDone: () => void;
 }) {
@@ -178,6 +184,7 @@ function ActionForm({
   const [note, setNote] = useState("");
   const create = useCreateReviewItem(projectId, "actions");
   const first = useRef<HTMLTextAreaElement>(null);
+  const refusal = useRef<HTMLParagraphElement>(null);
   // pressing *Propose this action* used to change nothing on the screen: the form was rendered at the foot of
   // the page, 1,952 px below the button. It is now under the option that was pressed, and the reader is put in
   // its first field so that both a pointer and a keyboard arrive in the same place (P1-7).
@@ -185,11 +192,16 @@ function ActionForm({
     first.current?.focus({ preventScroll: true });
     first.current?.scrollIntoView({ block: "nearest" });
   }, []);
+  useEffect(() => {
+    if (create.isError) refusal.current?.focus();
+  }, [create.isError, create.error]);
   const canSave = title.trim().length > 0 && owner.trim().length > 0 && author.trim().length > 0 && !create.isPending;
   return (
     <form
       className="flex flex-col gap-2 rounded-md border border-accent/40 bg-accent-subtle p-3"
       data-testid="action-form"
+      aria-labelledby="action-form-title"
+      aria-busy={create.isPending}
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSave) return;
@@ -200,6 +212,8 @@ function ActionForm({
             slicing,
             sliceKey,
             view,
+            ...(filter !== undefined ? { filter } : {}),
+            ...(within !== undefined ? { within } : {}),
             countermeasure: (COUNTERMEASURES as readonly string[]).includes(measure) ? measure : "review",
             owner_role: owner.trim(),
             author: author.trim(),
@@ -211,7 +225,20 @@ function ActionForm({
         );
       }}
     >
-      <h4 className="text-sm font-semibold text-text">Propose an action</h4>
+      <h4 id="action-form-title" className="text-sm font-semibold text-text">Propose an action</h4>
+      <p className="reading text-xs text-text-muted">
+        Saving a proposal keeps it for review. Acceptance is a separate decision and requires saved evidence and current checks that have passed or been waived. Pending or failed checks do not prevent saving a proposal.
+      </p>
+      {filter !== undefined && (
+        <p className="reading text-xs text-text-muted">
+          The filter in this address is sent for validation. Only supported selections can be measured; unsupported filter variants may be kept in a proposal but cannot be accepted. Acceptance requires checks for that exact selection.
+        </p>
+      )}
+      {within !== undefined && (
+        <p className="reading text-xs text-warning">
+          This drilled selection includes a parent group. Saving requires support for that exact selection; whole-group evidence cannot replace it.
+        </p>
+      )}
       <p className="sr-only" role="status" aria-live="polite">
         The proposal form is open, under the action you pressed.
       </p>
@@ -247,24 +274,50 @@ function ActionForm({
         Who is proposing it
       </label>
       <Input id="action-author" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name or role" />
+      {create.isError && (
+        <p id="action-save-error" ref={refusal} role="alert" tabIndex={-1} className="reading text-sm text-danger">
+          {create.error instanceof ApiError
+            ? `The proposal could not be saved. ${create.error.problem?.detail?.trim() || "Review the proposal and try again."}`
+            : "The save could not be confirmed. Check your connection and review Open findings before retrying."}
+        </p>
+      )}
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!canSave}>
-          {create.isPending ? "Saving…" : "Save the proposal"}
+        <Button type="submit" size="sm" disabled={!canSave} aria-describedby={create.isError ? "action-save-error" : undefined}>
+          {create.isPending ? "Saving…" : create.isError ? "Retry saving the proposal" : "Save the proposal"}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           Cancel
         </Button>
       </div>
-      {create.isError && <p className="text-xs text-danger">The proposal could not be saved on this backend; nothing was recorded.</p>}
     </form>
   );
 }
 
+function SavedActionEvidence({ action, noun }: { action: ReviewItem; noun: string }) {
+  const context = action.evidenceContext;
+  const recorded = action.evidenceState === "recorded" && context && typeof context === "object" && !Array.isArray(context);
+  const filter = recorded && "filter" in context ? context.filter : undefined;
+  const filtered = filter && typeof filter === "object" && "and" in filter && Array.isArray(filter.and) && filter.and.length > 0;
+  const measured = recorded && context.selectionState === "measured" && typeof context.selectionFingerprint === "string" && context.selectionFingerprint.length > 0 && typeof context.populationCases === "number" && Number.isSafeInteger(context.populationCases) && context.populationCases > 0;
+  return (
+    <p className="text-xs text-text-muted" data-testid="action-evidence">
+      {!recorded
+        ? "Evidence not assessed. Create a new proposal for the current group before acceptance."
+        : filtered
+          ? measured
+            ? `Evidence scope recorded with a filter. Selected ${noun} measured: ${fmtInt(context.populationCases!)}. Acceptance still requires available, unchanged evidence and current checks that have passed or been waived.`
+            : `Evidence scope recorded with a filter. Acceptance is unavailable until checks can be measured for that exact selection.${context.selectionReason ? ` ${context.selectionReason}` : ""}`
+          : "Evidence scope recorded. Acceptance still requires available, unchanged evidence and current checks that have passed or been waived."}
+    </p>
+  );
+}
+
 /** Everything recorded on this group so far: hypotheses to test and actions proposed. */
-function OpenFindings({ projectId, runId, sliceKey }: { projectId: string; runId: string; sliceKey: string }) {
-  const actions = useQuery(reviewQuery(projectId, "actions", { runId }));
-  const hypotheses = useQuery(reviewQuery(projectId, "hypotheses", { runId }));
-  const mine = (rows: ReviewItem[] | undefined) => (rows ?? []).filter((r) => !r.sliceKey || r.sliceKey === sliceKey);
+function OpenFindings({ projectId, runId, slicing, sliceKey, noun }: { projectId: string; runId: string; slicing: string; sliceKey: string; noun: string }) {
+  const actions = useQuery(reviewQuery(projectId, "actions", { runId, slicing, sliceKey }));
+  const hypotheses = useQuery(reviewQuery(projectId, "hypotheses", { runId, slicing, sliceKey }));
+  const selectedKey = normalizedGroupKey(sliceKey);
+  const mine = (rows: ReviewItem[] | undefined) => (rows ?? []).filter((r) => !r.sliceKey || normalizedGroupKey(r.sliceKey) === selectedKey);
   const a = mine(actions.data);
   const h = mine(hypotheses.data);
   const unavailable = notServed(actions.error) && notServed(hypotheses.error);
@@ -287,11 +340,12 @@ function OpenFindings({ projectId, runId, sliceKey }: { projectId: string; runId
       )}
       {a.length > 0 && (
         <>
-          <h4 className="mt-3 text-sm font-semibold text-text">Proposed</h4>
+          <h4 className="mt-3 text-sm font-semibold text-text">Actions</h4>
           <ul className="mt-1 flex flex-col gap-1.5 text-sm">
             {a.map((x) => (
               <li key={x.id} className="reading">
                 {x.title} <span className="text-xs text-text-muted">· {roleWords((x as { owner_role?: string }).owner_role) ?? "no owner"} · {x.status} · {x.author ?? "unnamed"}</span>
+                <SavedActionEvidence action={x} noun={noun} />
               </li>
             ))}
           </ul>
@@ -299,6 +353,15 @@ function OpenFindings({ projectId, runId, sliceKey }: { projectId: string; runId
       )}
     </Card>
   );
+}
+
+/** Saved group keys and URL keys can encode the same values with different JSON spacing. */
+function normalizedGroupKey(key: string): string {
+  try {
+    return JSON.stringify(JSON.parse(key) as unknown);
+  } catch {
+    return key;
+  }
 }
 
 export default function ActPage() {
@@ -309,11 +372,11 @@ export default function ActPage() {
   const run = ctx.runs.find((r) => r.id === runId) as RunC2 | undefined;
   const slicing = search.slicing ?? run?.slicings?.[0]?.id ?? "";
   const view = search.view ?? run?.views?.[0];
+  const selected = search.filter !== undefined || search.within !== undefined;
   const [draft, setDraft] = useState<{ title: string; countermeasure?: string | null; owner_role?: string | null; constraint?: string }>();
   const [toTest, setToTest] = useState<{ constraint?: string; statement?: string; nonce: number }>({ constraint: search.constraint, nonce: 0 });
 
   const answer = useQuery({ ...whatCanWeDoQuery(ctx.projectId, runId, { slicing, sliceKey, view }), enabled: !!run && !!slicing });
-  const gates = useQuery({ ...gatesQuery(ctx.projectId, runId, { slicing, sliceKey, view }), enabled: !!run && !!slicing });
   const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
   const row = (page1.data?.rows ?? []).find((r) => r.key === sliceKey);
@@ -328,28 +391,35 @@ export default function ActPage() {
   const drivers = data?.drivers ?? [];
   const noun = data?.caseNoun ?? row?.case_noun ?? "cases";
   const constraints = drivers.map((d) => ({ id: d.constraint_id, label: d.plain_name ?? d.constraint_id }));
-  const blocking = blockingGates(gates.data?.gates);
-  const whyHref = { to: "/p/$projectId/runs/$runId/slices/$sliceKey" as const, params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, tab: "why" as const } };
+  const whyHref = { to: "/p/$projectId/runs/$runId/slices/$sliceKey" as const, params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, filter: search.filter, within: search.within, tab: "why" as const } };
 
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
-          <BackControl fallback={{ href: `/p/${ctx.projectId}/runs/${runId}/slices/${encodeURIComponent(sliceKey)}?slicing=${encodeURIComponent(slicing)}${view ? `&view=${encodeURIComponent(view)}` : ""}`, label: "Why?" }} className="normal-case tracking-normal" />
+          <BackControl fallback={{ href: `/p/${ctx.projectId}/runs/${runId}/slices/${encodeURIComponent(sliceKey)}${stringifySearch(whyHref.search)}`, label: "Why?" }} className="normal-case tracking-normal" />
           <span>What can we do?</span>
         </div>
         <h1 className="flex flex-wrap items-center gap-3 text-2xl font-semibold">
           {name}
           <HowToReadToggle id="act" />
         </h1>
+        {selected && (
+          <p role="status" className="reading text-sm text-warning" data-testid="act-selection-notice">
+            Suggestions below describe the whole group.{" "}
+            {search.filter !== undefined && "Action checks use the exact filter in this address when the selection is supported. Unsupported or empty selections cannot receive a scoped decision. "}
+            {search.within !== undefined && "The drilled selection is sent with the proposal request, but saving is refused until its parent group can be recorded."}
+          </p>
+        )}
         {data?.reading && (
           <p className="reading headline text-text" data-testid="act-reading">
+            {selected && <strong>Whole group: </strong>}
             {data.reading}
           </p>
         )}
         <HowToRead id="act">
           The expectations behind this group's shortfall, worst first, each with what it would be worth to close it, what usually causes it — split into what the log can show and what has to be asked — and what usually helps,
-          with the kind of countermeasure and the role that owns it. Marking a reason <strong>to test</strong> writes a hypothesis; the checks below decide whether it may be recorded. Proposing an action records it for the review.
+          with the kind of countermeasure and the role that owns it. {selected ? "Hypothesis creation is unavailable in this selection. " : <>Marking a reason <strong>to test</strong> writes a hypothesis; the checks below decide whether it may be recorded. </>}Proposing an action records it for the review.
         </HowToRead>
       </header>
 
@@ -373,13 +443,14 @@ export default function ActPage() {
         </Card>
       )}
 
+      {selected && drivers.length > 0 && <h2 className="text-lg font-semibold" data-testid="whole-group-suggestions">Suggestions for the whole group</h2>}
       {drivers.map((d, i) => (
         <DriverCard
           key={d.constraint_id}
           driver={d}
           rank={i + 1}
           noun={noun}
-          onTest={(driver, reason) => {
+          onTest={selected ? undefined : (driver, reason) => {
             setToTest((t) => ({ constraint: driver.constraint_id, statement: reason.text, nonce: t.nonce + 1 }));
             void navigate({ to: ".", search: (s) => ({ ...s, constraint: driver.constraint_id }), replace: true });
             window.requestAnimationFrame(() => document.querySelector<HTMLElement>("#hypothesis-statement")?.focus());
@@ -387,14 +458,14 @@ export default function ActPage() {
           onPropose={(driver, action) => setDraft({ title: action.text, countermeasure: action.countermeasure, owner_role: roleWords(action.owner_role), constraint: driver.constraint_id })}
           form={
             draft && draft.constraint === d.constraint_id ? (
-              <ActionForm key={`${d.constraint_id}-${draft.title}`} projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} draft={draft} onDone={() => setDraft(undefined)} />
+              <ActionForm key={`${d.constraint_id}-${draft.title}`} projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} draft={draft} onDone={() => setDraft(undefined)} />
             ) : null
           }
         />
       ))}
 
       {draft && !draft.constraint && (
-        <ActionForm projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} draft={draft} onDone={() => setDraft(undefined)} />
+        <ActionForm projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} draft={draft} onDone={() => setDraft(undefined)} />
       )}
       {(!draft || !!draft.constraint) && drivers.length > 0 && (
         <div>
@@ -405,16 +476,11 @@ export default function ActPage() {
       )}
 
       <Card data-testid="act-gates">
-        <CardTitle>Before acting on this</CardTitle>
-        <p className="reading mb-2 text-sm text-text-muted">
-          {blocking.length > 0
-            ? `${fmtInt(blocking.length)} ${blocking.length === 1 ? "check has" : "checks have"} no reading on this group yet.`
-            : "The checks that apply to this group have a reading."}
-        </p>
-        <GatesBlock projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} constraints={constraints} draft={toTest} />
+        <CardTitle>{selected ? `Checks for the selected ${noun}` : "Before acting on this"}</CardTitle>
+        <GatesBlock projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} constraints={constraints} draft={toTest} />
       </Card>
 
-      <OpenFindings projectId={ctx.projectId} runId={runId} sliceKey={sliceKey} />
+      <OpenFindings projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} noun={noun} />
 
       <p className="text-sm text-text-muted">
         The reasons and the actions on this screen are the same pages the{" "}

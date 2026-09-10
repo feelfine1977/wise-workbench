@@ -1236,3 +1236,21 @@ Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
 - One language (English), two process packs (purchase-to-pay and
   order-to-cash), and the interface's own vocabulary is written for
   purchase-to-pay.
+
+
+## Proposing an action and agreeing to act
+
+Use **Save the proposal** in *What can we do?* to record an investigation even when
+data checks remain unresolved. The proposal keeps the selected evidence scope.
+If saving fails, read the message by the form, correct the relevant input and
+retry; your text stays in place.
+
+Agreement, execution and completion require a saved assessed group, an owner
+role, unchanged result files and resolved or explicitly waived gates. A proposal
+from a supported filtered selection records its exact item count. The checks
+section names that selection and keeps its decisions separate from other filters
+and the whole group. Missing measurements require review; an unsupported or
+empty selection cannot be committed. Suggestions above the checks still describe
+the whole group. Legacy records remain readable; open an assessed group and save
+a new proposal when their evidence context is missing. See
+[Proposals and commitment checks](ACTION_REVIEW.md) for the policy and limits.

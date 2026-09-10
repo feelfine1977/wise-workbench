@@ -696,6 +696,28 @@ class RunService:
         run, ctx = self._ready(project_id, run_id)
         return self.c.engine.trace(run, ctx, case_id)
 
+    def review_selection(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        slicing: str,
+        slice_key: str,
+        view: str | None,
+        filter_obj: dict[str, Any],
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine import parse_slice_key
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes, specs = self._slicing(ctx, slicing, None)
+        key = parse_slice_key(slice_key, len(attributes))
+        selected_view = view or (ctx.views[0] if ctx.views else None)
+        if not selected_view or selected_view not in ctx.views:
+            raise ValidationError("Choose a perspective assessed by this run.", code="review.view")
+        return self.c.engine.review_selection(
+            run, ctx, attributes, key, selected_view, bands=specs, filter_obj=filter_obj
+        )
+
     def diagnostics(self, project_id: str, run_id: str, *, slicing: str, view: str | None) -> Table:
         run, ctx = self._ready(project_id, run_id)
         return self.c.engine.diagnostics(run, ctx, ctx.slicing_attributes(slicing), view)

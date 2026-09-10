@@ -22,11 +22,11 @@ def _out(item: object) -> schemas.ReviewItem:
     "/runs/{runId}/gates",
     operation_id="getGates",
     response_model=schemas.Gates,
-    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}},
+    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
     description=(
         "The readiness, censoring and replication gates of one group, each with the evidence that decided it and "
-        "any decision taken on it. A hypothesis or an action on a group with a failed gate is refused with 409 "
-        "until the gate is passed or waived with a note."
+        "any decision taken on it. An optional case filter measures this selection and binds group decisions to it. "
+        "Unsupported and empty selections are refused. Action proposals remain recordable; commitment requires all checks passed or waived."
     ),
 )
 def get_gates(
@@ -36,15 +36,18 @@ def get_gates(
     slicing: Annotated[str, Query()],
     key: Annotated[str, Query(description="the group's key (JSON array)")],
     view: str | None = None,
+    filter: str | None = None,
 ) -> schemas.Gates:
-    return schemas.Gates(**c.review.gates(projectId, runId, slicing=slicing, slice_key=key, view=view))
+    return schemas.Gates(
+        **c.review.gates(projectId, runId, slicing=slicing, slice_key=key, view=view, filter_value=filter)
+    )
 
 
 @router.post(
     "/runs/{runId}/gates/{gateId}",
     operation_id="setGate",
     response_model=schemas.Gates,
-    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
     description="Pass, fail or waive one gate. Passing or waiving needs a note that says why.",
 )
 def set_gate(
@@ -55,6 +58,8 @@ def set_gate(
     c: ContainerDep,
     slicing: Annotated[str, Query()],
     key: Annotated[str, Query(description="the group's key (JSON array)")],
+    view: str | None = None,
+    filter: str | None = None,
 ) -> schemas.Gates:
     return schemas.Gates(
         **c.review.set_gate(
@@ -66,6 +71,8 @@ def set_gate(
             status=body.status,
             note=body.note,
             author=body.author,
+            view=view,
+            filter_value=filter,
         )
     )
 
@@ -149,16 +156,21 @@ def list_actions(
     responses={409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
     description=(
         "What will be done: the mechanism, the remedy, the countermeasure type, the owner role, a due date and a "
-        "status. Refused with 409 while a gate of the group has failed."
+        "status. Proposed drafts are allowed; agreement, execution and completion require saved evidence and resolved gates."
     ),
 )
 def create_action(projectId: str, body: schemas.ActionCreate, c: ContainerDep) -> schemas.ReviewItem:
     return _out(c.review.create_action(projectId, body.model_dump(exclude_none=True)))
 
 
-@router.patch("/actions/{itemId}", operation_id="updateAction", response_model=schemas.ReviewItem)
+@router.patch(
+    "/actions/{itemId}",
+    operation_id="updateAction",
+    response_model=schemas.ReviewItem,
+    responses={409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+)
 def update_action(projectId: str, itemId: str, body: schemas.ReviewItemUpdate, c: ContainerDep) -> schemas.ReviewItem:
-    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_none=True)))
+    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_unset=True)))
 
 
 # ---------------------------------------------------------------------------- What can we do?

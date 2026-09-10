@@ -75,6 +75,13 @@ Use one server-side policy for creation, ordinary updates and later board moves.
 Unknown checks must not silently authorize a business intervention. Scoped
 investigation and data-repair drafts remain possible with their limits visible.
 
+The first action-boundary slice is available: [proposals and commitment
+checks](ACTION_REVIEW.md). It records action evidence scope and refuses unsafe
+commitment through both create and update. A supported filter subset now has
+exact membership, selected-item readiness and decisions bound to that selection.
+Broader filter grammar, findings/hypotheses propagation and the full M2a
+walkthrough remain to be done.
+
 **M2b — read the decision correctly.** Display a supported comparison or its
 specific unavailable reason, qualify uncertainty and caveats, identify the
 expectation each sentence describes, and show existing hypothesis test results.

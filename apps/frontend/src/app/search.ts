@@ -39,6 +39,8 @@ const json = (v: unknown): string | undefined => {
   if (v && typeof v === "object") return JSON.stringify(v);
   return undefined;
 };
+/** Keep selection input intact for server validation, including malformed JSON and scalar values. */
+const selectionParam = (v: unknown): string | undefined => v === undefined ? undefined : typeof v === "string" ? v : JSON.stringify(v);
 const list = (v: unknown): string[] | undefined => {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && x.length > 0);
   if (typeof v === "string" && v.length) return v.split(",").filter(Boolean);
@@ -91,8 +93,8 @@ export function validateBacklogSearch(input: Partial<BacklogSearch> & SearchSche
     pageSize: Math.min(500, Math.max(10, Math.floor(num(s.pageSize) ?? BACKLOG_DEFAULTS.pageSize))),
     pins: list(s.pins)?.slice(0, 3),
     row: str(s.row),
-    filter: json(s.filter),
-    within: json(s.within),
+    filter: selectionParam(s.filter),
+    within: selectionParam(s.within),
   };
 }
 
@@ -129,6 +131,7 @@ export interface SliceSearch {
   focus?: "finding";
   pins?: string[];
   filter?: string;
+  within?: string;
   /** Activity whose paths are shown on the map. */
   activity?: string;
 }
@@ -143,7 +146,8 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
     constraint: str(s.constraint),
     focus: oneOf(s.focus, ["finding"] as const),
     pins: list(s.pins)?.slice(0, 3),
-    filter: json(s.filter),
+    filter: selectionParam(s.filter),
+    within: selectionParam(s.within),
     activity: str(s.activity),
   };
 }
@@ -277,12 +281,16 @@ export function validateKnowledgeSearch(input: Partial<KnowledgeSearch> & Search
 export interface ActSearch {
   slicing?: string;
   view?: string;
+  /** The current selection to save with an action proposal. */
+  filter?: string;
+  /** The parent group of a drilled selection, retained for explicit server validation. */
+  within?: string;
   /** The expectation a reason or an action was opened from. */
   constraint?: string;
 }
 export function validateActSearch(input: Partial<ActSearch> & SearchSchemaInput): ActSearch {
   const s = input as Record<string, unknown>;
-  return { slicing: str(s.slicing), view: str(s.view), constraint: str(s.constraint) };
+  return { slicing: str(s.slicing), view: str(s.view), filter: selectionParam(s.filter), within: selectionParam(s.within), constraint: str(s.constraint) };
 }
 
 export const RUN_TABS = ["monitor", "flow", "compare"] as const;

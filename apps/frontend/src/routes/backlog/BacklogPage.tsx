@@ -139,12 +139,12 @@ export default function BacklogPage() {
       const target = {
         to: "/p/$projectId/runs/$runId/slices/$sliceKey" as const,
         params: { projectId: ctx.projectId, runId, sliceKey: key },
-        search: { slicing, view, tab: "why" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter },
+        search: { slicing, view, tab: "why" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter, within: search.within },
       };
       setLastSlice(router.buildLocation(target).href, label);
       void navigate(target);
     },
-    [navigate, router, ctx.projectId, runId, slicing, view, pins, rows, search.filter, setLastSlice],
+    [navigate, router, ctx.projectId, runId, slicing, view, pins, rows, search.filter, search.within, setLastSlice],
   );
   // Drill into a group (R2-O2): the finer slicing (the backend's default drill-down attribute) restricted to the group's cases.
   const drill = useCallback((key: string) => patch({ within: JSON.stringify({ slicing, key }), slicing: drillAttributeFor(slicing), page: 1, row: undefined }), [patch, slicing]);

@@ -10,9 +10,9 @@ knows rather than asked of the reader:
 * **censoring** — the share of the group's cases still open at that window end;
 * **replication** — the share of the group's cases carrying copied postings.
 
-A gate is `failed` while its evidence is above the threshold; a hypothesis or an action on that group is refused
-with 409 until someone passes or waives the gate with a note. The note is mandatory: a waived gate that says
-nothing is not a decision, it is a silence.
+A gate is `failed` while its evidence is above the threshold. Action proposals remain recordable;
+agreement or execution requires every gate for the saved context to pass or be waived with a note.
+Hypotheses retain their separate validation path.
 
 "What can we do?" reads the group's top drivers, asks the knowledge hub what usually causes them and what is
 usually done about them, and pairs each action with the headroom of its expectation — the score points the group
@@ -21,6 +21,8 @@ would gain if that expectation were met.
 
 from __future__ import annotations
 
+import json
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from wise_workbench.domain import (
@@ -34,7 +36,10 @@ from wise_workbench.domain import (
     validate_hypothesis,
 )
 from wise_workbench.domain.comparison import Comparison, capitalised, percent, readable_comparison
+from wise_workbench.domain.project import utcnow
 from wise_workbench.ids import new_id
+
+from . import action_evidence
 
 if TYPE_CHECKING:  # pragma: no cover
     from wise_workbench.container import Container
@@ -83,7 +88,16 @@ class ReviewService:
         self.c = c
 
     # ------------------------------------------------------------- gates
-    def gates(self, project_id: str, run_id: str, *, slicing: str, slice_key: str, view: str | None = None) -> dict:
+    def gates(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        slicing: str,
+        slice_key: str,
+        view: str | None = None,
+        filter_value: Any = None,
+    ) -> dict:
         """The three gates of one group: computed evidence, merged with any decision taken on them.
 
         The readiness gate is **group-aware** (R3-03). Its evidence is a table of checks on the log, and five of
@@ -93,14 +107,27 @@ class ReviewService:
         are also decided once. A gate that reads ``fail`` identically on all 57 groups of a log is a door, not a
         gate, and blocks nothing by itself.
         """
-        detail = self.c.runs.slice_detail(
-            project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, drilldown=None
+        filter_obj = action_evidence.canonical_filter(filter_value)
+        detail = (
+            self.c.runs.review_selection(
+                project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, filter_obj=filter_obj
+            )
+            if filter_obj
+            else self.c.runs.slice_detail(
+                project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, drilldown=None
+            )
+        )
+        slice_key = json.dumps(detail["params"]["key"], separators=(",", ":"))
+        resolved_view = detail["params"].get("view")
+        _run, _ctx, evidence_identity = action_evidence.run_identity(self.c, project_id, run_id)
+        slicing = _ctx.slicing_id(detail["params"]["slicing"], detail["params"].get("bands")) or ",".join(
+            detail["params"]["slicing"]
         )
         row = detail["row"]
         noun = detail["params"].get("case_noun") or "cases"
         caveats = list(detail.get("caveats") or [])
         shares = {str(cav["id"]): cav.get("share") for cav in caveats}
-        report = self.c.runs.readiness_report(project_id, run_id)
+        report = detail["readiness"] if filter_obj else self.c.runs.readiness_report(project_id, run_id)
         measured = bool((detail.get("analytics") or {}).get("available")) and bool(report.get("checks"))
         computed = [
             self._readiness_gate(report, caveats, noun, row, measured=measured),
@@ -122,15 +149,72 @@ class ReviewService:
             ),
             self._domain_gate(project_id, run_id, detail, noun),
         ]
+        if filter_obj:
+            # No display-threshold suppression: zero is measured, absence is unknown.
+            expected = set(action_evidence.FILTERED_CHECKS)
+            missing = sorted(expected - {k for k, value in shares.items() if value is not None})
+            if missing:
+                computed[0] = {
+                    "id": "readiness",
+                    "kind": "readiness",
+                    "scope": "group",
+                    "status": "failed" if computed[0]["status"] == "failed" else "pending",
+                    "evidence": {"missingMeasurements": missing, "groupChecks": caveats},
+                    "text": "Readiness for this selection is incomplete. Review the missing measurements before acting.",
+                }
+            for gate in computed[1:3]:
+                if shares.get(gate["id"]) is None:
+                    gate.update(
+                        status="pending", scope="group", text="This measurement is unavailable for the selected items."
+                    )
+            computed[0]["scope"] = "group"
+        # A clean group's checks cannot erase independent failures of the whole log.
+        whole_checks = [check for check in report.get("checks", []) if not check.get("perGroup")]
+        whole_failed = list(report.get("logWideFailed") or [])
+        if computed[0].get("scope") == "group" and (whole_checks or whole_failed):
+            failed = whole_failed or [str(check["check"]) for check in whole_checks if check.get("status") == "fail"]
+            pending = [str(check["check"]) for check in whole_checks if check.get("status") not in {"pass", "fail"}]
+            computed.append(
+                {
+                    "id": "run_readiness",
+                    "kind": "readiness",
+                    "scope": "run",
+                    "status": "failed" if failed else "pending" if pending else "passed",
+                    "evidence": {"failed": failed, "pending": pending, "checks": whole_checks},
+                    "text": "Readiness checks for the whole log require a decision once for this run."
+                    if failed or pending
+                    else "Readiness checks for the whole log pass.",
+                }
+            )
+        selection = dict(detail.get("selection") or {})
+        decision_identity = (
+            action_evidence.fingerprint(
+                {
+                    "filter": filter_obj,
+                    "selection": selection,
+                    "gates": [g for g in computed if g.get("scope") != "run"],
+                }
+            )
+            if filter_obj
+            else None
+        )
+        if selection:
+            selection["decisionFingerprint"] = decision_identity
         group_items = self.c.repos.list_review_items(
             project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=slicing, slice_key=slice_key
         )
-        stored = {str(item.body.get("gate")): item for item in group_items}
+        stored = {
+            str(item.body.get("gate")): item
+            for item in group_items
+            if item.view == resolved_view
+            and item.body.get("manifestFingerprint") == evidence_identity
+            and item.body.get("selectionFingerprint") == decision_identity
+        }
         # the readiness gate is decided once for the run, so a waiver on it is stored without a group
         run_scoped = {
             str(item.body.get("gate")): item
             for item in self.c.repos.list_review_items(project_id, kind=str(ReviewKind.GATE), run_id=run_id)
-            if item.slice_key is None
+            if item.slice_key is None and item.body.get("manifestFingerprint") == evidence_identity
         }
         gates = []
         for gate in computed:
@@ -147,7 +231,11 @@ class ReviewService:
                     "scope": scope,
                 }
             )
-        blocking = [g["id"] for g in gates if g["status"] == "failed"]
+        blocking = [
+            g["id"]
+            for g in gates
+            if (g["status"] not in {"passed", "waived"} if filter_obj else g["status"] == "failed")
+        ]
         return {
             "runId": run_id,
             "slicing": slicing,
@@ -155,6 +243,8 @@ class ReviewService:
             "view": detail["params"].get("view"),
             "caseNoun": noun,
             "cases": row.get("n_cases"),
+            "filter": filter_obj,
+            "selection": selection or None,
             "gates": gates,
             "blocking": blocking,
             "passed": not blocking,
@@ -356,9 +446,16 @@ class ReviewService:
         status: str,
         note: str | None,
         author: str | None = None,
+        view: str | None = None,
+        filter_value: Any = None,
     ) -> dict[str, Any]:
         status, note = validate_gate_update(status, note)
-        current = self.gates(project_id, run_id, slicing=slicing, slice_key=slice_key)
+        current = self.gates(
+            project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, filter_value=filter_value
+        )
+        decision_identity = (current.get("selection") or {}).get("decisionFingerprint")
+        slicing, slice_key, view = current["slicing"], current["sliceKey"], current["view"]
+        _run, _ctx, evidence_identity = action_evidence.run_identity(self.c, project_id, run_id)
         scopes = {str(g["id"]): str(g.get("scope") or "group") for g in current["gates"]}
         if gate_id not in scopes:
             raise NotFoundError(f"gate {gate_id!r} is not one of {sorted(scopes)}", code="gate.not_found")
@@ -371,7 +468,11 @@ class ReviewService:
             for item in self.c.repos.list_review_items(
                 project_id, kind=str(ReviewKind.GATE), run_id=run_id, slicing=stored_slicing, slice_key=stored_key
             )
-            if item.body.get("gate") == gate_id and (not run_scoped or item.slice_key is None)
+            if item.body.get("gate") == gate_id
+            and (not run_scoped or item.slice_key is None)
+            and item.body.get("manifestFingerprint") == evidence_identity
+            and (run_scoped or item.view == view)
+            and (run_scoped or item.body.get("selectionFingerprint") == decision_identity)
         ]
         if existing:
             self.c.repos.update_review_item(
@@ -388,15 +489,24 @@ class ReviewService:
                     run_id=run_id,
                     slicing=stored_slicing,
                     slice_key=stored_key,
-                    body={"gate": gate_id, "scope": "run" if run_scoped else "group"},
+                    body={
+                        "gate": gate_id,
+                        "scope": "run" if run_scoped else "group",
+                        "manifestFingerprint": evidence_identity,
+                        "filter": None if run_scoped else current.get("filter"),
+                        "selectionFingerprint": None if run_scoped else decision_identity,
+                    },
+                    view=None if run_scoped else view,
                     author=author,
                     note=note,
                 )
             )
-        return self.gates(project_id, run_id, slicing=slicing, slice_key=slice_key)
+        return self.gates(
+            project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, filter_value=filter_value
+        )
 
     def _require_gates(self, project_id: str, run_id: str | None, slicing: str | None, slice_key: str | None) -> None:
-        """A hypothesis or an action on a group whose gate has failed is refused (409) until it is decided."""
+        """Legacy hypothesis policy; action writes use the complete commitment check below."""
         if not (run_id and slicing and slice_key):
             return
         try:
@@ -519,6 +629,7 @@ class ReviewService:
 
     def create_action(self, project_id: str, body: dict[str, Any]) -> ReviewItem:
         self.c.repos.get_project(project_id)
+        action_evidence.protected_fields(body)
         payload = dict(body)
         run_id = payload.pop("runId", None)
         slicing = payload.pop("slicing", None)
@@ -527,8 +638,15 @@ class ReviewService:
         author = payload.pop("author", None)
         note = payload.pop("note", None)
         title = str(payload.pop("title", "") or "")
+        filter_value = payload.pop("filter", None)
         clean = validate_action(payload)
-        self._require_gates(project_id, run_id, slicing, slice_key)
+        context = action_evidence.capture(self.c, project_id, run_id, slicing, slice_key, view, filter_value)
+        clean["evidenceContext"] = context
+        clean["evidenceState"] = "recorded" if context else "unassessed"
+        if context:
+            run_id, slicing, slice_key, view = (context[k] for k in ("runId", "slicing", "sliceKey", "view"))
+        if clean["status"] in action_evidence.COMMITTED_STATUSES:
+            clean["commitmentCheck"] = self._require_action_commitment(project_id, clean)
         item = ReviewItem(
             id=new_id("act"),
             project_id=project_id,
@@ -545,8 +663,55 @@ class ReviewService:
         )
         return self.c.repos.add_review_item(item)
 
+    def _require_action_commitment(self, project_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Every commitment write uses the same saved context and current gate decisions."""
+        context = body.get("evidenceContext")
+        action_evidence.require_current(self.c, project_id, context)
+        assert context is not None
+        if not isinstance(body.get("owner_role"), str) or not body["owner_role"].strip():
+            raise ConflictError(
+                "Name the owner role before agreeing or starting this action.",
+                code="review.owner_required",
+                errors=[{"field": "owner_role", "message": "Required"}],
+            )
+        try:
+            state = self.gates(
+                project_id,
+                context["runId"],
+                slicing=context["slicing"],
+                slice_key=context["sliceKey"],
+                view=context["view"],
+                filter_value=context.get("filter"),
+            )
+        except (NotFoundError, ConflictError, ValidationError) as exc:
+            raise ConflictError(
+                "The saved group's readiness cannot be checked. Keep this action proposed and retry when its evidence is available.",
+                code="review.evidence_unavailable",
+            ) from exc
+        blocking = [g["id"] for g in state["gates"] if g["status"] not in {"passed", "waived"}]
+        if blocking:
+            raise ConflictError(
+                "Resolve or explicitly waive the "
+                + ", ".join(blocking)
+                + " checks for this saved group before agreeing or starting work.",
+                code="review.gate_unresolved",
+                errors=[{"field": "gate", "message": g} for g in blocking],
+            )
+        return {
+            "checkedAt": utcnow().isoformat(),
+            "contextFingerprint": action_evidence.fingerprint(context),
+            "gates": state["gates"],
+        }
+
     def update(self, project_id: str, item_id: str, body: dict[str, Any]) -> ReviewItem:
         item = self.get(project_id, item_id)
+        if item.kind == ReviewKind.GATE:
+            raise ValidationError(
+                "Use the gate decision control to record a scoped decision with its rationale.",
+                code="gate.decision_required",
+            )
+        if item.kind == ReviewKind.ACTION:
+            action_evidence.protected_fields(body, update=True)
         payload = dict(body)
         status = payload.pop("status", None)
         title = payload.pop("title", None)
@@ -562,6 +727,8 @@ class ReviewService:
                 merged["status"] = status
             merged = validate_action(merged)
             status = merged["status"]
+            if status in action_evidence.COMMITTED_STATUSES and set(body) - {"note"}:
+                merged["commitmentCheck"] = self._require_action_commitment(project_id, merged)
         return self.c.repos.update_review_item(
             item.with_changes(
                 status=str(status if status is not None else item.status),
@@ -587,9 +754,32 @@ class ReviewService:
         slice_key: str | None = None,
     ) -> list[ReviewItem]:
         self.c.repos.get_project(project_id)
-        return self.c.repos.list_review_items(
-            project_id, kind=kind, run_id=run_id, slicing=slicing, slice_key=slice_key
-        )
+        items = self.c.repos.list_review_items(project_id, kind=kind, run_id=run_id)
+        ctx = None
+        if run_id and slicing:
+            # Historical records remain readable after their run is unavailable.
+            with suppress(NotFoundError, ConflictError, ValidationError):
+                _run, ctx = self.c.runs.ready(project_id, run_id)
+
+        def grouping(value: str | None) -> Any:
+            if ctx and value:
+                return (ctx.slicing_attributes(value), ctx.slicing_bands(value))
+            return value
+
+        def key(value: str | None) -> Any:
+            if value is None:
+                return None
+            try:
+                return json.loads(value)
+            except (TypeError, ValueError):
+                return value
+
+        return [
+            item
+            for item in items
+            if (slicing is None or grouping(item.slicing) == grouping(slicing))
+            and (slice_key is None or key(item.slice_key) == key(slice_key))
+        ]
 
     def delete(self, project_id: str, item_id: str) -> None:
         self.get(project_id, item_id)

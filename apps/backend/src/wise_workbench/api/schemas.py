@@ -919,6 +919,33 @@ class AnalyticsStatus(BaseModel):
 GateStatus = Literal["pending", "passed", "failed", "waived"]
 
 
+class ActionEvidenceContext(BaseModel):
+    """Server-recorded scope; it identifies evidence, not an approval or a current readiness verdict."""
+
+    version: Literal[1] = 1
+    runId: str
+    normVersionId: str
+    normFingerprint: str
+    caseTableId: str
+    contentHash: str
+    paramsHash: str
+    manifestFingerprint: str
+    view: str
+    slicing: str
+    sliceKey: str
+    filter: dict[str, Any] | None = None
+    flowScope: dict[str, Any] | None = None
+    scenario: str | None = None
+    comparator: dict[str, Any]
+    populationCases: int | None = Field(
+        default=None,
+        description="Number of items in the exact assessed group and filter; unavailable if the filter cannot be measured.",
+    )
+    selectionState: Literal["measured", "unavailable"] | None = None
+    selectionFingerprint: str | None = None
+    selectionReason: str | None = None
+
+
 class ReviewItem(BaseModel):
     """A hypothesis, a gate decision, a finding or an action; the kind's own fields sit next to these."""
 
@@ -937,6 +964,17 @@ class ReviewItem(BaseModel):
     note: str | None = None
     createdAt: str
     updatedAt: str
+    evidenceContext: ActionEvidenceContext | None = Field(default=None, json_schema_extra={"readOnly": True})
+    evidenceState: Literal["unassessed", "recorded"] | None = Field(
+        default=None,
+        description="Recorded scope is not a readiness verdict. Missing on legacy records.",
+        json_schema_extra={"readOnly": True},
+    )
+    commitmentCheck: dict[str, Any] | None = Field(
+        default=None,
+        description="Evidence and decisions checked at the last commitment write, not a promise of ongoing validity.",
+        json_schema_extra={"readOnly": True},
+    )
 
 
 class ReviewItemUpdate(BaseModel):
@@ -986,6 +1024,10 @@ class ActionCreate(BaseModel):
     slicing: str | None = None
     sliceKey: str | None = None
     view: str | None = None
+    filter: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Saved case filter. Nonempty filters allow a proposal but cannot authorise commitment until exact filtered readiness is supported.",
+    )
     mechanism: str | None = Field(default=None, description="what produces the shortfall")
     remedy: str | None = None
     countermeasure: (
@@ -1043,6 +1085,14 @@ class RunWideReadiness(BaseModel):
     text: str = ""
 
 
+class ReviewSelection(BaseModel):
+    state: Literal["measured"]
+    cases: int
+    wholeGroupCases: int
+    fingerprint: str
+    decisionFingerprint: str | None = None
+
+
 class Gates(BaseModel):
     runId: str
     slicing: str
@@ -1050,6 +1100,8 @@ class Gates(BaseModel):
     view: str | None = None
     caseNoun: str | None = None
     cases: int | None = None
+    filter: dict[str, Any] | None = None
+    selection: ReviewSelection | None = None
     gates: list[Gate] = Field(default_factory=list)
     blocking: list[str] = Field(default_factory=list, description="gate ids that block saving a hypothesis or action")
     passed: bool = True
