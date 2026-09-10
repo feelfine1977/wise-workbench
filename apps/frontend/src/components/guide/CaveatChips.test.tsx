@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { Caveat } from "@/lib/api/cycle2";
+import type { Caveat } from "@/lib/api/analytics";
 import { CaveatChips, caveatWords, runCaveatSentence } from "./CaveatChips";
 
 describe("the data caveats of a group", () => {

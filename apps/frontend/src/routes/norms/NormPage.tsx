@@ -19,10 +19,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardTitle } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDateTime, fmtInt, fmtNum } from "@/lib/format";
-import { distributionQuery, normQuery, normsQuery, useCreateNormVersion } from "@/lib/queries";
-import { flowTypesQuery } from "@/lib/api/cycle2";
-import { runManifestQuery } from "@/lib/api/cycle3";
-import { inventoryQuery } from "@/lib/api/cycle4";
+import { distributionQuery } from "@/lib/api/analytics";
+import { normQuery, normsQuery, useCreateNormVersion } from "@/lib/api/norms";
+import { flowTypesQuery } from "@/lib/api/runs";
+import { runManifestQuery } from "@/lib/api/runs";
+import { inventoryQuery } from "@/lib/api/norms";
 import { CalibrationChip } from "@/components/badges";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { ApplicabilityEditor, CommitFieldsForm, NewConstraintButton, RuleEditor, StatusChip, applicabilitySentence, ruleSentence, thresholdOf, type CommitFields, type Constraint } from "./Builder";

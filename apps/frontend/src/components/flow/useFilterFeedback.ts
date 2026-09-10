@@ -5,7 +5,7 @@
  * removes no item still produces a chip, and the count line says *no items removed* for two seconds.
  */
 import { useEffect, useRef, useState } from "react";
-import type { Filter, FilterClause } from "@/lib/api/cycle2";
+import type { Filter, FilterClause } from "@/lib/api/filter-types";
 import { addedClauses, announceFilter, removedClauses, serializeFilter } from "@/lib/filter";
 
 export interface FilterFeedback {

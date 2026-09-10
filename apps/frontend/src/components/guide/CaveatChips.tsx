@@ -1,4 +1,4 @@
-import type { Caveat } from "@/lib/api/cycle2";
+import type { Caveat } from "@/lib/api/analytics";
 import { fmtPct } from "@/lib/format";
 import { useHubStore } from "@/lib/stores/hub";
 import { cn } from "@/lib/utils";

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
-import { useSetNormStatus } from "@/lib/queries";
+import { useSetNormStatus } from "@/lib/api/norms";
 
 /** What a version can be moved to next, and what the control is called; an approved version is signed. */
 export const NEXT_STATUS = { draft: { status: "reviewed" as const, label: "Mark reviewed" }, reviewed: { status: "approved" as const, label: "Approve this version" } };

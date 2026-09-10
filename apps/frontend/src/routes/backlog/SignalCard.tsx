@@ -1,7 +1,7 @@
 import { ChevronDown, Pin } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 import type { BacklogRow } from "@wise/api-schema";
-import type { BacklogRowC2 } from "@/lib/api/cycle2";
+import type { BacklogRow as BacklogRowC2 } from "@/lib/api/exploration";
 import { CalibrationChip, KindBadge, LayerChip } from "@/components/badges";
 import { CaveatChips } from "@/components/guide/CaveatChips";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";

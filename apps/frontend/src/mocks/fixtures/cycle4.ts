@@ -11,7 +11,7 @@
  * R3-03 behaves here as it does on the server: a run-wide readiness reading is stated once and never asks
  * for one waiver per group.
  */
-import type { GuidanceText, HubIndex, HubNodeFull, HubPage, UsualAction, UsualReason } from "@/lib/api/cycle4";
+import type { GuidanceText, HubIndex, HubNodeFull, HubPage, UsualAction, UsualReason } from "@/lib/api/knowledge";
 import hubIndexJson from "./verified/hub_index.json";
 import hubPagesJson from "./verified/hub_pages.json";
 import { VERIFIED_CASE_NOUN, verifiedCaseTable, verifiedSlice } from "./verified";

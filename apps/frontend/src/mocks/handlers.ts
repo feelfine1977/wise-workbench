@@ -1,6 +1,8 @@
 import { http, HttpResponse, delay } from "msw";
 import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
-import type { DecisionRequest, Snapshot, SnapshotContext, Within } from "@/lib/api/cycle2";
+import type { DecisionRequest } from "@/lib/api/readiness";
+import type { Snapshot, SnapshotContext } from "@/lib/api/notebook";
+import type { Within } from "@/lib/api/exploration";
 import { parseFilter } from "@/lib/filter";
 import { UNCALIBRATED, pageBacklog } from "./fixtures/backlog";
 import { applyFilter, backlogParamsC2, caveatSummary, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";

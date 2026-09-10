@@ -15,8 +15,9 @@
  */
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ActivityInventory, AttributeInventory, Inventory } from "@/lib/api/cycle4";
-import { inventoryQuery, notServed } from "@/lib/api/cycle4";
+import type { ActivityInventory, AttributeInventory, Inventory } from "@/lib/api/norms";
+import { inventoryQuery } from "@/lib/api/norms";
+import { notServed } from "@/lib/api/compatibility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";

@@ -4,7 +4,7 @@
  * without the part every group on the page shares.
  */
 import type { BacklogRow } from "@wise/api-schema";
-import type { GuidanceRef } from "@/lib/api/cycle2";
+import type { GuidanceRef } from "@/lib/api/knowledge";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { confidenceOf } from "@/lib/vocabulary";
 

@@ -13,8 +13,8 @@
  */
 import { useState } from "react";
 import type { ReactNode } from "react";
-import type { GuidanceText, HubNode, HubPage, HubRelated, UsualAction, UsualReason } from "@/lib/api/cycle4";
-import { useSetOverlay } from "@/lib/api/cycle4";
+import type { GuidanceText, HubNode, HubPage, HubRelated, UsualAction, UsualReason } from "@/lib/api/knowledge";
+import { useSetOverlay } from "@/lib/api/knowledge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";

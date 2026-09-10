@@ -16,20 +16,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkbench } from "@/app/context";
 import { actRoute } from "@/app/router";
-import type { RunC2 } from "@/lib/api/cycle2";
-import {
-  blockingGates,
-  gatesQuery,
-  notServed,
-  reviewQuery,
-  useCreateReviewItem,
-  type Driver,
-  type ReviewItem,
-  type UsualAction,
-  type UsualReason,
-  type WhatCanWeDo,
-} from "@/lib/api/cycle4";
-import { whatCanWeDoQuery } from "@/lib/api/cycle4";
+import type { RunWithScope as RunC2 } from "@/lib/api/runs";
+import { blockingGates, gatesQuery, reviewQuery, useCreateReviewItem, type Driver, type ReviewItem, type WhatCanWeDo } from "@/lib/api/review";
+import { notServed } from "@/lib/api/compatibility";
+import type { UsualAction, UsualReason } from "@/lib/api/knowledge";
+import { whatCanWeDoQuery } from "@/lib/api/review";
 import { measureWords, roleWords } from "@/components/knowledge/words";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { GatesBlock } from "@/components/review/Gates";
@@ -41,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/misc";
 import { fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
-import { backlogQuery } from "@/lib/queries";
+import { backlogQuery } from "@/lib/api/exploration";
 import { groupLabel, sharedKeyValues } from "@/lib/sentences";
 import { cn } from "@/lib/utils";
 

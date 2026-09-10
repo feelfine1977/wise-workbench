@@ -5,7 +5,7 @@
  */
 import type { BacklogRow } from "@wise/api-schema";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { FacetValue, Facets, KpiTile, Kpis } from "@/lib/api/cycle3";
+import type { FacetValue, Facets, KpiTile, Kpis } from "@/lib/api/board";
 import { fmtInt, fmtNum, fmtShare } from "@/lib/format";
 import { groupLabel } from "@/lib/sentences";
 import { cn } from "@/lib/utils";

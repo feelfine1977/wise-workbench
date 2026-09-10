@@ -6,7 +6,7 @@
  * filter leaves are the same seeded shares the rest of the mocks use, so every panel agrees.
  */
 import type { Distribution, FlowGraph } from "@wise/api-schema";
-import type { Facets, Kpis } from "@/lib/api/cycle3";
+import type { Facets, Kpis } from "@/lib/api/board";
 
 /** One row of the `paths` block of a focused flow answer. */
 interface PathRow {
@@ -18,7 +18,7 @@ interface PathRow {
   median_lag: number | null;
   violation_share: number | null;
 }
-import type { Filter, FilterClause } from "@/lib/api/cycle2";
+import type { Filter, FilterClause } from "@/lib/api/filter-types";
 import { backlogFor, summaryFor } from "../db";
 import { applyFilter, clauseKeepShare, filterKeepShare } from "./cycle2";
 import { rng, round } from "./seed";

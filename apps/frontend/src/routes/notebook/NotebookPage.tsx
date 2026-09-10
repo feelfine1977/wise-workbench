@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Download, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWorkbench } from "@/app/context";
 import { notebookRoute } from "@/app/router";
-import { notebookExportUrl, notebookQuery, snapshotImageUrl, useDeleteSnapshot, useReorderSnapshots, useUpdateSnapshot, type Snapshot, type SnapshotContext } from "@/lib/api/cycle2";
+import { notebookExportUrl, notebookQuery, snapshotImageUrl, useDeleteSnapshot, useReorderSnapshots, useUpdateSnapshot, type Snapshot, type SnapshotContext } from "@/lib/api/notebook";
 import { BackControl } from "@/components/guide/BackControl";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";

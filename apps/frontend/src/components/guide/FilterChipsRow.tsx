@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
-import type { Filter, FilterPreview } from "@/lib/api/cycle2";
+import type { Filter } from "@/lib/api/filter-types";
+import type { FilterPreview } from "@/lib/api/exploration";
 import { changesCases, describeClause, removeClause } from "@/lib/filter";
 import { fmtInt } from "@/lib/format";
 import { cn } from "@/lib/utils";

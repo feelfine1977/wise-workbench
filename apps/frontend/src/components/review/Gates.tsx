@@ -10,7 +10,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { blockingGates, gatesQuery, isRunWide, notServed, reviewQuery, useCreateReviewItem, useDecideGate, type Gate, type ReviewItem } from "@/lib/api/cycle4";
+import { blockingGates, gatesQuery, isRunWide, reviewQuery, useCreateReviewItem, useDecideGate, type Gate, type ReviewItem } from "@/lib/api/review";
+import { notServed } from "@/lib/api/compatibility";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { GateBadge } from "@/components/badges";
 import { LoadingBlock } from "@/components/states";

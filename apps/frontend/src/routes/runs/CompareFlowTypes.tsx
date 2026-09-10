@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { Run } from "@wise/api-schema";
-import { compareFlowTypesQuery, flowTypeOf, type FlowTypeComparisonEntry } from "@/lib/api/cycle2";
+import { compareFlowTypesQuery, flowTypeOf, type FlowTypeComparisonEntry } from "@/lib/api/runs";
 import { KindBadge } from "@/components/badges";
 import { ErrorBlock, LoadingBlock } from "@/components/states";
 import { useVocabulary } from "@/components/Term";

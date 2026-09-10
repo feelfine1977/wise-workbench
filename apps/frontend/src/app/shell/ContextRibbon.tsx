@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/misc";
-import { flowTypeOf, notebookQuery } from "@/lib/api/cycle2";
+import { flowTypeOf } from "@/lib/api/runs";
+import { notebookQuery } from "@/lib/api/notebook";
 import { useMocks } from "@/lib/config";
 import { fmtDate, fmtInt, fmtNum } from "@/lib/format";
 import { projectsQuery } from "@/lib/queries";

@@ -1,14 +1,16 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, MoreHorizontal, X } from "lucide-react";
 import type { FlowGraph } from "@wise/api-schema";
-import { canonicalOverlays, defaultStyle, diff, diffStyle, filterPositions, palettes, type FlowGraph as LibraryGraph, type Overlay } from "@wise/flow";
+import { LABEL_PX, labelScreenPx, labelUnitsAt, mapScaleAt, smallLabelUnitsAt, canonicalOverlays, defaultStyle, diff, diffStyle, filterPositions, palettes, type FlowGraph as LibraryGraph, type Overlay } from "@wise/flow";
 import { ProcessMap, useStableLayout, type Selection } from "@wise/flow/react";
 import { getNodesBounds, useNodesInitialized, useReactFlow, useStore } from "@xyflow/react";
 import elkWorkerUrl from "elkjs/lib/elk-worker.min.js?url";
 import "@xyflow/react/dist/style.css";
 import "@wise/flow/tokens.css";
 import "@wise/flow/style.css";
-import type { Filter, FilterClause, FilterPreview, FlowPath } from "@/lib/api/cycle2";
+import type { Filter, FilterClause } from "@/lib/api/filter-types";
+import type { FilterPreview } from "@/lib/api/exploration";
+import type { FlowPath } from "@/lib/api/flow";
 import { FilterChipsRow } from "@/components/guide/FilterChipsRow";
 import { LoadingBlock } from "@/components/states";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { addClause, clauseForActivity, clauseForConstraint, clauseForStage, describeClause, mapActivities, toggleClause } from "@/lib/filter";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CELL_HEIGHT, CELL_WIDTH, DEFAULT_DETAIL, DETAIL, LABEL_PX, MIN_LABEL_CHARS, NODE_HEIGHT, NODE_WIDTH, abstractAt, activityCountAt, boundsOf, drawnNodeBox, fittedZoom, labelScreenPx, labelUnitsAt, drawingRoom, laneOvershootAt, mapScaleAt, readableMaxLevel, smallLabelUnitsAt, stretchToFrame, withRoom, withoutRoutes, type Box, type LaidOut } from "./frame";
+import { CELL_HEIGHT, CELL_WIDTH, DEFAULT_DETAIL, DETAIL, MIN_LABEL_CHARS, NODE_HEIGHT, NODE_WIDTH, abstractAt, activityCountAt, boundsOf, drawnNodeBox, fittedZoom, drawingRoom, laneOvershootAt, readableMaxLevel, stretchToFrame, withRoom, withoutRoutes, type Box, type LaidOut } from "./frame";
 
 const ModelView = lazy(() => import("./ModelView"));
 

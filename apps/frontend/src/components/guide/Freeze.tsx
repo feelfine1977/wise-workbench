@@ -1,7 +1,7 @@
 import { Camera } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useCreateSnapshot, type SnapshotContext } from "@/lib/api/cycle2";
+import { useCreateSnapshot, type SnapshotContext } from "@/lib/api/notebook";
 import { captureElement, screenElement } from "@/lib/capture";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";

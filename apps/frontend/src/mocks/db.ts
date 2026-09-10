@@ -1,5 +1,7 @@
 import type { BacklogRow, CaseTable, DatasetVersion, Job, NormVersion, Run, RunSummary, Table } from "@wise/api-schema";
-import type { Decision, Notebook, RunC2, RunScope, Snapshot } from "@/lib/api/cycle2";
+import type { Decision } from "@/lib/api/readiness";
+import type { Notebook, Snapshot } from "@/lib/api/notebook";
+import type { RunWithScope as RunC2, RunScope } from "@/lib/api/runs";
 import { VERIFIED_CASE_NOUN, VERIFIED_WINDOW_END } from "./fixtures/verified";
 import { buildBacklog, globalMeans } from "./fixtures/backlog";
 import { activities, bpic19Columns, caseTableAttributes, caseTables as caseTableFixtures, datasets as datasetFixtures, readinessWarn } from "./fixtures/datasets";

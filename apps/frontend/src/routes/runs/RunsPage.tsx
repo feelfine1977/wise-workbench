@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery as useFlowTypesQuery } from "@tanstack/react-query";
-import { flowTypeOf, flowTypesQuery, scopeOf, useCreateScopedRun, type RunCreateC2, type SlicingSpecC2 } from "@/lib/api/cycle2";
+import { flowTypeOf, flowTypesQuery, scopeOf, useCreateScopedRun, type RunCreate as RunCreateC2 } from "@/lib/api/runs";
+import type { SlicingSpec as SlicingSpecC2 } from "@/lib/api/exploration";
 import { useWorkbench } from "@/app/context";
 import { useTrackJob } from "@/app/shell/JobTray";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
@@ -18,7 +19,7 @@ import { Field } from "@/components/ui/label";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtDateTime, fmtNum } from "@/lib/format";
-import { runsQuery } from "@/lib/queries";
+import { runsQuery } from "@/lib/api/runs";
 
 export const runStatusVariant = { queued: "info", running: "accent", done: "success", failed: "danger", cancelled: "warning" } as const;
 export const runStatusGlyph = { queued: "○", running: "◐", done: "●", failed: "✕", cancelled: "⊘" } as const;

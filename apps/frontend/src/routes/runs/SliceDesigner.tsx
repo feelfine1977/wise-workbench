@@ -1,6 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { slicingPreviewQuery, type BandSpec, type SlicingSpecC2 } from "@/lib/api/cycle2";
+import { slicingPreviewQuery, type BandSpec, type SlicingSpec as SlicingSpecC2 } from "@/lib/api/exploration";
 import { fmtInt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

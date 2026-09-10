@@ -11,7 +11,10 @@
  * marked so in `params.illustrative`.
  */
 import type { BacklogRow, Distribution, FlowGraph, Readiness, RunSummary, SliceDetail } from "@wise/api-schema";
-import type { AnalyticsStatus, BacklogParamsC2, DecisionKind, FlowTypeComparison, FlowTypes } from "@/lib/api/cycle2";
+import type { AnalyticsStatus } from "@/lib/api/analytics";
+import type { BacklogParams as BacklogParamsC2 } from "@/lib/api/exploration";
+import type { DecisionKind } from "@/lib/api/readiness";
+import type { FlowTypeComparison, FlowTypes } from "@/lib/api/runs";
 import analyticsJson from "./verified/analytics.json";
 import backlogJson from "./verified/backlog.json";
 import caseTableJson from "./verified/casetable.json";

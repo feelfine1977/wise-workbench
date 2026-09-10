@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { HubTarget } from "@/lib/api/cycle4";
+import type { HubTarget } from "@/lib/api/knowledge";
 
 interface HubState {
   /** The node the side panel is showing, or nothing. */

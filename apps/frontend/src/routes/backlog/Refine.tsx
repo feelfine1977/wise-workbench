@@ -1,6 +1,7 @@
 import { SlidersHorizontal, X } from "lucide-react";
 import { forwardRef, useCallback, useRef, useState, type ReactNode } from "react";
-import type { Filter, FilterPreview, Within } from "@/lib/api/cycle2";
+import type { Filter } from "@/lib/api/filter-types";
+import type { FilterPreview, Within } from "@/lib/api/exploration";
 import { BACKLOG_DEFAULTS, type BacklogSearch } from "@/app/search";
 import { useVocabulary } from "@/components/Term";
 import { Button } from "@/components/ui/button";

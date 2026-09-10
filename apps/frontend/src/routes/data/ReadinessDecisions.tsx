@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Readiness, ReadinessItem } from "@wise/api-schema";
 import { useTrackJob } from "@/app/shell/JobTray";
-import { decisionKindsQuery, decisionsQuery, useApplyDecision, usePreviewDecision, type Decision, type DecisionKind, type DecisionPreviewNumbers, type DecisionPreviewOut } from "@/lib/api/cycle2";
+import { decisionKindsQuery, decisionsQuery, useApplyDecision, usePreviewDecision, type Decision, type DecisionKind, type DecisionPreviewNumbers, type DecisionPreviewOut } from "@/lib/api/readiness";
 import { GateBadge } from "@/components/badges";
 import { ErrorBlock } from "@/components/states";
 import { Button } from "@/components/ui/button";

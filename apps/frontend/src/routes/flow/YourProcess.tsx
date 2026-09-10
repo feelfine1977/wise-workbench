@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useState } from "react";
 import type { Run } from "@wise/api-schema";
 import { useTrackJob } from "@/app/shell/JobTray";
-import { flowTypeOf, flowTypesQuery, useCreateScopedRun, type FlowType } from "@/lib/api/cycle2";
+import { flowTypeOf, flowTypesQuery, useCreateScopedRun, type FlowType } from "@/lib/api/runs";
 import { clauseForValue, filterHash, serializeFilter } from "@/lib/filter";
 import { groupingLabel } from "@/lib/sentences";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";

@@ -1,3 +1,5 @@
+import { LABEL_PX, labelUnitsAt, mapScaleAt, smallLabelUnitsAt } from "@wise/flow";
+
 /**
  * The geometry of the map's frame (`docs/panel/ui_design_cycle3_board.md` §3.2): the detail levels, which of
  * them a frame can draw with readable labels, the zoom a fit chooses, and the stretch that makes a wide
@@ -57,11 +59,6 @@ export function activityCountAt(graph: Scene, level: number): number {
   return activitiesAt(graph, level).length;
 }
 
-/** The label a node draws at zoom 1 (the flow library's `.wf-node` font size) and the smallest one worth offering. */
-export const LABEL_PX = 12;
-export const MIN_LABEL_PX = 11;
-/** The largest a name is drawn on the screen; above it the map reads as a poster, not as an instrument. */
-export const MAX_LABEL_PX = 14;
 /** Padding the fit leaves: 4 % of the width, 8 % of the height (§3.2). */
 const FIT_PAD_X = 0.96;
 const FIT_PAD_Y = 0.92;
@@ -204,58 +201,8 @@ const MAX_NODE_HEIGHT = 232;
 const LABEL_INSET = 40;
 /** Layout units one character of a name takes at a font size of one unit (Inter at its average width). */
 const CHAR_WIDTH = 0.52;
-/**
- * The largest a name is written in layout units — a zoom of 0.17, which no fitted map of a process a person
- * would read reaches. The counter-scale is otherwise not capped: the name's size on the screen is the
- * promise, and where the box cannot then hold eighteen characters of it the bar says so.
- */
-export const MAX_LABEL_UNITS = 64;
-/** The zoom below which the counter-scale can no longer reach eleven pixels. */
-export const MIN_READABLE_ZOOM = MIN_LABEL_PX / MAX_LABEL_UNITS;
 /** The characters of a name a level must be able to show before it counts as readable (R3-06). */
 export const MIN_LABEL_CHARS = 18;
-
-/**
- * The size, **in layout units**, at which an activity name is drawn so that it measures a constant number of
- * pixels on the screen (R3-06).
- *
- * The map is drawn inside a pane the flow library scales by the fitted zoom, so a name written at `s` layout
- * units measures `s × zoom` pixels on the screen. The same code therefore drew an 11.0 px name on the
- * extract's five-activity map (zoom 0.913) and a 4.7 px name on the purchase-to-pay log's eight-activity,
- * six-lane map (zoom 0.395): legibility depended on how many lanes the process had. Counter-scaling by the
- * inverse of the zoom removes that dependency — the name measures the same on the screen at every zoom,
- * never below 11 px and never above 14, whatever the width of the process.
- *
- * Nothing here reads the DOM and nothing it returns changes the layout, so the zoom cannot depend on the
- * label size and a refit can never be the cause of the next one.
- */
-export function labelUnitsAt(zoom: number, target = LABEL_PX): number {
-  if (!Number.isFinite(zoom) || zoom <= 0) return target;
-  const wanted = Math.min(MAX_LABEL_PX, Math.max(MIN_LABEL_PX, target));
-  // a map drawn larger than life keeps the library's own size: counter-scaling would only shrink the name
-  return Math.min(MAX_LABEL_UNITS, Math.max(target, wanted / zoom));
-}
-
-/**
- * The size, in layout units, of **every other text drawn on the canvas** — the stage header, the item count
- * under a name, the start and end markers, the path labels and both halves of a badge (P1-4).
- *
- * The counter-scale was written for the activity name and applied to it alone, so the six other classes went
- * on shrinking with the graph: 5.3 px for a stage header, 3.8 px for a badge, against the name's 12.0. They
- * are all secondary to the name, so they are drawn at the smallest readable size rather than at the name's:
- * eleven pixels on the screen, whatever the zoom, and never smaller than the library's own size on a map
- * drawn larger than life.
- */
-export function smallLabelUnitsAt(zoom: number): number {
-  if (!Number.isFinite(zoom) || zoom <= 0) return MIN_LABEL_PX;
-  return Math.min(MAX_LABEL_UNITS, Math.max(MIN_LABEL_PX, MIN_LABEL_PX / zoom));
-}
-
-/** How much larger than its own drawing a badge, a marker or a chip is drawn, so its counter-scaled text fits. */
-export const mapScaleAt = (zoom: number) => smallLabelUnitsAt(zoom) / MIN_LABEL_PX;
-
-/** What a name of `units` layout units measures on the screen at `zoom` — the number the acceptance reads. */
-export const labelScreenPx = (units: number, zoom: number) => units * zoom;
 
 /** Layout units left between two drawn boxes, so a path can still be seen to arrive at one. */
 const BOX_MARGIN = 16;

@@ -6,7 +6,12 @@
  * derived for the illustrative slicings is deterministic and labelled so in `params.illustrative`.
  */
 import type { BacklogRow, CaseTable, Readiness, SliceDetail, Table } from "@wise/api-schema";
-import type { BacklogParamsC2, Caveat, Decision, DecisionKind, DecisionPreviewNumbers, DecisionPreviewOut, Filter, FilterClause, FilterPreview, FlowTypeComparison, FlowTypes, GuidanceRef, SlicingPreview, Within } from "@/lib/api/cycle2";
+import type { BacklogParams as BacklogParamsC2, FilterPreview, SlicingPreview, Within } from "@/lib/api/exploration";
+import type { Caveat } from "@/lib/api/analytics";
+import type { Decision, DecisionKind, DecisionPreviewNumbers, DecisionPreviewOut } from "@/lib/api/readiness";
+import type { Filter, FilterClause } from "@/lib/api/filter-types";
+import type { FlowTypeComparison, FlowTypes } from "@/lib/api/runs";
+import type { GuidanceRef } from "@/lib/api/knowledge";
 import { clauseKey } from "@/lib/filter";
 import { bpic19Norm } from "./norm";
 import { rng, round } from "./seed";

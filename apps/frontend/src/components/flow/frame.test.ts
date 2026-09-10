@@ -1,11 +1,8 @@
+import { LABEL_PX, MIN_LABEL_PX, MAX_LABEL_PX, MAX_LABEL_UNITS, labelScreenPx, labelUnitsAt, mapScaleAt, smallLabelUnitsAt } from "@wise/flow";
 import { describe, expect, it } from "vitest";
 import {
   CELL_WIDTH,
   DETAIL,
-  LABEL_PX,
-  MAX_LABEL_PX,
-  MAX_LABEL_UNITS,
-  MIN_LABEL_PX,
   NODE_HEIGHT,
   NODE_WIDTH,
   abstractAt,
@@ -13,14 +10,10 @@ import {
   boundsOf,
   drawnNodeBox,
   fittedZoom,
-  labelScreenPx,
-  labelUnitsAt,
   drawingRoom,
   layersAt,
   laneNameHeightAt,
-  mapScaleAt,
   readableMaxLevel,
-  smallLabelUnitsAt,
   stretchToFrame,
   withRoom,
   withoutRoutes,

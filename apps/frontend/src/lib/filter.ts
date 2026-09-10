@@ -10,7 +10,7 @@
  * order in which they were added, because the chips read in that order (§2.2); everything that has to be
  * comparable between two people — the request, the hash, the cache key — goes through `canonicalFilter`.
  */
-import type { Filter, FilterClause } from "@/lib/api/cycle2";
+import type { Filter, FilterClause } from "@/lib/api/filter-types";
 import { fmtInt } from "@/lib/format";
 
 export const emptyFilter: Filter = { and: [] };
