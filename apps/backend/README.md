@@ -170,6 +170,19 @@ tests/
 CHECKPOINT.md     how to try CP-A1 … CP-A4, the service side of CP-B2, CP-1.1 … CP-1.6 and CP-2.1 … CP-2.8 by hand
 ```
 
+### Norm inspection boundary
+
+`adapters/engine/norms.py` owns the activity/attribute inventory, individual
+constraint previews and complete-norm checks. `EngineAdapter` retains the
+existing methods and owns log loading and caching; the inspector loads lazily
+so an invalid specification is still rejected before accessing its artefacts.
+Norm creation, approval and persistence remain in the application services.
+
+Norm request/response models live in `api/schema_models/norms.py`.
+`api/schemas.py` explicitly re-exports their existing names. Model fields,
+validation, descriptions and the generated OpenAPI document are unchanged.
+Other engine responsibilities and schemas have not been moved in this batch.
+
 ## Workspace
 
 ```
