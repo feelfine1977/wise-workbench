@@ -381,6 +381,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/norms/{normVersionId}/signals/{constraintId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Norm Signal Distribution
+         * @description Preview the selected norm version's rule, derived attributes and applicability on the explicit mapped table. No run is required or created. Native threshold shares use finite observed signals; casesInScope and stats.nCases include applicable cases with missing signals. stats.n counts finite observations.
+         */
+        get: operations["getNormSignalDistribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/norms": {
         parameters: {
             query?: never;
@@ -3665,6 +3685,71 @@ export interface components {
             /** Casetableid */
             caseTableId: string;
         };
+        /**
+         * NormSignalDistribution
+         * @description Selected-version native signals on an explicit mapped table; no scoring run is created.
+         */
+        NormSignalDistribution: {
+            /** Unit */
+            unit?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Constraintid */
+            constraintId: string;
+            /** Type */
+            type?: string | null;
+            /** Direction */
+            direction?: string | null;
+            /**
+             * Bins
+             * @description bins over the robust range
+             */
+            bins?: components["schemas"]["DistributionBin"][];
+            /** @description values beyond the robust range */
+            beyond?: components["schemas"]["DistributionBeyond"] | null;
+            below?: components["schemas"]["DistributionBeyond"] | null;
+            /** Ecdf */
+            ecdf?: number[][];
+            /** Threshold */
+            threshold?: number | null;
+            /** Width */
+            width?: number | null;
+            /**
+             * Saturation
+             * @description δ + W
+             */
+            saturation?: number | null;
+            /**
+             * Scale
+             * @default linear
+             * @enum {string}
+             */
+            scale?: "linear" | "log";
+            /** Markers */
+            markers?: components["schemas"]["DistributionMarker"][];
+            /** Stats */
+            stats?: {
+                [key: string]: unknown;
+            };
+            /** Slice */
+            slice?: {
+                [key: string]: unknown;
+            } | null;
+            /** Casesinscope */
+            casesInScope?: number | null;
+            /** Windowend */
+            windowEnd?: string | null;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note?: string | null;
+            /** Normversionid */
+            normVersionId: string;
+            /** Casetableid */
+            caseTableId: string;
+        };
         /** NormStatusUpdate */
         NormStatusUpdate: {
             /**
@@ -5420,6 +5505,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getNormSignalDistribution: {
+        parameters: {
+            query: {
+                /** @description the mapped case table to preview */
+                caseTableId: string;
+                /** @description bin scale of the histogram */
+                scale?: "linear" | "log";
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                normVersionId: string;
+                constraintId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NormSignalDistribution"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

@@ -144,6 +144,7 @@ const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/gates/{gateId}": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/what-can-we-do": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/norms/inventory": "?caseTableId=ct_1",
+  "/projects/{projectId}/norms/{normVersionId}/signals/{constraintId}": "?caseTableId=ct_1",
   "/projects/{projectId}/norms/applicability": "?caseTableId=ct_1",
   "/projects/{projectId}/runs/{runId}/facets": `?by=flow_type&view=Automation`,
   "/projects/{projectId}/runs/{runId}/kpis": `?view=Automation&grouping=${encodeURIComponent("case Company+case Spend area text")}`,

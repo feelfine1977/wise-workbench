@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import wise
 
@@ -18,6 +19,7 @@ from wise_workbench.domain import ColumnMapping, NotFoundError, ValidationError
 
 from . import compat, sentences
 from .logs import activity_inventory
+from .signals import distribution, raw_signal
 
 
 def _constraint_from_dict(spec: dict[str, Any]) -> wise.NormConstraint:
@@ -48,6 +50,29 @@ class NormInspector:
     def __init__(self, load_log: Callable[[], wise.EventLog], mapping: ColumnMapping):
         self._load_log = load_log
         self._mapping = mapping
+
+    def signals(self, document: dict[str, Any], constraint_id: str, *, scale: str = "linear") -> dict[str, Any]:
+        """Preview one selected rule. The caller supplies a fresh log for local derivations."""
+        norm = _norm_from(document)
+        try:
+            nc = norm.get_constraint(constraint_id)
+        except wise.NormError as exc:
+            raise NotFoundError(str(exc), code="constraint.not_found") from exc
+        log = self._load_log()
+        try:
+            if norm.derived_attributes:
+                log.derive(norm.derived_attributes, overwrite=False)
+            mask = nc.applies_to(log.cases, log)
+            violations = wise.evaluate_constraint(log, nc)
+            values, meta = raw_signal(log, nc)
+        except (wise.NormError, wise.LogSchemaError) as exc:
+            raise ValidationError(str(exc), code="norm.signal_unavailable") from exc
+        # Native threshold shares describe finite observations; missing signals
+        # remain part of the applicable population, not zero-valued observations.
+        values = values.where(np.isfinite(values))
+        out = distribution(values[mask], violations, meta, scale=scale)
+        out["casesInScope"] = int(mask.sum())
+        return out
 
     def inventory(
         self,

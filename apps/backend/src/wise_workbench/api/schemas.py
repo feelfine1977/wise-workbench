@@ -669,6 +669,14 @@ class Distribution(BaseModel):
     note: str | None = None
 
 
+class NormSignalDistribution(Distribution):
+    """Selected-version native signals on an explicit mapped table; no scoring run is created."""
+
+    normVersionId: str
+    caseTableId: str
+    constraintId: str
+
+
 class FlowNode(BaseModel):
     id: str
     kind: Literal["activity", "stage", "gateway", "event", "note"]

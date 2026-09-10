@@ -346,16 +346,20 @@ sentence patterns by type:
 | metric | *attribute at most 5 (width 5)* — a case attribute compared with a threshold |
 | balance | *x vs y within 0.1* |
 
-The **Calibration lens** on the right shows, for the selected expectation and
-the latest finished run, the distribution of the raw signal in the data
-(histogram and cumulative curve, binned on the observation window with one
-bin for everything beyond it) with **ϑ threshold** and **W width** as inputs
-and sliders; the line under the chart says what share of cases lies beyond
-ϑ (*97 % beyond 30 days* for invoice clearing). Moving them is exploration.
-The commit button opens **Commit threshold as a new version** — "A
-threshold is a human decision, so a one-line reason is required." — with a
-**note \*** field and **Create version**. Arriving from a Why screen, the
-header reads **Back to Why?**.
+The **Calibration lens** on the right previews the selected **norm version**
+and expectation against the selected mapped data. It does not need a finished
+run. Changing the version reloads its rule, derived attributes, applicability,
+threshold and distribution together. Existing scored runs keep their original
+norm and numbers; start a new run to use a changed norm in Signals or the Board.
+
+**ϑ threshold** is the expected limit and **W width** is additional tolerance.
+For a lag target of 12 days with width 20, the tolerance band ends at 32 days.
+The saved threshold's percentage uses exact counts of items with an observed
+value. Missing signals are not treated as zero days. While moving the sliders,
+**About** marks an estimate from the displayed distribution. **Commit as
+version…** opens **Set this threshold**, which requires a reason and owner.
+Saving reloads the distribution for the new version. Arriving from Why, the
+header keeps **Back to Why?**.
 
 **JSON** shows the document as the library reads it:
 
@@ -898,15 +902,22 @@ was scored against, and the sign controls beside it.
 
 **Opening a version** lists the expectations by area, each as the sentence
 it means — *Clear Invoice follows Record Invoice Receipt or Vendor creates
-invoice within 30 days, tolerated to 60* — with *⚠ a threshold to calibrate*
+invoice within 30 days, with 60 days of tolerance* — with *⚠ a threshold to calibrate*
 on the ones whose number is still the template's, and the line *7 expectation
 areas · 29 expectations · 4 perspectives · 10 still to calibrate on this
 log*. Selecting one opens it on the right in three panes: **the numbers**,
 **the rule**, **who it applies to**.
 
-**The numbers** is the calibration lens: the distribution of the log's own
-values with the threshold and its tolerance drawn on it, and what each
-candidate would make missing.
+**The numbers** previews this saved version on the selected data. Its threshold,
+tolerance band and exact saved percentage reload together. The source line
+identifies the version and makes clear that existing run results are unchanged.
+
+**Rename norm**, beside the heading, saves the norm's new name as a new
+version. To rename one expectation, open **the rule** and edit **Expectation
+name**. Names are authored labels: changing a threshold does not rewrite numbers
+embedded in a name, so update that label if it mentions the old target. A
+name-only edit preserves rules and calibration decisions; it does not resolve
+a pending calibration. Previous versions keep their original names.
 
 **The rule** is built from pickers that carry the log's own counts, so a
 rule is written on what the log has rather than on what it might have: 42
@@ -940,7 +951,10 @@ For **Not applicable to this log**, also fill in *why (required)*. This is a
 scope decision: a rule that everyone meets can still be a valid expectation.
 After saving, **Version notes** lists the excluded expectation, its reason,
 decision author and date; the original rule remains in the version's metadata.
-If saving is refused, the form displays the error and retains the edits.
+If a required field is empty, pressing **Save as the next version** highlights
+it, shows advice beside it and focuses the first missing field. Correcting it
+clears its highlight. This also applies to names and the signing dialog. If the
+server refuses a save, the form displays the refusal and retains the edits.
 
 **Signing a version.** **Mark reviewed** and **Approve this version** sit
 beside the status, and each asks for the person who signs. Every actual

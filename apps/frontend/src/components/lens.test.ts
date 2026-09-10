@@ -37,3 +37,24 @@ describe("distribution lens statistics", () => {
     expect(b).toBeLessThan(a);
   });
 });
+
+
+it("uses exact saved shares over finite observations, not a compressed curve or only visible bins", () => {
+  const dist: Distribution = { ...uniform, threshold: 12, width: 20, stats: { n: 4, shareBeyondThreshold: 0.25, shareBeyondSaturation: 0, ecdfAtThreshold: 0.75 }, bins: [{ x0: 0, x1: 10, n: 3 }], beyond: { n: 1, x0: 10, x1: 25, share: 0.25 }, ecdf: [[5, 0], [25, 1]] };
+  const saved = lensStats(dist, 12, 20);
+  expect(saved.n).toBe(4);
+  expect(saved.shareViolating).toBe(0.25);
+  expect(saved.shareFull).toBe(0);
+  expect(saved.shareIsExact).toBe(true);
+  expect(saved.cdfAtThreshold).toBe(0.75);
+  const exploring = lensStats(dist, 13, 20);
+  expect(exploring.shareIsExact).toBe(false);
+  expect(exploring.shareViolating).not.toBe(saved.shareViolating);
+});
+
+it("keeps strict low-direction saved counts exact even for tied observations", () => {
+  const dist: Distribution = { threshold: 10, width: 2, direction: "low", bins: [{ x0: 9, x1: 11, n: 3 }], ecdf: [[10, 0], [10, 1]], stats: { n: 3, shareBeyondThreshold: 0, shareBeyondSaturation: 0 } };
+  expect(lensStats(dist, 10, 2, "low").shareViolating).toBe(0);
+  expect(lensStats(dist, 10, 2, "high").shareIsExact).toBe(false);
+  expect(lensStats(dist, 10, 3, "low").fullShareIsExact).toBe(false);
+});

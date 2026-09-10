@@ -130,6 +130,15 @@ class Engine(Protocol):
         provenance: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
     def check_norm(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]: ...
+    def norm_signals(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        document: dict[str, Any],
+        constraint_id: str,
+        *,
+        scale: str = "linear",
+    ) -> dict[str, Any]: ...
     def score_run(
         self,
         run: Run,

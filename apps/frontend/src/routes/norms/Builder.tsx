@@ -58,7 +58,7 @@ export function ruleSentence(c: Constraint): string {
     case "precedence":
       return `${list(p.a)} comes before ${list(p.b)}`;
     case "lag":
-      return `${list(p.b)} follows ${list(p.a)} within ${String(p.delta)} ${unitWord(String(p.unit ?? "D"))}, tolerated to ${String(p.width)}`;
+      return `${list(p.b)} follows ${list(p.a)} within ${String(p.delta)} ${unitWord(String(p.unit ?? "D"))}, with ${String(p.width)} ${unitWord(String(p.unit ?? "D"))} of tolerance`;
     case "singularity":
       return `${list(p.activity)} happens at most ${String(p.k)} time${Number(p.k ?? 1) === 1 ? "" : "s"}, tolerated to ${String(p.K)}`;
     case "metric":
@@ -198,10 +198,11 @@ export interface RuleEditorProps {
   constraint: Constraint;
   caseNoun: string;
   onChange: (next: Constraint) => void;
+  nameInvalid?: boolean;
 }
 
 /** The parameters of one expectation, with every activity and attribute picked from the log itself. */
-export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onChange }: RuleEditorProps) {
+export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onChange, nameInvalid = false }: RuleEditorProps) {
   const inventory = useQuery(inventoryQuery(projectId, caseTableId));
   const data = inventory.data as Inventory | undefined;
   const activities = (data?.activities ?? []) as ActivityInventory[];
@@ -225,6 +226,10 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
 
   return (
     <div className="flex flex-col gap-3" data-testid="rule-editor">
+      <Field label="Expectation name" htmlFor="rule-name">
+        <Input id="rule-name" required aria-required="true" value={constraint.plain_name ?? constraint.description ?? constraint.id} onChange={e => { const next = { ...constraint, description: e.target.value }; delete next.plain_name; onChange(next); }} aria-invalid={nameInvalid || undefined} aria-describedby={nameInvalid ? "rule-name-error" : undefined} className={nameInvalid ? "border-danger ring-1 ring-danger" : undefined} />
+        {nameInvalid && <p id="rule-name-error" className="text-xs text-danger">Enter a name for this expectation.</p>}
+      </Field>
       <p className="text-xs text-text-subtle">
         Every activity and value below is one this log actually has, with how many {noun} carry it: {fmtInt(activities.length)} activities, {fmtInt(attributes.length)} values.
       </p>
@@ -251,7 +256,7 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
               ))}
             </select>
           </Field>
-          <Field label="tolerated to" htmlFor="rule-width">
+          <Field label="tolerance width" htmlFor="rule-width">
             <Input id="rule-width" type="number" className="w-24" value={String(p.width ?? "")} onChange={(e) => set({ width: Number(e.target.value) })} />
           </Field>
         </div>
@@ -285,6 +290,7 @@ export interface ApplicabilityEditorProps {
   constraint: Constraint;
   exclusion: ExclusionDraft;
   onExclusionChange: (next: ExclusionDraft) => void;
+  noteInvalid?: boolean;
   flowTypes: { name: string; cases?: number }[];
   attributes: AttributeInventory[];
   caseNoun: string;
@@ -295,7 +301,7 @@ export interface ApplicabilityEditorProps {
  * Which items an expectation is meant for, with a separate documented decision to exclude an expectation
  * that is outside the agreed scope or cannot be judged from this log.
  */
-export function ApplicabilityEditor({ constraint, exclusion, onExclusionChange, flowTypes, attributes, caseNoun, onChange }: ApplicabilityEditorProps) {
+export function ApplicabilityEditor({ constraint, exclusion, onExclusionChange, flowTypes, attributes, caseNoun, onChange, noteInvalid = false }: ApplicabilityEditorProps) {
   const a = (constraint.applicability ?? {}) as { flow_types?: string[]; attribute?: string; values?: string[] };
   const set = (patch: Record<string, unknown>) => onChange({ ...constraint, applicability: { ...(constraint.applicability ?? {}), ...patch } });
   const chosen = attributes.find((x) => x.name === a.attribute);
@@ -310,7 +316,8 @@ export function ApplicabilityEditor({ constraint, exclusion, onExclusionChange, 
       </label>
       {exclusion.excluded && (
         <Field label="why (required)" htmlFor="applicability-note">
-          <Textarea id="applicability-note" required aria-required="true" value={exclusion.note} onChange={(e) => onExclusionChange({ ...exclusion, note: e.target.value })} placeholder="This extract has no return and no invoice events, so the rule is never evaluated." />
+          <Textarea id="applicability-note" required aria-required="true" value={exclusion.note} onChange={(e) => onExclusionChange({ ...exclusion, note: e.target.value })} placeholder="This extract has no return and no invoice events, so the rule is never evaluated." aria-invalid={noteInvalid || undefined} aria-describedby={noteInvalid ? "applicability-note-error" : undefined} className={noteInvalid ? "border-danger ring-1 ring-danger" : undefined} />
+          {noteInvalid && <p id="applicability-note-error" className="text-xs text-danger">Explain why this expectation cannot be judged from this log.</p>}
         </Field>
       )}
       {!exclusion.excluded && (
@@ -373,14 +380,18 @@ export interface CommitFields {
 }
 
 /** A threshold is a human decision: it does not leave the lens without a reason and a name behind it. */
-export function CommitFieldsForm({ value, onChange, threshold = false }: { value: CommitFields; onChange: (next: CommitFields) => void; threshold?: boolean }) {
+export function CommitFieldsForm({ value, onChange, threshold = false, attempted = false, prefix = "commit" }: { value: CommitFields; onChange: (next: CommitFields) => void; threshold?: boolean; attempted?: boolean; prefix?: string }) {
+  const reasonInvalid = attempted && !value.rationale.trim();
+  const ownerInvalid = attempted && !value.owner.trim();
   return (
     <>
-      <Field label={`${threshold ? "why this threshold" : "why this change"} (required)`} htmlFor="commit-rationale">
-        <Textarea id="commit-rationale" required aria-required="true" value={value.rationale} onChange={(e) => onChange({ ...value, rationale: e.target.value })} placeholder="What the distribution shows and what was agreed." autoFocus />
+      <Field label={`${threshold ? "why this threshold" : "why this change"} (required)`} htmlFor={`${prefix}-rationale`}>
+        <Textarea id={`${prefix}-rationale`} required aria-required="true" value={value.rationale} onChange={(e) => onChange({ ...value, rationale: e.target.value })} placeholder="What was agreed and why." autoFocus aria-invalid={reasonInvalid || undefined} aria-describedby={reasonInvalid ? `${prefix}-rationale-error` : undefined} className={reasonInvalid ? "border-danger ring-1 ring-danger" : undefined} />
+        {reasonInvalid && <p id={`${prefix}-rationale-error`} className="text-xs text-danger">Explain why you are making this change.</p>}
       </Field>
-      <Field label="who owns it (required)" htmlFor="commit-owner">
-        <Input id="commit-owner" required aria-required="true" value={value.owner} onChange={(e) => onChange({ ...value, owner: e.target.value })} placeholder="A name or a role — the person who answers for this number" />
+      <Field label="who owns it (required)" htmlFor={`${prefix}-owner`}>
+        <Input id={`${prefix}-owner`} required aria-required="true" value={value.owner} onChange={(e) => onChange({ ...value, owner: e.target.value })} placeholder="A name or a role — who owns this decision" aria-invalid={ownerInvalid || undefined} aria-describedby={ownerInvalid ? `${prefix}-owner-error` : undefined} className={ownerInvalid ? "border-danger ring-1 ring-danger" : undefined} />
+        {ownerInvalid && <p id={`${prefix}-owner-error`} className="text-xs text-danger">Enter the name or role that owns this decision.</p>}
       </Field>
     </>
   );
@@ -397,6 +408,7 @@ export function NewConstraintButton({ layers, onCreate }: { layers: { id: string
   const [type, setType] = useState("lag");
   const [layer, setLayer] = useState(layers[0]?.id ?? "");
   const [name, setName] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const canAdd = name.trim().length > 0 && layer.length > 0;
   if (!open) {
     return (
@@ -409,17 +421,21 @@ export function NewConstraintButton({ layers, onCreate }: { layers: { id: string
     <form
       className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3"
       data-testid="new-expectation"
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        if (!canAdd) return;
+        setAttempted(true);
+        if (!canAdd) { document.getElementById(!name.trim() ? "new-name" : "new-layer")?.focus(); return; }
         const id = `c_own_${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)}`;
-        onCreate({ id, layer, type, params: type === "lag" ? { a: [], b: [], delta: 1, width: 3, unit: "D" } : {}, weight: 1, plain_name: name.trim(), description: name.trim() });
+        onCreate({ id, layer, type, params: type === "lag" ? { a: [], b: [], delta: 1, width: 3, unit: "D" } : {}, weight: 1, description: name.trim() });
         setOpen(false);
+        setAttempted(false);
         setName("");
       }}
     >
       <Field label="what it is called" htmlFor="new-name">
-        <Input id="new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shipped within the target time" />
+        <Input id="new-name" required aria-required="true" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shipped within the target time" aria-invalid={attempted && !name.trim() || undefined} aria-describedby={attempted && !name.trim() ? "new-name-error" : undefined} className={attempted && !name.trim() ? "border-danger ring-1 ring-danger" : undefined} />
+        {attempted && !name.trim() && <p id="new-name-error" className="text-xs text-danger">Enter a name for the new expectation.</p>}
       </Field>
       <div className="flex flex-wrap gap-3">
         <Field label="what kind of rule" htmlFor="new-type">
@@ -433,17 +449,18 @@ export function NewConstraintButton({ layers, onCreate }: { layers: { id: string
           </select>
         </Field>
         <Field label="which area" htmlFor="new-layer">
-          <select id="new-layer" className="h-control rounded border border-border bg-surface px-2 text-sm" value={layer} onChange={(e) => setLayer(e.target.value)}>
+          <select id="new-layer" className="h-control rounded border border-border bg-surface px-2 text-sm" value={layer} onChange={(e) => setLayer(e.target.value)} aria-invalid={attempted && !layer || undefined} aria-describedby={attempted && !layer ? "new-layer-error" : undefined}>
             {layers.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
             ))}
           </select>
+          {attempted && !layer && <p id="new-layer-error" className="text-xs text-danger">Choose an expectation area.</p>}
         </Field>
       </div>
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!canAdd}>
+        <Button type="submit" size="sm">
           Add it
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>

@@ -313,6 +313,25 @@ class NormService:
                 out.append(lid)
         return out
 
+    def signals(
+        self,
+        project_id: str,
+        norm_version_id: str,
+        case_table_id: str,
+        constraint_id: str,
+        *,
+        scale: str = "linear",
+    ) -> dict[str, Any]:
+        n = self.get(project_id, norm_version_id)
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        if table.status != CaseTableStatus.READY:
+            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        out = self.c.engine.norm_signals(
+            self.c.workspace.case_table_dir(project_id, case_table_id), mapping, n.document, constraint_id, scale=scale
+        )
+        return {**out, "normVersionId": n.id, "caseTableId": table.id}
+
     def check(self, project_id: str, norm_version_id: str, case_table_id: str) -> dict[str, Any]:
         n = self.get(project_id, norm_version_id)
         table = self.c.mappings.get_case_table(project_id, case_table_id)

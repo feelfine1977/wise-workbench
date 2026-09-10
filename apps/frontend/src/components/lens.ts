@@ -4,6 +4,8 @@ export type Direction = "high" | "low";
 
 export interface LensStats {
   n: number;
+  shareIsExact: boolean;
+  fullShareIsExact: boolean;
   /** Share of cases beyond the threshold (partial or full violation). */
   shareViolating: number;
   /** Share of cases beyond threshold + width (full violation). */
@@ -41,10 +43,11 @@ export function violation(x: number, threshold: number, width: number, direction
   return Math.min(1, Math.max(0, d / w));
 }
 
-/** Live statistics for the distribution lens; bins are used for the mean, the ECDF for shares. */
+/** Saved shares use exact observed counts when available; exploratory shares and the bin mean are estimates. */
 export function lensStats(dist: Distribution, threshold: number, width: number, direction: Direction = "high"): LensStats {
   const bins = dist.bins ?? [];
-  const n = bins.reduce((s, b) => s + (b.n ?? 0), 0);
+  const recordedN = dist.stats?.n;
+  const n = typeof recordedN === "number" ? recordedN : bins.reduce((s, b) => s + (b.n ?? 0), 0) + (dist.beyond?.n ?? 0) + (dist.below?.n ?? 0);
   let weighted = 0;
   for (const b of bins) {
     const mid = ((b.x0 ?? 0) + (b.x1 ?? 0)) / 2;
@@ -52,13 +55,22 @@ export function lensStats(dist: Distribution, threshold: number, width: number, 
   }
   const F = ecdfAt(dist.ecdf, threshold);
   const Ffull = ecdfAt(dist.ecdf, direction === "high" ? threshold + width : threshold - width);
-  const shareViolating = direction === "high" ? 1 - F : F;
-  const shareFull = direction === "high" ? 1 - Ffull : Ffull;
+  // The compressed ECDF is an approximation. At the saved threshold use
+  // the backend's direct count of finite observations, including overflow.
+  const sameThreshold = threshold === dist.threshold && direction === (dist.direction ?? "high");
+  const recordedShare = dist.stats?.shareBeyondThreshold;
+  const recordedFull = dist.stats?.shareBeyondSaturation;
+  const shareIsExact = sameThreshold && typeof recordedShare === "number" && Number.isFinite(recordedShare);
+  const fullShareIsExact = sameThreshold && width === dist.width && typeof recordedFull === "number" && Number.isFinite(recordedFull);
+  const shareViolating = shareIsExact ? recordedShare : direction === "high" ? 1 - F : F;
+  const shareFull = fullShareIsExact ? recordedFull : direction === "high" ? 1 - Ffull : Ffull;
   return {
     n,
+    shareIsExact,
+    fullShareIsExact,
     shareViolating: Math.max(0, Math.min(1, shareViolating)),
     shareFull: Math.max(0, Math.min(1, shareFull)),
-    meanViolation: n > 0 ? weighted / n : 0,
-    cdfAtThreshold: F,
+    meanViolation: bins.reduce((s, b) => s + (b.n ?? 0), 0) > 0 ? weighted / bins.reduce((s, b) => s + (b.n ?? 0), 0) : 0,
+    cdfAtThreshold: sameThreshold && typeof dist.stats?.ecdfAtThreshold === "number" ? dist.stats.ecdfAtThreshold : F,
   };
 }

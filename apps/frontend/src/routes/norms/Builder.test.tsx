@@ -11,7 +11,7 @@ const lag: Constraint = { id: "c_x", layer: "L3", type: "lag", params: { a: ["Re
 
 describe("the norm in the reader's words", () => {
   it("says the rule and who it applies to in sentences, never as parameters", () => {
-    expect(ruleSentence(lag)).toBe("Clear Invoice follows Record Goods Receipt within 30 days, tolerated to 90");
+    expect(ruleSentence(lag)).toBe("Clear Invoice follows Record Goods Receipt within 30 days, with 90 days of tolerance");
     expect(applicabilitySentence(lag, "purchase order items")).toBe("Applies to every one of these purchase order items.");
     expect(applicabilitySentence({ ...lag, applicability: { flow_types: ["standard"] } }, "items")).toBe("Applies to standard flows.");
     expect(applicabilitySentence(lag, "items", { excluded: true, note: "this extract has no invoice events" })).toBe(
@@ -65,9 +65,14 @@ describe("the norm builder (R3-02, R3-O6)", () => {
 
     // a change does not leave the pane without a reason and an owner
     const save = screen.getByRole("button", { name: /Save as the next version/ });
-    expect(save).toBeDisabled();
+    expect(save).toBeEnabled();
+    await user.click(save);
+    expect(screen.getByLabelText(/why this change \(required\)/)).toHaveFocus();
+    expect(screen.getByLabelText(/why this change \(required\)/)).toHaveAttribute("aria-invalid", "true");
     await user.type(screen.getByLabelText(/why this change \(required\)/), "the rule cannot be evaluated here");
-    expect(save).toBeDisabled();
+    expect(screen.getByLabelText(/why this change \(required\)/)).not.toHaveAttribute("aria-invalid");
+    await user.click(save);
+    expect(screen.getByLabelText(/who owns it \(required\)/)).toHaveFocus();
     await user.type(screen.getByLabelText(/who owns it \(required\)/), "SD expert");
     expect(save).toBeEnabled();
   });
@@ -94,8 +99,11 @@ describe("signing a norm version (R3-02, P1-9)", () => {
     await user.click(sign[0] as HTMLElement);
     const dialog = await screen.findByTestId("sign-norm", {}, T);
     const save = within(dialog).getByRole("button", { name: /Mark reviewed/ });
-    // a version leaves draft under a name, so the control waits for one
-    expect(save).toBeDisabled();
+    // Attempting to sign explains the missing name and keeps the dialog open.
+    expect(save).toBeEnabled();
+    await user.click(save);
+    expect(within(dialog).getByLabelText(/Who signs it/)).toHaveFocus();
+    expect(within(dialog).getByLabelText(/Who signs it/)).toHaveAttribute("aria-invalid", "true");
     await user.type(within(dialog).getByLabelText(/Who signs it/), "U. Jessen, process owner");
     expect(save).toBeEnabled();
     await user.click(save);
@@ -103,4 +111,10 @@ describe("signing a norm version (R3-02, P1-9)", () => {
     // and the row says so
     expect((await screen.findAllByText(/reviewed/, {}, T)).length).toBeGreaterThan(0);
   });
+});
+
+it("describes lag tolerance as an offset and never as the saturation endpoint", () => {
+  const c = { ...lag, params: { ...lag.params, delta: 12, width: 20 } };
+  expect(ruleSentence(c)).toBe("Clear Invoice follows Record Goods Receipt within 12 days, with 20 days of tolerance");
+  expect(ruleSentence(c)).not.toContain("tolerated to 20");
 });

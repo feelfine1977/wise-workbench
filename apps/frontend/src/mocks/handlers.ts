@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from "msw";
-import type { BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
+import type { components, BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
 import type { DecisionRequest } from "@/lib/api/readiness";
 import type { Snapshot, SnapshotContext } from "@/lib/api/notebook";
 import type { Within } from "@/lib/api/exploration";
@@ -322,6 +322,23 @@ export const handlers = [
     };
     db.norms.push(created);
     return HttpResponse.json(created, { status: 201 });
+  }),
+  // Raw synthetic values stay fixed; thresholds come from the selected saved norm version.
+  http.get(`${API}/projects/:projectId/norms/:normVersionId/signals/:constraintId`, ({ params, request }) => {
+    const caseTableId = new URL(request.url).searchParams.get("caseTableId");
+    if (!caseTableId) return problem(422, "Select data", "A mapped case table is required.", "norm.case_table");
+    if (!db.caseTables.some(c => c.id === caseTableId)) return problem(404, "Not found", "Case table not found.", "norm.case_table");
+    const version = db.norms.find(n => n.id === params.normVersionId);
+    const constraints = (version?.norm as { constraints?: { id: string; type: string; params: Record<string, unknown> }[] } | undefined)?.constraints;
+    const constraint = constraints?.find(c => c.id === params.constraintId);
+    if (!version || !constraint) return problem(404, "Not found", "Expectation not found in this version.", "norm.constraint");
+    const distribution = buildDistribution(constraint.id);
+    const keys = ({ lag: ["delta", "width"], metric: ["threshold", "width"], singularity: ["k", "K"], balance: ["tau", "width"] } as Record<string, string[]>)[constraint.type];
+    const threshold = keys ? Number(constraint.params[keys[0]!]) : distribution.threshold;
+    const width = keys ? Number(constraint.params[keys[1]!]) : distribution.width;
+    // Do not present a seeded old-threshold share as an exact observation of this saved decision.
+    const stats = { ...distribution.stats }; delete stats.share_over_threshold;
+    return HttpResponse.json({ ...distribution, stats, threshold, width, constraintId: constraint.id, normVersionId: version.id, caseTableId } satisfies components["schemas"]["NormSignalDistribution"]);
   }),
   http.get(`${API}/projects/:projectId/norms/inventory`, async ({ request }) => {
     await delay(latency);

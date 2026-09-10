@@ -377,6 +377,29 @@ class EngineAdapter:
     def _norm_inspector(self, case_table_dir: Path, mapping: ColumnMapping) -> NormInspector:
         return NormInspector(lambda: self._load_log(case_table_dir, mapping), mapping)
 
+    def norm_signals(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        document: dict[str, Any],
+        constraint_id: str,
+        *,
+        scale: str = "linear",
+    ) -> dict[str, Any]:
+        def load_preview_log() -> wise.EventLog:
+            # A selected norm may redefine derived attributes. Rebuild from the
+            # mapped artefact without reading or modifying a cached run/log.
+            path = case_table_dir / "events.parquet"
+            if not path.exists():
+                raise NotFoundError(
+                    f"case table artefacts missing under {case_table_dir}", code="case_table.artefacts_missing"
+                )
+            log = build_log(read_frame(path), mapping, typed=True)
+            apply_mapping_recipes(log, mapping)
+            return log
+
+        return NormInspector(load_preview_log, mapping).signals(document, constraint_id, scale=scale)
+
     # ------------------------------------------------------------------ norm builder (R3-O6)
     def inventory(
         self,

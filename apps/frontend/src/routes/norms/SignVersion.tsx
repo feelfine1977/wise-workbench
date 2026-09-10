@@ -26,6 +26,8 @@ export const NEXT_STATUS = { draft: { status: "reviewed" as const, label: "Mark 
  */
 export function SignVersion({ projectId, version, onDone }: { projectId: string; version: { id: string; version: number; status: "draft" | "reviewed" | "approved"; note?: string; norm?: Record<string, unknown> }; onDone: () => void }) {
   const [author, setAuthor] = useState("");
+  const [attempted, setAttempted] = useState(false);
+  const authorInvalid = attempted && !author.trim();
   const sign = useSetNormStatus(projectId);
   const detail = normRefusal(sign.error, normConstraintNames(version.norm), "sign");
   const next = NEXT_STATUS[version.status as "draft" | "reviewed"];
@@ -42,7 +44,8 @@ export function SignVersion({ projectId, version, onDone }: { projectId: string;
           A version is a decision somebody answers for, so leaving a draft needs the name of the person who signs it. The reason this version gives is kept as it is: <em>{version.note || "no note"}</em>.
         </p>
         <Field label="Who signs it" htmlFor="norm-author">
-          <Input id="norm-author" required aria-required="true" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name" />
+          <Input id="norm-author" required aria-required="true" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name" aria-invalid={authorInvalid || undefined} aria-describedby={authorInvalid ? "norm-author-error" : undefined} className={authorInvalid ? "border-danger ring-1 ring-danger" : undefined} />
+          {authorInvalid && <p id="norm-author-error" className="text-xs text-danger">Enter your name to sign this version.</p>}
         </Field>
         {sign.isError && (
           <p role="alert" className="reading text-sm text-danger" data-testid="sign-error">
@@ -55,8 +58,12 @@ export function SignVersion({ projectId, version, onDone }: { projectId: string;
           </Button>
           <Button
             size="sm"
-            disabled={!author.trim() || sign.isPending}
-            onClick={() => sign.mutate({ normVersionId: version.id, status: next.status, author: author.trim() }, { onSuccess: onDone })}
+            disabled={sign.isPending}
+            onClick={() => {
+              setAttempted(true);
+              if (!author.trim()) { document.getElementById("norm-author")?.focus(); return; }
+              sign.mutate({ normVersionId: version.id, status: next.status, author: author.trim() }, { onSuccess: onDone });
+            }}
           >
             {sign.isPending ? "Saving…" : next.label}
           </Button>

@@ -17,7 +17,7 @@ For your own analysis, use `WISE_WORKSPACE="/path/to/my-workspace" tools/start.s
 ## Follow the analysis
 
 1. **Data:** state the business question, choose the case notion, map columns, inspect flow types and resolve material data caveats.
-2. **Norm:** review the expectations and applicability with the process owner. Save each changed expectation with its reason and owner, reload to inspect the saved decision, then mark it reviewed and approve it under the responsible person's name. A refusal keeps the inputs so it can be corrected.
+2. **Norm:** review the expectations and applicability with the process owner. Save each changed expectation with its reason and owner, reload to inspect the saved decision, then mark it reviewed and approve it under the responsible person's name. The numbers preview the selected norm version and data, even before a run. Use **Rename norm** for its name and **the rule → Expectation name** for an individual label. A missing required field is highlighted and focused; a refusal keeps the inputs so it can be corrected.
 3. **Run:** choose perspective, grouping, scope and minimum group size. Wait for scoring and analytics to finish.
 4. **Signals:** read a group's priority alongside its case count, confidence and caveats. Start with a plausible, well-supported group.
 5. **Flow / Board:** click an activity or context value, apply a filter and check the count and chips. **Model** draws a BPMN representation of the log; it is not a verified executable business model.

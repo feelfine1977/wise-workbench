@@ -204,3 +204,67 @@ def test_a_real_signature_needs_an_explicit_person(tmp_path: Path, status: str, 
         response = client.patch(f"{url}/{version['id']}", json={"status": status, "author": author})
         assert response.status_code == 422 and response.json()["code"] == "norm.author"
         assert client.get(f"{url}/{version['id']}").json() == version
+
+
+@pytest.mark.parametrize("rename", ["title", "description"])
+@pytest.mark.parametrize("calibrated", [True, False], ids=["justified", "pending"])
+def test_name_only_edits_preserve_decisions_after_restart(tmp_path: Path, rename: str, calibrated: bool) -> None:
+    settings = settings_for(tmp_path)
+    with TestClient(create_app(settings)) as client:
+        url, first = create_parent(client, "Original editor")
+        document, cid = changed_document(first)
+        payload: dict[str, Any] = {
+            "norm": document,
+            "parentId": first["id"],
+            "note": "Changed threshold",
+            "author": "Threshold editor",
+        }
+        if calibrated:
+            payload["calibration"] = {cid: {"rationale": "Agreed target for this population", "owner": "Process owner"}}
+        created = client.post(url, json=payload)
+        assert created.status_code == 201, created.text
+        parent = created.json()
+        parent_state = client.get(f"{url}/{parent['id']}/calibration").json()
+        document = deepcopy(parent["norm"])
+        if rename == "title":
+            document["name"] = "Renamed purchasing norm"
+        else:
+            next(c for c in document["constraints"] if c["id"] == cid)["description"] = "Renamed completion target"
+        # A naming edit supplies no calibration decision and changes no rule parameters.
+        response = client.post(
+            url,
+            json={"norm": document, "parentId": parent["id"], "note": "Naming only", "author": "Naming editor"},
+        )
+        assert response.status_code == 201, response.text
+        renamed = response.json()
+        assert renamed["norm"] == document
+        assert renamed["norm"]["metadata"] == parent["norm"]["metadata"]
+        assert renamed["parentId"] == parent["id"] and renamed["normId"] == parent["normId"]
+
+    with TestClient(create_app(settings)) as restarted:
+        saved = restarted.get(f"{url}/{renamed['id']}").json()
+        assert saved == renamed
+        if rename == "title":
+            assert saved["name"] == saved["norm"]["name"] == "Renamed purchasing norm"
+        else:
+            assert (
+                next(c for c in saved["norm"]["constraints"] if c["id"] == cid)["description"]
+                == "Renamed completion target"
+            )
+        state = restarted.get(f"{url}/{renamed['id']}/calibration").json()
+        assert state["canLeaveDraft"] is calibrated
+        row = next(r for r in state["thresholds"] if r["constraint_id"] == cid)
+        assert row["changedHere"] is False
+        signed = restarted.patch(f"{url}/{renamed['id']}", json={"status": "approved", "author": "Approver"})
+        if calibrated:
+            assert cid not in state["missingRationale"]
+            assert saved["norm"]["metadata"]["calibration"][cid] == parent["norm"]["metadata"]["calibration"][cid]
+            assert signed.status_code == 200, signed.text
+        else:
+            assert cid in saved["norm"]["metadata"]["calibration_pending"]
+            assert cid in state["missingRationale"]
+            assert signed.status_code == 422 and signed.json()["code"] == "norm.rationale_required"
+            assert restarted.get(f"{url}/{renamed['id']}").json() == renamed
+        assert restarted.get(f"{url}/{parent['id']}").json() == parent
+        assert restarted.get(f"{url}/{parent['id']}/calibration").json() == parent_state
+        assert restarted.get(f"{url}/{first['id']}").json() == first

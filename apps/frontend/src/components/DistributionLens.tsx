@@ -83,17 +83,18 @@ const total = (d: Distribution) => {
  * toggle; the statistics sit behind "more" with plain labels.
  */
 export function DistributionLens({ distribution, rest, title, constraintId, direction = "high", threshold, width, onChange, onCommit, className, height = 300, mode = "method", sliders = "always", sentences, groupName = "this group", unitLabel, noun = "cases" }: DistributionLensProps) {
-  const [inner, setInner] = useState({ threshold: distribution.threshold ?? 0, width: distribution.width ?? 1 });
+  const [inner, setInner] = useState({ source: distribution, threshold: distribution.threshold ?? 0, width: distribution.width ?? 1 });
+  const active = inner.source === distribution ? inner : { threshold: distribution.threshold ?? 0, width: distribution.width ?? 1 };
   const [cumulative, setCumulative] = useState(false);
-  const t = threshold ?? inner.threshold;
-  const w = width ?? inner.width;
+  const t = threshold ?? active.threshold;
+  const w = width ?? active.width;
   const set = useCallback(
     (next: { threshold: number; width: number }) => {
       const clean = { threshold: Number.isFinite(next.threshold) ? next.threshold : 0, width: Math.max(Number.isFinite(next.width) ? next.width : 0, 0) };
-      setInner(clean);
+      setInner({ source: distribution, ...clean });
       onChange?.(clean);
     },
-    [onChange],
+    [onChange, distribution],
   );
   const plain = mode === "plain";
   const showSliders = sliders === "always" || (sliders === "method" && !plain);
@@ -324,35 +325,36 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           <div className="reading flex flex-col gap-0.5 text-base text-text" data-testid="lens-sentences">
             {sentences ?? (
               <p aria-live="polite">
-                <strong className="tnum">{fmtPct(stats.shareViolating, 0)}</strong> of {groupName} are beyond the expected {fmtNum(t, t >= 10 ? 0 : 1)} {unitWord}
+                <strong className="tnum">{!stats.shareIsExact && "About "}{fmtPct(stats.shareViolating, 0)}</strong> of {groupName} with a value are {direction === "high" ? "beyond" : "below"} the expected {fmtNum(t, t >= 10 ? 0 : 1)} {unitWord}
                 {restBeyond !== undefined ? ` (everyone else: ${fmtPct(restBeyond, 0)})` : ""}.
               </p>
             )}
           </div>
         ) : (
           <p className="tnum text-xs text-text-muted" aria-live="polite">
-            {fmtInt(stats.n)} {noun} in scope · <strong className="text-text">{fmtPct(stats.shareViolating, 1)}</strong> beyond ϑ · {fmtPct(stats.shareFull, 1)} beyond ϑ{direction === "high" ? "+" : "−"}W · mean violation{" "}
+            {fmtInt(stats.n)} {noun} with a value · <strong className="text-text">{!stats.shareIsExact && "≈ "}{fmtPct(stats.shareViolating, 1)}</strong> {direction === "high" ? "beyond" : "below"} ϑ · {!stats.fullShareIsExact && "≈ "}{fmtPct(stats.shareFull, 1)} {direction === "high" ? "beyond" : "below"} ϑ{direction === "high" ? "+" : "−"}W · approximate mean violation within the shown bins{" "}
             <strong className="text-text">{fmtNum(stats.meanViolation, 3)}</strong>
             {restBeyond !== undefined ? ` · everyone else ${fmtPct(restBeyond, 1)} beyond ϑ` : ""}
             <Explain
               term="constraint"
               title="Violation under a soft threshold"
-              formula={`ν(x) = clip((x − ϑ) / W, 0, 1)   (direction ${direction})\nshare beyond ϑ = 1 − ECDF(ϑ)\nmean violation = Σ n_bin · ν(mid_bin) / n`}
+              formula={`ν(x) = clip((x − ϑ) / W, 0, 1)   (direction ${direction})\nshare beyond ϑ = 1 − ECDF(ϑ)\nmean violation = Σ n_bin · ν(mid_bin) / n_shown`}
               inputs={[
                 { label: "ϑ", value: `${fmtNum(t, 2)} ${unitWord}` },
                 { label: "W", value: `${fmtNum(w, 2)} ${unitWord}` },
                 { label: "ECDF(ϑ)", value: fmtPct(stats.cdfAtThreshold, 1) },
               ]}
-              caveats={["Bins approximate the mean violation; the ECDF gives the shares exactly.", "Committing a change creates a norm version with a note."]}
+              caveats={["The saved threshold uses exact observed counts when available. Exploration estimates shares from a compressed curve; bins approximate the mean violation.", "Committing a change creates a norm version with a note."]}
               className="ml-1 align-middle"
             />
           </p>
         )}
       </header>
+      {!stats.shareIsExact && <p className="text-xs text-text-muted">This percentage is estimated from the displayed distribution.{onCommit && " Save the threshold to calculate it for this norm version."}</p>}
       {sliders === "always" && controls}
       <EChart ref={chartRef} option={option} height={height} ariaLabel={`${title ?? "Distribution"} for ${groupName}${restShares ? " and everyone else" : ""}; expected ${fmtNum(t, 2)} ${unitWord}, tolerance ${fmtNum(w, 2)} ${unitWord}`} onReady={setInstance} notMerge={false} />
       <p className="text-xs text-text-subtle">
-        {groupName} against everyone else{restShares ? "" : " (the whole log)"}, {fmtInt(stats.n)} {noun} with a value
+        {groupName}{restShares ? " against everyone else" : ""}, {fmtInt(stats.n)} {noun} with a value
         {distribution.beyond?.share ? `; ${fmtPct(distribution.beyond.share, distribution.beyond.share < 0.01 ? 1 : 0)} of ${noun} beyond ${tick(xMax)} ${unitWord} are not drawn` : ""}.
       </p>
       <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">

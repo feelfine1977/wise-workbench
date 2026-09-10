@@ -751,6 +751,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/norms/{normVersionId}/signals/{constraintId}:
+    get:
+      tags:
+      - norms
+      summary: Get Norm Signal Distribution
+      description: Preview the selected norm version's rule, derived attributes and applicability on the explicit mapped table. No run is required or created. Native threshold shares use finite observed signals; casesInScope and stats.nCases include applicable cases with missing signals. stats.n counts finite observations.
+      operationId: getNormSignalDistribution
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      - name: constraintId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Constraintid
+      - name: caseTableId
+        in: query
+        required: true
+        schema:
+          type: string
+          description: the mapped case table to preview
+          title: Casetableid
+        description: the mapped case table to preview
+      - name: scale
+        in: query
+        required: false
+        schema:
+          enum:
+          - linear
+          - log
+          type: string
+          description: bin scale of the histogram
+          default: linear
+          title: Scale
+        description: bin scale of the histogram
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormSignalDistribution'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
   /projects/{projectId}/norms:
     get:
       tags:
@@ -7783,6 +7848,125 @@ components:
       required:
       - caseTableId
       title: NormCheckRequest
+    NormSignalDistribution:
+      properties:
+        unit:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unit
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        constraintId:
+          type: string
+          title: Constraintid
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        direction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Direction
+        bins:
+          items:
+            $ref: '#/components/schemas/DistributionBin'
+          type: array
+          title: Bins
+          description: bins over the robust range
+        beyond:
+          anyOf:
+          - $ref: '#/components/schemas/DistributionBeyond'
+          - type: 'null'
+          description: values beyond the robust range
+        below:
+          anyOf:
+          - $ref: '#/components/schemas/DistributionBeyond'
+          - type: 'null'
+        ecdf:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Ecdf
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+        width:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Width
+        saturation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Saturation
+          description: δ + W
+        scale:
+          type: string
+          enum:
+          - linear
+          - log
+          title: Scale
+          default: linear
+        markers:
+          items:
+            $ref: '#/components/schemas/DistributionMarker'
+          type: array
+          title: Markers
+        stats:
+          additionalProperties: true
+          type: object
+          title: Stats
+        slice:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Slice
+        casesInScope:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Casesinscope
+        windowEnd:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Windowend
+        filter:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Filter
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        normVersionId:
+          type: string
+          title: Normversionid
+        caseTableId:
+          type: string
+          title: Casetableid
+      type: object
+      required:
+      - constraintId
+      - normVersionId
+      - caseTableId
+      title: NormSignalDistribution
+      description: Selected-version native signals on an explicit mapped table; no scoring run is created.
     NormStatusUpdate:
       properties:
         status:

@@ -6,7 +6,7 @@ import { expect, expectTypeOf, it, vi } from "vitest";
 import type { components } from "@wise/api-schema";
 import { server } from "@/mocks/node";
 import { ApiError } from "@/lib/api";
-import { normCalibrationQuery, useCreateNormVersion, useSetNormStatus, type NormCalibration, type CalibrationEntry, type NotApplicableEntry, type NormVersionCreate } from "./norms";
+import { normCalibrationQuery, normSignalQuery, useCreateNormVersion, useSetNormStatus, type NormCalibration, type CalibrationEntry, type NotApplicableEntry, type NormVersionCreate } from "./norms";
 
 const wrapper = (client: QueryClient) => ({ children }: PropsWithChildren) => createElement(QueryClientProvider, { client }, children);
 it("uses generated decision DTOs and reads the version calibration under the norm invalidation prefix", async () => {
@@ -41,4 +41,19 @@ it("forwards calibration and exclusion fields unchanged and keeps signer PATCH s
 it("propagates a calibration read refusal for the UI to distinguish from empty saved decisions", async () => {
   server.use(http.get("*/projects/p/norms/v/calibration", () => HttpResponse.json({ detail: "Unavailable", status: 503 }, { status: 503 })));
   await expect(new QueryClient().fetchQuery(normCalibrationQuery("p", "v"))).rejects.toBeInstanceOf(ApiError);
+});
+
+it("keys norm signal previews by the exact version, case table and constraint without previous-data placeholders", async () => {
+  const urls: URL[] = [];
+  server.use(http.get("*/projects/:projectId/norms/:version/signals/:constraint", ({ request, params }) => {
+    const url = new URL(request.url); urls.push(url);
+    return HttpResponse.json({ bins: [], constraintId: String(params.constraint), normVersionId: String(params.version), caseTableId: url.searchParams.get("caseTableId")! } satisfies components["schemas"]["NormSignalDistribution"]);
+  }));
+  const query = normSignalQuery("p /", "version /", "table /", "c /");
+  expect(query.queryKey).toEqual(["projects", "p /", "norms", "version /", "signals", "table /", "c /"]);
+  expect(query).not.toHaveProperty("placeholderData"); expect(query.retry).toBe(false);
+  expect(normSignalQuery("p", "v", "", "c").enabled).toBe(false);
+  for (const args of [["p /", "other", "table /", "c /"], ["p /", "version /", "other", "c /"], ["p /", "version /", "table /", "other"]] as const) expect(normSignalQuery(args[0], args[1], args[2], args[3]).queryKey).not.toEqual(query.queryKey);
+  await new QueryClient().fetchQuery(query);
+  expect(urls[0]!.pathname).toContain("/norms/version%20%2F/signals/c%20%2F"); expect(urls[0]!.searchParams.get("caseTableId")).toBe("table /");
 });

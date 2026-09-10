@@ -13,6 +13,30 @@ from wise_workbench.domain import NormStatus
 router = APIRouter(prefix="/projects/{projectId}/norms", tags=["norms"])
 
 
+@router.get(
+    "/{normVersionId}/signals/{constraintId}",
+    operation_id="getNormSignalDistribution",
+    response_model=schemas.NormSignalDistribution,
+    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "Preview the selected norm version's rule, derived attributes and applicability on the explicit mapped table. "
+        "No run is required or created. Native threshold shares use finite observed signals; casesInScope and "
+        "stats.nCases include applicable cases with missing signals. stats.n counts finite observations."
+    ),
+)
+def get_norm_signal_distribution(
+    projectId: str,
+    normVersionId: str,
+    constraintId: str,
+    c: ContainerDep,
+    caseTableId: Annotated[str, Query(description="the mapped case table to preview")],
+    scale: Annotated[Literal["linear", "log"], Query(description="bin scale of the histogram")] = "linear",
+) -> schemas.NormSignalDistribution:
+    return schemas.NormSignalDistribution(
+        **c.norms.signals(projectId, normVersionId, caseTableId, constraintId, scale=scale)
+    )
+
+
 def _out(c: ContainerDep, n: Any) -> schemas.NormVersion:
     return schemas.NormVersion.from_domain(n, guidance_complete=c.norms.guidance_complete(n))
 

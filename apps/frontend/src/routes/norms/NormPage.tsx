@@ -19,8 +19,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardTitle } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDateTime, fmtInt, fmtNum } from "@/lib/format";
-import { distributionQuery } from "@/lib/api/analytics";
-import { normQuery, normsQuery, normCalibrationQuery, useCreateNormVersion, type NormVersionCreate } from "@/lib/api/norms";
+import { Input } from "@/components/ui/input";
+import { Field } from "@/components/ui/label";
+import { normQuery, normsQuery, normCalibrationQuery, normSignalQuery, useCreateNormVersion, type NormVersionCreate } from "@/lib/api/norms";
 import { normRefusal } from "./normErrors";
 import { flowTypesQuery } from "@/lib/api/runs";
 import { runManifestQuery } from "@/lib/api/runs";
@@ -62,12 +63,17 @@ export default function NormPage() {
   const calibration = useQuery(normCalibrationQuery(ctx.projectId, normVersionId));
   const json = norm.data?.norm as NormJson | undefined;
   const constraints = useMemo(() => json?.constraints ?? [], [json]);
-  const runId = ctx.runs.find((r) => r.status === "done")?.id;
+  const runId = ctx.runs.find((r) => r.status === "done" && r.normVersionId === normVersionId && r.caseTableId === ctx.caseTable?.id)?.id;
   const selected = constraints.find((c) => c.id === search.constraint) ?? constraints.find((c) => thresholdOf(c));
-  const dist = useQuery({ ...distributionQuery(ctx.projectId, runId ?? "", selected?.id ?? ""), enabled: !!runId && !!selected });
+  const dist = useQuery(normSignalQuery(ctx.projectId, normVersionId, ctx.caseTable?.id ?? "", selected?.id ?? ""));
   const [pending, setPending] = useState<{ threshold: number; width: number }>();
   const [fields, setFields] = useState<CommitFields>({ rationale: "", owner: "" });
   const [signing, setSigning] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [normName, setNormName] = useState("");
+  const [renameFields, setRenameFields] = useState<CommitFields>({ rationale: "", owner: "" });
+  const [renameAttempted, setRenameAttempted] = useState(false);
   // the rule and the applicability of the selected expectation while they are being edited
   const [edited, setEdited] = useState<Constraint>();
   const [exclusion, setExclusion] = useState<ExclusionDraft>({ excluded: false, note: "" });
@@ -77,7 +83,7 @@ export default function NormPage() {
   const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId ?? ""), enabled: !!runId });
   const uncalibrated = useMemo(() => new Map((manifest.data?.uncalibrated ?? []).map((u) => [u.id, u])), [manifest.data]);
   const caseNoun = ctx.caseTable?.readiness?.caseNoun ?? "cases";
-  const plainOf = (c: Constraint) => c.plain_name ?? uncalibrated.get(c.id)?.plain_name ?? c.description?.replace(/\.$/, "") ?? c.id;
+  const plainOf = (c: Constraint) => c.plain_name ?? c.description?.replace(/\.$/, "") ?? uncalibrated.get(c.id)?.plain_name ?? c.id;
   /** Expectations the run flags as saying more about their threshold than about the groups (R2-09). */
   const flagged = constraints.filter((c) => uncalibrated.has(c.id)).length;
   const { vocabulary } = useVocabulary();
@@ -100,6 +106,7 @@ export default function NormPage() {
     setPending(undefined);
     setExclusion({ excluded: false, note: "" });
     setFields({ rationale: "", owner: "" });
+    setAttempted(false);
     setPane("lens");
     create.reset();
     void navigate({ to: ".", search: (s) => ({ ...s, constraint: id }) });
@@ -113,24 +120,37 @@ export default function NormPage() {
 
   /** Save decision metadata through the public request fields; the server owns canonicalization. */
   const saveVersion = (patch: (c: Constraint) => Constraint, what: string, extra?: Constraint, exclude = false) => {
-    if (!json || !fields.rationale.trim() || !fields.owner.trim() || (exclude && !exclusion.note.trim())) return;
+    if (!json) return;
+    setAttempted(true);
+    const invalid = [
+      ...(pane === "rule" && edited && !(edited.plain_name ?? edited.description ?? edited.id).trim() ? ["rule-name"] : []),
+      ...(exclude && !exclusion.note.trim() ? ["applicability-note"] : []),
+      ...(!fields.rationale.trim() ? ["commit-rationale"] : []),
+      ...(!fields.owner.trim() ? ["commit-owner"] : []),
+    ];
+    if (invalid.length) { document.getElementById(invalid[0]!)?.focus(); return; }
     const id = extra?.id ?? (edited ?? selected)?.id;
     const next: NormJson = {
       ...json,
       constraints: [...constraints.map((c) => (c.id === id ? patch(c) : c)), ...(extra ? [extra] : [])],
     };
     const changed = next.constraints?.find((c) => c.id === id);
+    const previous = constraints.find(c => c.id === id);
+    const nameOnly = previous && changed && (previous.plain_name ?? previous.description ?? previous.id) !== (changed.plain_name ?? changed.description ?? changed.id) && previous.type === changed.type
+      && JSON.stringify(previous.params) === JSON.stringify(changed.params)
+      && JSON.stringify(previous.applicability) === JSON.stringify(changed.applicability);
     const body: NormVersionCreate = {
       norm: next as Record<string, unknown>,
       note: `${what} — ${fields.rationale.trim()} (owner: ${fields.owner.trim()})`,
       parentId: normVersionId,
-      ...(changed && thresholdOf(changed) && !exclude ? { calibration: { [changed.id]: { rationale: fields.rationale.trim(), owner: fields.owner.trim() } } } : {}),
+      ...(changed && thresholdOf(changed) && !exclude && !nameOnly ? { calibration: { [changed.id]: { rationale: fields.rationale.trim(), owner: fields.owner.trim() } } } : {}),
       ...(id && exclude ? { notApplicable: { [id]: { note: exclusion.note.trim(), author: fields.owner.trim() } } } : {}),
     };
     create.mutate(
       body,
       {
         onSuccess: (created) => {
+          setAttempted(false);
           setPending(undefined);
           setEdited(undefined);
           setExclusion({ excluded: false, note: "" });
@@ -141,18 +161,34 @@ export default function NormPage() {
     );
   };
 
+  const renameVersion = () => {
+    if (!json) return;
+    setRenameAttempted(true);
+    const invalid = !normName.trim() ? "norm-name" : !renameFields.rationale.trim() ? "rename-rationale" : !renameFields.owner.trim() ? "rename-owner" : undefined;
+    if (invalid) { document.getElementById(invalid)?.focus(); return; }
+    create.mutate({ norm: { ...json, name: normName.trim() }, parentId: normVersionId, note: `Norm renamed — ${renameFields.rationale.trim()} (owner: ${renameFields.owner.trim()})` }, {
+      onSuccess: created => {
+        setRenaming(false);
+        void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: created.id }, search: { ...search } });
+      },
+    });
+  };
+
   const commit = () => {
     if (!selected || !pending) return;
     const t = thresholdOf(selected);
     if (!t) return;
-    saveVersion((c) => ({ ...c, params: { ...c.params, [t.keys[0]]: pending.threshold, [t.keys[1]]: pending.width } }), `${plainOf(selected)}: threshold set to ${pending.threshold}, tolerated to ${pending.width}`);
+    saveVersion((c) => ({ ...c, params: { ...c.params, [t.keys[0]]: pending.threshold, [t.keys[1]]: pending.width } }), `${plainOf(selected)}: threshold set to ${pending.threshold}, ${selected.type === "lag" ? "tolerance width" : "tolerated to"} ${pending.width}`);
   };
 
   /** A rule or an applicability edited in the pane, saved as the next version. */
   const commitEdited = (what: string, exclude = false) => {
     if (!edited) return;
-    const extra = constraints.some(c => c.id === edited.id) ? undefined : edited;
-    saveVersion(c => extra ? c : edited, `${plainOf(edited)}: ${what}`, extra, exclude);
+    // Classic norm documents support description; plain_name is display-only metadata.
+    const value = { ...edited, description: (edited.plain_name ?? edited.description ?? edited.id).trim() };
+    delete value.plain_name;
+    const extra = constraints.some(c => c.id === value.id) ? undefined : value;
+    saveVersion(c => extra ? c : value, `${plainOf(value)}: ${what}`, extra, exclude);
   };
 
   const byLayer = useMemo(() => {
@@ -179,6 +215,7 @@ export default function NormPage() {
                 <h1 className="flex items-center gap-2 text-2xl font-semibold" title={nv.id}>
                   {json?.name ?? "The expectations of this process"} · version {nv.version}
                   <HowToReadToggle id="norm" />
+                  <Button variant="ghost" size="sm" onClick={() => { setNormName(json?.name ?? ""); setRenameFields({ rationale: "", owner: "" }); setRenameAttempted(false); create.reset(); setRenaming(true); }}>Rename norm</Button>
                 </h1>
                 <p className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
                   <StatusChip status={nv.status} />
@@ -244,7 +281,7 @@ export default function NormPage() {
                                   </span>
                                   <span className="text-xs text-text-muted">{ruleSentence(c)}</span>
                                   {flag && <CalibrationChip className="mt-0.5" text={flag.text} />}
-                                  {t && !flag && <span className="tnum text-xs text-text-subtle">{fmtNum(t.threshold, 2)}, tolerated to {fmtNum(t.width, 2)}</span>}
+                                  {t && !flag && <span className="tnum text-xs text-text-subtle">{fmtNum(t.threshold, 2)}, {c.type === "lag" ? "tolerance width" : "tolerated to"} {fmtNum(t.width, 2)}</span>}
                                 </button>
                               </li>
                             );
@@ -281,6 +318,7 @@ export default function NormPage() {
                                 aria-pressed={pane === id}
                                 onClick={() => {
                                   setPane(id);
+                                  setAttempted(false);
                                   if (id !== "lens" && !edited && selected) setEdited(selected);
                                 }}
                                 className={cn("px-2 py-1 text-xs", pane === id ? "bg-accent-subtle font-medium text-accent-text" : "text-text-muted hover:bg-surface-sunken")}
@@ -305,17 +343,18 @@ export default function NormPage() {
 
                         {pane === "lens" && (
                           <>
-                            {!runId && <p className="text-sm text-text-muted">The spread of the {caseNoun} around this threshold needs a finished run. Score one first.</p>}
-                            {selected && runId && dist.isPending && <LoadingBlock rows={5} />}
+                            <p className="mb-2 text-xs text-text-muted">Preview of norm version {nv.version} on the selected data. Existing run results are unchanged.</p>
+                            {!ctx.caseTable && <p className="text-sm text-text-muted">Select a mapped case table to inspect this version’s thresholds.</p>}
+                            {selected && ctx.caseTable && dist.isPending && <LoadingBlock rows={5} />}
                             {selected && dist.isError && <ErrorBlock error={dist.error} />}
                             {selected && dist.data && thresholdOf(selected) && (
                               <DistributionLens
-                                key={selected.id}
+                                key={`${normVersionId}:${ctx.caseTable?.id}:${selected.id}`}
                                 distribution={dist.data}
                                 constraintId={selected.id}
                                 title={plainOf(selected)}
                                 direction={(selected.params.direction as "high" | "low" | undefined) ?? "high"}
-                                onCommit={(next) => setPending(next)}
+                                onCommit={(next) => { setAttempted(false); setPending(next); }}
                                 mode={vocabulary}
                                 sliders="always"
                                 noun={caseNoun}
@@ -330,12 +369,12 @@ export default function NormPage() {
 
                         {pane === "rule" && edited && ctx.caseTable && (
                           <>
-                            <RuleEditor projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={edited} caseNoun={caseNoun} onChange={setEdited} />
+                            <RuleEditor projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={edited} caseNoun={caseNoun} onChange={setEdited} nameInvalid={attempted && !(edited.plain_name ?? edited.description ?? edited.id).trim()} />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-                              <CommitFieldsForm value={fields} onChange={setFields} />
+                              <CommitFieldsForm value={fields} onChange={setFields} attempted={attempted} />
                               {saveError}
                               <div className="flex gap-2">
-                                <Button size="sm" disabled={!fields.rationale.trim() || !fields.owner.trim() || create.isPending} onClick={() => commitEdited("the rule was changed")}>
+                                <Button size="sm" disabled={create.isPending} onClick={() => commitEdited("the rule was changed")}>
                                   Save as the next version
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setExclusion({ excluded: false, note: "" }); create.reset(); setPane("lens"); }}>
@@ -353,16 +392,17 @@ export default function NormPage() {
                               constraint={edited}
                               exclusion={exclusion}
                               onExclusionChange={setExclusion}
+                              noteInvalid={attempted && exclusion.excluded && !exclusion.note.trim()}
                               flowTypes={(flowTypes.data?.types ?? []).map((f) => ({ name: f.name, cases: f.cases }))}
                               attributes={inventory.data?.attributes ?? []}
                               caseNoun={caseNoun}
                               onChange={setEdited}
                             />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-                              <CommitFieldsForm value={fields} onChange={setFields} />
+                              <CommitFieldsForm value={fields} onChange={setFields} attempted={attempted} />
                               {saveError}
                               <div className="flex gap-2">
-                                <Button size="sm" disabled={!fields.rationale.trim() || !fields.owner.trim() || (exclusion.excluded && !exclusion.note.trim()) || create.isPending} onClick={() => commitEdited(exclusion.excluded ? "not applicable to this log" : "who it applies to was changed", exclusion.excluded)}>
+                                <Button size="sm" disabled={create.isPending} onClick={() => commitEdited(exclusion.excluded ? "not applicable to this log" : "who it applies to was changed", exclusion.excluded)}>
                                   Save as the next version
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => { setEdited(undefined); setExclusion({ excluded: false, note: "" }); create.reset(); setPane("lens"); }}>
@@ -458,21 +498,37 @@ export default function NormPage() {
         )}
       </QueryState>
 
+      <Dialog open={renaming} onOpenChange={setRenaming}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rename norm</DialogTitle><DialogDescription>The new name is saved as a new version. Existing rules and calibration decisions are preserved.</DialogDescription></DialogHeader>
+          <Field label="Norm name" htmlFor="norm-name">
+            <Input id="norm-name" value={normName} onChange={e => setNormName(e.target.value)} required aria-required="true" aria-invalid={renameAttempted && !normName.trim() || undefined} aria-describedby={renameAttempted && !normName.trim() ? "norm-name-error" : undefined} className={renameAttempted && !normName.trim() ? "border-danger ring-1 ring-danger" : undefined} />
+            {renameAttempted && !normName.trim() && <p id="norm-name-error" className="text-xs text-danger">Enter a name for this norm.</p>}
+          </Field>
+          <CommitFieldsForm value={renameFields} onChange={setRenameFields} attempted={renameAttempted} prefix="rename" />
+          {saveError}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenaming(false)}>Cancel</Button>
+            <Button onClick={renameVersion} disabled={create.isPending}>Save as the next version</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(undefined)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Set this threshold</DialogTitle>
             <DialogDescription>
-              {selected ? plainOf(selected) : ""}: {fmtNum(pending?.threshold, 2)}, tolerated to {fmtNum(pending?.width, 2)}. A threshold is a decision somebody answers for, so it needs a reason and an owner.
+              {selected ? plainOf(selected) : ""}: {fmtNum(pending?.threshold, 2)}, {selected?.type === "lag" ? "tolerance width" : "tolerated to"} {fmtNum(pending?.width, 2)}. A threshold is a decision somebody answers for, so it needs a reason and an owner.
             </DialogDescription>
           </DialogHeader>
-          <CommitFieldsForm value={fields} onChange={setFields} threshold />
+          <CommitFieldsForm value={fields} onChange={setFields} threshold attempted={attempted} />
           {saveError}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPending(undefined)}>
               Cancel
             </Button>
-            <Button onClick={commit} disabled={!fields.rationale.trim() || !fields.owner.trim() || create.isPending}>
+            <Button onClick={commit} disabled={create.isPending}>
               Save as the next version
             </Button>
           </DialogFooter>

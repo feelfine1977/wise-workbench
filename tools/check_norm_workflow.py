@@ -1,4 +1,4 @@
-"""Exercise norm decisions in Chromium against a disposable public five-case log.
+"""Exercise norm decisions in Chromium against a disposable public five-case log with a threshold boundary.
 
 Run from an installed development environment with frontend npm dependencies
 and Playwright Chromium available. No existing workspace or server is used.
@@ -91,12 +91,18 @@ def main() -> int:
                         json={"name": "Public norm workflow", "process": "p2p"},
                     )["id"]
                     prefix = "/projects/" + project
+                    events = wise.running_p2p_events().copy()
+                    # One observation lies strictly between the old (10) and new (12) targets.
+                    # This is a synthetic variant, not a reproduction of the paper's numbers.
+                    events.loc[
+                        (events["case"] == "B") & (events["activity"] == "Record Invoice Receipt"), "time"
+                    ] = "2024-01-12"
                     job = post(
                         prefix + "/datasets",
                         files={
                             "file": (
                                 "public-example.csv",
-                                wise.running_p2p_events().to_csv(index=False).encode(),
+                                events.to_csv(index=False).encode(),
                                 "text/csv",
                             )
                         },
@@ -119,12 +125,24 @@ def main() -> int:
                             "note": "Public five-case example",
                         },
                     )["id"]
+                    run = post(
+                        prefix + "/runs",
+                        json={
+                            "caseTableId": case_table,
+                            "normVersionId": version,
+                            "slicings": [{"attributes": ["company"]}],
+                            "gamma": 0,
+                            "minCases": 1,
+                        },
+                    )
+                    wait_job({"id": run["jobId"]})
                 env = dict(
                     os.environ,
                     E2E_API_URL=url,
                     E2E_PROJECT_ID=project,
                     E2E_NORM_VERSION_ID=version,
                     E2E_CASE_TABLE_ID=case_table,
+                    E2E_BASELINE_RUN_ID=run["id"],
                     PLAYWRIGHT_JSON_OUTPUT_FILE=str(workspace / "browser-report.json"),
                 )
                 completed = subprocess.run(

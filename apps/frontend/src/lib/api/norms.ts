@@ -26,6 +26,15 @@ export const normCalibrationQuery = (projectId: string, normVersionId: string) =
     retry: false,
   });
 
+/** No prior-run or prior-version placeholder is valid for a norm calibration lens. */
+export const normSignalQuery = (projectId: string, normVersionId: string, caseTableId: string, constraintId: string) =>
+  queryOptions({
+    queryKey: ["projects", projectId, "norms", normVersionId, "signals", caseTableId, constraintId] as const,
+    queryFn: () => http.get<S["NormSignalDistribution"]>(`/projects/${enc(projectId)}/norms/${enc(normVersionId)}/signals/${enc(constraintId)}`, { caseTableId }),
+    enabled: !!projectId && !!normVersionId && !!caseTableId && !!constraintId,
+    retry: false,
+  });
+
 export type Inventory = S["Inventory"];
 
 export type ActivityInventory = S["ActivityInventory"];
