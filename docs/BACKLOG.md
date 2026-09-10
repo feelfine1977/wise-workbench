@@ -1,9 +1,12 @@
 # Backlog — what is still to do
 
-Living list, maintained after each increment. Status as of 2026-09-05,
-after increment 0 was verified. Sources: the "Not done" sections of the
-five `CHECKPOINT.md` files, `IMPLEMENTATION_PLAN.md`, `ROADMAP.md`, the
-panel reports and `DECISIONS.md`.
+Latest planning addition: 2026-09-10, goal-oriented improvement roadmap
+(GR-01–GR-13 in B5). It is proposed, not shipped.
+
+The earlier increment sections preserve historical plans and verification
+records, beginning 2026-09-05. Consult the repository README for current
+implemented behavior and limitations; historical owner/installation tasks
+below are not a fresh repository-status report.
 
 ## A. Owner actions
 
@@ -158,7 +161,7 @@ Built in the application cycle that follows the extension's first stages,
 never before there is something to detect:
 
 - **R-EXT-1** capability probe and `WISE_ACTIONABILITY` setting
-  (`auto` / `off` / `on`), capabilities in the version endpoint and in every
+  (`off` by default / explicit `on`, per ADR 0012), capabilities in the version endpoint and in every
   run manifest.
 - **R-EXT-2** engine adapter: extension calls behind capability checks with
   classic fallbacks that produce identical numbers.
@@ -172,6 +175,33 @@ never before there is something to detect:
 - **R-EXT-5** the dual-build check in the local release routine: the
   application suites and the reference reproduction run against both builds
   and must agree.
+
+## B5. Goal-oriented improvement roadmap
+
+Proposed 2026-09-10; not implemented. See [the product design](GOAL_ROADMAP.md).
+This extends the existing action records and preserves the linked Explore Board.
+Correctness repairs and contract cleanup precede implementation.
+
+| ID | Priority / slice | Planned work and acceptance |
+|---|---|---|
+| GR-01 | P1 · Classic board | Stable project goals with owner, scope, revision and optional measurable target; renaming or changing norms preserves identity/history. |
+| GR-02 | P1 · Prerequisite | Carry exact filter, view, norm, flow type, population and comparator through review/gates/evidence. A wider fallback is never labelled validated. |
+| GR-03 | P1 · Prerequisite | One server transition policy for all action updates and board moves; missing/pending checks stay unresolved, repair drafts remain possible, refusals are visible and atomic. |
+| GR-04 | P1 · Classic board | Compact Board/List using existing actions: Proposed / Agreed / Doing / Closed; keyboard move/reorder, reload and stale-write protection. |
+| GR-05 | P1 · Classic board | Goal/view swimlanes and primary/secondary links; one action identity, one card per arrangement, no duplicated counts or capacity. |
+| GR-06 | P1 · Planning slice | Human-selected Now/Next/Later with rationale, effort, dependencies and manual capacity; detect dependency cycles and missing prerequisites, without presenting PI as benefit. |
+| GR-07 | P1 · Both slices | Work completion separate from outcome review; baseline, success criteria, guardrails and inconclusive/adverse/not-measured outcomes; pending reviews stay visible. |
+| GR-08 | P1 · Planning slice | Freeze the roadmap revision with structured evidence, screenshot and notes; notebook/export preserves decisions and historical scope. |
+| GR-09 | P1 · Release gate | Entire basic workflow on classic full/minimal profiles, no LLM; unavailable analytics remain unavailable. Reject cross-project references and preserve legacy actions. |
+| GR-10 | P2 · Optional enrichment | ADR 0012 capability integration, typed evidence and compatible comparator explanations; extension-present-but-off makes no optional calls. |
+| GR-11 | P2 · Later presentation | Dashboard-builder panel and PowerPoint export reuse the same roadmap/action records, not another store. |
+| GR-12 | P2 · Later collaboration | Team permissions, cross-project portfolio and external-ticket synchronisation after deployment/authentication work; no automatic remote execution in the MVP. |
+| GR-13 | P1 · Design/release gate | Owner walkthrough identifies goal, owner, next action and blocker; goal/view changes preserve tickets; completed work is not mistaken for proven benefit. |
+
+The first usable roadmap comprises the classic board and planning slice, not
+just draggable cards. No work item above is closed by this planning update.
+Norm calibration/signing and meaningful gate refusals remain prerequisites;
+the existing flexible analytical dashboard request remains separate.
 
 ## C. Increment 2 — the improvement loop
 

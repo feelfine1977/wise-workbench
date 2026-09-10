@@ -11,6 +11,13 @@
 | [USER_GUIDE](USER_GUIDE.md) | Detailed screen reference; consult current limitations first |
 | [Backend](../apps/backend/README.md) / [frontend](../apps/frontend/README.md) | Developer commands and module boundaries |
 
+## Proposed product additions
+
+[Goal-oriented improvement roadmap](GOAL_ROADMAP.md) describes the planned
+goal registry, action board and sequencing workflow, its classic/optional
+boundaries, prerequisites and acceptance criteria. This is a design, not a
+screen available in the current build.
+
 ## Designs and historical evidence
 
 `ARCHITECTURE.md`, `CUSTOMER_JOURNEY.md`, `ROADMAP.md`, `IMPLEMENTATION_PLAN.md`, `APP_MODES.md`, `DEPLOYMENT_AUTH_PLAN.md`, and `panel/` contain designs and planned work as well as earlier decisions. A proposed feature in those documents is not a promise that it is shipped. `BACKLOG.md` includes historical increments; current open product limitations are summarised in the repository README.

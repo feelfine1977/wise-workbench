@@ -1,5 +1,35 @@
 # WISE Workbench — roadmap
 
+## Current planning priority — goal-oriented improvement roadmap
+
+Proposed 2026-09-10. [GOAL_ROADMAP.md](GOAL_ROADMAP.md) specifies the product;
+[BACKLOG.md B5](BACKLOG.md#b5-goal-oriented-improvement-roadmap) tracks GR-01–GR-13.
+No goal registry or Kanban-style roadmap is claimed as shipped.
+
+Delivery order:
+
+1. Finish release/CI repairs and the backend/frontend contract cleanup.
+   Keep behavior-preserving structural work separate from product changes.
+2. Repair norm calibration/signing, exact review scope and action-transition
+   eligibility. Missing or pending evidence cannot become silent approval.
+3. Build a classic-runtime goal/action board on existing review records:
+   status columns, goal/view swimlanes, one ticket per commitment, owners,
+   evidence links, accessible movement and a separate outcome review.
+4. Add an owner-selected Now/Next/Later sequence, alternatives, effort,
+   dependencies, manual capacity and frozen documentation. This is the first
+   complete planning workflow, without an optimal-benefit claim.
+5. Add optional actionability evidence under ADR 0012 independently, then
+   reuse the roadmap in the flexible dashboard and later PowerPoint export.
+   Team access and cross-project portfolios follow the authentication plan.
+
+The linked Explore Board remains an analysis surface. Goal importance does
+not silently change WISE view weights; PI is an analytical shortfall, not a
+benefit estimate. The basic roadmap requires neither the extension nor an LLM.
+
+The phase/week estimates below are earlier planning assumptions, not current
+delivery forecasts. Existing dashboard, dataset and guided-mode requirements
+remain in the backlog; this addition does not declare them complete.
+
 ## Phase 0 — foundations (weeks 1–2)
 
 - Monorepo from the skeleton; `uv` workspace, `pnpm` workspace, CI (ruff,
