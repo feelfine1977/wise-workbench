@@ -1,173 +1,144 @@
-# WISE Workbench — roadmap
+# WISE Workbench — delivery roadmap
 
-## Current planning priority — goal-oriented improvement roadmap
+Updated 10 September 2026. This is the current delivery order. It replaces the
+phase/week schedule retained in [the initial roadmap](ROADMAP_INITIAL.md).
+The [README](../README.md) states current capabilities and limitations;
+[BACKLOG.md](BACKLOG.md) retains requirement identities and historical evidence.
+A planned item below is not a shipped feature.
 
-Proposed 2026-09-10. [GOAL_ROADMAP.md](GOAL_ROADMAP.md) specifies the product;
-[BACKLOG.md B5](BACKLOG.md#b5-goal-oriented-improvement-roadmap) tracks GR-01–GR-13.
-No goal registry or Kanban-style roadmap is claimed as shipped.
+## Product outcome
 
-Delivery order:
+Help a process owner turn a business objective into a reviewed improvement
+roadmap: **goal → scoped evidence → finding → agreed action → follow-up**.
+The output must explain what to do, who owns it, why it comes next and how its
+outcome will be reviewed. WISE priority identifies analytical shortfalls; it
+does not estimate benefit or prove that an intervention will work.
 
-1. Finish release/CI repairs and the backend/frontend contract cleanup.
-   Keep behavior-preserving structural work separate from product changes.
-2. Repair norm calibration/signing, exact review scope and action-transition
-   eligibility. Missing or pending evidence cannot become silent approval.
-3. Build a classic-runtime goal/action board on existing review records:
-   status columns, goal/view swimlanes, one ticket per commitment, owners,
-   evidence links, accessible movement and a separate outcome review.
-4. Add an owner-selected Now/Next/Later sequence, alternatives, effort,
-   dependencies, manual capacity and frozen documentation. This is the first
-   complete planning workflow, without an optimal-benefit claim.
-5. Add optional actionability evidence under ADR 0012 independently, then
-   reuse the roadmap in the flexible dashboard and later PowerPoint export.
-   Team access and cross-project portfolios follow the authentication plan.
+Keep two surfaces distinct: **Explore** for linked process analysis, and
+**Improvement roadmap** for commitments. A later configurable dashboard can
+display either surface without introducing another action store. The full
+board design is in [GOAL_ROADMAP.md](GOAL_ROADMAP.md).
 
-The linked Explore Board remains an analysis surface. Goal importance does
-not silently change WISE view weights; PI is an analytical shortfall, not a
-benefit estimate. The basic roadmap requires neither the extension nor an LLM.
+## Delivery order
 
-The phase/week estimates below are earlier planning assumptions, not current
-delivery forecasts. Existing dashboard, dataset and guided-mode requirements
-remain in the backlog; this addition does not declare them complete.
+Effort is relative: S is a focused change, M crosses a feature boundary, and L
+requires several reviewable slices. These are planning sizes, not elapsed-time
+or compute-budget promises. Re-estimate each batch after its entry checks.
 
-## Phase 0 — foundations (weeks 1–2)
+| Milestone | Deliverable | Entry condition | Exit evidence | Size |
+|---|---|---|---|---|
+| M0 — supported distribution | Clean, compatible core/renderer/application artifacts | Reviewed source and exact dependency inputs | Required jobs pass on the submitted commits, including Windows, strict visuals and installed application/knowledge wheels; renderer provenance matches clean source | S–M |
+| M1 — bounded structural cleanup | A first cohesive engine/schema extraction, feature API clients, and one reusable renderer behavior moved to Flow | M0 | Existing HTTP shapes, query keys, filters, numerical results and default rendering remain unchanged; packaged integration passes | M–L |
+| M2 — trustworthy decisions | Reliable norm calibration/approval, exact evidence scope, persistent findings, one action eligibility policy and visible failures | M1 bounded batch; owner walkthrough feedback incorporated | Public synthetic walkthrough passes from edit/save/reload/approve through filtered finding/action and refusal/recovery; classic full/minimal profiles remain supported | L, split into two checkpoints |
+| M3 — goal/action board | Stable goals; existing actions as tickets; Board/List; goal/view lanes; ownership, review criteria and outcome-review state | M2 | One action can support two goals without duplication; keyboard movement, stale-edit refusal and reload work; historical evidence and legacy actions survive | M–L |
+| M4 — usable improvement roadmap | Now/Next/Later, alternatives, effort, dependencies, manual capacity, follow-up measurement and frozen documentation | M3 | A feasible owner-selected sequence with reasons can be saved, reopened and exported; shared actions consume capacity once; completion and observed outcomes remain distinct | L, split planning from follow-up/export |
+| M5 — presentation and wider use | Movable analytics dashboard, roadmap panel, PowerPoint, additional process packs, then supported team hosting | Relevant contracts below; no dependency on an LLM | Each feature has its own installable release, walkthrough and acceptance evidence | Separate batches |
 
-- Monorepo from the skeleton; `uv` workspace, `pnpm` workspace, CI (ruff,
-  mypy --strict, pytest; tsc, eslint, vitest; OpenAPI drift check).
-- Domain model and metadata schema (ADR 0003), workspace layout, job table
-  and worker (ADR 0002), engine adapter with golden tests against the
-  library's running example and the BPIC'19 numbers.
-- Design tokens and the analytical component set (backlog table, hotspot
-  badge, driver bars, distribution histogram with draggable thresholds,
-  trace timeline, validation chips).
-- `wise-flow` repository scaffold (separate repository, ADR 0011): core
-  model, ELK worker, React Flow scene, bpmn-js wrapper, Storybook and
-  visual regression; the workbench links it locally with pnpm.
-- Design system and Figma library synced from tokens; design review
-  checklist in the PR template (UX-26, UX-28).
+M1 is deliberately bounded. Completing every renderer or engine refactor is
+not a prerequisite for M2. Remaining structural debt returns to the backlog.
+Do not combine extraction with new behavior, new defaults or redesigned charts.
 
-## MVP — desktop, no LLM (weeks 3–10)
+## M1: first structural batch
 
-Journey coverage S1–S7 plus cards and period runs, in this order:
+- Extract one coherent engine responsibility behind the existing adapter
+  facade. Split its schemas while retaining public imports and identical
+  generated OpenAPI. Do not change scoring, caching or eligibility rules here.
+- Group frontend API calls by feature: norms, review, flow, board and notebook.
+  Use generated DTOs; preserve transport, query keys, filter serialization,
+  errors and supported fallback behavior. Integrate after the backend contract
+  is confirmed unchanged.
+- Move one reusable fit/label behavior into `wise-flow`, retaining its current
+  defaults. Check it in a standalone package consumer and in Workbench's Flow,
+  Why and Board placements. Keep routes, data requests and tickets in Workbench.
 
-1. Ingest (CSV / Parquet / XES), column mapping, data-readiness report
-   (F2, F3), case-notion and flow-type builder (F4), slice-key designer with
-   owner registry (F5), activity canonicalisation against the P2P and
-   O2C ontologies with SAP label packs (F33), knowledge base content for
-   P2P (BPIC 2019, hackathon purchase orders) and O2C (hackathon sales and
-   stock data, OCEL Order Management vocabulary) with schema, loaders and
-   review workflow (F34), public log presets (F41; `docs/DATASETS.md`).
-2. Norm builder with forms, JSON view, versions with status and diff,
-   `validate` / `check` (F6); expectation wizard and threshold calibrator on
-   the empirical distribution (F7, F8); applicability matrix (F9); view
-   workshop mode (F10).
-3. Scoring runs with manifests and SSE progress (F11); backlog explorer with
-   formula popover, concentration curve, hotspot typology (F12–F14); slice
-   detail with drivers, penalty-mass Pareto, raw-distribution lens and
-   annotated traces (F15, F16); process map with constraint overlays
-   (F42), BPMN view with overlays for the pack's reference model (F43),
-   trace timeline (F44), distribution lens and backlog charts (F45);
-   SVG/PNG export for the governance pack.
-4. Validation gate (F17), review-session mode (F18), action cards (F19),
-   period runs with a frozen baseline (F20), governance pack export as
-   HTML/CSV (F21).
-5. Analytics MVP: bootstrap stability badges, contrastive gap waterfall,
-   readiness gate wired to the backlog, headroom per driver; provenance
-   records from day one.
-6. Experience (design panel MVP set UX-1 to UX-10, UX-21, UX-22, UX-29):
-   context ribbon, journey rail with gate states, explain-this-number,
-   reading sentences, decision pane, distribution lens, linked
-   highlighting, pin-and-compare, presenter mode, public-log onboarding;
-   first usability round with five analysts (UX-27).
-7. Distribution: `uv tool install wise-workbench`, CLI opens the browser;
-   Docker `single` profile (backend image built in CI, SQLite, host
-   Ollama) for Linux workstations and container users.
+Prepare the extractions independently, then integrate the backend facade,
+frontend clients and tested renderer artifact in that order. Rendering parity
+includes resize/full-window stability and selection across Map/Model switches.
+New collision handling or lane-order changes are separate visual fixes with
+reviewed baselines, not silent refactor changes.
 
-Exit criteria: the BPIC'19 evaluation of the paper can be reproduced
-end-to-end in the UI (norm import, run, Table XI slices, Table XII
-validation, vendor Pareto) and exported as a governance pack; the
-hackathon O2C extract runs end-to-end on the O2C pack (order-item case
-notion, header-event replication typed away, postponements, cancellations
-and late goods issue as drivers by customer and SKU, open items censored);
-BPIC 2017 runs through a generic template with censoring at 1 Feb 2017
-handled by the validation gate.
+## M2: two small checkpoints before a new board
 
-## v1 — assistant, teams, monitoring (weeks 11–20)
+**M2a — save and trust the decision.** Persist rationale, owner and decision
+date on each calibrated expectation; send exclusions through the supported
+not-applicable contract; preserve signer identity. Exercise both eligible
+approval and refusal without losing input. Record the exact run, norm, view,
+filter, grouping, flow definition, comparator and population behind a finding.
+Persist the finding/disposition on the server before relying on it from a ticket.
+Use one server-side policy for creation, ordinary updates and later board moves.
+Unknown checks must not silently authorize a business intervention. Scoped
+investigation and data-repair drafts remain possible with their limits visible.
 
-- Assistant with tools, staged proposals, audit trail and capability tiers:
-  result narration and Q&A, single-expectation constraint drafting; then
-  norm review over lint findings, action-hypothesis drafting, journey
-  guidance, report drafting (F29). Golden sets and cassette tests in CI.
-- Knowledge layer: context builder with process profiles, knowledge-graph
-  tables and explanation paths (F35), document library with embedded hybrid
-  retrieval and cited answers (F36), MCP server transport (F37), order
-  management, production and ITSM knowledge packs (F38); retrieval
-  evaluation sets per process.
-- Server mode: Docker `team` profile (workers, Postgres, Ollama with GPU
-  overlay, Caddy with OIDC), project roles, backup command, air-gapped
-  bundle; owner portal (F26).
-- Visualisation v1: diff maps (F46), constraint authoring on BPMN (F47),
-  variant strip, performance spectrum, dotted chart, stage funnel, small
-  multiples (F48); control charts.
-- Experience v1: owner portal, command palette, norm diff as changelog,
-  BPMN model tab, workshop kit, density modes and dark theme, report
-  preview, German sentences, keyboard map, assistant cards, period
-  comparison strip (UX-11 to UX-20, UX-23 to UX-25); second usability
-  round.
-- Period monitoring with SPC limits (F23), sensitivity sweep (F22),
-  fishbone / 5-why workspace seeded from drivers (F24), template library with
-  adapt wizard (F25), exposure-weighted priorities (F27), document roll-up
-  (F28), DOCX/XLSX reports.
-- Analytics v1: norm-engineering proposals, sensitivity envelope, what-if
-  norms and weights, violation signatures, subgroup discovery with holdout,
-  synthetic generator and evaluation harness.
+**M2b — read the decision correctly.** Display a supported comparison or its
+specific unavailable reason, qualify uncertainty and caveats, identify the
+expectation each sentence describes, and show existing hypothesis test results.
+Identify hypothetical runs on every entry path and keep them out of the default
+measured-run selection. Give headroom its own denominator and assumptions;
+do not call it realised benefit or require it to equal a relative score gap.
+Address mutable-input cache risks on the affected evidence path as a separate
+correctness change, with explicit invalidation tests.
 
-## v2 — desktop bundles, connectors, research items
+The first release does not need a full what-if editor, a new credit dataset,
+comprehensive activity reasoning or a dashboard builder. Those remain planned.
+Software that stores an approval does not establish appropriate thresholds:
+domain calibration and sign-off require the responsible people and suitable data.
 
-- Tauri desktop bundles with auto-update (ADR 0008); SQL / ODBC and
-  warehouse connectors; scheduled monitoring runs; plugin API stabilised;
-  PDF export.
-- Analytics later items: hand-off analysis, open-case exceedance risk with
-  backtesting, quasi-experimental before/after with control slices labelled
-  as such (F32 as a design checklist).
-- pm4py bridge (F30); object-centric case notions when the library supports
-  them (F31); production pack (Production log, Hinge Production OCEL) and
-  healthcare packs (BPIC 2011, Sepsis, Hospital Billing) with domain
-  reviewers.
-- MCP client connectors and cross-project memory (F39); LoRA adapters only
-  if the v1 evaluation shows persistent failures on small models (F40).
-- Hand-off network once `handoffs` exists in `wise-pm` 0.2 (F49);
-  case-flow animation, object-centric graphs, server-side rendering for
-  scheduled reports, `@wise/flow` 1.0 on npm (F50); touch-friendly
-  presenter mode (UX-30).
+## M3 and M4: commitments before optimisation
 
-## Team
+M3 covers GR-01, GR-04, GR-05 and the initial parts of GR-07/GR-09/GR-13.
+GR-02/GR-03 are M2 prerequisites. Start with one project and four columns:
+**Proposed → Agreed → Doing → Closed**, with completed and stopped work
+distinguished. Group by primary goal, primary versioned WISE view, or neither.
+An action retains one ID across all arrangements and secondary goal links.
+Use compact cards and a detail panel, accessible Move to/Move up/down controls,
+and a list for small screens. Drag and drop is an optional equivalent.
 
-Backend engineer (Python, data), frontend engineer (React), a
-visualisation engineer who owns the `wise-flow` repository and the BPMN
-bridge, a product designer (part-time from Phase 0; owns the design
-system, usability rounds and presenter mode),
-one engineer for analytics and the assistant (shared with the library
-maintainer), a process-mining / BPM domain lead for templates, playbooks and
-workshop facilitation; a Black Belt as design partner for gates, cards and
-control charts. Two engineers can deliver the MVP in about ten weeks; the
-assistant and server mode need the third.
+Agreed work already needs an owner, intended result and review criteria/date;
+do not defer these until M4. Closed actions with no measured outcome stay
+labelled as unconfirmed. A functioning card board is the M3 checkpoint, not
+completion of the roadmap product.
 
-## Top risks (consolidated)
+M4 covers GR-06, GR-08 and the full follow-up part of GR-07. Record alternatives
+and the chosen reason, effort assumptions, dependencies, manual capacity and
+Now/Next/Later order. Detect dependency cycles; unknown capacity cannot silently
+authorize Now. Reuse the notebook for frozen scope, images, notes and decisions.
+Record beneficial, adverse, stopped and inconclusive outcomes. A changed rank
+or a before/after association alone is not proof of improvement or causation.
 
-| Risk | Mitigation |
-|---|---|
-| Norm engineering too heavy; workshops stall | wizard, calibrator, templates, "10 constraints first", per-constraint save |
-| Wrong case notion or flow typing silently produces a wrong backlog | S2 gate, coverage counts, readiness banner, sensitivity to case notion |
-| Replicated or bulk events inflate rework signals | replication diagnostics per slice, S7 gate blocks hypotheses |
-| False precision in PI | formula popover, `PI_lower`, bootstrap badges, language rules |
-| Assistant invents labels, numbers or causes | id-bound vocabulary, table-cited numbers, causal-language gate, accept-only workflow, audit |
-| Curated process knowledge is the bottleneck | start with P2P and O2C, review workflow, sources per entry, community contributions later |
-| Wrong canonical mappings propagate into templates and narration | confidence shown, readiness item for unmapped labels, versioned mappings |
-| Retrieval surfaces stale or injected document content | document versions and dates in citations, untrusted-input screening, quote-only rendering |
-| Drill-downs need a live `ScoreResult` | persist frames, warm re-score cache, upstream `save/load` |
-| Desktop packaging | `uv tool` first, Tauri sidecar later, no PyInstaller |
-| Interactive maps stall on large graphs; layouts jump between slices | server-side aggregation and abstraction, Canvas renderer above ~2k elements, ELK in a worker with cached union-graph layouts |
-| Memory on very large logs | DuckDB pushdown, mapped columns only, guard rails with clear errors |
-| Moving baselines make trends meaningless | frozen, named baselines; re-baselining as a logged sponsor action |
-| The tool becomes a dashboard and the loop never closes | dispositions, gates, cards and period runs are first-class; the governance pack reports open actions |
+## Independent tracks and later work
+
+| Track | Next bounded step | Required boundary |
+|---|---|---|
+| Classic `wise-pm` | Maintain the public case API, arithmetic and reproducible package contract | No goal/ticket persistence or experimental branch merge |
+| `wise-flow` | M1 extraction, then scoped label-collision, compact/stage-only fit, tooltip and Map/Model order work | Standalone consumer, strict visual review and preserved BPMN attribution; no project workflow |
+| Optional actionability | First adopt bounded case evidence and compatible explanations through [ADR 0012](adr/0012-optional-actionability-extension.md) | Default off; separate prepared environment; available versus enabled capabilities; provenance; unchanged classic results |
+| Extension hardening | Validate sensitivity comparator context before exposing sensitivity; reconcile capture/evaluation truncation before claiming complete evidence; resolve or exclude mixed-unit paths | Only capability-specific readiness; no mandatory live model or research expansion |
+| Configurable analytics dashboard | Saved panel contract, server persistence, movement/resizing and data/chart choice | Existing canonical filters and reusable panels; does not require the actionability branch |
+| Documentation and PowerPoint | Frozen notebook/roadmap revision to a deck with editable text, images, source context and notes | Same records and calculations as the application; no separate export truth |
+| Additional process packs | Validate existing P2P/O2C interpretation, then budget credit/BPIC 2017 separately | Lifecycle/case-notion review first; supported measurements or explicit unavailable results |
+| Team hosting and portfolio | Supported deployment, identity, project roles, backup/restore, then shared goals and cross-project views | An owner field is not authentication; follow [deployment/authentication plan](DEPLOYMENT_AUTH_PLAN.md) |
+
+Optional enrichment does not block the classic board, configurable dashboard
+or PowerPoint. A full scenario editor can follow M2's scenario-identification
+fix; label the scenario baseline artifact and the numerical comparator separately.
+Automatic optimisation, causal-effect claims, model quality studies and new
+connectors are separately scoped work, not implied by the ticket board.
+
+## Acceptance rules for every milestone
+
+- Use public synthetic fixtures and packaged dependencies for required CI.
+  Private/reference datasets are supplemental only when separately authorized;
+  missing data or live-model skips cannot stand in for required product checks.
+- Preserve unresolved facts: a comparison may be unavailable, a caveat may be
+  qualitative, uncertainty may be uncomputed, and an action may be legitimately
+  blocked. Tests assert the explanation, never demand a favourable outcome.
+- Do not tune a norm to match a reference ranking. Compare declared populations,
+  definitions and parameters; state unresolved differences rather than inventing
+  an attribution. Do not remove valid expectations solely because all cases meet them.
+- Measure performance on a declared fixture/environment, with cold and repeated
+  timings distinguished. Measure layout in the supported viewports and placements.
+- Use an agreed comprehension/keyboard protocol with actual participants before
+  making usability claims. Design review is useful but is not participant evidence.
+- End with a runnable build, migration/reload evidence, current start guide and
+  a short owner walkthrough. Define the next batch only after reviewing failures
+  and feedback; keep release readiness distinct from feature completeness.

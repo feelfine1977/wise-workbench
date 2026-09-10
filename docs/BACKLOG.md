@@ -1,14 +1,30 @@
 # Backlog — what is still to do
 
-Latest planning addition: 2026-09-10, goal-oriented improvement roadmap
-(GR-01–GR-13 in B5). It is proposed, not shipped.
+Current sequencing is in [ROADMAP.md](ROADMAP.md), updated 10 September 2026.
+Requirement identities below are retained; an earlier “next” label or recorded
+test count is historical evidence, not a current release-status claim.
 
-The earlier increment sections preserve historical plans and verification
-records, beginning 2026-09-05. Consult the repository README for current
-implemented behavior and limitations; historical owner/installation tasks
-below are not a fresh repository-status report.
+## Current delivery queue
 
-## A. Owner actions
+| Milestone | Scope in this backlog | Completion boundary |
+|---|---|---|
+| M0/M1 | Distribution and bounded backend/client/renderer cleanup | Compatible packaged inputs and unchanged behavior; no goal-board feature claim |
+| M2 | Norm save/approval, GR-02/GR-03, server findings/dispositions, visible refusals, comparison/test/scenario readings | A trustworthy classic decision workflow; actual domain calibration is a separate review |
+| M3 | GR-01/04/05; initial GR-07/09/13 | Goal/action board with ownership, review criteria and separate outcome state |
+| M4 | GR-06/08; full GR-07/09/13 | Sequencing, alternatives, capacity, dependencies and frozen follow-up documentation |
+| Independent optional track | B4, GR-10 | Explicit capability adoption after the selected library contracts are ready |
+| Later bounded releases | B2 remaining activity/visual work, GR-11/12, movable analytics dashboard and process packs | Separately scoped; dashboard and PowerPoint do not require an LLM or the extension |
+
+For new acceptance tests, a legitimate gate refusal, unavailable comparison,
+uncomputed uncertainty or qualitative caveat is valid when clearly explained.
+Do not require invented shares, favourable outcomes or a benchmark ranking.
+Preserve exact scoped evidence; do not infer causal benefit from priority or
+hypothetical headroom. These rules supersede stronger historical examples.
+
+The remaining sections preserve original requirements and observations.
+Consult the repository README for current implemented behavior and limitations.
+
+## A. Original owner actions (historical)
 
 | Item | Where |
 |---|---|
@@ -38,7 +54,7 @@ everywhere, guidance elicitation when layers are defined, hub as the
 single source of the reason and remedy texts, assistant grounding, hub
 pages in the governance pack.
 
-## B. Increment 1 — first end-to-end (next)
+## B. Increment 1 — first end-to-end (historical)
 
 Integration first:
 

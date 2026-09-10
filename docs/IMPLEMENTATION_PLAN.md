@@ -1,5 +1,10 @@
 # Implementation plan — architecture, workstreams, tests, checkpoints
 
+Historical architecture/workstream plan. Increment numbers, local-link setup
+and checkpoint states below refer to the original design. The current bounded
+delivery sequence and acceptance rules are in [ROADMAP.md](ROADMAP.md); current
+setup is in [START_HERE.md](START_HERE.md).
+
 Companion to `ARCHITECTURE.md` (what) and `ROADMAP.md` (when). This file
 says **who builds which part, against which contract, how it is tested,
 and where the owner can try each feature by hand**.

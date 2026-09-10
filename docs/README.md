@@ -8,6 +8,7 @@
 | [START_HERE](START_HERE.md) | Portable setup and analysis workflow |
 | [DEPLOY](DEPLOY.md) | Source installation, packaged application, workspace and ports |
 | [COMPATIBILITY](COMPATIBILITY.md) | Supported dependency profiles and release checks |
+| [ROADMAP](ROADMAP.md) | Current delivery sequence, prerequisites and acceptance |
 | [USER_GUIDE](USER_GUIDE.md) | Detailed screen reference; consult current limitations first |
 | [Backend](../apps/backend/README.md) / [frontend](../apps/frontend/README.md) | Developer commands and module boundaries |
 
@@ -20,7 +21,7 @@ screen available in the current build.
 
 ## Designs and historical evidence
 
-`ARCHITECTURE.md`, `CUSTOMER_JOURNEY.md`, `ROADMAP.md`, `IMPLEMENTATION_PLAN.md`, `APP_MODES.md`, `DEPLOYMENT_AUTH_PLAN.md`, and `panel/` contain designs and planned work as well as earlier decisions. A proposed feature in those documents is not a promise that it is shipped. `BACKLOG.md` includes historical increments; current open product limitations are summarised in the repository README.
+`ARCHITECTURE.md`, `CUSTOMER_JOURNEY.md`, `ROADMAP_INITIAL.md`, `IMPLEMENTATION_PLAN.md`, `APP_MODES.md`, `DEPLOYMENT_AUTH_PLAN.md`, and `panel/` contain designs and planned work as well as earlier decisions. A proposed feature in those documents is not a promise that it is shipped. `BACKLOG.md` includes historical increments; current open product limitations are summarised in the repository README.
 
 `adr/` records architectural decisions. Each decision's implementation state must be read separately; ADR 0012 describes planned optional extension integration.
 
