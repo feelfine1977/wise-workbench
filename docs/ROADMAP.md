@@ -19,6 +19,12 @@ Keep two surfaces distinct: **Explore** for linked process analysis, and
 display either surface without introducing another action store. The full
 board design is in [GOAL_ROADMAP.md](GOAL_ROADMAP.md).
 
+Explore starts with the observed process. A planned **WISE Support** switch
+adds business expectations and explanations when requested; it starts off in
+a new exploration. Time, cost, repetition and comparison remain independent
+questions. Visibility changes preserve analytical context and do not enable
+the optional actionability runtime. See [WISE_SUPPORT.md](WISE_SUPPORT.md).
+
 ## Delivery order
 
 Effort is relative: S is a focused change, M crosses a feature boundary, and L
@@ -111,6 +117,7 @@ or a before/after association alone is not proof of improvement or causation.
 |---|---|---|
 | Classic `wise-pm` | Maintain the public case API, arithmetic and reproducible package contract | No goal/ticket persistence or experimental branch merge |
 | `wise-flow` | M1 extraction, then scoped label-collision, compact/stage-only fit, tooltip and Map/Model order work | Standalone consumer, strict visual review and preserved BPMN attribution; no project workflow |
+| Process exploration and WISE Support | Stage Atlas boundary/density validation and WS-01–WS-05; first supported time question after M2 context correctness | Same population, native metrics and map state on/off; essential caveats and gates always apply; classic engine supported; prototype validation precedes production replacement |
 | Optional actionability | First adopt bounded case evidence and compatible explanations through [ADR 0012](adr/0012-optional-actionability-extension.md) | Default off; separate prepared environment; available versus enabled capabilities; provenance; unchanged classic results |
 | Extension hardening | Validate sensitivity comparator context before exposing sensitivity; reconcile capture/evaluation truncation before claiming complete evidence; resolve or exclude mixed-unit paths | Only capability-specific readiness; no mandatory live model or research expansion |
 | Configurable analytics dashboard | Saved panel contract, server persistence, movement/resizing and data/chart choice | Existing canonical filters and reusable panels; does not require the actionability branch |

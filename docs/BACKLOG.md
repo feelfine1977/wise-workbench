@@ -32,6 +32,22 @@ It also does not establish business calibration or a human usability result.
 The remaining sections preserve original requirements and observations.
 Consult the repository README for current implemented behavior and limitations.
 
+## WISE Support and question-based exploration
+
+Owner request, 10 September 2026. Planned, not shipped. The presentation
+contract and acceptance scenarios are in [WISE_SUPPORT.md](WISE_SUPPORT.md).
+These items form an independent exploration track with M2 evidence-scope
+correctness as the production dependency; they do not delay the classic goal
+board for optional library or model integration.
+
+| ID | Next step | Completion boundary |
+|---|---|---|
+| WS-01 | A visible WISE Support on/off switch in Explore, initially off | Keyboard/focus/announcement work; raw questions stay available; guidance visibility changes without changing analysis, map geometry or mandatory caveats |
+| WS-02 | Contextual expectation and deviation guidance; time as the first complete question | Relevant native values and targets share scope, norm and comparator; missing/draft/incompatible/error states are explicit; no automatic scoring or invented targets |
+| WS-03 | Phase/occurrence and dense-process fixture, then geometry validation | At least 60 activities; real loops, external excursions and rare exits preserve exact witnesses; aggregate paths do not invent a case-level return; readable stable navigation measured separately |
+| WS-04 | Saved presentation state and evidence links | Visibility persists in exploration/notebook context; toggling cannot rewrite findings, result identity, historical exports or action eligibility |
+| WS-05 | Classic and optional-capability boundaries | Presentation switch works with classic WISE and never enables optional runtime, downloads, model calls or permissions; installed-but-off profile remains off |
+
 ## A. Original owner actions (historical)
 
 | Item | Where |
