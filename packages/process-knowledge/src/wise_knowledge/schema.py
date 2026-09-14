@@ -21,9 +21,9 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
 
-from .paths import GUIDANCE_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files, schema_dir
+from .paths import GUIDANCE_FILE, INTERVENTIONS_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files, schema_dir
 
-SCHEMA_KINDS = (*PACK_FILES, "templates", GUIDANCE_FILE, "presets", "datasets")
+SCHEMA_KINDS = (*PACK_FILES, "templates", GUIDANCE_FILE, INTERVENTIONS_FILE, "presets", "datasets")
 GUIDANCE_BLOCKS = (
     "plain_name",
     "expectation",
@@ -585,6 +585,13 @@ def validate_pack(name_or_path: str | Path) -> list[ValidationIssue]:
         docs[GUIDANCE_FILE] = None if file_issues else read_yaml(guidance_file)
     else:
         docs[GUIDANCE_FILE] = None
+    interventions_file = path / f"{INTERVENTIONS_FILE}.yaml"
+    if interventions_file.is_file():
+        file_issues = validate_file(INTERVENTIONS_FILE, interventions_file)
+        issues.extend(file_issues)
+        docs[INTERVENTIONS_FILE] = None if file_issues else read_yaml(interventions_file)
+    else:
+        docs[INTERVENTIONS_FILE] = None
     if any(i.level == "error" for i in issues):
         return issues
     issues.extend(_cross_check(path, docs))
@@ -593,6 +600,48 @@ def validate_pack(name_or_path: str | Path) -> list[ValidationIssue]:
     issues.extend(_mapping_issues(path, activity_ids))
     issues.extend(_guidance_issues(path, docs))
     issues.extend(_preset_issues(path, docs))
+    issues.extend(_intervention_issues(path, docs))
+    return issues
+
+
+def _intervention_issues(path: Path, docs: dict[str, Any]) -> list[ValidationIssue]:
+    """Cross references of interventions.yaml: layers, failure modes, roles, KPIs, pack id."""
+    doc = docs.get(INTERVENTIONS_FILE)
+    if not doc:
+        return []
+    issues: list[ValidationIssue] = []
+    file = str(path / f"{INTERVENTIONS_FILE}.yaml")
+
+    def err(message: str, where: str = "") -> None:
+        issues.append(ValidationIssue(file=file, message=message, path=where))
+
+    if doc.get("pack") != docs["ontology"]["pack"]:
+        err(f"pack id {doc.get('pack')!r} differs from ontology pack {docs['ontology']['pack']!r}", "pack")
+    layer_ids = set(_ids(docs["failure_modes"].get("layers", []) or []))
+    fm_ids = set(_ids(docs["failure_modes"]["failure_modes"]))
+    role_ids = set(_ids(docs["slicing"]["roles"]))
+    kpi_ids = set(_ids(docs["kpis"]["kpis"]))
+    ids = _ids(doc["interventions"])
+    for d in _dupes(ids):
+        err(f"duplicate intervention id {d!r}")
+    for i, e in enumerate(doc["interventions"]):
+        where = f"interventions/{i}"
+        if not str(e["id"]).startswith(f"{doc.get('pack')}.iv."):
+            err(f"intervention id {e['id']!r} should start with {doc.get('pack')!s}.iv.", where)
+        for lid in (e.get("addresses", {}) or {}).get("layers", []) or []:
+            if lid not in layer_ids:
+                err(f"intervention {e['id']!r} addresses unknown layer {lid!r}", where)
+        for fid in (e.get("addresses", {}) or {}).get("failure_modes", []) or []:
+            if fid not in fm_ids:
+                err(f"intervention {e['id']!r} addresses unknown failure mode {fid!r}", where)
+        if e.get("owner_role") not in role_ids:
+            err(f"intervention {e['id']!r} names unknown owner role {e.get('owner_role')!r}", where)
+        kpi = (e.get("expected_effect", {}) or {}).get("kpi")
+        if kpi not in kpi_ids:
+            err(f"intervention {e['id']!r} expects an effect on unknown kpi {kpi!r}", where)
+        for k in e.get("monitoring_kpis", []) or []:
+            if k not in kpi_ids:
+                err(f"intervention {e['id']!r} monitors unknown kpi {k!r}", where)
     return issues
 
 

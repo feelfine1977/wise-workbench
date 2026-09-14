@@ -477,6 +477,50 @@ class Preset:
 
 
 @dataclass(frozen=True)
+class Intervention:
+    """A candidate countermeasure of the pack's catalogue (interventions.yaml): mechanism,
+    the layers and failure modes it addresses, feasibility constraints, the expected effect
+    on a KPI with its evidence class, owner role, pilot sketch and monitoring KPIs."""
+
+    id: str
+    version: str
+    name: dict[str, str]
+    mechanism: str
+    layers: tuple[str, ...]
+    failure_modes: tuple[str, ...]
+    feasibility_constraints: dict[str, tuple[str, ...]]
+    effort_class: str
+    expected_effect: dict[str, Any]
+    reversibility: str
+    owner_role: str
+    pilot_template: str
+    monitoring_kpis: tuple[str, ...]
+    sources: tuple[Any, ...]
+    review_status: str
+    countermeasure: str | None = None
+    preconditions: tuple[str, ...] = ()
+    risks_side_effects: tuple[str, ...] = ()
+    status: str = "candidate"
+    notes: str = ""
+
+    @property
+    def name_en(self) -> str:
+        return self.name.get("en", self.id)
+
+    @property
+    def evidence_class(self) -> str:
+        return str(self.expected_effect.get("evidence_class", "descriptive"))
+
+    @property
+    def causal_language_allowed(self) -> bool:
+        """Narratives may say 'causes' only with a matched contrast or a pilot difference-in-differences."""
+        return self.evidence_class in ("matched", "pilot_did")
+
+    def addresses(self, layer: str | None = None, failure_mode: str | None = None) -> bool:
+        return (layer is None or layer in self.layers) and (failure_mode is None or failure_mode in self.failure_modes)
+
+
+@dataclass(frozen=True)
 class Pack:
     id: str
     path: Path
@@ -498,8 +542,13 @@ class Pack:
     mappings: dict[str, Mapping]
     guidance: tuple[Guidance, ...] = ()
     presets: dict[str, Preset] = field(default_factory=dict)
+    interventions: tuple[Intervention, ...] = ()
     sources: tuple[Any, ...] = ()
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def interventions_for(self, *, layer: str | None = None, failure_mode: str | None = None) -> tuple[Intervention, ...]:
+        """Catalogue entries addressing a layer and/or a failure mode (S9 candidates)."""
+        return tuple(i for i in self.interventions if i.addresses(layer, failure_mode))
 
     # ---- lookups
     def activity(self, activity_id: str) -> Activity:

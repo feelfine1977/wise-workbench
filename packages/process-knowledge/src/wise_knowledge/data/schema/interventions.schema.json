@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wise-workbench.local/schema/interventions.schema.json",
+  "title": "Intervention catalogue: candidate countermeasures with mechanism, feasibility constraints and evidence class",
+  "description": "Interventions are the unit of the action board (S9). Each names the layers and failure modes it addresses, the constraints that decide its feasibility, the expected effect on a KPI with an evidence class (descriptive association, matched contrast, pilot difference-in-differences, external), the owner role, a pilot sketch and the KPIs to monitor. Narratives may use causal language only for evidence classes matched and pilot_did.",
+  "type": "object",
+  "required": ["pack", "version", "review_status", "interventions"],
+  "properties": {
+    "pack": { "$ref": "common.schema.json#/$defs/id" },
+    "version": { "$ref": "common.schema.json#/$defs/version" },
+    "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+    "sources": { "$ref": "common.schema.json#/$defs/sources" },
+    "notes": { "type": "string" },
+    "interventions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/intervention" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "intervention": {
+      "type": "object",
+      "required": ["id", "version", "name", "mechanism", "addresses", "feasibility_constraints", "effort_class", "expected_effect", "reversibility", "owner_role", "pilot_template", "monitoring_kpis", "sources", "review_status"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id", "description": "'<pack>.iv.<name>'" },
+        "version": { "$ref": "common.schema.json#/$defs/version" },
+        "name": { "$ref": "common.schema.json#/$defs/text" },
+        "mechanism": { "type": "string", "minLength": 1, "description": "How the intervention is supposed to work, in one or two sentences." },
+        "countermeasure": { "type": "string", "enum": ["policy", "system_setting", "standard_work", "training", "catalogue", "contract", "master_data", "automation", "review", "measurement"] },
+        "addresses": {
+          "type": "object",
+          "required": ["layers"],
+          "properties": {
+            "layers": { "$ref": "common.schema.json#/$defs/idList", "description": "Layer ids of failure_modes.yaml." },
+            "failure_modes": { "$ref": "common.schema.json#/$defs/idList" }
+          },
+          "additionalProperties": false
+        },
+        "preconditions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "feasibility_constraints": {
+          "type": "object",
+          "description": "What must be true or checked before the intervention is feasible (the O2C decision catalogue's 'constraints influencing actionability').",
+          "properties": {
+            "system": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "policy": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "people": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "legal": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          },
+          "additionalProperties": false
+        },
+        "effort_class": { "type": "string", "enum": ["S", "M", "L"] },
+        "expected_effect": {
+          "type": "object",
+          "required": ["kpi", "direction", "magnitude", "evidence_class"],
+          "properties": {
+            "kpi": { "$ref": "common.schema.json#/$defs/id", "description": "KPI id of kpis.yaml." },
+            "direction": { "type": "string", "enum": ["down", "up"] },
+            "magnitude": { "type": "string", "minLength": 1, "description": "With unit and uncertainty; a measured figure, never a promise." },
+            "evidence_class": { "type": "string", "enum": ["descriptive", "matched", "pilot_did", "external"] },
+            "evidence_ref": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "risks_side_effects": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "reversibility": { "type": "string", "enum": ["easy", "moderate", "hard"] },
+        "owner_role": { "$ref": "common.schema.json#/$defs/id", "description": "Role id of slicing.yaml." },
+        "pilot_template": { "type": "string", "minLength": 1, "description": "Cohort, duration, success and stop rule in one line." },
+        "monitoring_kpis": { "$ref": "common.schema.json#/$defs/idList" },
+        "status": { "type": "string", "enum": ["candidate", "shortlisted", "piloting", "rolled_out", "rejected"], "default": "candidate" },
+        "sources": { "$ref": "common.schema.json#/$defs/sources" },
+        "review_status": { "$ref": "common.schema.json#/$defs/reviewStatus" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

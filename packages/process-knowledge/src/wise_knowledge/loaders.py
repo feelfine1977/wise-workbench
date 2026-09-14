@@ -21,6 +21,7 @@ from .models import (
     GuidanceAction,
     GuidanceExample,
     GuidanceReason,
+    Intervention,
     Kpi,
     LabelEntry,
     LabelPack,
@@ -38,7 +39,7 @@ from .models import (
     Variant,
     WisePattern,
 )
-from .paths import GUIDANCE_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files
+from .paths import GUIDANCE_FILE, INTERVENTIONS_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files
 from .schema import ValidationIssue, read_yaml, validate_datasets, validate_pack
 
 
@@ -58,6 +59,33 @@ def _text(x: Any) -> dict[str, str]:
     if isinstance(x, str):
         return {"en": x}
     return {str(k): str(v) for k, v in x.items()}
+
+
+def _intervention(i: dict[str, Any]) -> Intervention:
+    fc = i.get("feasibility_constraints", {}) or {}
+    addresses = i.get("addresses", {}) or {}
+    return Intervention(
+        id=i["id"],
+        version=str(i["version"]),
+        name=_text(i["name"]),
+        mechanism=i["mechanism"],
+        countermeasure=i.get("countermeasure"),
+        layers=_t(addresses.get("layers")),
+        failure_modes=_t(addresses.get("failure_modes")),
+        preconditions=_t(i.get("preconditions")),
+        feasibility_constraints={str(k): _t(v) for k, v in fc.items()},
+        effort_class=i["effort_class"],
+        expected_effect=dict(i["expected_effect"]),
+        risks_side_effects=_t(i.get("risks_side_effects")),
+        reversibility=i["reversibility"],
+        owner_role=i["owner_role"],
+        pilot_template=i["pilot_template"],
+        monitoring_kpis=_t(i["monitoring_kpis"]),
+        status=i.get("status", "candidate"),
+        sources=_t(i["sources"]),
+        review_status=i["review_status"],
+        notes=i.get("notes", ""),
+    )
 
 
 def _label_entry(e: dict[str, Any]) -> LabelEntry:
@@ -384,6 +412,8 @@ def load_pack(name_or_path: str | Path, validate: bool = True) -> Pack:
     docs["templates"] = read_yaml(index) if index.is_file() else None
     guidance_file = path / f"{GUIDANCE_FILE}.yaml"
     docs["guidance"] = read_yaml(guidance_file) if guidance_file.is_file() else None
+    interventions_file = path / f"{INTERVENTIONS_FILE}.yaml"
+    docs["interventions"] = read_yaml(interventions_file) if interventions_file.is_file() else None
     ont = docs["ontology"]
     label_packs = {
         name: LabelPack(
@@ -436,6 +466,7 @@ def load_pack(name_or_path: str | Path, validate: bool = True) -> Pack:
         mappings=mappings,
         guidance=_guidance_entries(docs["guidance"]),
         presets=presets,
+        interventions=tuple(_intervention(i) for i in (docs["interventions"] or {}).get("interventions", []) or []),
         sources=_t(ont.get("sources")),
         raw=docs,
     )

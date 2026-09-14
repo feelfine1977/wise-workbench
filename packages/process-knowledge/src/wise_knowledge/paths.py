@@ -24,6 +24,7 @@ ENV_ROOT = "WISE_KNOWLEDGE_ROOT"
 ENTRY_POINT_GROUP = "wise_knowledge.packs"
 PACK_FILES = ("ontology", "stages", "failure_modes", "kpis", "glossary", "playbooks", "slicing")
 GUIDANCE_FILE = "guidance"  # optional for third-party packs; required once a pack ships templates
+INTERVENTIONS_FILE = "interventions"  # optional catalogue of candidate countermeasures (S9)
 PRESETS_DIR = "presets"
 
 
