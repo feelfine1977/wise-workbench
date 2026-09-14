@@ -647,12 +647,17 @@ export function FlowMap({
   const root = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
 
-  const level = detail ?? innerDetail;
+  // until the reader moves the detail slider, the map opens at the last level whose names still fit this
+  // frame: the embedded "Where in the flow" card on the objection log drew 23 activities at eight pixels
+  // with every name hidden, which explained nothing (the reader can still ask for more and open the full
+  // window, where the frame — and with it the zoom — is larger)
+  const [levelTouched, setLevelTouched] = useState(false);
   const mode = render ?? innerRender;
   const isFull = full ?? innerFull;
   const setLevel = useCallback(
     (next: number) => {
       const clamped = Math.max(0, Math.min(DETAIL.length - 1, next));
+      setLevelTouched(true);
       setInnerDetail(clamped);
       onDetailChange?.(clamped);
     },
@@ -680,8 +685,8 @@ export function FlowMap({
   // the last level whose activity labels still reach 11 px in this frame (§3.2); above it the bar says
   // so and points at the full window, where the frame — and with it the zoom — is larger
   const maxLevel = useMemo(() => (kind === "compact" ? DETAIL.length - 1 : readableMaxLevel(graph, canvasBox)), [kind, graph, canvasBox]);
+  const level = detail ?? innerDetail;
   const drawnLevel = level;
-
   // the frame is much taller than a left-to-right process graph is by nature: the nodes of one layer are
   // spread so the drawing fills the frame instead of sitting as a thin ribbon in the middle of it (§3.2)
   const layoutOptions = useMemo(() => ({ elkWorkerUrl, spacing: { node: CELL_HEIGHT - 48, layer: CELL_WIDTH - 180 } }), []);
@@ -694,6 +699,19 @@ export function FlowMap({
   const base = useMemo(() => (wholeBase && !collapsing ? abstractAt(wholeBase, drawnLevel) : wholeBase), [wholeBase, drawnLevel, collapsing]);
   const scenes = useMemo(() => (base ? [base, scene] : [scene]), [base, scene]);
   const layout = useStableLayout(scenes, layoutOptions);
+  // The adjustment goes through the same state the slider writes, once, after the frame has been measured
+  // and the first drawing is placed — a level changed under a layout in flight left the fit on the previous
+  // drawing, 500 px above the frame. Never below "main activities": the stages-only drawing with its lanes
+  // fits to the lane height and lands outside a 400-pixel frame.
+  const [autoLevelled, setAutoLevelled] = useState(false);
+  useEffect(() => {
+    if (autoLevelled || levelTouched || detail !== undefined || isFull || kind === "compact" || layout.status !== "ready") return;
+    const rect = container.current?.getBoundingClientRect();
+    if (!rect || rect.width < 1 || Math.abs(rect.width - canvasBox.width) > 2) return; // not measured yet
+    setAutoLevelled(true);
+    const readable = Math.max(1, maxLevel);
+    if (innerDetail > readable) setInnerDetail(readable);
+  }, [autoLevelled, levelTouched, detail, isFull, kind, canvasBox, maxLevel, innerDetail, layout.status]);
   const shown = useMemo(() => (compare && base ? diff(base, scene) : scene), [compare, base, scene]);
   const positions = useMemo(() => (layout.positions ? filterPositions(layout.positions, shown) : undefined), [layout.positions, shown]);
   const laidOut = positions as unknown as LaidOut | undefined;
@@ -1292,6 +1310,10 @@ export function FlowMap({
           layout={{ elkWorkerUrl }}
           ariaLabel={title}
           containerStyle={{ height: "100%" }}
+          // the names are counter-scaled to a constant screen size (R3-06), so the library's own rule that
+          // hides them below a zoom of 0.2 only ever hid readable names: on the objection log every box of
+          // the embedded map was blank at a zoom of 0.19
+          lod={{ labels: 0 }}
           lanes={lanes}
           focus={focus === undefined ? undefined : (focus ?? null)}
           onFocusChange={(f) => onFocusChange?.(typeof f === "string" ? f : Array.isArray(f) ? f[0] : undefined)}
