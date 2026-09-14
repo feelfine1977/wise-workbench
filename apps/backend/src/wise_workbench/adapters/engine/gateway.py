@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import re
 import threading
 import warnings
 from dataclasses import dataclass, field
@@ -37,6 +38,7 @@ from wise_workbench.domain import (
     Run,
     ValidationError,
 )
+from wise_workbench.domain.comparison import is_flag_values
 from wise_workbench.domain.readings import backlog_reading, hotspot_of, kind_of, kind_reading, slice_reading
 
 from . import analytics as an
@@ -87,8 +89,13 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+_UNSAFE_IN_FILE_NAMES = re.compile(r'[<>:"|?*/\\]')
+
+
 def _artefact_name(prefix: str, slicing_id: str, view: str | None = None) -> str:
-    safe = slicing_id.replace("/", "_")
+    # a slicing id is free text ("company+exposure:q3"); the file name it becomes must be legal on every
+    # file system the workspace lives on, and a colon is not on Windows (WinError 87 on the rename)
+    safe = _UNSAFE_IN_FILE_NAMES.sub("_", slicing_id)
     return f"{prefix}/{safe}__{view}.parquet" if view else f"{prefix}/{safe}.parquet"
 
 
@@ -371,6 +378,12 @@ class EngineAdapter:
             df = read_frame(path)
             log = build_log(df, mapping, typed=True)
             del df
+            # the same attributes the build gave the case table: a prepared attribute and the typed flow type
+            # are computed, not read — a source column that happens to share the name (the objection export
+            # carries its own `flow_type` with the raw case-type labels) would otherwise replace the typed
+            # value on every reload, and a run scoped to a rule name then selected no case
+            apply_prepared_attributes(log, mapping)
+            apply_flow_typing(log, mapping)
             apply_mapping_recipes(log, mapping)
             return self._logs.put(key, log)
 
@@ -1902,6 +1915,12 @@ class EngineAdapter:
         rep = wise.event_replication(log)
         replicated = (rep["replication_ratio"] > 2.0).reindex(log.case_ids, fill_value=False)
         counts = column.value_counts(dropna=False)
+        # Types come from the mapping's rules: keep the rules' order (business variants first, data-quality
+        # variants last, as the pack wrote them) and carry each rule's note; values without a rule follow by size.
+        rule_order = {r.name: i for i, r in enumerate(mapping.flow_typing)} if name == "flow_type" else {}
+        rule_notes = {r.name: r.note for r in mapping.flow_typing if r.note} if name == "flow_type" else {}
+        if rule_order:
+            counts = counts.reindex(sorted(counts.index, key=lambda v: (rule_order.get(str(v), len(rule_order)), -counts[v])))
         n_cases = len(log)
         events_path = case_table_dir / "events.parquet"
         types = []
@@ -1957,6 +1976,7 @@ class EngineAdapter:
                     "scope": {"flow_type": str(value), "attribute": name}
                     if name == "flow_type"
                     else {"attribute": name, "value": str(value)},
+                    "note": rule_notes.get(str(value)),
                 }
             )
         out = {
@@ -2715,6 +2735,12 @@ def _contrast_table(ct: pd.DataFrame, ref: Any) -> Table:
     for r in frame.to_dict("records"):
         cid = str(r.get("constraint"))
         g = ref(cid)
+        median_slice, median_rest, shift, unit = r.get("median_slice"), r.get("median_rest"), r.get("hl_shift"), r.get("unit")
+        if str(r.get("type")) == "metric" and unit not in ("D", "H", "M", "S") and is_flag_values(median_slice, median_rest):
+            # a 0/1 flag scored as a metric: the medians are the flag itself and the "unit" is the column name;
+            # the shares missed here and elsewhere are the whole comparison (the objection log's e5 flag read
+            # "1.0 e5_open_older_than_year here; everywhere else 0.0")
+            median_slice = median_rest = shift = unit = None
         rows.append(
             [
                 cid,
@@ -2727,10 +2753,10 @@ def _contrast_table(ct: pd.DataFrame, ref: Any) -> Table:
                 jsonable(r.get("risk_difference")),
                 jsonable(r.get("rd_lo")),
                 jsonable(r.get("rd_hi")),
-                jsonable(r.get("median_slice")),
-                jsonable(r.get("median_rest")),
-                jsonable(r.get("hl_shift")),
-                r.get("unit"),
+                jsonable(median_slice),
+                jsonable(median_rest),
+                jsonable(shift),
+                unit,
                 r.get("pattern"),
                 jsonable(r.get("share_of_gap")),
                 jsonable(r.get("delta")),

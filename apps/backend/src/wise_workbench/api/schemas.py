@@ -209,6 +209,9 @@ class Preset(BaseModel):
     pitfalls: list[str] = Field(default_factory=list, description="what to read carefully on this log")
     extraSlicings: list[list[str]] = Field(default_factory=list)
     note: str | None = None
+    localOnly: bool = Field(
+        default=False, description="a private log that exists only on this machine; not a public dataset"
+    )
 
 
 class ReadinessItem(BaseModel):
@@ -660,6 +663,7 @@ class Distribution(BaseModel):
     width: float | None = None
     saturation: float | None = Field(default=None, description="δ + W")
     scale: Literal["linear", "log"] = "linear"
+    binary: bool = Field(default=False, description="every value is 0 or 1: a yes/no signal, read as shares of cases rather than as a histogram")
     markers: list[DistributionMarker] = Field(default_factory=list)
     stats: dict[str, Any] = Field(default_factory=dict)
     slice: dict[str, Any] | None = None
@@ -759,6 +763,7 @@ class FlowType(BaseModel):
     activities: int
     map: FlowGraph
     readiness: FlowTypeReadiness
+    note: str | None = Field(default=None, description="what this flow type is (from the mapping's rule); a data-quality variant says so here")
     scope: dict[str, Any] = Field(description="the run scope that analyses this flow type alone")
 
 

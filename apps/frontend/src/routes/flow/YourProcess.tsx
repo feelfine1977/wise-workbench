@@ -131,6 +131,8 @@ export function YourProcess({ projectId, caseTableId, runs, parentRun, mode, cas
                         <strong className="text-text">{fmtInt(t.cases)}</strong> {noun} · {fmtPct(t.share, t.share < 0.1 ? 1 : 0)}
                       </span>
                     </div>
+                    {/* the rule's own sentence: a data-quality variant (linking gap, child cases) must not read as a business variant */}
+                    {t.note && <p className="text-xs text-text-muted">{t.note}</p>}
                     <div role="meter" aria-valuemin={0} aria-valuemax={1} aria-valuenow={t.share} aria-label={`${t.name}: ${fmtPct(t.share, 1)} of the ${noun}`} className="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken">
                       <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(2, t.share * 100)}%` }} />
                     </div>

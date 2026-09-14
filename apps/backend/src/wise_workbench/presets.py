@@ -154,6 +154,9 @@ class Preset:
     case_noun: str | None = None
     pitfalls: tuple[str, ...] = ()
     note: str | None = None
+    # A private log that only exists on this machine (a pack preset with ``local_only``): never a public
+    # dataset, and the screens must not call it one.
+    local_only: bool = False
 
 
 PRESETS: dict[str, Preset] = {
@@ -229,7 +232,10 @@ def mapping_from_pack(preset: Any) -> dict[str, Any]:
         "caseAttributes": [str(a) for a in m.get("case_attributes") or []],
         "headerEvents": [str(a) for a in m.get("header_events") or []],
         "closureActivities": [str(a) for a in m.get("closure_activities") or []],
-        "flowTyping": [{"name": str(r["name"]), "rule": dict(r["rule"])} for r in m.get("flow_typing") or []],
+        "flowTyping": [
+            {"name": str(r["name"]), "rule": dict(r["rule"]), **({"note": str(r["note"])} if r.get("note") else {})}
+            for r in m.get("flow_typing") or []
+        ],
         "flowTypeDefault": str(m.get("flow_type_default") or "other"),
         "preparedAttributes": _prepared_from_pack(preset),
         "caseNoun": (preset.case_noun or {}).get("en") if isinstance(preset.case_noun, dict) else preset.case_noun,
@@ -267,6 +273,7 @@ def preset_from_pack(preset: Any, csv_path: Path | None, norm_path: Path | None)
         case_noun=(preset.case_noun or {}).get("en") if isinstance(preset.case_noun, dict) else preset.case_noun,
         pitfalls=tuple(str(x) for x in preset.pitfalls or ()),
         note=str(preset.notes or "").strip() or None,
+        local_only=bool(getattr(preset, "local_only", False)),
     )
 
 

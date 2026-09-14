@@ -77,15 +77,22 @@ export function PresetCard({ projectId }: { projectId: string }) {
   const track = useTrackJob(projectId);
   return (
     <Card aria-labelledby="preset-heading">
-      <CardTitle id="preset-heading">Load public log preset</CardTitle>
-      <p className="mb-2 text-xs text-text-muted">A known log on this machine, its column mapping and the reference norm, ingested, built and scored in one job. The file is read in place, not copied.</p>
+      <CardTitle id="preset-heading">Load a known log</CardTitle>
+      <p className="mb-2 text-xs text-text-muted">A known log on this machine, its column mapping and the reference norm, ingested, built and scored in one job. The file is read in place, not copied. Public datasets and private logs are marked; a private log never leaves this machine.</p>
       {presets.isPending && <LoadingBlock rows={2} />}
       {presets.isError && <ErrorBlock error={presets.error} />}
       <ul className="flex flex-col gap-2">
         {(presets.data ?? []).map((p) => (
           <li key={p.id} className="flex flex-wrap items-start gap-3 rounded-md border border-border p-3">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{p.name}</p>
+              <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                {p.name}
+                {p.localOnly ? (
+                  <span className="rounded-full border border-warning px-2 py-0.5 text-[11px] font-normal text-warning">private · this machine only</span>
+                ) : (
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-normal text-text-muted">public dataset</span>
+                )}
+              </p>
               <p className="text-xs text-text-muted">{p.description}</p>
               <p className="mt-1 font-mono text-[11px] text-text-subtle">{p.source}</p>
               {!p.available && <p className="mt-1 text-xs text-warning">The file is not at this path on this machine; set WISE_BPIC19_CSV (and WISE_BPIC19_NORM) for the backend.</p>}
@@ -98,7 +105,7 @@ export function PresetCard({ projectId }: { projectId: string }) {
                 })
               }
             >
-              Load public log preset
+              {p.localOnly ? "Load this private log" : "Load public dataset"}
             </Button>
           </li>
         ))}

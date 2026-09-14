@@ -40,6 +40,9 @@ class FlowTypingRule:
 
     name: str
     rule: dict[str, Any]
+    # What this flow type is, in one sentence (a pack preset's note); shown next to the type so that a
+    # data-quality variant ("mail-linking gap", "child cases") is never read as a business variant.
+    note: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -240,7 +243,9 @@ class ColumnMapping:
             "exposureAgg": self.exposure_agg,
             "exposureAbs": self.exposure_abs,
             "headerEvents": list(self.header_events),
-            "flowTyping": [{"name": r.name, "rule": dict(r.rule)} for r in self.flow_typing],
+            "flowTyping": [
+                {"name": r.name, "rule": dict(r.rule), **({"note": r.note} if r.note else {})} for r in self.flow_typing
+            ],
             "flowTypingNotes": [dict(n) for n in self.flow_typing_notes],
             "flowTypeDefault": self.flow_type_default,
             "closureActivities": list(self.closure_activities),
@@ -263,7 +268,8 @@ class ColumnMapping:
         cls, id: str, dataset_id: str, d: dict[str, Any], created_at: datetime | None = None
     ) -> ColumnMapping:
         flow = tuple(
-            FlowTypingRule(name=str(r["name"]), rule=dict(r.get("rule") or {})) for r in d.get("flowTyping") or []
+            FlowTypingRule(name=str(r["name"]), rule=dict(r.get("rule") or {}), note=(str(r["note"]) if r.get("note") else None))
+            for r in d.get("flowTyping") or []
         )
         kwargs: dict[str, Any] = {}
         if created_at is not None:

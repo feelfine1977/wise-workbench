@@ -42,6 +42,7 @@ class PresetService:
                     "pitfalls": list(preset.pitfalls),
                     "extraSlicings": [list(x) for x in preset.extra_slicings],
                     "note": preset.note,
+                    "localOnly": preset.local_only,
                 }
             )
         return out
