@@ -2763,6 +2763,12 @@ export interface components {
              * @enum {string}
              */
             scale?: "linear" | "log";
+            /**
+             * Binary
+             * @description every value is 0 or 1: a yes/no signal, read as shares of cases rather than as a histogram
+             * @default false
+             */
+            binary?: boolean;
             /** Markers */
             markers?: components["schemas"]["DistributionMarker"][];
             /** Stats */
@@ -3130,6 +3136,11 @@ export interface components {
             activities: number;
             map: components["schemas"]["FlowGraph"];
             readiness: components["schemas"]["FlowTypeReadiness"];
+            /**
+             * Note
+             * @description what this flow type is (from the mapping's rule); a data-quality variant says so here
+             */
+            note?: string | null;
             /**
              * Scope
              * @description the run scope that analyses this flow type alone
@@ -3794,6 +3805,12 @@ export interface components {
              * @enum {string}
              */
             scale?: "linear" | "log";
+            /**
+             * Binary
+             * @description every value is 0 or 1: a yes/no signal, read as shares of cases rather than as a histogram
+             * @default false
+             */
+            binary?: boolean;
             /** Markers */
             markers?: components["schemas"]["DistributionMarker"][];
             /** Stats */
@@ -4006,6 +4023,12 @@ export interface components {
             extraSlicings?: string[][];
             /** Note */
             note?: string | null;
+            /**
+             * Localonly
+             * @description a private log that exists only on this machine; not a public dataset
+             * @default false
+             */
+            localOnly?: boolean;
         };
         /** Problem */
         Problem: {
