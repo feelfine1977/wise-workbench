@@ -149,6 +149,9 @@ def distribution(
         out["note"] = meta["note"]
     if len(x) == 0:
         return out
+    # a yes/no signal (a prepared 0/1 flag scored as a metric): the lens draws two shares, not a histogram over
+    # -0.5 … 1.5, and the sentences say how many cases carry the flag instead of "1.0 <attribute> here"
+    out["binary"] = bool(np.all(np.isin(x, (0.0, 1.0))))
     lo_all, hi_all = float(np.min(x)), float(np.max(x))
     lo, hi = _robust_range(x, thr, sat)
     integral = bool(np.all(np.mod(x, 1) == 0)) and (hi - lo) <= bins

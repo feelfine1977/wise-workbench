@@ -88,9 +88,18 @@ function contrastSentence(c: Contrast | undefined, comparison: Comparison | unde
  * expectation, and — on a line of its own and named for what it is — the shift estimate, which is a third
  * number and not the difference of the two above it (R3-04).
  */
-function lensSentences(c: Contrast | undefined, name: string, label: string, noun: string, threshold: number | null | undefined, unit: string | undefined) {
+function lensSentences(c: Contrast | undefined, name: string, label: string, noun: string, threshold: number | null | undefined, unit: string | undefined, binary = false) {
   if (!c) return undefined;
   const unitWord = UNIT_WORD[c.unit ?? unit ?? ""] ?? c.unit ?? unit ?? "";
+  // a yes/no expectation (a 0/1 flag scored as a metric) has no median worth a sentence and no unit: the
+  // shares are the whole comparison (the objection log read "1.0 e5_open_older_than_year here")
+  if (binary) {
+    return (
+      <p>
+        <strong className="tnum">{fmtPct(c.share_missed_group, 0)}</strong> of {label}'s {noun} miss it ({name}) — everyone else: <strong className="tnum">{fmtPct(c.share_missed_elsewhere, 0)}</strong>.
+      </p>
+    );
+  }
   const medians = c.median_group !== null && c.median_group !== undefined && c.median_elsewhere !== null && c.median_elsewhere !== undefined;
   const shift = c.shift;
   const difference = medians ? Number(c.median_group!.toFixed(c.median_group! >= 10 ? 0 : 1)) - Number(c.median_elsewhere!.toFixed(c.median_elsewhere! >= 10 ? 0 : 1)) : undefined;
@@ -281,7 +290,7 @@ export default function SlicePage() {
         const actReasons = (actDriver?.usual_reasons ?? []).slice(0, 2);
         const topContrast = contrast.find((c) => c.constraint === constraint);
         const lensTitle = constraint ? plainOf(constraint) : "";
-        const unitLabel = constraint ? `${UNIT_WORD[dist.data?.unit ?? topContrast?.unit ?? ""] ?? dist.data?.unit ?? ""} · ${lensTitle}` : undefined;
+        const unitLabel = constraint ? (dist.data?.binary ? lensTitle : `${UNIT_WORD[dist.data?.unit ?? topContrast?.unit ?? ""] ?? dist.data?.unit ?? ""} · ${lensTitle}`) : undefined;
         const firstCaveat = (caveats ?? []).filter((c) => c.share === null || c.share === undefined || c.share > 0.005)[0];
         const mapProps = {
           graph: flowSlice.data,
@@ -366,7 +375,7 @@ export default function SlicePage() {
             noun={noun}
             groupName={name}
             unitLabel={plain ? unitLabel : undefined}
-            sentences={plain ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined) : undefined}
+            sentences={plain ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined, dist.data.binary ?? false) : undefined}
             height={search.tab === "why" ? 240 : 320}
           />
         ) : null;

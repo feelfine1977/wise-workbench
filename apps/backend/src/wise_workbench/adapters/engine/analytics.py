@@ -550,9 +550,10 @@ def _labels_for(contrast: Any, labels: Callable[[str], str | None] | None) -> di
 
 # The form of the comparison sentence; part of the parameters hash so that cached sentences are rebuilt when it changes.
 # 3: the bracket is the difference of the two printed numbers at the precision of the coarser of the two (R3-04).
+# 4: a 0/1 flag scored as a metric is read in shares, never as "1.0 <attribute> here against 0.0 elsewhere".
 # A run scored under an earlier form keeps its stored sentences; ``load_backlog_analytics`` applies the rule to
 # them on the way out, so the form version decides what is written and never what is served.
-COMPARISON_FORM = 3
+COMPARISON_FORM = 4
 
 
 def _count_noun(norm: wise.Norm | None, cid: str) -> str | None:

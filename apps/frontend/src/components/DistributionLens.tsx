@@ -305,6 +305,72 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     </div>
   );
 
+  // a yes/no signal (every value 0 or 1, a prepared flag scored as a metric): two shares side by side say it;
+  // a histogram over -0.5 … 1.5 with a tolerance band and "expected ≤ 0.0 e5_open_older_than_year" did not
+  if (distribution.binary && total(distribution) > 0) {
+    // exact shares from the stats: the ECDF estimate used for the histogram reads a 0/1 signal as "all beyond
+    // 0" and drew everyone else at 100 % beside a sentence saying 33 %
+    const exact = (d: Distribution) => (typeof d.stats?.shareViolated === "number" ? (d.stats.shareViolated as number) : undefined);
+    const hereShare = exact(distribution) ?? stats.shareViolating;
+    const allShare = rest ? exact(rest) : undefined;
+    const elseShare = allShare !== undefined && nRest > 0 ? Math.max(0, Math.min(1, (nAll * allShare - nGroup * hereShare) / nRest)) : undefined;
+    const rows = [{ name: groupName, share: hereShare, n: nGroup }, ...(elseShare !== undefined ? [{ name: "everyone else", share: elseShare, n: nRest }] : [])];
+    const binaryOption: EChartsOption = {
+      animation: false,
+      grid: { left: 140, right: 56, top: 12, bottom: 44 },
+      xAxis: { type: "value", min: 0, max: 1, axisLabel: { formatter: (v: number) => fmtPct(v, 0) }, name: `share of ${noun} that miss it`, nameLocation: "middle", nameGap: 28 },
+      yAxis: { type: "category", data: rows.map((r) => r.name).reverse(), axisLabel: { width: 120, overflow: "truncate" } },
+      tooltip: { trigger: "axis", formatter: (params: unknown) => (params as Array<{ name: string; value: number }>).map((p) => `${p.name}: ${fmtPct(p.value, 1)}`).join("<br/>") },
+      series: [
+        {
+          type: "bar",
+          data: rows.map((r, i) => ({ value: r.share, itemStyle: { color: i === 0 ? tk.accent : tk.muted, opacity: i === 0 ? 0.9 : 0.6 } })).reverse(),
+          barMaxWidth: 28,
+          label: { show: true, position: "right", formatter: (p: { value: number }) => fmtPct(p.value, 0), color: tk.muted, fontSize: 11 },
+        },
+      ],
+    };
+    return (
+      <section className={cn("flex flex-col gap-3", className)} aria-label={title ?? `Shares of ${constraintId ?? "signal"}`} data-testid="lens-binary">
+        <header className="flex flex-col gap-1">
+          {title && <h3 className="text-sm font-semibold">{title}</h3>}
+          <div className="reading flex flex-col gap-0.5 text-base text-text" data-testid="lens-sentences">
+            {sentences ?? (
+              <p aria-live="polite">
+                <strong className="tnum">{fmtPct(hereShare, 0)}</strong> of {groupName}'s {noun} miss it{elseShare !== undefined ? ` — everyone else: ${fmtPct(elseShare, 0)}` : ""}.
+              </p>
+            )}
+          </div>
+        </header>
+        <EChart option={binaryOption} height={Math.min(height, 60 + rows.length * 44)} ariaLabel={`${title ?? "Shares"}: ${rows.map((r) => `${r.name} ${fmtPct(r.share, 0)}`).join(", ")}`} notMerge={false} />
+        <p className="text-xs text-text-subtle">
+          A yes/no expectation: each {noun.replace(/s$/, "")} either meets it or misses it, so the comparison is the share that misses it. {fmtInt(nGroup)} {noun} of {groupName} have a value{elseShare !== undefined ? `; ${fmtInt(nRest)} elsewhere` : ""}.
+        </p>
+        <details className="text-xs text-text-muted">
+          <summary className="cursor-pointer">Table alternative</summary>
+          <table className="tnum mt-2 w-full text-xs">
+            <thead>
+              <tr>
+                <th scope="col" className="text-left">group</th>
+                <th scope="col" className="text-right">{noun} with a value</th>
+                <th scope="col" className="text-right">miss it</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.name}>
+                  <td>{r.name}</td>
+                  <td className="text-right">{fmtInt(r.n)}</td>
+                  <td className="text-right">{fmtPct(r.share, 1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      </section>
+    );
+  }
+
   // a group without a single value is not a 100 % share of nothing (R2-05): it says so and draws no bars
   if (total(distribution) === 0) {
     return (

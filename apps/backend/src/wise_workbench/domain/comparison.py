@@ -197,6 +197,12 @@ def is_share_unit(unit: str | None, *values: Any) -> bool:
     return all(0.0 <= v <= 1.0 for v in finite) and any(abs(v - round(v)) >= 1e-9 for v in finite)
 
 
+def is_flag_values(*values: Any) -> bool:
+    """Every value is exactly 0 or 1: the typical values of a prepared yes/no attribute scored as a metric."""
+    finite = [float(v) for v in values if _finite(v)]
+    return bool(finite) and all(v in (0.0, 1.0) for v in finite)
+
+
 def _singular(items: str) -> str:
     return items[:-1] if items.endswith("s") and len(items) > 1 else items
 
@@ -244,7 +250,11 @@ def readable_comparison(c: Comparison, *, items: str = "items", item: str | None
             if here != there and not _rounds_to_zero(diff):
                 text = f"{c.name}: amounts {here} apart here against {there} elsewhere ({diff})"
         elif kind == "metric":
-            if is_share_unit(c.unit, x, y):
+            if is_flag_values(x, y):
+                # a 0/1 flag scored as a metric: its medians are the flag itself ("1.0 e5_open_older_than_year
+                # here; everywhere else 0.0" on the objection log); the rate sentence below says it in shares
+                pass
+            elif is_share_unit(c.unit, x, y):
                 here, there = percent(x), percent(y)
                 diff = points(printed_difference(here, there) / 100)
                 if here != there and not _rounds_to_zero(diff):
