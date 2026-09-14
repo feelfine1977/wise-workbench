@@ -646,6 +646,10 @@ def _sentinel_dates(
         return []
     naive_all = ts.dt.tz_convert("UTC").dt.tz_localize(None) if getattr(ts.dt, "tz", None) is not None else ts
     has_window = pd.notna(start) and pd.notna(end)
+    if has_window:
+        # the window bounds come from the (possibly tz-aware) log; compare in the same naive UTC frame
+        start = start.tz_convert("UTC").tz_localize(None) if getattr(start, "tzinfo", None) is not None else start
+        end = end.tz_convert("UTC").tz_localize(None) if getattr(end, "tzinfo", None) is not None else end
     outside_mask = ((naive_all < start) | (naive_all > end)) if has_window else pd.Series(False, index=ts.index)
     counts = naive_all[outside_mask].value_counts() if has_window else naive_all.value_counts()
     known = {pd.Timestamp(d) for d in SENTINEL_DATES}

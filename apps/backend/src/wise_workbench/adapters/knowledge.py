@@ -343,7 +343,14 @@ def pack_presets(process: str | None = None) -> list[Any]:
         import wise_knowledge as wk
     except ImportError:
         return []
-    processes = [process] if process else list(getattr(wk, "PACK_IDS", None) or ("p2p", "o2c"))
+    if process:
+        processes = [process]
+    else:
+        # every installed pack (built-in and entry-point packs), not a fixed pair
+        try:
+            processes = sorted(wk.available_packs())
+        except Exception:  # pragma: no cover - older package without the helper
+            processes = list(getattr(wk, "PACK_IDS", None) or ("p2p", "o2c"))
     out: list[Any] = []
     for name in processes:
         loaded = _load(str(name))
