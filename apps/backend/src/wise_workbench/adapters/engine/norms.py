@@ -109,7 +109,11 @@ class NormInspector:
             observed: int | None = None
             try:
                 mask = nc.applies_to(log.cases, log)
-                if not mask.index.equals(log.case_ids) or not pd.api.types.is_bool_dtype(mask.dtype) or mask.isna().any():
+                if (
+                    not mask.index.equals(log.case_ids)
+                    or not pd.api.types.is_bool_dtype(mask.dtype)
+                    or mask.isna().any()
+                ):
                     raise ValueError("applicability did not return one known boolean per case")
                 in_scope = int(mask.sum())
                 if refs:

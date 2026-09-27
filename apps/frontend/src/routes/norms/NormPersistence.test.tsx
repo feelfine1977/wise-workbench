@@ -338,7 +338,7 @@ it("renames the whole norm as a new version, keeps pending calibration, and pres
   await screen.findByTestId("saved-exclusions");
   expect(api.bodies[2]?.norm.name).toBe("Policy 2025 — target 30");
   expect(db.runs).toEqual(runs);
-});
+}, 30000); // This journey saves, reloads and checks three immutable versions.
 
 it("renames an expectation without changing its id, arbitrary title numbers or unresolved calibration", async () => {
   const api = persistenceApi(); const original = db.norms.find(n => n.id === "nv_7")!;

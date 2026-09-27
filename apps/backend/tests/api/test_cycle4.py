@@ -88,7 +88,11 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Any]]:
         norm = client.post(f"/api/v1/projects/{pid}/norms", json={"norm": truth.norm.to_dict(), "note": "synthetic"})
         assert norm.status_code == 201, norm.text
         body = {"caseTableId": ct, "normVersionId": norm.json()["id"], "slicings": SLICINGS, "gamma": 2, "minCases": 5}
-        run = client.post(f"/api/v1/projects/{pid}/runs", json=body).json()
+        binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
+        response = client.post(f"/api/v1/projects/{pid}/runs", json=body)
+        assert response.status_code == 202, response.text
+        run = response.json()
         assert wait_job(client, run["jobId"], timeout=180)["status"] == "done"
         analytics = _wait_analytics(client, pid, run["id"])
         yield {
@@ -312,6 +316,8 @@ def logging_world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str
         )
         assert r.status_code == 202, r.text
         ct = wait_job(client, r.json()["id"])["resultRef"].split(":")[1]
+        binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
         norm = client.post(f"/api/v1/projects/{pid}/norms", json={"norm": LOGGING_NORM, "note": "one lag"})
         assert norm.status_code == 201, norm.text
         run = client.post(

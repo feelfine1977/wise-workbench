@@ -444,9 +444,7 @@ class EngineAdapter:
 
         return NormInspector(load_preview_log, mapping).signals(document, constraint_id, scale=scale)
 
-    def norm_relevance(
-        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]
-    ) -> dict[str, Any]:
+    def norm_relevance(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]:
         def load_relevance_log() -> wise.EventLog:
             # Read the exact prepared table, without deriving onto the shared
             # cached log or inheriting attributes from another norm version.
@@ -2117,7 +2115,7 @@ class EngineAdapter:
             )
         n_cases = len(log)
         events_path = case_table_dir / "events.parquet"
-        types = []
+        types: list[dict[str, Any]] = []
         for value, n in counts.items():
             m = (column == value).to_numpy(dtype=bool)
             ids = [str(i) for i in log.case_ids[m]]

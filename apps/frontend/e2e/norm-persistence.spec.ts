@@ -28,6 +28,10 @@ test("selected norm values and names survive reload; missing fields are focused 
   expect(draftResponse.ok()).toBe(true);
   const draft = await draftResponse.json() as { id: string };
   await page.goto(`/p/${PROJECT}/norms/${draft.id}?tab=constraints&constraint=${encodeURIComponent(constraint!.id)}&caseTable=${encodeURIComponent(CASE_TABLE!)}`);
+  // This journey exercises required rationale fields; Guided drafts deliberately make them optional.
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByLabel("Authoring mode", { exact: true }).selectOption("expert");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
   const dialog = page.getByTestId("sign-norm");
   await expect(dialog.getByRole("list", { name: "Required decisions" })).toBeVisible();

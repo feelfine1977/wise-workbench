@@ -31,7 +31,9 @@ def perform(c: Any, run_id: str, progress: ProgressFn) -> str:
     case_table_dir = c.workspace.case_table_dir(table.project_id, table.id)
     dest = c.workspace.run_dir(run_.project_id, run_.id)
     dest.mkdir(parents=True, exist_ok=True)
-    document = with_general_benchmark(norm.document) if run_.params.general_benchmark == BENCHMARK_POLICY else norm.document
+    document = (
+        with_general_benchmark(norm.document) if run_.params.general_benchmark == BENCHMARK_POLICY else norm.document
+    )
     manifest = c.engine.score_run(
         run_, case_table_dir, mapping, document, dest, progress, content_hash=dataset.content_hash or ""
     )

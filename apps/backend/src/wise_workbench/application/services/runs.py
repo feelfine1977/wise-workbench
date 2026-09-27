@@ -184,7 +184,9 @@ class RunService:
         mapping = self.c.repos.get_mapping(table.mapping_id)
         norm = self.c.repos.get_norm_version(run.params.norm_version_id)
         project = self.c.repos.get_project(run.project_id)
-        document = with_general_benchmark(norm.document) if run.params.general_benchmark == BENCHMARK_POLICY else norm.document
+        document = (
+            with_general_benchmark(norm.document) if run.params.general_benchmark == BENCHMARK_POLICY else norm.document
+        )
         views = tuple(run.params.views) or tuple(norm.view_names)
         window_end = None
         if table.readiness is not None and table.readiness.window_end:
@@ -492,7 +494,13 @@ class RunService:
         technical["sourceNormFingerprint"] = norm.fingerprint
         if run.params.general_benchmark:
             technical["generalBenchmark"] = run.params.general_benchmark
-            plain.append({"label": "General benchmark", "value": "Equal layer weights", "note": "Includes the union of constraints used by the norm views; generated for this run."})
+            plain.append(
+                {
+                    "label": "General benchmark",
+                    "value": "Equal layer weights",
+                    "note": "Includes the union of constraints used by the norm views; generated for this run.",
+                }
+            )
         return {
             "runId": run.id,
             "status": str(run.status),

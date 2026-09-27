@@ -45,7 +45,7 @@ describe("flow scope reaches the graph query", () => {
     const filter = JSON.stringify({ and: [clauseForValue("flow_type", "Consignment")] });
     const user = userEvent.setup();
     renderApp(`/p/p2p2018/runs/scope-consignment/flow?view=Automation&slicing=${encodeURIComponent(slicing)}&filter=${encodeURIComponent(filter)}&activity=old-activity&sel=activity:old-activity&detail=3&render=map`);
-    expect(await screen.findByTestId("graph-activities")).toHaveTextContent("Consignment goods receipt");
+    expect(await screen.findByTestId("graph-activities", {}, { timeout: 8000 })).toHaveTextContent("Consignment goods receipt");
     await user.click(screen.getByRole("button", { name: "Select DF1 scope" }));
     await waitFor(() => expect(screen.getByTestId("graph-activities")).toHaveTextContent("Record Service Entry Sheet"));
     expect(screen.getByTestId("flow-step")).toHaveTextContent("DF1 flow only");

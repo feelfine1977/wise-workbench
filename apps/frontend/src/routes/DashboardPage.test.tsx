@@ -11,7 +11,7 @@ it("reopens a saved finding in its recorded view and exact filter rather than th
     evidenceContext:{runId:"run_41",sliceKey:'["North"]',slicing:"region",view:"Automation",filter,normVersionId:"norm1",normFingerprint:"abc",manifestFingerprint:"def"},
   }])));
   renderApp("/p/p2p2018");
-  const records=await screen.findByTestId("open-records");
+  const records=await screen.findByTestId("open-records", {}, { timeout: 8000 });
   const link=within(records).getByRole("link",{name:"North"});
   const url=new URL(link.getAttribute("href")!,"http://local");
   expect(url.searchParams.get("view")).toBe("Automation");

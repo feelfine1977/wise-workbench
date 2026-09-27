@@ -232,7 +232,9 @@ class NormRelevanceConstraint(BaseModel):
         ge=0,
         description="Distinct in-scope cases with ANY referenced rule activity; null for no activity references or unavailable scope",
     )
-    missingActivities: list[str] = Field(description="Referenced raw activity labels with zero occurrences in the whole mapped table")
+    missingActivities: list[str] = Field(
+        description="Referenced raw activity labels with zero occurrences in the whole mapped table"
+    )
     issues: list[str]
 
 

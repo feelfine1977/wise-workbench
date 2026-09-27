@@ -91,7 +91,11 @@ def world(tmp_path_factory):
             "slicings": [{"id": "by-company", "attributes": ["company"]}],
             "minCases": 1,
         }
-        run = client.post(base + "/runs", json=body).json()
+        binding = client.put(base + "/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
+        response = client.post(base + "/runs", json=body)
+        assert response.status_code == 202, response.text
+        run = response.json()
         assert wait_job(client, run["jobId"])["status"] == "done"
         yield {"client": client, "base": base, "run": run["id"], "body": body, "settings": settings}
 

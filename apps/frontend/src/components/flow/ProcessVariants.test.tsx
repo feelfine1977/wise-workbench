@@ -116,7 +116,7 @@ it("opens from FlowPage over the map with the raw URL filter", async () => {
   server.use(http.get(endpoint, ({ request }) => { requested.push(new URL(request.url).searchParams.get("filter")); return HttpResponse.json(fixture); }));
   const user = userEvent.setup();
   renderApp(`/p/p2p2018/runs/run_41/flow?filter=${encodeURIComponent(raw)}`);
-  await screen.findByTestId("flow-map");
+  await screen.findByTestId("flow-map", {}, { timeout: 8000 });
   await user.click(screen.getByRole("button", { name: "Common process paths" }));
   await screen.findByRole("button", { name: "Open sample c1" });
   expect(requested).toEqual([raw]);

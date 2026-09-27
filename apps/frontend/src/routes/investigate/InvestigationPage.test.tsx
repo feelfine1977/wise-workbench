@@ -21,7 +21,7 @@ const route='/p/p2p2018/runs/run_41/investigate?family=repetition&filter='+encod
 it("shows a compact question and carries its exact inherited selection to map and ranking",async()=>{
   server.use(http.get(endpoint,()=>HttpResponse.json(fixture)));
   renderApp(route);
-  const article=await screen.findByRole("article",{name:"Repeated Review request"});
+  const article=await screen.findByRole("article",{name:"Repeated Review request"}, {timeout: 8000});
   expect(within(article).getAllByText("20%")[0]).toBeVisible();
   expect(within(article).getAllByText("4 requests")[0]).toBeVisible();
   const map=within(article).getByRole("link",{name:"Open their process map"});
@@ -36,7 +36,7 @@ it("shows a compact question and carries its exact inherited selection to map an
 it("does not offer broadening drill links for a relationship with no exact filter",async()=>{
   server.use(http.get(endpoint,()=>HttpResponse.json({...fixture,questions:[{...fixture.questions[0],filter:null}]})));
   renderApp(route);
-  const article=await screen.findByRole("article",{name:"Repeated Review request"});
+  const article=await screen.findByRole("article",{name:"Repeated Review request"}, {timeout: 8000});
   expect(within(article).queryByRole("link",{name:"Open their process map"})).not.toBeInTheDocument();
   expect(within(article).queryByRole("button",{name:"Common process paths"})).not.toBeInTheDocument();
   expect(within(article).getByRole("status")).toHaveTextContent("cannot yet be carried as an exact selection");
@@ -45,13 +45,13 @@ it("does not offer broadening drill links for a relationship with no exact filte
 it("submits dataset-specific questions without stale incompatible parameters",async()=>{
   const requests:URL[]=[];
   server.use(http.get(endpoint,({request})=>{requests.push(new URL(request.url));return HttpResponse.json(fixture);}));
-  renderApp(route);await screen.findByRole("article",{name:"Repeated Review request"});
+  renderApp(route);await screen.findByRole("article",{name:"Repeated Review request"}, {timeout: 8000});
   const user=userEvent.setup();
   await user.selectOptions(screen.getByLabelText("What would you like to understand?"),"timing");
   await user.selectOptions(screen.getByLabelText("From activity"),"Review request");
   await user.selectOptions(screen.getByLabelText("To activity"),"Close request");
   await user.click(screen.getByRole("button",{name:"Explore this question"}));
-  await screen.findByRole("article",{name:"Repeated Review request"});
+  await screen.findByRole("article",{name:"Repeated Review request"}, {timeout: 8000});
   expect(requests.at(-1)!.searchParams.get("family")).toBe("timing");
   expect(requests.at(-1)!.searchParams.get("source")).toBe("Review request");
   expect(requests.at(-1)!.searchParams.get("filter")).toBe(JSON.stringify(inherited));

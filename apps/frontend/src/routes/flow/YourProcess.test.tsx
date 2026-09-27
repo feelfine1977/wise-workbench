@@ -27,7 +27,7 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     }));
     const user = userEvent.setup();
     renderApp("/p/p2p2018/data/ds_1?caseTable=ct_1&tab=flows");
-    await user.click(await screen.findByRole("button", { name: "Open the map of the DF1 flow" }));
+    await user.click(await screen.findByRole("button", { name: "Open the map of the DF1 flow" }, T));
     await screen.findByTestId("flow-step");
     await waitFor(() => expect(requested).toEqual(["df1-new"]));
   });

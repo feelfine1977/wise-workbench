@@ -120,7 +120,8 @@ def changed_thresholds(document: dict[str, Any], parent: dict[str, Any] | None) 
 
     derivations_changed = document.get("derived_attributes", []) != parent.get("derived_attributes", [])
     return sorted(
-        cid for cid in numeric
+        cid
+        for cid in numeric
         if derivations_changed or cid not in before or definition(here[cid]) != definition(before[cid])
     )
 

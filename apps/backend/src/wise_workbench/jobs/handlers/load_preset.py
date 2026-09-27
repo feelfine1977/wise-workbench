@@ -27,6 +27,7 @@ from wise_workbench.domain import (
     SourceKind,
     slicing_id,
 )
+from wise_workbench.domain.norm_views import BENCHMARK_POLICY, with_general_benchmark
 from wise_workbench.ids import new_id
 from wise_workbench.jobs.worker import JobContext
 from wise_workbench.presets import Preset, all_presets
@@ -301,7 +302,8 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
         doc, untranslated = translate_norm(doc, preset.process, preset.label_pack)
         if untranslated:
             note += f"; {len(untranslated)} canonical activities have no label in this log ({untranslated[0]}, …)"
-    _canonical, fingerprint = c.engine.validate_norm(doc)
+    canonical, _ = c.engine.validate_norm(doc)
+    _canonical, fingerprint = c.engine.validate_norm(with_general_benchmark(canonical))
     norm = next((n for n in c.repos.list_norm_versions(project_id) if n.fingerprint == fingerprint), None)
     if norm is None:
         norm = c.norms.create_version(project_id, doc, note=note)
@@ -323,6 +325,7 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
         gamma=preset.gamma,
         min_cases=preset.min_cases,
         note=preset.run_note,
+        general_benchmark=BENCHMARK_POLICY,
     )
     run_ = c.repos.find_run(project_id, params_hash=params.params_hash())
     if run_ is not None and run_.status == RunStatus.DONE:

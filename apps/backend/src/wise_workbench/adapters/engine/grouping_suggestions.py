@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import itertools
 import re
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,31 @@ from wise_workbench.domain.norm_views import with_general_benchmark
 from .bands import band_values
 from .grouping import enrich_grouping_fields
 from .norms import _norm_from
+
+
+class ContextProfile(TypedDict):
+    name: str
+    type: Literal["numeric", "categorical"]
+    distinct: int
+    missing: int
+
+
+class GroupingSuggestion(TypedDict):
+    id: str
+    attributes: list[str]
+    bands: list[dict[str, Any]]
+    label: str
+    reasons: list[str]
+    relevance: float
+    rankScore: float
+    cases: int
+    supportCases: int
+    missingCases: int
+    groups: int
+    belowMinCases: int
+    supportedCases: int
+    relatedConstraints: list[str]
+
 
 MAX_COLUMNS = 128
 MAX_CANDIDATE_COLUMNS = 12
@@ -86,7 +111,11 @@ def discover_groupings(
     }
     # Relevant fields are considered first if an unusually wide source exceeds the profile bound.
     names = sorted(all_names, key=lambda n: (-relevance[n], n))[:MAX_COLUMNS]
-    profiles, excluded, values, missing_by_name, bands_by_name = [], [], {}, {}, {}
+    profiles: list[ContextProfile] = []
+    excluded: list[dict[str, str]] = []
+    values: dict[str, pd.Series[Any]] = {}
+    missing_by_name: dict[str, pd.Series[bool]] = {}
+    bands_by_name: dict[str, list[dict[str, Any]]] = {}
     for name in names:
         if name not in frame:
             continue
@@ -123,14 +152,14 @@ def discover_groupings(
         if reason:
             excluded.append({"name": name, "reason": reason})
             continue
-        profile = {
+        profile: ContextProfile = {
             "name": name,
             "type": "numeric" if numeric else "categorical",
             "distinct": distinct,
             "missing": int(missing.sum()),
         }
         profiles.append(profile)
-        band = [{"attribute": name, "method": "quantile", "q": 4}] if numeric else []
+        band: list[dict[str, Any]] = [{"attribute": name, "method": "quantile", "q": 4}] if numeric else []
         # Keep engine band edges/labels and missing grouping semantics.
         values[name] = (
             band_values(series, band[0]) if band else series.astype(object).where(series.notna(), "(missing)")
@@ -144,7 +173,7 @@ def discover_groupings(
     # Round-robin widths ensure all three sizes are explored even with a small work budget.
     iterators = [iter(itertools.combinations(candidate_names, width)) for width in (1, 2, 3)]
     bound = min(MAX_EVALUATIONS, max(3, MAX_ROW_EVALUATIONS // max(len(frame), 1)))
-    combinations = []
+    combinations: list[tuple[str, ...]] = []
     while iterators and len(combinations) < bound:
         remaining = []
         for iterator in iterators:
@@ -155,7 +184,7 @@ def discover_groupings(
                 if len(combinations) == bound:
                     break
         iterators = remaining
-    suggestions = []
+    suggestions: list[GroupingSuggestion] = []
     for combo in combinations:
         attrs = list(combo)
         keyed = pd.DataFrame({name: values[name] for name in attrs}, index=frame.index)
@@ -200,7 +229,7 @@ def discover_groupings(
     # Reserve the best viable result of each available width before filling the
     # remaining slots by score. A tie-heavy top-N must not silently hide pairs
     # and triples. The final displayed order is still the rank order.
-    selected_ids = set()
+    selected_ids: set[str] = set()
     for width in (1, 2, 3):
         best = next(
             (

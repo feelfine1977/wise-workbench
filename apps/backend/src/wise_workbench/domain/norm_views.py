@@ -39,7 +39,7 @@ def with_general_benchmark(document: dict[str, Any]) -> dict[str, Any]:
     previous = previous if isinstance(previous, dict) else {}
     managed = previous.get("name") if previous.get("policy") == BENCHMARK_POLICY else None
     others = [v for v in views if v.get("name") != managed]
-    active = set()
+    active: set[str] = set()
     for view in others:
         active.update(cid for cid, weight in raw_view_weights(out, view).items() if weight > 0)
     if not others:

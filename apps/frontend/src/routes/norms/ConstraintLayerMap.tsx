@@ -1,3 +1,4 @@
+import { NormHierarchyChart } from "./NormHierarchyChart";
 import { allNormItems, constraintVisible, type NormVisibility } from "./normVisibility";
 import type { NormRelevance } from "@/lib/api/normRelevance";
 import { useId, useMemo, useState } from "react";
@@ -49,7 +50,7 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
   const [query, setQuery] = useState("");
   const [selectedView, setSelectedView] = useState<number | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
-  const [presentation, setPresentation] = useState<"map" | "table">("map");
+  const [presentation, setPresentation] = useState<"map" | "table" | "overview">("map");
   const [expanded, setExpanded] = useState(() => {
     const first = document.layers?.[0]?.id ?? document.constraints?.[0]?.layer;
     return new Set(first === undefined ? [] : [first]);
@@ -117,6 +118,7 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
         <p className="text-xs text-text-muted">One shared rule per constraint. Within-layer weights do not apply to direct-weight views.</p>
       </div>
       <div role="group" aria-label="Map presentation" className="flex gap-2">
+        <Button className={focus} size="sm" variant="outline" aria-pressed={presentation === "overview"} onClick={() => setPresentation("overview")}>Hierarchy overview</Button>
         <Button className={focus} size="sm" variant="outline" aria-pressed={presentation === "map"} onClick={() => setPresentation("map")}>Map</Button>
         <Button className={focus} size="sm" variant="outline" aria-pressed={presentation === "table"} onClick={() => setPresentation("table")}>Table</Button>
       </div>
@@ -132,7 +134,8 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
     <p role="status" className="text-xs text-text-muted">
       {filteredGroups.reduce((sum, group) => sum + group.matches.length, 0)} of {document.constraints?.length ?? 0} constraints · {activeView ? `${activeView.name} weights` : "All views"}{highlightedLayer ? ` · Highlighted layer: ${highlightedLayer.name}` : ""}. Selection changes this map only.
     </p>
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+    {presentation === "overview" && <NormHierarchyChart groups={filteredGroups} onConstraint={onConstraint} />}
+    <div className={`${presentation === "overview" ? "hidden" : "grid"} items-start gap-4 lg:grid-cols-[minmax(0,1fr)_240px]`}>
       <div className={`min-w-0 space-y-3 ${presentation === "map" ? "max-h-[70vh] overflow-y-auto p-1" : ""}`} role="region" aria-label="Layer groups and relationships" tabIndex={presentation === "map" ? 0 : undefined}>
         {presentation === "map" ? <>
           {highlightedLayer && <Button className={focus} size="sm" variant="ghost" onClick={() => setSelectedLayer(null)}>Clear layer highlight</Button>}

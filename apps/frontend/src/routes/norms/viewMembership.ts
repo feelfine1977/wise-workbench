@@ -17,7 +17,7 @@ export function withGeneralBenchmark(document: NormDocument): NormDocument {
   const constraints = document.constraints ?? [];
   const active = new Set(others.flatMap(v => Object.entries(rawViewWeights(document, v)).filter(([, w]) => w > 0).map(([id]) => id)));
   if (!others.length) constraints.filter(c => (c.weight ?? 1) > 0).forEach(c => active.add(c.id));
-  if (!active.size) return document;
+  if (!active.size && !managed) return document;
   const names = new Set(others.map(v => v.name));
   let name = managed ?? "General";
   if (names.has(name)) { name = "General benchmark"; let i = 2; while (names.has(name)) name = `General benchmark ${i++}`; }

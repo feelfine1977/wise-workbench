@@ -57,7 +57,11 @@ def world(tmp_path_factory):
             "gamma": 0,
             "minCases": 1,
         }
-        run = client.post(f"/api/v1/projects/{pid}/runs", json=body).json()
+        binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
+        response = client.post(f"/api/v1/projects/{pid}/runs", json=body)
+        assert response.status_code == 202, response.text
+        run = response.json()
         assert wait_job(client, run["jobId"])["status"] == "done", run
         yield {
             "client": client,

@@ -118,6 +118,11 @@ def main() -> int:
                         },
                     )
                     case_table = wait_job(job)["resultRef"].split(":", 1)[1]
+                    binding = client.put(
+                        prefix + "/dataset-binding",
+                        json={"datasetId": dataset},
+                    )
+                    binding.raise_for_status()
                     version = post(
                         prefix + "/norms",
                         json={

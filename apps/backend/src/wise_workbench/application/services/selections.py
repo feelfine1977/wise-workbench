@@ -74,10 +74,11 @@ def create_selection(c: Container, project_id: str, table_id: str, body: SavedSe
     with duckdb.connect(":memory:") as con:
         con.read_parquet(str(directory / "events.parquet")).create_view("events")
         con.register("members", pa.table({"id": members}))
-        absent = con.execute(
+        count_row = con.execute(
             f"SELECT count(*) FROM members m WHERE NOT EXISTS (SELECT 1 FROM events e WHERE CAST(e.{_quote(mapping.case_id)} AS VARCHAR) = m.id)"
-        ).fetchone()[0]
-        if absent:
+        ).fetchone()
+        assert count_row is not None
+        if count_row[0]:
             raise ValidationError("Selected cases are absent from the prepared event log", code="selection.case_ids")
     if before != source_identity(directory, mapping, dataset.content_hash):
         raise ConflictError("Prepared source changed while saving; try again", code="selection.source_changed")

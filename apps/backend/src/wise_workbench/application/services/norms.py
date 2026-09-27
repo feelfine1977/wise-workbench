@@ -333,9 +333,7 @@ class NormService:
         if mapping.dataset_id != table.dataset_id:
             raise ValidationError("Case table mapping does not match its dataset", code="case_table.mapping_mismatch")
         self.c.datasets.get(project_id, table.dataset_id)
-        out = self.c.engine.norm_relevance(
-            self.c.workspace.case_table_dir(project_id, table.id), mapping, n.document
-        )
+        out = self.c.engine.norm_relevance(self.c.workspace.case_table_dir(project_id, table.id), mapping, n.document)
         return {**out, "normVersionId": n.id, "caseTableId": table.id}
 
     def signals(

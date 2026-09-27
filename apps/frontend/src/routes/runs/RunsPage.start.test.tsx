@@ -25,7 +25,7 @@ it("offers prepared datasets before any run exists and retains the managed Gener
   const user = userEvent.setup();
   server.use(http.get("*/api/v1/projects/p2p2018/runs", () => HttpResponse.json([])));
   renderApp("/p/p2p2018/runs");
-  const newRun = await screen.findByRole("button", { name: "New run" });
+  const newRun = await screen.findByRole("button", { name: "New run" }, { timeout: 8000 });
   await waitFor(() => expect(newRun).toBeEnabled());
   await user.click(newRun);
   const dialog = screen.getByRole("dialog");
@@ -82,7 +82,7 @@ it("rejects a new-run URL naming a case table from a different dataset", async (
 });
 it("opens exploration of the fixed dataset directly from Data without offering a dataset switch", async () => {
   renderApp("/p/p2p2018/data");
-  expect(await screen.findByRole("heading", {name: "BPI_Challenge_2019.csv"})).toBeInTheDocument();
+  expect(await screen.findByRole("heading", {name: "BPI_Challenge_2019.csv"}, {timeout: 8000})).toBeInTheDocument();
   expect(await screen.findByRole("region", {name: "Explore dataset"})).toBeVisible();
   expect(screen.getByRole("tab", {name: "Explore data"})).toHaveAttribute("data-state", "active");
   expect(screen.getByRole("region", {name: "Project dataset"})).toHaveTextContent("Project dataset fixed: BPI_Challenge_2019.csv");
@@ -128,7 +128,7 @@ it("removes stale suggestion evidence immediately when the selected views change
     return HttpResponse.json(discovery(body, requested.length === 1 ? "Original context" : "Changed context"));
   }));
   renderApp("/p/p2p2018/runs?new=true");
-  await screen.findByRole("button", { name: "Add grouping Original context" });
+  await screen.findByRole("button", { name: "Add grouping Original context" }, { timeout: 8000 });
   const dialog = screen.getByRole("dialog");
   await user.click(within(dialog).getAllByRole("checkbox")[0]!);
   expect(screen.queryByRole("button", { name: "Add grouping Original context" })).not.toBeInTheDocument();

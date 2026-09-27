@@ -244,6 +244,7 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
         assert wait_job(client, again["id"], timeout=60)["resultRef"] == f"run:{run_id}"
         assert len(client.get(f"/api/v1/projects/{pid}/datasets").json()) == 1
         assert len(client.get(f"/api/v1/projects/{pid}/runs").json()) == 1
+        assert len(client.get(f"/api/v1/projects/{pid}/norms").json()) == 1
         assert client.get(f"/api/v1/projects/{pid}/dataset-binding").json() == binding
 
 

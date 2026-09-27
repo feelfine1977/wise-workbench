@@ -18,7 +18,7 @@ function Harness({ initial }: { initial?: string }) {
   const [selected, setSelected] = useState(initial);
   return <ConstraintNavigator document={doc} selected={doc.constraints!.find(c => c.id === selected)} overview={!selected} missing={["q19"]} warnings={new Map()} onSelect={setSelected} onOverview={() => setSelected(undefined)} />;
 }
-it("starts with purpose and two layer cards, then reveals only a bounded part of one layer", async () => {
+it("starts with purpose and two collapsed layers, then reveals only a bounded part of one layer", async () => {
   const user = userEvent.setup(); render(<Harness />);
   expect(screen.getByText("Deliver the customer promise")).toBeVisible();
   expect(screen.queryByRole("button", { name: /Timing expectation/ })).not.toBeInTheDocument();
@@ -38,7 +38,8 @@ it("filters unresolved work at both levels and provides global search without sh
   expect(screen.queryByRole("button", { name: "Explore Timeliness" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Explore Quality" }));
   expect(screen.getByRole("checkbox", { name: /Needs review only/ })).toBeChecked();
-  expect(screen.getByRole("button", { name: /^Quality expectation 19/ })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: /^Quality expectation 19/ })).toHaveAttribute("aria-pressed", "false");
+  await user.click(screen.getByRole("button", { name: /^Quality expectation 19/ }));
   expect(screen.queryByRole("button", { name: "Quality expectation 0" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: /Needs review only/ }));
   await user.type(screen.getByRole("searchbox", { name: "Find a constraint" }), "Timing expectation 12");
@@ -90,4 +91,25 @@ it("guided mode folds low-coverage rules away, search and expert mode recover th
   expect(screen.getByRole("button", { name: "Record payment" })).toHaveAttribute("aria-pressed", "true");
   expect(rules).toHaveLength(3);
   await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Constraint hierarchy" }));
+});
+
+it("keeps the open branch order stable when coverage changes until explicitly reordered", async () => {
+  const user = userEvent.setup();
+  const document: NormDocument = {
+    layers: [{ id: "completion", name: "Completion" }],
+    constraints: ["Invoice", "Receipt"].map(id => ({ id, layer: "completion", type: "presence", description: id, params: {} })),
+  };
+  const evidence = (invoice: number, receipt: number) => ({ normVersionId: "v", caseTableId: "t", cases: 100, constraints: [
+    { id: "Invoice", casesInScope: 100, observedCases: invoice, missingActivities: [], issues: [] },
+    { id: "Receipt", casesInScope: 100, observedCases: receipt, missingActivities: [], issues: [] },
+  ] });
+  const props = { document, overview: true, missing: [], warnings: new Map(), onSelect: () => {}, onOverview: () => {} };
+  const { rerender } = render(<ConstraintNavigator {...props} relevance={evidence(90, 40)} />);
+  await user.click(screen.getByRole("button", { name: "Explore Completion" }));
+  const names = () => within(screen.getByRole("region", { name: "Completion" })).getAllByRole("button").map(el => el.getAttribute("aria-label"));
+  expect(names()).toEqual(["Invoice", "Receipt"]);
+  rerender(<ConstraintNavigator {...props} relevance={evidence(40, 90)} />);
+  expect(names()).toEqual(["Invoice", "Receipt"]);
+  await user.click(screen.getByRole("button", { name: "Reorder by relevance" }));
+  expect(names()).toEqual(["Receipt", "Invoice"]);
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { expect, it, vi } from "vitest";
@@ -39,6 +39,7 @@ function setup(options: { step?: AuthoringStep; failure?: boolean; selectedView?
     return <StructureEditor projectId="p" versionId="nv_original" document={sourceDocument} step={step} selectedView={view} onView={value => { chosen(value); setView(value); }} onStep={setStep} onConstraint={opened} onSaved={saved} />;
   }
   render(<QueryClientProvider client={makeTestQueryClient()}><Harness /></QueryClientProvider>);
+  if (options.step === "views") fireEvent.click(screen.getByRole("button", { name: "Edit one view" }));
   return { bodies, saved, chosen, opened };
 }
 
@@ -90,7 +91,6 @@ it("does not turn blank or negative weights into zero and matrix cells navigate 
   await user.type(screen.getByLabelText("View weight: Timing"), "-2");
   expect(screen.getByRole("alert")).toHaveTextContent("zero or a positive number");
   await user.clear(screen.getByLabelText("View weight: Timing")); await user.type(screen.getByLabelText("View weight: Timing"), "2");
-  await user.click(screen.getByText("Structure matrix"));
   expect(screen.getByText(/These are not performance scores/)).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Edit Finance: Quality" }));
   await waitFor(() => expect(screen.getByLabelText("View weight: Quality")).toHaveFocus());

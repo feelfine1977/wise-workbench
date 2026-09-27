@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { StakeholderMatrix } from "./StakeholderMatrix";
 import { viewColor } from "@/lib/viewColors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export function StructureEditor({ projectId, versionId, document, step, selected
     if (selected >= 0) setViewIndex(selected);
   }, [selectedView, document]);
   const dormantLayers = useRef(new Map<string, NormView>());
+  const [editingView, setEditingView] = useState(false);
   const [newLayer, setNewLayer] = useState("");
   const [newView, setNewView] = useState("");
   const [saving, setSaving] = useState(false);
@@ -78,6 +80,12 @@ export function StructureEditor({ projectId, versionId, document, step, selected
       onSuccess: result => { setSaving(false); onSaved(result.id); },
     });
   };
+  const matrix = <StakeholderMatrix document={draft} onChange={setDraft} onConstraint={onConstraint} onEdit={(name, layer) => {
+    const index = views.findIndex(v => v.name === name);
+    setViewIndex(index); setEditingView(true); onStep("views");
+    if (document.views?.some(v => v.name === name)) onView(name);
+    requestAnimationFrame(() => window.document.getElementById(`view-weight-${layer}`)?.focus());
+  }} />;
   return <section aria-label="Layer and view editor" hidden={step === "constraints"} className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-text-muted">{step === "layers" ? "Group constraints by business purpose. Each constraint belongs to one layer." : "Choose the layers that matter to each view and set their relative weights."}</p>
@@ -123,8 +131,10 @@ export function StructureEditor({ projectId, versionId, document, step, selected
       </Card>
     </div>}
     {step === "views" && <div className="space-y-4">
+      {matrix}
+      <Button size="sm" variant="outline" aria-expanded={editingView} onClick={() => setEditingView(!editingView)}>{editingView ? "Close view details" : "Edit one view"}</Button>
       <div className="rounded border border-border bg-surface p-3">
-        <ul className="flex flex-wrap gap-2" aria-label="View weight bookmarks">{views.map((v, index) => <li key={index}><button type="button" className={`w-full rounded p-2 text-left text-sm ${viewIndex === index ? "bg-selection" : "hover:bg-surface-sunken"}`} aria-pressed={viewIndex === index} style={{ borderBottom: `3px solid ${viewColor(v.name)}` }} onClick={() => { setViewIndex(index); const savedName = document.views?.[index]?.name; if (savedName) onView(savedName); }}>{v.name || "Unnamed view"}<span className="block text-xs text-text-muted">{v.name === benchmark ? "Equal-layer benchmark" : v.constraint_weights != null ? "Direct constraint weights" : `${Object.values(v.layer_weights ?? {}).filter(w => w > 0).length} weighted layers`}</span></button></li>)}</ul>
+        <ul className="flex flex-wrap gap-2" aria-label="View weight bookmarks">{views.map((v, index) => <li key={index}><button type="button" className={`w-full rounded p-2 text-left text-sm ${viewIndex === index ? "bg-selection" : "hover:bg-surface-sunken"}`} aria-pressed={viewIndex === index} style={{ borderBottom: `3px solid ${viewColor(v.name)}` }} onClick={() => { setEditingView(true); setViewIndex(index); const savedName = document.views?.[index]?.name; if (savedName) onView(savedName); }}>{v.name || "Unnamed view"}<span className="block text-xs text-text-muted">{v.name === benchmark ? "Equal-layer benchmark" : v.constraint_weights != null ? "Direct constraint weights" : `${Object.values(v.layer_weights ?? {}).filter(w => w > 0).length} weighted layers`}</span></button></li>)}</ul>
         <details className="mt-3 border-t border-border pt-3 text-sm"><summary className="cursor-pointer">Add view</summary>
           <form className="mt-2 space-y-2" onSubmit={e => {
             e.preventDefault();
@@ -132,6 +142,7 @@ export function StructureEditor({ projectId, versionId, document, step, selected
             if (!name || duplicateViewName) return;
             const next = withGeneralBenchmark({ ...draft, views: [...views, { name, layer_weights: Object.fromEntries(layers.map(l => [l.id, 0])) }] });
             setDraftState(next);
+            setEditingView(true);
             setViewIndex(next.views!.findIndex(v => v.name === name));
             setNewView("");
           }}>
@@ -141,7 +152,7 @@ export function StructureEditor({ projectId, versionId, document, step, selected
           </form>
         </details>
       </div>
-      <Card className="min-w-0">
+      <Card className="min-w-0" hidden={!editingView}>
         {view ? <>
           {isBenchmark ? <div role="note" className="rounded border border-border bg-surface-sunken p-3 text-sm"><h3 className="font-semibold">General benchmark</h3><p className="mt-1">Includes every constraint used by any view. Each participating layer has equal total weight; its included constraints share that weight equally. This reference updates automatically.</p></div> : <Field label="View name" htmlFor="view-name"><Input id="view-name" value={view.name} onChange={e => updateView({ name: e.target.value })} /></Field>}
           <p className="my-3 text-xs text-text-muted">{isBenchmark ? "Read-only reference. Edit the stakeholder views to change the union." : "Include or exclude a layer or individual constraint in this view. Shared definitions and other views stay unchanged."}</p>
@@ -167,13 +178,7 @@ export function StructureEditor({ projectId, versionId, document, step, selected
         </> : <p className="text-sm text-text-muted">Add a view, then choose its layer weights.</p>}
       </Card>
     </div>}
-    <details className="rounded border border-border bg-surface p-3">
-      <summary className="cursor-pointer text-sm font-medium">Structure matrix</summary>
-      <p className="my-2 text-xs text-text-muted">Configured weights only. These are not performance scores. Select a layer or a weight to edit it.</p>
-      <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Layer membership and configured view weights</caption><thead><tr><th className="p-2" scope="col">Layer</th><th className="p-2" scope="col">Constraints</th>{views.map((v, i) => <th key={i} className="p-2" scope="col">{v.name}</th>)}</tr></thead>
-        <tbody>{layers.map(l => <tr key={l.id} className="border-t border-border"><th scope="row" className="p-2"><button type="button" className="text-accent-text underline" onClick={() => { setLayerId(l.id); onStep("layers"); }}>{l.name}</button></th><td className="p-2">{constraints.filter(c => c.layer === l.id).length}</td>{views.map((v, index) => <td key={index} className="p-2"><button type="button" className="rounded border border-border px-2 py-1 hover:bg-selection" aria-label={`Edit ${v.name}: ${l.name}`} onClick={() => { setViewIndex(index); const savedName = document.views?.[index]?.name; if (savedName) onView(savedName); onStep("views"); requestAnimationFrame(() => window.document.getElementById(v.constraint_weights != null ? "view-name" : `view-weight-${l.id}`)?.focus()); }}>{v.constraint_weights != null ? "Direct weights" : validWeight(v.layer_weights?.[l.id] ?? 0) ? (v.layer_weights?.[l.id] ?? 0) === 0 ? "Not weighted" : v.layer_weights?.[l.id] : "Invalid weight"}</button></td>)}</tr>)}</tbody>
-      </table></div>
-    </details>
+    {step === "layers" && <details className="rounded border border-border bg-surface p-3"><summary className="cursor-pointer text-sm font-medium">Structure matrix</summary>{matrix}</details>}
     <Dialog open={saving} onOpenChange={open => !create.isPending && setSaving(open)}><DialogContent hideClose={create.isPending}>
       <DialogHeader><DialogTitle>Save structure as new draft</DialogTitle><DialogDescription>Save layer assignments and view weights in a new version. Existing results retain their original Process norm.</DialogDescription></DialogHeader>
       {allowDraftWithoutDecision ? <p className="text-sm text-text-muted">Save these choices as a draft. Reason and owner are skipped in your Guided settings.</p> : <CommitFieldsForm value={fields} onChange={setFields} attempted={attempted} prefix="structure" />}

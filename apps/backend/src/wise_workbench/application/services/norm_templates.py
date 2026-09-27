@@ -117,7 +117,7 @@ def list_norm_templates(
             document = deepcopy(document)
             untranslated: list[str] = []
             translated = source["activityLabels"] == "canonical_ids" and label_pack is not None
-            if translated:
+            if translated and label_pack is not None:
                 document, untranslated = translate_norm(document, project.process, label_pack)
             canonical, _fingerprint = c.engine.validate_norm(document)
             metadata = canonical.setdefault("metadata", {})
@@ -139,7 +139,7 @@ def list_norm_templates(
                 "binding": "explicit_curated_labels" if translated else "source_labels",
                 "sourceCalibration": source_calibration,
             }
-            if translated:
+            if translated and label_pack is not None:
                 meta["activity_labels"] = "log_labels"
             warnings = [source["notes"]] if source["notes"] else []
             if not source["packValidated"]:
