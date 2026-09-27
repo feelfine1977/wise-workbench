@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const plain = vocabulary === "plain";
   const ctx = useWorkbench();
   const run = ctx.run;
-  const parent = run && !flowTypeOf(run) ? run : [...ctx.runs].reverse().find((r) => r.status === "done" && !flowTypeOf(r) && r.caseTableId === run?.caseTableId);
+  const parent = (ctx.scopeRuns ?? []).find((r) => !flowTypeOf(r));
   const summary = useQuery({ ...runSummaryQuery(ctx.projectId, run?.id ?? ""), enabled: !!run && run.status === "done" });
   const slicing = ctx.slicing ?? "";
   const top = useQuery({ ...backlogQuery(ctx.projectId, run?.id ?? "", { slicing, view: ctx.view, minCases: run?.minCases ?? 20, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && run.status === "done" && !!slicing });
@@ -101,6 +101,12 @@ export default function DashboardPage() {
           decide whether to compare everything together or to analyse each flow type on its own.
         </HowToRead>
       </header>
+
+      <section className="grid gap-3 sm:grid-cols-3" aria-label="Project actions">
+        <Link to="/p/$projectId/data" params={{ projectId: ctx.projectId }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Choose & understand data</strong><p className="mt-1 text-sm text-text-muted">Select a log, learn the process and explore recorded cases.</p></Link>
+        <Link to="/p/$projectId/norms" params={{ projectId: ctx.projectId }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Create or edit a Process norm</strong><p className="mt-1 text-sm text-text-muted">Start with your purpose and data, then define expectations and priorities.</p></Link>
+        <Link to="/p/$projectId/runs" params={{ projectId: ctx.projectId }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Run WISE & analyse</strong><p className="mt-1 text-sm text-text-muted">Choose data and a norm version, or reopen a previous run.</p></Link>
+      </section>
 
       {!ctx.datasets.length && (
         <EmptyState
@@ -168,6 +174,7 @@ export default function DashboardPage() {
               <span>finished {fmtDateTime(run.manifest?.finishedAt)}</span>
             </p>
             <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Link className="text-accent-text underline" to="/p/$projectId/runs/$runId/investigate" params={{projectId:ctx.projectId,runId:run.id}} search={{view:ctx.view,slicing:ctx.slicing}}>Investigate a process question</Link>
               <Link className="text-accent-text underline" to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: run.id }} search={{ slicing: ctx.slicing, view: ctx.view }}>
                 {plain ? "Open the ranked list" : "Open backlog explorer"}
               </Link>
@@ -241,7 +248,7 @@ export default function DashboardPage() {
                         className="font-medium text-accent-text underline"
                         to="/p/$projectId/runs/$runId/slices/$sliceKey"
                         params={{ projectId: ctx.projectId, runId: r.runId, sliceKey: r.sliceKey }}
-                        search={{ slicing: r.slicing ?? ctx.slicing, view: r.view ?? ctx.view, tab: "why" }}
+                        search={{ slicing: r.evidenceContext?.slicing ?? r.slicing ?? undefined, view: r.evidenceContext?.view ?? r.view ?? undefined, filter: r.evidenceContext?.filter ? JSON.stringify(r.evidenceContext.filter) : undefined, tab: "why", focus: r.kind === "finding" ? "finding" : undefined }}
                       >
                         {sliceLabel({ key: r.sliceKey })}
                       </Link>
@@ -249,6 +256,7 @@ export default function DashboardPage() {
                       <span className="font-medium">{sliceLabel({ key: r.sliceKey ?? "the run" })}</span>
                     )}
                     <Badge variant="outline">{recordWords(r.kind)}</Badge>
+                    {r.evidenceContext?.filter && <Badge variant="outline">saved selection</Badge>}
                     <span className="reading text-text">{r.title || r.note || "no title"}</span>
                     {ownerOf(r) && <span className="text-text-muted">owner: {ownerOf(r)}</span>}
                     <Badge variant="accent">{String(r.status).replace(/_/g, " ")}</Badge>

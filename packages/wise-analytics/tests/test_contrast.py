@@ -22,6 +22,24 @@ from wise_analytics._stats import (
 from wise_analytics.contrast import _pattern, raw_signals, signal_units
 
 
+@pytest.mark.parametrize("ci", [0.9, 0.95])
+def test_risk_difference_metadata_follows_its_own_interval_even_without_bootstrap(p2p_result, ci):
+    contrast = wa.contrast_slice(p2p_result, "Finance", {"company": "A"}, B=0, ci=ci)
+    row = contrast.table.loc["c2"]
+    assert row["interval_method"] == "Newcombe/Wilson"
+    assert row["confidence_level"] == ci
+    assert row["comparison"] == "group_vs_rest"
+    expected = newcombe_interval(
+        row["rate_slice"] * row["n_evaluated_slice"],
+        row["n_evaluated_slice"],
+        row["rate_rest"] * row["n_evaluated_rest"],
+        row["n_evaluated_rest"],
+        z_for(ci),
+    )
+    assert (row["rd_lo"], row["rd_hi"]) == pytest.approx(expected)
+    assert np.isnan(row["delta_lo"]) and np.isnan(row["delta_hi"])
+
+
 @pytest.mark.parametrize("view", ["Finance", "Logistics"])
 @pytest.mark.parametrize("where", [{"company": "A"}, {"company": "B"}, {"vendor": "V1"}, {"vendor": "V2"}, {"case": "E"}])
 def test_decomposition_sums_to_gap_running_example(p2p_result, view, where):

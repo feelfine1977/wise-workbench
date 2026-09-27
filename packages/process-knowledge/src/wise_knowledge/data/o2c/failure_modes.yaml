@@ -11,8 +11,8 @@ sources:
   - ICPM 2026 hackathon sales extract and stock movements, measured 2026-09-05
   - OCEL 2.0 Order Management (simulated), vocabulary only
   - SAP SD documentation (schedule lines, delivery and credit blocks, returns, billing, dunning)
-  - docs/panel/llm_knowledge_architecture.md §2.1 (typical O2C failure modes)
-  - docs/panel/process_panel.md §5 (O2C template pitfalls)
+  - packages/process-knowledge/PACK_DESIGN.md (typical O2C failure modes)
+  - packages/process-knowledge/PACK_DESIGN.md (O2C template pitfalls)
 layers:
   - id: capture_completeness
     name: {en: Capture and credit, de: Erfassung und Kredit}
@@ -261,7 +261,7 @@ failure_modes:
       - Open receivables and dunning level of the customer at the time of the block
     owner_role: credit_management
     kpis: [o2c.kpi.credit_block_rate]
-    sources: [SAP SD credit management documentation, docs/panel/llm_knowledge_architecture.md §2.1]
+    sources: [SAP SD credit management documentation, packages/process-knowledge/PACK_DESIGN.md]
     review_status: draft
     notes: Vocabulary entry; the hackathon extract has no credit events.
 
@@ -285,7 +285,7 @@ failure_modes:
       - Stock movements and purchase confirmations for the SKU in the period
     owner_role: supply_planning
     kpis: [o2c.kpi.fill_rate]
-    sources: [OCEL 2.0 Order Management vocabulary, docs/panel/llm_knowledge_architecture.md §2.1 ATP failures]
+    sources: [OCEL 2.0 Order Management vocabulary, packages/process-knowledge/PACK_DESIGN.md ATP failures]
     review_status: draft
 
   # ------------------------------------------------------------- fulfil
@@ -413,7 +413,7 @@ failure_modes:
     evidence_to_check:
       - Partial delivery indicator on customer and item; delivery quantities per delivery
     owner_role: logistics
-    sources: [SAP SD partial delivery documentation, docs/panel/process_panel.md §5 O2C pitfalls]
+    sources: [SAP SD partial delivery documentation, packages/process-knowledge/PACK_DESIGN.md O2C pitfalls]
     review_status: draft
 
   - id: o2c.fm.failed_delivery
@@ -481,7 +481,7 @@ failure_modes:
       - Return order dates vs returns delivery dates; customer concentration
     owner_role: customer_service
     kpis: [o2c.kpi.return_rate]
-    sources: [SAP SD returns documentation, docs/panel/llm_knowledge_architecture.md §2.1 returns without RMA]
+    sources: [SAP SD returns documentation, packages/process-knowledge/PACK_DESIGN.md returns without RMA]
     review_status: draft
     notes: The hackathon extract flags 20 return items and holds 59 returns-delivery movements; the join between them is a customer-side decision, so the entry stays vocabulary.
 
@@ -506,7 +506,7 @@ failure_modes:
       - Billing blocks; billing type per item category; day-of-month pattern
     owner_role: accounts_receivable
     kpis: [o2c.kpi.invoice_lead_time]
-    sources: [SAP SD billing documentation, docs/panel/process_panel.md §5 O2C template]
+    sources: [SAP SD billing documentation, packages/process-knowledge/PACK_DESIGN.md O2C template]
     review_status: draft
 
   - id: o2c.fm.invoice_correction
@@ -528,7 +528,7 @@ failure_modes:
       - Manual price changes and quantity changes before the correction; customer master changes
     owner_role: accounts_receivable
     kpis: [o2c.kpi.invoice_correction_rate]
-    sources: [SAP SD billing documentation, docs/panel/llm_knowledge_architecture.md §2.1 invoice corrections]
+    sources: [SAP SD billing documentation, packages/process-knowledge/PACK_DESIGN.md invoice corrections]
     review_status: draft
 
   - id: o2c.fm.manual_price_change
@@ -548,7 +548,7 @@ failure_modes:
     evidence_to_check:
       - Condition records for the customer and material; invoice corrections on the same items
     owner_role: sales
-    sources: [SAP SD pricing documentation, docs/panel/llm_knowledge_architecture.md §2.1 manual price changes]
+    sources: [SAP SD pricing documentation, packages/process-knowledge/PACK_DESIGN.md manual price changes]
     review_status: draft
 
   - id: o2c.fm.payment_after_due_date
@@ -574,5 +574,5 @@ failure_modes:
       - "Censoring: invoices open at the window end"
     owner_role: accounts_receivable
     kpis: [o2c.kpi.dso_proxy, o2c.kpi.dunning_rate]
-    sources: [OCEL 2.0 Order Management vocabulary (pay order, payment reminder), SAP FI dunning documentation, docs/panel/llm_knowledge_architecture.md §2.1 late dunning]
+    sources: [OCEL 2.0 Order Management vocabulary (pay order, payment reminder), SAP FI dunning documentation, packages/process-knowledge/PACK_DESIGN.md late dunning]
     review_status: draft

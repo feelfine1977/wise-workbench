@@ -5,7 +5,7 @@ expectation, medians in real units, the shift, and the shares missing the
 expectation here and elsewhere. This module turns one such row into the
 sentence a card and the reason screen print — always "<expectation>: <here>
 here against <elsewhere> elsewhere (<difference>)" with at most three numbers
-(``docs/panel/ui_design_cycle2.md`` §2.7):
+(``packages/process-knowledge/PACK_DESIGN.md``):
 
 * durations: ``Paid within terms: 83 days here against 55 elsewhere (+28 days)``,
 * counts: ``Received in few deliveries: 14 Record Goods Receipt events per

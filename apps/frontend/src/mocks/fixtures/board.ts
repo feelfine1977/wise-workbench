@@ -1,5 +1,5 @@
 /**
- * The board's sources as the third-release backend will serve them (`docs/panel/ui_design_cycle3_board.md`
+ * The board's sources as the third-release backend will serve them (`packages/process-knowledge/PACK_DESIGN.md`
  * §5.2): counts by facet under the canonical filter, the four tile numbers, and the period breakdown. The
  * numbers come from the verified run wherever the mocks hold it — the flow types of the case table, the
  * ranked groups of the slicing — so a click on a bar and a click on the map move the same rows; the shares a

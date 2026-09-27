@@ -28,7 +28,7 @@ describe("guided mode (R3-10)", () => {
     await screen.findByRole("list", { name: "Signals" }, T);
     await waitFor(() => expect(useUiStore.getState().mode).toBe("guided"), T);
     expect(await screen.findByTestId("guided-banner", {}, T)).toHaveTextContent(/One path through the question/);
-    await waitFor(() => expect(stepLabels()).toEqual(["Signals", "Why", "What can we do?"]), T);
+    await waitFor(() => expect(stepLabels()).toEqual(["Project", "Understand data", "Process norm", "Run WISE", "Analyse", "Improve"]), T);
   });
 
   it("keeps the reader's context in the ribbon and puts the method's switchers away", async () => {

@@ -21,6 +21,7 @@ export function LensDialog({
   title,
   slicing,
   sliceKey,
+  filter,
   onClose,
   onOpenNorm,
 }: {
@@ -30,12 +31,13 @@ export function LensDialog({
   title: string;
   slicing?: string;
   sliceKey?: string;
+  filter?: string;
   onClose: () => void;
   onOpenNorm?: (constraintId: string) => void;
 }) {
   const [full, setFull] = useState(false);
-  const dist = useQuery({ ...distributionQuery(projectId, runId, constraintId ?? "", slicing, sliceKey), enabled: !!constraintId });
-  const rest = useQuery({ ...distributionQuery(projectId, runId, constraintId ?? ""), enabled: !!constraintId && !!sliceKey });
+  const dist = useQuery({ ...distributionQuery(projectId, runId, constraintId ?? "", slicing, sliceKey, filter), enabled: !!constraintId });
+  const rest = useQuery({ ...distributionQuery(projectId, runId, constraintId ?? ""), enabled: !!constraintId && (!!sliceKey || filter !== undefined) });
   return (
     <Dialog open={!!constraintId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className={cn(full ? "h-[92vh] w-[96vw] max-w-none" : "max-w-3xl")} data-testid="lens-dialog" data-full={full ? "1" : undefined}>
@@ -46,7 +48,7 @@ export function LensDialog({
               {full ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
             </Button>
           </DialogTitle>
-          <DialogDescription>How far the items are from this expectation, against everyone else. Escape closes.</DialogDescription>
+          <DialogDescription>{sliceKey || filter !== undefined ? "Measurements for the current selection, compared with the remaining items in the dataset." : "Measurements for all items in this run."} Escape closes.</DialogDescription>
         </DialogHeader>
         {dist.isPending && <LoadingBlock rows={5} />}
         {dist.isError && <ErrorBlock error={dist.error} retry={() => void dist.refetch()} />}

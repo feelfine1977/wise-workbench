@@ -1,3 +1,4 @@
+import { GroupingControl } from "@/components/GroupingControl";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { parseFilter } from "@/lib/filter";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { backlogQuery } from "@/lib/api/exploration";
+import { ApiError } from "@/lib/api";
 import { normQuery } from "@/lib/api/norms";
 import { groupLabel, groupingLabel, pageWideCaveats, sharedKeyValues } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
@@ -230,21 +232,7 @@ export default function BacklogPage() {
           </SelectContent>
         </Select>
       </span>
-      <span className="flex items-center gap-1 text-sm text-text-muted">
-        {plain ? "grouping" : "slicing"}
-        <Select value={slicing} onValueChange={(v) => ctx.setSlicing(v)}>
-          <SelectTrigger compact aria-label={`Switch ${plain ? "grouping" : "slicing"}`} className="w-auto min-w-[160px]">
-            <SelectValue placeholder={groupingText} />
-          </SelectTrigger>
-          <SelectContent>
-            {[...(run.slicings ?? []), ...(within && !run.slicings?.some((s) => s.id === slicing) ? [{ id: slicing, attributes: slicing.split("+") }] : [])].map((s) => (
-              <SelectItem key={s.id ?? s.attributes.join("+")} value={s.id ?? s.attributes.join("+")}>
-                {groupingLabel(s.id ?? undefined, s.attributes)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </span>
+      <GroupingControl ctx={ctx} />
     </>
   );
 
@@ -341,7 +329,17 @@ export default function BacklogPage() {
           <TabsTrigger value="scatter">All groups at once</TabsTrigger>
         </TabsList>
         {backlog.isPending && <LoadingBlock rows={8} className="mt-3" />}
-        {backlog.isError && <ErrorBlock error={backlog.error} retry={() => void backlog.refetch()} className="mt-3" />}
+        {backlog.isError && (
+          <ErrorBlock
+            error={backlog.error}
+            retry={() => void backlog.refetch()}
+            className="mt-3"
+            action={backlog.error instanceof ApiError && backlog.error.problem?.code === "backlog.attribute" && ctx.run?.slicings?.[0]?.id ? {
+              label: "Use this run's saved grouping",
+              onClick: () => void navigate({ to: ".", search: { view, slicing: ctx.run!.slicings![0]!.id!, tab: "signals" } }),
+            } : undefined}
+          />
+        )}
         {backlog.data && (
           <>
             <TabsContent value="signals" className="flex flex-col gap-4">

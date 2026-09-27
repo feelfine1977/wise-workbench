@@ -9,6 +9,8 @@ applicability still decides which expectations apply to a case.
 from __future__ import annotations
 
 import json
+import math
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -21,10 +23,130 @@ from wise_workbench.domain import ValidationError
 KINDS = ("time", "attribute", "activity", "follows", "lag", "count", "open")
 ACTIVITY_OPS = ("contains", "starts_with", "ends_with", "never")
 
+_FIELDS = {
+    "activity": {"kind", "op", "activity"},
+    "attribute": {"kind", "field", "in", "eq", "min", "max"},
+    "time": {"kind", "field", "from", "to"},
+    "follows": {"kind", "a", "b", "directly", "never"},
+    "lag": {"kind", "a", "b", "unit", "min", "max"},
+    "count": {"kind", "activity", "min", "max"},
+    "open": {"kind", "value"},
+}
+
+
+def _unsupported(detail: str = "This filter cannot yet be evaluated exactly. Choose a supported selection.") -> None:
+    raise ValidationError(detail, code="filter.unsupported")
+
+
+def _validate_time_bounds(clause: dict[str, Any], index: int) -> None:
+    """Validate absolute timestamps before any log conversion or comparison."""
+    bounds: dict[str, pd.Timestamp] = {}
+    for name in ("from", "to"):
+        if name not in clause:
+            continue
+        value = clause[name]
+        detail = (
+            f"clause {index}: time.{name} must be a nonempty ISO date or datetime within the supported timestamp range."
+        )
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(detail, code="filter.time")
+        try:
+            # Avoid pandas' relative dates (such as 'now') and permissive scalar coercion.
+            datetime.fromisoformat(value)
+            stamp = pd.Timestamp(value)
+            stamp.as_unit("ns")
+        except (ValueError, TypeError, OverflowError) as exc:
+            raise ValidationError(detail, code="filter.time") from exc
+        bounds[name] = stamp
+    if not bounds:
+        raise ValidationError(f"clause {index}: a time filter needs from or to.", code="filter.time")
+    if "from" in bounds and "to" in bounds:
+        start, end = bounds["from"], bounds["to"]
+        if (start.tzinfo is None) != (end.tzinfo is None):
+            raise ValidationError(
+                f"clause {index}: time.from and time.to must both include a timezone offset or both omit it.",
+                code="filter.time",
+            )
+        if start > end:
+            raise ValidationError(f"clause {index}: time.from must be at or before time.to.", code="filter.time")
+
+
+def validate_filter(filter_obj: dict[str, Any]) -> None:
+    """Admit only complete semantics supported by the shared case-mask evaluator.
+
+    Exploration and review use the same validation: unknown qualifiers cannot become
+    positive follows, eventual lag, or case-end time selections by being ignored.
+    """
+    if not isinstance(filter_obj, dict):
+        raise ValidationError("filter must be a JSON object", code="filter.shape")
+    if set(filter_obj) - {"and"}:
+        _unsupported("Only filter.and is supported; other filter fields cannot be ignored.")
+    clauses = filter_obj.get("and")
+    if not isinstance(clauses, list):
+        raise ValidationError("filter.and must be a list of clauses", code="filter.shape")
+    for i, clause in enumerate(clauses):
+        if not isinstance(clause, dict) or clause.get("kind") not in KINDS:
+            raise ValidationError(f"clause {i}: kind must be one of {KINDS}", code="filter.clause")
+        kind = clause["kind"]
+        if set(clause) - _FIELDS[kind]:
+            _unsupported(f"clause {i}: unsupported fields {sorted(set(clause) - _FIELDS[kind])}")
+        if kind == "time":
+            if clause.get("field", "case_start") not in (
+                "case_start",
+                "case_end",
+                "first_ts",
+                "last_ts",
+                "start",
+                "end",
+            ):
+                _unsupported(
+                    f"clause {i}: time field {clause.get('field')!r} is unsupported; use case_start or case_end."
+                )
+            _validate_time_bounds(clause, i)
+        if kind == "activity" and clause.get("op", "contains") not in ACTIVITY_OPS:
+            _unsupported()
+        for name in ("activity", "a", "b"):
+            if name in _FIELDS[kind]:
+                labels = clause.get(name)
+                if not (isinstance(labels, str) and labels) and not (
+                    isinstance(labels, list) and labels and all(isinstance(v, str) and v for v in labels)
+                ):
+                    _unsupported()
+        if kind == "attribute":
+            if not isinstance(clause.get("field"), str) or not clause["field"]:
+                _unsupported()
+            forms = sum(("in" in clause, "eq" in clause, "min" in clause or "max" in clause))
+            if forms != 1:
+                _unsupported()
+            if "in" in clause and not (
+                isinstance(clause["in"], list)
+                and clause["in"]
+                and all(isinstance(v, str | int | float | bool) for v in clause["in"])
+            ):
+                _unsupported()
+            if "eq" in clause and not isinstance(clause["eq"], str | int | float | bool):
+                _unsupported()
+        if kind in {"count", "lag"} and not any(clause.get(k) is not None for k in ("min", "max")):
+            _unsupported()
+        for bound in ("min", "max"):
+            if bound in clause and clause[bound] is not None:
+                value = clause[bound]
+                if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+                    _unsupported()
+                if kind == "count" and (value < 0 or int(value) != value):
+                    _unsupported()
+        if clause.get("min") is not None and clause.get("max") is not None and clause["min"] > clause["max"]:
+            _unsupported()
+        if kind == "lag" and clause.get("unit", "D") not in ("D", "H", "M", "S"):
+            _unsupported()
+        for boolean in ("directly", "never", "value"):
+            if boolean in clause and not isinstance(clause[boolean], bool):
+                _unsupported(f"clause {i}: {boolean} must be a boolean.")
+
 
 def parse_filter(text: str | None) -> dict[str, Any] | None:
     """The filter object from its URL form (a JSON object, ``{"and": [...]}`` or a single clause)."""
-    if not text:
+    if text is None:
         return None
     try:
         obj = json.loads(text)
@@ -34,13 +156,8 @@ def parse_filter(text: str | None) -> dict[str, Any] | None:
         raise ValidationError("filter must be a JSON object", code="filter.shape")
     if "and" not in obj:
         obj = {"and": [obj]} if obj else {"and": []}
-    clauses = obj.get("and")
-    if not isinstance(clauses, list):
-        raise ValidationError("filter.and must be a list of clauses", code="filter.shape")
-    for i, c in enumerate(clauses):
-        if not isinstance(c, dict) or c.get("kind") not in KINDS:
-            raise ValidationError(f"clause {i}: kind must be one of {KINDS}", code="filter.clause")
-    return {"and": [dict(c) for c in clauses]}
+    validate_filter(obj)
+    return {"and": [dict(c) for c in obj["and"]]}
 
 
 def _labels(value: Any) -> list[str]:
@@ -68,6 +185,7 @@ def _directly_follows(log: wise.EventLog, a: list[str], b: list[str]) -> pd.Seri
 
 def clause_mask(log: wise.EventLog, clause: dict[str, Any], *, censored: pd.Series | None) -> pd.Series:
     """Boolean per case for one clause."""
+    validate_filter({"and": [clause]})
     kind = clause.get("kind")
     cases = log.cases
     idx = log.case_ids
@@ -118,9 +236,15 @@ def clause_mask(log: wise.EventLog, clause: dict[str, Any], *, censored: pd.Seri
         if not a or not b:
             raise ValidationError("a follows clause needs a and b", code="filter.clause")
         if clause.get("directly"):
-            return _directly_follows(log, a, b)
-        t_a, t_b = log.first_after(a, b)
-        return pd.Series(pd.notna(t_b).to_numpy(), index=idx)
+            observed = _directly_follows(log, a, b)
+        else:
+            _, t_b = log.first_after(a, b)
+            observed = pd.Series(pd.notna(t_b).to_numpy(), index=idx)
+        # Absence of this observed relation, over the run's case population. This
+        # includes cases missing either activity; it makes no business "never" claim.
+        # Direct follows uses event order (ties use the log's tie-break); eventual
+        # follows inherits first_after's timestamp >= semantics, including equal time.
+        return ~observed if clause.get("never", False) else observed
     if kind == "lag":
         a, b = _labels(clause.get("a")), _labels(clause.get("b"))
         if not a or not b:
@@ -162,8 +286,9 @@ def filter_masks(
 ) -> tuple[pd.Series, list[pd.Series]]:
     """The combined mask and the per-clause masks."""
     idx = log.case_ids
-    if not filter_obj:
+    if filter_obj is None:
         return pd.Series(True, index=idx), []
+    validate_filter(filter_obj)
     parts = [
         clause_mask(log, c, censored=censored).reindex(idx, fill_value=False).astype(bool) for c in filter_obj["and"]
     ]

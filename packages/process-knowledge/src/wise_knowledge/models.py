@@ -370,7 +370,7 @@ class GuidanceExample:
 
 @dataclass(frozen=True)
 class Guidance:
-    """The generic tier of guidance for one layer, template constraint or failure mode (knowledge_hub_panel.md §1)."""
+    """The generic tier of guidance for one layer, template constraint or failure mode (the guidance contract)."""
 
     kind: str
     id: str

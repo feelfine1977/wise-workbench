@@ -1,6 +1,5 @@
-# docker
+# Deployment skeleton
 
-Container distribution: `DEPLOYMENT.md` (profiles `single` / `team` / `dev`,
-images, volumes, LLM placement, configuration, operations), draft
-`compose.yml`, GPU overlay, Caddy config and `.env.example`. Dockerfiles are
-written in Phase 0 together with the CI image build.
+`compose.yml` describes a draft API/worker/Postgres/Caddy topology. It uses a placeholder image and is not a qualified deployment recipe. `single`, `team` and `dev` profiles need packaging and authentication work before hosted use.
+
+For supported local source installation, workspace configuration and backup guidance, see [deployment](../docs/DEPLOY.md). The current application has no multi-user authentication boundary.

@@ -4,9 +4,9 @@
 
 | Profile | Method | Rendering/content | Purpose |
 |---|---|---|---|
-| Workbench full (default installer) | Classic wise-pm 0.1.0, release commit `df5db50b839cc124b489a269894f5a2bfe7dc634` | Packaged @wise/flow 0.3.1; local versioned analytics and knowledge packages | Complete local application |
+| Workbench full (default installer) | Classic wise-pm 0.1.0, release commit `df5db50b839cc124b489a269894f5a2bfe7dc634` | Packaged @wise/flow 0.3.5 (local candidate); local versioned analytics and knowledge packages | Complete local application |
+| Workbench next candidate (explicit) | Pinned `wise-pm` commit `9c5e6db807ece6f2fe02857082dfd8cd87bf019c`, subdirectory `packages/wise-pm` | Same packaged renderer, analytics and knowledge | Separate development/CI environment; optional extensions remain disabled |
 | Workbench minimal API | Same classic method | Knowledge included, analytics absent; no promise of the full analysis UI | Explicit fallback API contract |
-| Method extension | Separate `feat/actionability-ocpm-local-llm` development build | Explicit evidence, object-centric and assistant/evaluation imports | Opt-in library work in a separate environment |
 
 Python 3.12/3.13 are the Workbench CI runtimes. Node 24 is the frontend build runtime; flow also tests Node 22. React 19 is the app's renderer peer. The exact frontend dependency graph is in `apps/frontend/package-lock.json`.
 
@@ -22,7 +22,7 @@ The extension does not replace classic main. Its passing method/application test
 - Browser map/filter/board/model checks using the actual packaged renderer, including visible BPMN attribution.
 - Installed knowledge/analytics/application wheels outside the checkout; schemas, both packs, health, SPA root and deep links must work.
 
-The source-control workflows are prepared checks; they only become GitHub results after the reviewed changes are committed and pushed. A locally passing command must not be reported as a remote CI pass. Dataset-dependent and live-model tests are optional gates whose skips must remain visible.
+The source-control workflows are prepared checks; they only become GitHub results after the reviewed changes are committed and pushed. A locally passing command must not be reported as a remote CI pass. Dataset-dependent and model-view tests are optional gates whose skips must remain visible.
 
 ## Release inputs
 

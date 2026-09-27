@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import type { Table } from "@wise/api-schema";
 import { EChart } from "@/components/charts/EChart";
+import { ChartTable } from "@/components/charts/ChartTable";
+import { escapeChartText, horizontalCategoryLayout, readableTooltip } from "@/components/charts/readability";
 import { chartTokens, type EChartsOption } from "@/components/charts/echarts";
 import { layerColor } from "@/components/badges";
 import { useVocabulary } from "@/components/Term";
-import { fmtPct } from "@/lib/format";
+import { fmtNum, fmtPct } from "@/lib/format";
 import { useUiStore, resolveTheme } from "@/lib/stores/ui";
 import { tableRecords } from "@/lib/utils";
 
@@ -16,7 +18,7 @@ type Mass = { key: string; n_cases: number; penalty_mass: number; mean_penalty: 
 export function GapWaterfall({ drivers, gap, onSelect, height = 320, maxBars = 14, plainOf }: { drivers: Table | undefined; gap: number; onSelect?: (constraintId: string) => void; height?: number; maxBars?: number; plainOf?: (constraintId: string) => string }) {
   const tk = chartTokens[resolveTheme(useUiStore((s) => s.theme))];
   const { t } = useVocabulary();
-  const { option, rows } = useMemo(() => {
+  const { option, rows, chartHeight } = useMemo(() => {
     const all = tableRecords<Driver>(drivers).filter((d) => Number.isFinite(d.delta_gap));
     const share = (v: number) => (gap > 0 ? v / gap : 0);
     const sorted = [...all].sort((a, b) => Math.abs(b.delta_gap) - Math.abs(a.delta_gap));
@@ -44,27 +46,28 @@ export function GapWaterfall({ drivers, gap, onSelect, height = 320, maxBars = 1
     base.push(0);
     pos.push(1);
     neg.push(0);
+    const layout = horizontalCategoryLayout(cats, height);
     const opt: EChartsOption = {
       animation: false,
-      grid: { left: 64, right: 16, top: 16, bottom: 110 },
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p: unknown) => { const arr = p as { axisValue: string; dataIndex: number }[]; const a = arr[0]; if (!a) return ""; const i = a.dataIndex; const v = i < items.length ? items[i]!.v : 1; return `<strong>${a.axisValue}</strong><br/>${fmtPct(v, 0)} of the shortfall`; } },
-      xAxis: { type: "category", data: cats, axisLabel: { rotate: 40, fontSize: 10, interval: 0, width: 140, overflow: "truncate" } },
-      yAxis: { type: "value", name: "share of the shortfall", axisLabel: { formatter: (v: number) => fmtPct(v, 0) }, minInterval: 0.05 },
+      grid: { ...layout.grid, top: 16 },
+      tooltip: { ...readableTooltip, trigger: "axis", axisPointer: { type: "shadow" }, formatter: (p: unknown) => { const arr = p as { axisValue: string; dataIndex: number }[]; const a = arr[0]; if (!a) return ""; const i = a.dataIndex; const v = i < items.length ? items[i]!.v : 1; return `<strong>${escapeChartText(a.axisValue)}</strong><br/>${fmtPct(v, 0)} of the shortfall`; } },
+      yAxis: layout.yAxis,
+      xAxis: { type: "value", name: "share of the shortfall (%)", nameLocation: "middle", nameGap: 32, splitNumber: 3, axisLabel: { fontSize: 13, formatter: (v: number) => fmtPct(v, 0) }, minInterval: 0.05 },
       series: [
         { type: "bar", stack: "w", data: base, itemStyle: { color: "transparent" }, emphasis: { itemStyle: { color: "transparent" } }, silent: true, tooltip: { show: false } },
         { type: "bar", stack: "w", name: "adds to the shortfall", data: pos.map((v, i) => ({ value: v, itemStyle: i === cats.length - 1 ? { color: tk.reference } : { color: tk.accent } })) },
         { type: "bar", stack: "w", name: "met better than everyone else here", data: neg, itemStyle: { color: tk.muted, opacity: 0.6 } },
       ],
     };
-    return { option: opt, rows: items };
-  }, [drivers, gap, tk, maxBars, plainOf]);
+    return { option: opt, rows: items, chartHeight: layout.height };
+  }, [drivers, gap, tk, maxBars, plainOf, height]);
 
   return (
     <div>
-      <EChart option={option} height={height} ariaLabel={`Waterfall of the shortfall by expectation; the bars sum to the shortfall ${fmtPct(gap, 1)}`} onEvents={{ click: (p) => { const name = (p as { name?: string }).name; const row = rows.find((r) => r.name === name); if (row && onSelect && row.id !== "__other__") onSelect(row.id); } }} />
-      <details className="mt-1 text-xs text-text-muted">
-        <summary className="cursor-pointer">Table alternative</summary>
-        <table className="tnum mt-1 w-full text-xs">
+      <div className="overflow-x-auto">
+        <EChart className="min-w-[360px]" option={option} height={chartHeight} ariaLabel={`Waterfall of each expectation's share of the shortfall; total shortfall ${fmtNum(gap * 100, 2)} score points`} onEvents={{ click: (p) => { const row = rows[(p as { dataIndex: number }).dataIndex]; if (row && onSelect && row.id !== "__other__") onSelect(row.id); } }} />
+      </div>
+      <ChartTable label="Expectation shares of the shortfall">
           <thead>
             <tr>
               <th scope="col" className="text-left">expectation</th>
@@ -74,18 +77,19 @@ export function GapWaterfall({ drivers, gap, onSelect, height = 320, maxBars = 1
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td title={r.id}>{r.name}</td>
+                <th scope="row" className="text-left font-normal" title={r.id}>
+                  {onSelect && r.id !== "__other__" ? <button type="button" className="text-left text-accent underline underline-offset-2" onClick={() => onSelect(r.id)}>{r.name}</button> : r.name}
+                </th>
                 <td className="text-right">{fmtPct(r.v, 0)}</td>
               </tr>
             ))}
             <tr className="font-semibold">
-              <td>the shortfall</td>
-              <td className="text-right">{fmtPct(gap, 2)} of the score</td>
+              <th scope="row" className="text-left">the shortfall</th>
+              <td className="text-right">{fmtPct(1, 0)}</td>
             </tr>
           </tbody>
-        </table>
-      </details>
-      <p className="mt-1 text-xs text-text-subtle">Shares can add to more than 100 % because other expectations are met better than average here{t("gap") === "gap" ? " (Δ gap per constraint over the gap)" : ""}.</p>
+      </ChartTable>
+      <p className="mt-1 text-xs text-text-subtle">The shortfall is {fmtNum(gap * 100, 2)} score points. Shares can add to more than 100 % because other expectations are met better than average here{t("gap") === "gap" ? " (Δ gap per constraint over the gap)" : ""}.</p>
     </div>
   );
 }
@@ -101,10 +105,10 @@ export function LayerBars({ layers, layerNames = {} }: { layers: Table | undefin
         {rows.map((r) => {
           const applies = Number.isFinite(r.slice_mean) && Number.isFinite(r.global_mean);
           return (
-            <li key={r.layer} className="grid grid-cols-[minmax(160px,1fr)_3fr] items-center gap-3 text-sm">
-              <span className="flex items-center gap-1.5 truncate" title={r.layer}>
-                <span aria-hidden className="layer-swatch" style={{ background: layerColor(r.layer) }} />
-                <span className="truncate">{name(r.layer)}</span>
+            <li key={r.layer} className="grid min-w-0 grid-cols-1 items-center gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:gap-3">
+              <span className="flex min-w-0 items-start gap-1.5" title={r.layer}>
+                <span aria-hidden className="layer-swatch mt-1 shrink-0" style={{ background: layerColor(r.layer) }} />
+                <span className="break-words [overflow-wrap:anywhere]">{name(r.layer)}</span>
               </span>
               {applies ? (
                 <span className="flex flex-col gap-0.5">
@@ -131,29 +135,26 @@ export function LayerBars({ layers, layerNames = {} }: { layers: Table | undefin
         })}
       </ul>
       <p className="mt-2 text-xs text-text-subtle">share of the score lost per case: this group (accent) over everyone (grey), same scale</p>
-      <details className="mt-1 text-xs text-text-muted">
-        <summary className="cursor-pointer">Table alternative</summary>
-        <table className="tnum mt-1 w-full text-xs">
+      <ChartTable label="Score lost per case by expectation area">
           <thead>
             <tr>
               <th scope="col" className="text-left">expectation area</th>
               <th scope="col" className="text-right">this group</th>
               <th scope="col" className="text-right">everyone</th>
-              <th scope="col" className="text-right">difference</th>
+              <th scope="col" className="text-right">difference (score points)</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.layer}>
-                <td>{name(r.layer)}</td>
+                <th scope="row" className="text-left font-normal">{name(r.layer)}</th>
                 <td className="text-right">{fmtPct(r.slice_mean, 2)}</td>
                 <td className="text-right">{fmtPct(r.global_mean, 2)}</td>
-                <td className="text-right">{fmtPct(r.delta, 2)}</td>
+                <td className="text-right">{fmtNum(r.delta * 100, 2)}</td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </details>
+      </ChartTable>
     </div>
   );
 }
@@ -170,30 +171,31 @@ export function PenaltyPareto({ penaltyMass, height = 260, by = "vendors", top =
     const other: Mass = { key: `other ${by} (${tail.length})`, n_cases: tail.reduce((s, r) => s + r.n_cases, 0), penalty_mass: tail.reduce((s, r) => s + r.penalty_mass, 0), mean_penalty: 0, share: tail.reduce((s, r) => s + r.share, 0), cum_share: 1, rank: top + 1 };
     return [...head, other];
   }, [penaltyMass, top, by]);
+  const layout = useMemo(() => horizontalCategoryLayout(rows.map((r) => r.key), height), [rows, height]);
   const option = useMemo<EChartsOption>(
     () => ({
       animation: false,
-      grid: { left: 56, right: 56, top: 28, bottom: 70 },
-      legend: { top: 0 },
-      tooltip: { trigger: "axis", valueFormatter: (v: number) => fmtPct(v, 0) },
-      xAxis: { type: "category", data: rows.map((r) => r.key), axisLabel: { rotate: 30, fontSize: 10, interval: 0 } },
-      yAxis: [
-        { type: "value", name: "share of the shortfall", axisLabel: { formatter: (v: number) => fmtPct(v, 0) } },
-        { type: "value", name: "cumulative", min: 0, max: 1, axisLabel: { formatter: (v: number) => fmtPct(v) }, splitLine: { show: false } },
+      grid: { ...layout.grid, top: 72 },
+      legend: { top: 0, left: 0, right: 0, type: "scroll", textStyle: { fontSize: 13 } },
+      tooltip: { ...readableTooltip, trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => fmtPct(v, 1) },
+      yAxis: layout.yAxis,
+      xAxis: [
+        { type: "value", name: "share of the shortfall (%)", nameLocation: "middle", nameGap: 32, splitNumber: 3, axisLabel: { fontSize: 13, formatter: (v: number) => fmtPct(v, 0) } },
+        { type: "value", position: "top", min: 0, max: 1, splitNumber: 3, axisLabel: { fontSize: 13, formatter: (v: number) => fmtPct(v, 0) }, splitLine: { show: false } },
       ],
       series: [
         { name: "share of the shortfall", type: "bar", data: rows.map((r) => r.share), itemStyle: { color: tk.accent } },
-        { name: "cumulative share", type: "line", yAxisIndex: 1, data: rows.map((r) => r.cum_share), lineStyle: { color: tk.reference }, itemStyle: { color: tk.reference } },
+        { name: "cumulative share (top scale)", type: "line", xAxisIndex: 1, data: rows.map((r) => r.cum_share), lineStyle: { color: tk.reference }, itemStyle: { color: tk.reference } },
       ],
     }),
-    [rows, tk],
+    [rows, tk, layout],
   );
   return (
     <div>
-      <EChart option={option} height={height} ariaLabel={`${t("penalty_mass")}: the top ${top} ${by} and the rest`} />
-      <details className="mt-1 text-xs text-text-muted">
-        <summary className="cursor-pointer">Table alternative</summary>
-        <table className="tnum mt-1 w-full text-xs">
+      <div className="overflow-x-auto">
+        <EChart className="min-w-[360px]" option={option} height={layout.height + 24} ariaLabel={`${t("penalty_mass")}: the top ${top} ${by} and the rest`} />
+      </div>
+      <ChartTable label="Shortfall by sub-group">
           <thead>
             <tr>
               <th scope="col" className="text-left">key</th>
@@ -205,15 +207,14 @@ export function PenaltyPareto({ penaltyMass, height = 260, by = "vendors", top =
           <tbody>
             {rows.map((r) => (
               <tr key={r.key}>
-                <td>{r.key}</td>
+                <th scope="row" className="text-left font-normal">{r.key}</th>
                 <td className="text-right">{r.n_cases}</td>
                 <td className="text-right">{fmtPct(r.share, 1)}</td>
                 <td className="text-right">{fmtPct(r.cum_share, 1)}</td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </details>
+      </ChartTable>
     </div>
   );
 }

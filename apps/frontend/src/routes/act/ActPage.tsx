@@ -25,6 +25,7 @@ import { whatCanWeDoQuery } from "@/lib/api/review";
 import { measureWords, roleWords } from "@/components/knowledge/words";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { GatesBlock } from "@/components/review/Gates";
+import { GainExplanation, GainScenario } from "@/components/GainExplanation";
 import { BackControl } from "@/components/guide/BackControl";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
@@ -45,6 +46,7 @@ function DriverCard({
   driver,
   rank,
   noun,
+  meanScore,
   onTest,
   onPropose,
   form,
@@ -52,6 +54,7 @@ function DriverCard({
   driver: Driver;
   rank: number;
   noun: string;
+  meanScore?: number;
   onTest?: (driver: Driver, reason: UsualReason) => void;
   onPropose: (driver: Driver, action: UsualAction) => void;
   /** The proposal form, when it was opened from one of this driver's actions: it belongs where it was asked for. */
@@ -66,13 +69,17 @@ function DriverCard({
           {name}
           <WhatDoesThisMean nodeId={driver.hub_node} kind="constraint" entryId={driver.constraint_id} label={name} />
         </CardTitle>
-        {driver.headroom_points !== null && driver.headroom_points !== undefined && (
+        {typeof driver.headroom_points === "number" && Number.isFinite(driver.headroom_points) && (
           <Badge variant="outline" className="tnum shrink-0" data-testid="headroom">
-            {fmtNum(driver.headroom_points, 2)} points of possible gain
-            {driver.headroom_percent !== null && driver.headroom_percent !== undefined ? ` (${fmtNum(driver.headroom_percent, 0)} %)` : ""}
+            {fmtNum(driver.headroom_points, 2)} score points of possible gain
           </Badge>
         )}
       </div>
+      {typeof driver.headroom_points === "number" && Number.isFinite(driver.headroom_points) && (
+        <div className="mt-2">
+          <GainScenario name={name} meanScore={meanScore} points={driver.headroom_points} priorityPercent={driver.headroom_percent} />
+        </div>
+      )}
       <p className="reading mt-2 text-base text-text" data-testid="driver-reading">
         {driver.share_of_shortfall !== null && driver.share_of_shortfall !== undefined ? (
           <>
@@ -380,6 +387,7 @@ export default function ActPage() {
   const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
   const row = (page1.data?.rows ?? []).find((r) => r.key === sliceKey);
+  const gainMeanScore = page1.isPlaceholderData ? undefined : (page1.data?.rows ?? []).find((r) => normalizedGroupKey(r.key) === normalizedGroupKey(sliceKey))?.mean_score;
   // a group ranked below the first page has no row here; its name is then read from the key, never printed raw
   const name = groupLabel(row ?? { key: sliceKey }, shared);
 
@@ -444,12 +452,14 @@ export default function ActPage() {
       )}
 
       {selected && drivers.length > 0 && <h2 className="text-lg font-semibold" data-testid="whole-group-suggestions">Suggestions for the whole group</h2>}
+      {drivers.some((d) => typeof d.headroom_points === "number" && Number.isFinite(d.headroom_points)) && <GainExplanation view={view} wholeGroup={selected} />}
       {drivers.map((d, i) => (
         <DriverCard
           key={d.constraint_id}
           driver={d}
           rank={i + 1}
           noun={noun}
+          meanScore={gainMeanScore}
           onTest={selected ? undefined : (driver, reason) => {
             setToTest((t) => ({ constraint: driver.constraint_id, statement: reason.text, nonce: t.nonce + 1 }));
             void navigate({ to: ".", search: (s) => ({ ...s, constraint: driver.constraint_id }), replace: true });

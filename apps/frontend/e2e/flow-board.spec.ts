@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * CP-B3 on the served build with the mocks: the acceptance tests of the third release's specification
- * (`docs/panel/ui_design_cycle3_board.md` §6.2) that can be measured — F1 (the map is the screen), F2 (an
+ * (`packages/process-knowledge/PACK_DESIGN.md`) that can be measured — F1 (the map is the screen), F2 (an
  * action does something, the owner's "filter to cases with this activity"), F3 (every path is reachable),
  * F4 (full window), F5 (the model), B1 (one click moves everything), B2 (a chip restores) and B3 (two
  * selections read as OR).

@@ -1,5 +1,5 @@
 /**
- * The plain-language layer (panel report, section 2): one table with the plain label, the method's
+ * The plain-language layer: one table with the plain label, the method's
  * term and a one-sentence definition per concept. Every column header, badge, filter label, chart axis
  * and popover reads its words from here; the ribbon's vocabulary switch decides which of the two is
  * primary. Plain is the default; the other vocabulary appears as a muted secondary label.

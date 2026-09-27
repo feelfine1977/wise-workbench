@@ -1,11 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { renderApp } from "@/test/utils";
 import { applicabilitySentence, ruleSentence, thresholdOf, type Constraint } from "./Builder";
 
 const T = { timeout: 8000 };
-const PATH = "/p/p2p2018/norms/nv_7?tab=constraints";
+const PATH = "/p/p2p2018/norms/nv_7?tab=constraints&constraint=c_l3_invoice_to_clear_days";
 
 const lag: Constraint = { id: "c_x", layer: "L3", type: "lag", params: { a: ["Record Goods Receipt"], b: ["Clear Invoice"], delta: 30, width: 90, unit: "D" } };
 
@@ -17,6 +17,8 @@ describe("the norm in the reader's words", () => {
     expect(applicabilitySentence(lag, "items", { excluded: true, note: "this extract has no invoice events" })).toBe(
       "Not applicable to this log — this extract has no invoice events.",
     );
+    expect(applicabilitySentence({ ...lag, applicability: { attr: "company", in: ["A"] } }, "items")).toContain("configured applicability condition");
+    expect(applicabilitySentence({ ...lag, applicability: { all: [{ attr: "company", in: ["A"] }] } }, "items")).not.toContain("every one");
     expect(thresholdOf(lag)).toEqual({ threshold: 30, width: 90, keys: ["delta", "width"] });
     expect(thresholdOf({ ...lag, type: "presence" })).toBeUndefined();
   });
@@ -33,7 +35,8 @@ describe("the norm builder (R3-02, R3-O6)", () => {
     const text = document.body.textContent ?? "";
     expect(text).not.toMatch(/S3–S4|increment \d|cycle \d/i);
     expect(text).not.toMatch(/fingerprint/i);
-    // an expectation whose threshold says more about the threshold than about the groups carries its chip
+    // Warning shortcuts remain reachable by global search, without expanding unrelated layers.
+    await userEvent.type(screen.getByRole("searchbox", { name: "Find a constraint" }), "c_l7_manual_share");
     await waitFor(() => expect(screen.getAllByTestId("calibration-chip").length).toBeGreaterThan(0), T);
   });
 
@@ -67,12 +70,12 @@ describe("the norm builder (R3-02, R3-O6)", () => {
     const save = screen.getByRole("button", { name: /Save as the next version/ });
     expect(save).toBeEnabled();
     await user.click(save);
-    expect(screen.getByLabelText(/why this change \(required\)/)).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText(/why this change \(required\)/)).toHaveFocus());
     expect(screen.getByLabelText(/why this change \(required\)/)).toHaveAttribute("aria-invalid", "true");
     await user.type(screen.getByLabelText(/why this change \(required\)/), "the rule cannot be evaluated here");
     expect(screen.getByLabelText(/why this change \(required\)/)).not.toHaveAttribute("aria-invalid");
     await user.click(save);
-    expect(screen.getByLabelText(/who owns it \(required\)/)).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText(/who owns it \(required\)/)).toHaveFocus());
     await user.type(screen.getByLabelText(/who owns it \(required\)/), "SD expert");
     expect(save).toBeEnabled();
   });
@@ -98,6 +101,7 @@ describe("signing a norm version (R3-02, P1-9)", () => {
     const sign = await screen.findAllByRole("button", { name: /Mark reviewed/ }, T);
     await user.click(sign[0] as HTMLElement);
     const dialog = await screen.findByTestId("sign-norm", {}, T);
+    await within(dialog).findByLabelText(/Who signs it/);
     const save = within(dialog).getByRole("button", { name: /Mark reviewed/ });
     // Attempting to sign explains the missing name and keeps the dialog open.
     expect(save).toBeEnabled();
@@ -118,3 +122,6 @@ it("describes lag tolerance as an offset and never as the saturation endpoint", 
   expect(ruleSentence(c)).toBe("Clear Invoice follows Record Goods Receipt within 12 days, with 20 days of tolerance");
   expect(ruleSentence(c)).not.toContain("tolerated to 20");
 });
+
+// These existing decision/signature regressions use the explicit Expert requirements.
+beforeEach(() => localStorage.setItem("wise-norm-authoring-preferences", JSON.stringify({ mode: "expert", skipReasonOwner: true })));

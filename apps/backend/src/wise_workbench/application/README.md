@@ -1,3 +1,3 @@
-# apps/backend/src/wise_workbench/application
+# Application services
 
-Use-case services (IngestService, MappingService, NormService, RunService, ReviewService, ComparisonService, ReportService, AssistantService) and the ports (Protocols) they depend on. Returns domain objects or Arrow tables.
+Services coordinate projects, datasets, mappings, norms, runs, reviews, knowledge, notebooks and jobs through application ports. Engine adapters own method-library integration; storage adapters own persistence.

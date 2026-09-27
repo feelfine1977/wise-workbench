@@ -55,7 +55,7 @@ ids), `reading_plain`.
 `GET /projects/{p}/guidance/{kind}/{id}` (kind: layer | constraint |
 failure_mode) → `{ "generic": GuidanceBlock | null, "overlay":
 GuidanceBlock | null, "hub_node": "…" }`. `GuidanceBlock` has the fields
-of `docs/panel/knowledge_hub_panel.md` §1 (`plain_name, expectation,
+of `packages/process-knowledge/PACK_DESIGN.md` (`plain_name, expectation,
 meaning_when_missed, why_it_matters, how_detected, usual_reasons[]
 {text, where: log|outside, check}, usual_actions[] {text, countermeasure,
 owner_role, effect_area}, what_to_check_first[], examples[], kpis[],

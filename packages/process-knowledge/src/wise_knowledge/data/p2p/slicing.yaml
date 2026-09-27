@@ -7,7 +7,7 @@ sources:
   - Jessen, Fahland, Zerbato, WISE, BPIC 2019 evaluation (company x spend area primary slice; vendor drill-down)
   - BPI Challenge 2019 attribute inventory (1,975 vendors, 20 spend areas, 4 companies)
   - ICPM 2026 hackathon purchase extract (vendor country, planned lead time, incoterms)
-  - docs/panel/process_panel.md §5 (P2P slice keys and pitfalls)
+  - packages/process-knowledge/PACK_DESIGN.md (P2P slice keys and pitfalls)
 roles:
   - id: purchasing
     name: {en: "Purchasing (buyer, purchasing group)", de: "Einkauf (Einkäufer, Einkäufergruppe)"}

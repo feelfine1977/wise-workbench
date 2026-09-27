@@ -90,6 +90,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/dataset-binding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Dataset Binding */
+        get: operations["getProjectDatasetBinding"];
+        /** Put Project Dataset Binding */
+        put: operations["bindProjectDataset"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/dataset-catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Catalogue
+         * @description Registered datasets across this local workspace and explicitly configured links to other local workspaces. Read-only; no imports, file scanning or server probes.
+         */
+        get: operations["getDatasetCatalogue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/dataset-catalogue/imports/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Catalogue Dataset
+         * @description Import an explicitly configured local source by catalogue ID. The request cannot supply a file path. Mapping and norm review remain separate steps.
+         */
+        post: operations["importCatalogueDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/datasets": {
         parameters: {
             query?: never;
@@ -381,6 +439,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/case-tables/{caseTableId}/eda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Case Table Eda
+         * @description Read-only linked case-table overview before norm selection. All views share one selection; only bounded aggregates and up to 100 case rows are returned. The selection JSON accepts categoryKeys, timeRanges with exclusive before bounds, spanRanges with exclusive max bounds, and timeMissing/spanMissing union flags. OR within dimensions, AND across dimensions and legacy parameters. Legacy time filter to bounds remain inclusive. Event/norm clauses are rejected.
+         */
+        get: operations["getCaseTableEDA"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/case-tables/{caseTableId}/selections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Case Table Selections */
+        get: operations["listCaseTableSelections"];
+        put?: never;
+        /** Save Case Table Selection */
+        post: operations["createCaseTableSelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/case-tables/{caseTableId}/selections/{selectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Case Table Selection */
+        get: operations["getCaseTableSelection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/case-tables/{caseTableId}/grouping-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grouping Suggestions
+         * @description Read-only, bounded discovery of 1–3 context-column groupings from the current fixed-dataset case table and saved cohort/flow scope. Relevance uses normalized selected stakeholder weights (General only when selected alone); support uses all scoped cases. This does not score constraints, verify drivers, or infer causes.
+         */
+        post: operations["suggestGroupings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/norms/{normVersionId}/signals/{constraintId}": {
         parameters: {
             query?: never;
@@ -393,6 +526,26 @@ export interface paths {
          * @description Preview the selected norm version's rule, derived attributes and applicability on the explicit mapped table. No run is required or created. Native threshold shares use finite observed signals; casesInScope and stats.nCases include applicable cases with missing signals. stats.n counts finite observations.
          */
         get: operations["getNormSignalDistribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/{normVersionId}/relevance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Norm Relevance
+         * @description Read-only relevance of the exact saved norm on an explicit mapped table. Reports applicability and distinct in-scope cases containing any referenced rule activity, never violations or compliance. Counts are null when unavailable; observedCases is also null for rules without activity references. Does not create a run, update validation metadata, or cache results across norm versions.
+         */
+        get: operations["getNormRelevance"];
         put?: never;
         post?: never;
         delete?: never;
@@ -434,6 +587,26 @@ export interface paths {
          * @description What an expectation can be made to apply to on this log (R3-02): the flow types the case table carries with their counts, the flow types the rules name that it does not carry and why, every case attribute with its values, and the shape of each applicability clause including *not applicable to this log*.
          */
         get: operations["getApplicabilityOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Norm Templates
+         * @description Read process-specific norm templates for the explicit project case table. The catalogue does not score templates; templateId requests a preview of only that template. Optional labelPack uses an explicitly chosen curated label mapping. No dataset, assessment, norm or approval is created by this read.
+         */
+        get: operations["getNormTemplates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -736,6 +909,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/runs/{runId}/slicings/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Slicing Options
+         * @description Actual case-attribute profiles and deterministic grouping suggestions for this run's scoped population.
+         */
+        get: operations["getSlicingOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/runs/{runId}/slicings/preview": {
         parameters: {
             query?: never;
@@ -869,6 +1062,46 @@ export interface paths {
         };
         /** Get Slice */
         get: operations["getSlice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/investigation-questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Investigation Questions
+         * @description Dataset-adaptive descriptive analysis of the exact run/filter population. Overview returns bounded repetition, direct-transition timing and boundary profiles. Explicit timing/sequence requires source and target. Eventual means a strictly later recorded event position, not timestamp >=. A null question filter disables drill links. Unknown query parameters are rejected.
+         */
+        get: operations["getInvestigationQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Process Variants
+         * @description Top exact activity sequences in the run population, optionally filtered and sliced. Shares include selected zero-event cases in the denominator. Equal timestamps use the log's stable mapped ordering, not business causality. Durations are descriptive first-to-last spans, not savings.
+         */
+        get: operations["getProcessVariants"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1040,7 +1273,7 @@ export interface paths {
         put?: never;
         /**
          * Create Hypothesis
-         * @description Record a hypothesis about one group and one expectation. The backend computes its test from the run's contrast (risk difference with its interval, the real-unit shift) and refuses the record while a gate of that group has failed.
+         * @description Record a hypothesis about one group and one expectation. The backend computes its test from the run's contrast (risk difference with its interval, the real-unit shift) and refuses the record while a gate of that group has failed. Computed evidence is read only. A supported or not-supported conclusion requires current measured evidence and every check for the recorded view passed or explicitly waived.
          */
         post: operations["createHypothesis"];
         delete?: never;
@@ -1063,7 +1296,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Hypothesis */
+        /**
+         * Update Hypothesis
+         * @description Edit annotations or the reviewed outcome. Computed evidence and assessment identity are read only.
+         */
         patch: operations["updateHypothesis"];
         trace?: never;
     };
@@ -1975,6 +2211,69 @@ export interface components {
              */
             createdAt: string;
         };
+        /** CatalogueContext */
+        CatalogueContext: {
+            /** Title */
+            title: string;
+            /** Processdescription */
+            processDescription: string;
+            /** Challengedescription */
+            challengeDescription?: string | null;
+            /** Sources */
+            sources: components["schemas"]["CatalogueSource"][];
+        };
+        /** CatalogueDataset */
+        CatalogueDataset: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+            /** Events */
+            events: number | null;
+            /** Error */
+            error?: string | null;
+            context?: components["schemas"]["CatalogueContext"] | null;
+        };
+        /** CatalogueImport */
+        CatalogueImport: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+            /** Available */
+            available: boolean;
+            /** Reason */
+            reason: string | null;
+            context?: components["schemas"]["CatalogueContext"] | null;
+            dataset?: components["schemas"]["CatalogueDataset"] | null;
+        };
+        /** CatalogueProject */
+        CatalogueProject: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Process */
+            process: string | null;
+            /** Datasets */
+            datasets: components["schemas"]["CatalogueDataset"][];
+        };
+        /** CatalogueSource */
+        CatalogueSource: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
         /** Caveat */
         Caveat: {
             /** Id */
@@ -2513,6 +2812,17 @@ export interface components {
             /** Hub Node */
             hub_node?: string | null;
         };
+        /** DatasetCatalogue */
+        DatasetCatalogue: {
+            /** Projects */
+            projects: components["schemas"]["CatalogueProject"][];
+            /** Workspaces */
+            workspaces: components["schemas"]["WorkspaceLink"][];
+            /** Imports */
+            imports: components["schemas"]["CatalogueImport"][];
+            /** Warning */
+            warning?: string | null;
+        };
         /** DatasetVersion */
         DatasetVersion: {
             /** Id */
@@ -2821,6 +3131,324 @@ export interface components {
             x: number;
             /** Label */
             label: string;
+        };
+        /** EDACategory */
+        EDACategory: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "value" | "missing" | "other";
+            /** Value */
+            value: string | null;
+        };
+        /** EDAConcentration */
+        EDAConcentration: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Knownspancases
+             * @description Selected cases with a known recorded span in this category.
+             */
+            knownSpanCases: number;
+            /**
+             * Unknownspancases
+             * @description Selected cases with an unknown recorded span in this category.
+             */
+            unknownSpanCases: number;
+            /**
+             * Unknowneventcases
+             * @description Selected cases with an unknown event count in this category.
+             */
+            unknownEventCases: number;
+            /** Medianspandays */
+            medianSpanDays: number | null;
+            /** P90Spandays */
+            p90SpanDays: number | null;
+            /**
+             * Events
+             * @description Sum of known event counts for selected cases in this category.
+             */
+            events: number;
+        };
+        /** EDACount */
+        EDACount: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+        };
+        /** EDADensityCell */
+        EDADensityCell: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Spankey */
+            spanKey: string;
+            /** Eventkey */
+            eventKey: string;
+        };
+        /** EDADetails */
+        EDADetails: {
+            /** Rows */
+            rows: components["schemas"]["EDARow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** EDAEventBin */
+        EDAEventBin: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Missing */
+            missing: boolean;
+        };
+        /** EDAEventRange */
+        EDAEventRange: {
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+        };
+        /** EDAFacet */
+        EDAFacet: {
+            /** Field */
+            field: string;
+            /** Categories */
+            categories: components["schemas"]["EDACategory"][];
+        };
+        /** EDAFacetSelection */
+        EDAFacetSelection: {
+            /** Field */
+            field: string;
+            /** Keys */
+            keys: string[];
+        };
+        /** EDAFieldProfile */
+        EDAFieldProfile: {
+            /** Name */
+            name: string;
+            /** Datatype */
+            dataType: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "case_id" | "events" | "timestamp" | "attribute";
+            /**
+             * Distinct
+             * @description Full-table distinct nonmissing values, independent of selection.
+             */
+            distinct: number;
+            missing: components["schemas"]["EDACount"];
+            /** @description Selected-case finite numeric statistics; null for nonnumeric fields. */
+            numeric: components["schemas"]["EDANumericStats"] | null;
+        };
+        /** EDAInsights */
+        EDAInsights: {
+            /** Compareattribute */
+            compareAttribute: string | null;
+            /** Fields */
+            fields: components["schemas"]["EDAFieldProfile"][];
+            /** Facets */
+            facets: components["schemas"]["EDAFacet"][];
+            /** Joint */
+            joint: components["schemas"]["EDAJointCell"][];
+            /** Density */
+            density: components["schemas"]["EDADensityCell"][];
+            /** Eventbins */
+            eventBins: components["schemas"]["EDAEventBin"][];
+            /** Concentration */
+            concentration: components["schemas"]["EDAConcentration"][];
+        };
+        /** EDAJointCell */
+        EDAJointCell: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Leftkey */
+            leftKey: string;
+            /** Rightkey */
+            rightKey: string;
+        };
+        /** EDANumericStats */
+        EDANumericStats: {
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Median */
+            median: number | null;
+            /** P90 */
+            p90: number | null;
+        };
+        /** EDAPeriod */
+        EDAPeriod: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** From */
+            from: string | null;
+            /** To */
+            to: string | null;
+        };
+        /** EDAResponse */
+        EDAResponse: {
+            /** Datasetid */
+            datasetId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Attribute */
+            attribute: string | null;
+            /** Attributes */
+            attributes: string[];
+            /** Casenoun */
+            caseNoun: string;
+            summary: components["schemas"]["EDASummary"];
+            /** Categories */
+            categories: components["schemas"]["EDACategory"][];
+            /** Trend */
+            trend: components["schemas"]["EDAPeriod"][];
+            /** Trendmonthsperbucket */
+            trendMonthsPerBucket: number;
+            /** Trendomittedemptymonths */
+            trendOmittedEmptyMonths: number;
+            /** Spans */
+            spans: components["schemas"]["EDASpan"][];
+            details: components["schemas"]["EDADetails"];
+            /** Notes */
+            notes: string[];
+            insights?: components["schemas"]["EDAInsights"] | null;
+        };
+        /** EDARow */
+        EDARow: {
+            /** Caseid */
+            caseId: string;
+            /** Events */
+            events: number | null;
+            /** Firstrecorded */
+            firstRecorded: string | null;
+            /** Lastrecorded */
+            lastRecorded: string | null;
+            /** Spandays */
+            spanDays: number | null;
+            /** Category */
+            category: string | null;
+        };
+        /**
+         * EDASelection
+         * @description OR within each dimension; AND across dimensions and legacy parameters.
+         */
+        EDASelection: {
+            /** Facets */
+            facets?: components["schemas"]["EDAFacetSelection"][] | null;
+            /** Eventranges */
+            eventRanges?: components["schemas"]["EDAEventRange"][] | null;
+            /**
+             * Eventmissing
+             * @default false
+             */
+            eventMissing?: boolean;
+            /** Categorykeys */
+            categoryKeys?: string[] | null;
+            /** Timeranges */
+            timeRanges?: components["schemas"]["EDATimeRange"][] | null;
+            /**
+             * Timemissing
+             * @default false
+             */
+            timeMissing?: boolean;
+            /** Spanranges */
+            spanRanges?: components["schemas"]["EDASpanRange"][] | null;
+            /**
+             * Spanmissing
+             * @default false
+             */
+            spanMissing?: boolean;
+        };
+        /** EDASpan */
+        EDASpan: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Missing */
+            missing: boolean;
+        };
+        /** EDASpanRange */
+        EDASpanRange: {
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+        };
+        /** EDASummary */
+        EDASummary: {
+            cases: components["schemas"]["EDACount"];
+            events: components["schemas"]["EDACount"];
+            /** Knownspancases */
+            knownSpanCases: number;
+            /** Unknownspancases */
+            unknownSpanCases: number;
+            /** Unknownstartcases */
+            unknownStartCases: number;
+            /** Medianspandays */
+            medianSpanDays: number | null;
+            /** P90Spandays */
+            p90SpanDays: number | null;
+            /** Firstrecorded */
+            firstRecorded: string | null;
+            /** Lastrecorded */
+            lastRecorded: string | null;
+        };
+        /** EDATimeRange */
+        EDATimeRange: {
+            /** From */
+            from?: string | null;
+            /** Before */
+            before?: string | null;
         };
         /** FacetValue */
         FacetValue: {
@@ -3189,6 +3817,8 @@ export interface components {
         };
         /** FlowTypes */
         FlowTypes: {
+            /** Selectionid */
+            selectionId?: string | null;
             /** Casetableid */
             caseTableId: string;
             /** Attribute */
@@ -3303,6 +3933,93 @@ export interface components {
             passed?: boolean;
             /** @description the readiness gate stated once for the run, beside the group's own reading */
             runWide?: components["schemas"]["RunWideReadiness"] | null;
+        };
+        /** GroupingContextAttribute */
+        GroupingContextAttribute: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "numeric" | "categorical";
+            /** Distinct */
+            distinct: number;
+            /** Missing */
+            missing: number;
+        };
+        /** GroupingSuggestionEvidence */
+        GroupingSuggestionEvidence: {
+            /**
+             * Kind
+             * @default pre_scoring_context_support
+             * @constant
+             */
+            kind?: "pre_scoring_context_support";
+            /** Projectid */
+            projectId: string;
+            /** Datasetid */
+            datasetId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Normversionid */
+            normVersionId: string;
+            /** Normfingerprint */
+            normFingerprint: string;
+            /** Effectivenormfingerprint */
+            effectiveNormFingerprint: string;
+            source: components["schemas"]["SelectionSource"];
+            /** Selectionchecksum */
+            selectionChecksum?: string | null;
+            scope?: components["schemas"]["RunScope"] | null;
+            /** Views */
+            views: string[];
+            /** Focuslayer */
+            focusLayer?: string | null;
+            /** Focusconstraint */
+            focusConstraint?: string | null;
+            /** Mincases */
+            minCases: number;
+            /** Cases */
+            cases: number;
+            /** Fingerprint */
+            fingerprint: string;
+        };
+        /** GroupingSuggestionsRequest */
+        GroupingSuggestionsRequest: {
+            /** Normversionid */
+            normVersionId: string;
+            /** Views */
+            views: string[];
+            scope?: components["schemas"]["RunScope"] | null;
+            /** Focuslayer */
+            focusLayer?: string | null;
+            /** Focusconstraint */
+            focusConstraint?: string | null;
+            /**
+             * Mincases
+             * @default 20
+             */
+            minCases?: number;
+            /**
+             * Limit
+             * @default 15
+             */
+            limit?: number;
+        };
+        /** GroupingSuggestionsResponse */
+        GroupingSuggestionsResponse: {
+            evidence: components["schemas"]["GroupingSuggestionEvidence"];
+            /** Attributes */
+            attributes: components["schemas"]["GroupingContextAttribute"][];
+            /** Suggestions */
+            suggestions: components["schemas"]["RankedGroupingSuggestion"][];
+            /** Search */
+            search: {
+                [key: string]: unknown;
+            };
+            /** Notice */
+            notice: string;
         };
         /** Guidance */
         Guidance: {
@@ -3505,10 +4222,11 @@ export interface components {
             constraint_id: string;
             /**
              * Comparison
+             * @description Period and subgroup comparisons are not implemented and return 422.
              * @default group_vs_rest
-             * @enum {string}
+             * @constant
              */
-            comparison?: "group_vs_rest" | "period" | "subgroup";
+            comparison?: "group_vs_rest";
             /**
              * Expected Direction
              * @default higher
@@ -3536,6 +4254,36 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * HypothesisTest
+         * @description Computed comparison. Missing metadata on older records is not inferred.
+         */
+        HypothesisTest: {
+            /** Constraint Id */
+            constraint_id: string;
+            /** Plain Name */
+            plain_name?: string | null;
+            /** Comparison */
+            comparison?: "group_vs_rest" | null;
+            /** Risk Difference */
+            risk_difference?: number | null;
+            /** Interval */
+            interval?: (number | null)[];
+            /** Interval Method */
+            interval_method?: string | null;
+            /** Confidence Level */
+            confidence_level?: number | null;
+            /** N Group */
+            n_group?: number | null;
+            /** N Rest */
+            n_rest?: number | null;
+            /** Reading */
+            reading?: string | null;
+            /** Median Reading */
+            median_reading?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Inventory
          * @description What a norm can be built from (R3-O6): the log's activities and every case attribute's values, with counts.
          */
@@ -3558,6 +4306,118 @@ export interface components {
             stages?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** InvestigationChoiceList */
+        InvestigationChoiceList: {
+            /** Values */
+            values: string[];
+            /** Total */
+            total: number;
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** InvestigationChoices */
+        InvestigationChoices: {
+            activities: components["schemas"]["InvestigationChoiceList"];
+            attributes: components["schemas"]["InvestigationChoiceList"];
+        };
+        /** InvestigationMetric */
+        InvestigationMetric: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: number | null;
+            /** Unit */
+            unit: string;
+            /** Note */
+            note?: string | null;
+        };
+        /** InvestigationParameters */
+        InvestigationParameters: {
+            /** Activity */
+            activity?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Target */
+            target?: string | null;
+            /** Relation */
+            relation?: ("direct" | "eventual") | null;
+        };
+        /** InvestigationQuestion */
+        InvestigationQuestion: {
+            /** Id */
+            id: string;
+            /**
+             * Family
+             * @enum {string}
+             */
+            family: "overview" | "frequency" | "repetition" | "timing" | "sequence" | "boundaries" | "identity" | "missingness";
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "observed" | "unavailable";
+            /** Summary */
+            summary: string;
+            /** Measurement */
+            measurement: string;
+            parameters: components["schemas"]["InvestigationParameters"];
+            /** Metrics */
+            metrics: components["schemas"]["InvestigationMetric"][];
+            /**
+             * Filter
+             * @description Exact inherited-plus-profile case filter, or null: disable all drill links
+             */
+            filter: {
+                [key: string]: unknown;
+            } | null;
+            /** Limitations */
+            limitations: string[];
+            /** Contextneeded */
+            contextNeeded: string[];
+            /** Nextcheck */
+            nextCheck: string;
+            /** Examplecaseids */
+            exampleCaseIds: string[];
+            /** Rows */
+            rows?: components["schemas"]["InvestigationRow"][];
+        };
+        /** InvestigationQuestions */
+        InvestigationQuestions: {
+            /** Runid */
+            runId: string;
+            /** Casenoun */
+            caseNoun: string;
+            /**
+             * Totalcases
+             * @description Frozen run population, already scoped and transformed
+             */
+            totalCases: number;
+            /** Selectedcases */
+            selectedCases: number;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Family
+             * @enum {string}
+             */
+            family: "overview" | "frequency" | "repetition" | "timing" | "sequence" | "boundaries" | "identity" | "missingness";
+            choices: components["schemas"]["InvestigationChoices"];
+            /** Questions */
+            questions: components["schemas"]["InvestigationQuestion"][];
+        };
+        /** InvestigationRow */
+        InvestigationRow: {
+            /** Label */
+            label: string;
+            /** Metrics */
+            metrics: components["schemas"]["InvestigationMetric"][];
         };
         /** Job */
         Job: {
@@ -3765,6 +4625,45 @@ export interface components {
             /** Casetableid */
             caseTableId: string;
         };
+        /** NormRelevance */
+        NormRelevance: {
+            /** Normversionid */
+            normVersionId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /**
+             * Cases
+             * @description Total cases in the explicit mapped table
+             */
+            cases: number;
+            /** Constraints */
+            constraints: components["schemas"]["NormRelevanceConstraint"][];
+        };
+        /**
+         * NormRelevanceConstraint
+         * @description Descriptive applicability and activity presence; neither violations nor compliance.
+         */
+        NormRelevanceConstraint: {
+            /** Id */
+            id: string;
+            /**
+             * Casesinscope
+             * @description Applicable cases; null when applicability is unavailable
+             */
+            casesInScope: number | null;
+            /**
+             * Observedcases
+             * @description Distinct in-scope cases with ANY referenced rule activity; null for no activity references or unavailable scope
+             */
+            observedCases: number | null;
+            /**
+             * Missingactivities
+             * @description Referenced raw activity labels with zero occurrences in the whole mapped table
+             */
+            missingActivities: string[];
+            /** Issues */
+            issues: string[];
+        };
         /**
          * NormSignalDistribution
          * @description Selected-version native signals on an explicit mapped table; no scoring run is created.
@@ -3848,6 +4747,101 @@ export interface components {
              * @description the person who signs the version; required to leave draft (R3-02)
              */
             author?: string | null;
+        };
+        /** NormTemplate */
+        NormTemplate: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "process_pack" | "configured_norm";
+            /** Activitylabels */
+            activityLabels: string;
+            /** Available */
+            available: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Norm */
+            norm: {
+                [key: string]: unknown;
+            } | null;
+            /** Documenthash */
+            documentHash: string | null;
+            /** Warnings */
+            warnings: string[];
+            /** Constraints */
+            constraints: components["schemas"]["NormTemplateConstraint"][];
+            /** Pendingconstraintids */
+            pendingConstraintIds: string[];
+        };
+        /** NormTemplateCatalogue */
+        NormTemplateCatalogue: {
+            /** Projectid */
+            projectId: string;
+            /** Process */
+            process: string | null;
+            /** Casetableid */
+            caseTableId: string;
+            /** Datasetid */
+            datasetId: string;
+            /** Labelpack */
+            labelPack: string | null;
+            /** Templateid */
+            templateId: string | null;
+            /** Cases */
+            cases: number | null;
+            /** Labelpacks */
+            labelPacks: components["schemas"]["NormTemplateLabelPack"][];
+            /** Templates */
+            templates: components["schemas"]["NormTemplate"][];
+        };
+        /** NormTemplateConstraint */
+        NormTemplateConstraint: {
+            /** Id */
+            id: string;
+            /**
+             * Casesinscope
+             * @description Applicable cases; null when applicability is unavailable
+             */
+            casesInScope: number | null;
+            /**
+             * Observedcases
+             * @description Distinct in-scope cases with ANY referenced rule activity; null for no activity references or unavailable scope
+             */
+            observedCases: number | null;
+            /**
+             * Missingactivities
+             * @description Referenced raw activity labels with zero occurrences in the whole mapped table
+             */
+            missingActivities: string[];
+            /** Issues */
+            issues: string[];
+            /** Layer */
+            layer: string;
+            /** Type */
+            type: string;
+            /** Description */
+            description: string;
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "normal" | "low";
+        };
+        /** NormTemplateLabelPack */
+        NormTemplateLabelPack: {
+            /** Id */
+            id: string;
+            /** Observedlabels */
+            observedLabels: number;
+            /** Totallabels */
+            totalLabels: number;
         };
         /** NormVersion */
         NormVersion: {
@@ -4052,6 +5046,84 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** ProcessVariant */
+        ProcessVariant: {
+            /**
+             * Id
+             * @description SHA-256 of the complete ordered activity sequence
+             */
+            id: string;
+            /**
+             * Activities
+             * @description Complete sequence, including loops, repeats and null labels
+             */
+            activities: (string | null)[];
+            /** Count */
+            count: number;
+            /**
+             * Share
+             * @description Count divided by totalSelectedCases, including zero-event cases
+             */
+            share: number;
+            /**
+             * Mediandurationhours
+             * @description Observed first-to-last span; descriptive, not savings
+             */
+            medianDurationHours: number | null;
+            /**
+             * Durationcases
+             * @description Cases contributing to the median; all event timestamps must be present
+             */
+            durationCases: number;
+            /** Examplecaseids */
+            exampleCaseIds: string[];
+        };
+        /** ProcessVariants */
+        ProcessVariants: {
+            /** Runid */
+            runId: string;
+            /** Variants */
+            variants: components["schemas"]["ProcessVariant"][];
+            /** Totalselectedcases */
+            totalSelectedCases: number;
+            /**
+             * Excludedzeroeventcases
+             * @description Selected cases without events; excluded from variant grouping
+             */
+            excludedZeroEventCases: number;
+            /** Totalvariants */
+            totalVariants: number;
+            /**
+             * Coveredcount
+             * @description Cases covered by the returned top variants only
+             */
+            coveredCount: number;
+            /**
+             * Coverage
+             * @description coveredCount / totalSelectedCases, or zero for empty selection
+             */
+            coverage: number;
+            /** Limit */
+            limit: number;
+            /** Examplelimit */
+            exampleLimit: number;
+            /** Ordering */
+            ordering: string;
+            /** Durationdescription */
+            durationDescription: string;
+            /** Scope */
+            scope?: {
+                [key: string]: unknown;
+            } | null;
+            /** Filter */
+            filter?: {
+                [key: string]: unknown;
+            } | null;
+            /** Slicing */
+            slicing?: string[] | null;
+            /** Slicekey */
+            sliceKey?: unknown[] | null;
+        };
         /** Project */
         Project: {
             /** Name */
@@ -4084,6 +5156,51 @@ export interface components {
             process?: string | null;
             /** Question */
             question?: string | null;
+        };
+        /** ProjectDatasetBinding */
+        ProjectDatasetBinding: {
+            /** Projectid */
+            projectId: string;
+            /** Datasetid */
+            datasetId: string | null;
+            /** Boundat */
+            boundAt: string | null;
+        };
+        /** ProjectDatasetBindingPut */
+        ProjectDatasetBindingPut: {
+            /** Datasetid */
+            datasetId: string;
+        };
+        /** RankedGroupingSuggestion */
+        RankedGroupingSuggestion: {
+            /** Id */
+            id: string;
+            /** Attributes */
+            attributes: string[];
+            /** Bands */
+            bands: components["schemas"]["BandSpec"][];
+            /** Label */
+            label: string;
+            /** Reasons */
+            reasons: string[];
+            /** Relevance */
+            relevance: number;
+            /** Rankscore */
+            rankScore: number;
+            /** Cases */
+            cases: number;
+            /** Supportcases */
+            supportCases: number;
+            /** Missingcases */
+            missingCases: number;
+            /** Groups */
+            groups: number;
+            /** Belowmincases */
+            belowMinCases: number;
+            /** Supportedcases */
+            supportedCases: number;
+            /** Relatedconstraints */
+            relatedConstraints: string[];
         };
         /** Readiness */
         Readiness: {
@@ -4162,6 +5279,7 @@ export interface components {
             createdAt: string;
             /** Updatedat */
             updatedAt: string;
+            readonly test?: components["schemas"]["HypothesisTest"] | null;
             readonly evidenceContext?: components["schemas"]["ActionEvidenceContext"] | null;
             /**
              * Evidencestate
@@ -4236,6 +5354,8 @@ export interface components {
             scope?: {
                 [key: string]: unknown;
             } | null;
+            /** Generalbenchmark */
+            generalBenchmark?: string | null;
             /** Id */
             id: string;
             /**
@@ -4284,7 +5404,7 @@ export interface components {
             baselineRunId?: string | null;
             /** Note */
             note?: string | null;
-            /** @description a sub-log: one flow type (applicability untouched) */
+            /** @description a sub-log: saved EDA cohort and/or one flow type (applicability untouched) */
             scope?: components["schemas"]["RunScope"] | null;
         };
         /** RunManifest */
@@ -4355,6 +5475,11 @@ export interface components {
         };
         /** RunScope */
         RunScope: {
+            /**
+             * Selection Id
+             * @description immutable saved EDA cohort; intersects an optional flow/attribute scope
+             */
+            selection_id?: string | null;
             /**
              * Flow Type
              * @description restrict the run to this flow type of the mapping
@@ -4427,6 +5552,48 @@ export interface components {
              */
             text?: string;
         };
+        /** SavedSelection */
+        SavedSelection: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Projectid */
+            projectId: string;
+            /** Datasetid */
+            datasetId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Cases */
+            cases: number;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Attribute */
+            attribute?: string | null;
+            selection: components["schemas"]["EDASelection"];
+            /** Membershipchecksum */
+            membershipChecksum: string;
+            source: components["schemas"]["SelectionSource"];
+            /**
+             * Semanticsversion
+             * @default eda-v1
+             * @constant
+             */
+            semanticsVersion?: "eda-v1";
+        };
+        /** SavedSelectionCreate */
+        SavedSelectionCreate: {
+            /** Name */
+            name: string;
+            /** Datasetid */
+            datasetId: string;
+            /** Attribute */
+            attribute?: string | null;
+            selection?: components["schemas"]["EDASelection"] | null;
+        };
         /** Scenario */
         Scenario: {
             /** Runid */
@@ -4445,6 +5612,19 @@ export interface components {
             }[];
             /** Createdat */
             createdAt: string;
+        };
+        /** SelectionSource */
+        SelectionSource: {
+            /** Mappingid */
+            mappingId: string;
+            /** Mappingchecksum */
+            mappingChecksum: string;
+            /** Datasetcontenthash */
+            datasetContentHash?: string | null;
+            /** Caseschecksum */
+            casesChecksum: string;
+            /** Eventschecksum */
+            eventsChecksum: string;
         };
         /** SliceDetail */
         SliceDetail: {
@@ -4492,6 +5672,46 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** SlicingAttribute */
+        SlicingAttribute: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "categorical" | "numeric";
+            /**
+             * Distinct
+             * @description Distinct nonmissing values among this run's cases
+             */
+            distinct: number;
+            /**
+             * Missing
+             * @description Cases without a usable value
+             */
+            missing: number;
+            /** Description */
+            description?: string | null;
+        };
+        /** SlicingOptions */
+        SlicingOptions: {
+            /** Attributes */
+            attributes: components["schemas"]["SlicingAttribute"][];
+            /** Suggestions */
+            suggestions: components["schemas"]["SlicingSuggestion"][];
+            /** Scope */
+            scope?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Cases
+             * @description Number of cases in the run's scoped population
+             */
+            cases: number;
+            /** Casenoun */
+            caseNoun: string;
+        };
         /** SlicingPreview */
         SlicingPreview: {
             /** Attributes */
@@ -4536,6 +5756,24 @@ export interface components {
              * @description banded numeric attributes
              */
             bands?: components["schemas"]["BandSpec"][];
+        };
+        /** SlicingSuggestion */
+        SlicingSuggestion: {
+            /**
+             * Id
+             * @description Self-contained group: JSON token, usable as the slicing query parameter
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Attributes */
+            attributes: string[];
+            /** Bands */
+            bands?: {
+                [key: string]: unknown;
+            }[];
         };
         /** Snapshot */
         Snapshot: {
@@ -4852,6 +6090,20 @@ export interface components {
              */
             force?: boolean;
         };
+        /** WorkspaceLink */
+        WorkspaceLink: {
+            /** Name */
+            name: string;
+            /** Origin */
+            origin: string;
+            /** Projectid */
+            projectId: string;
+            /**
+             * Description
+             * @default
+             */
+            description?: string;
+        };
         /** WorstCase */
         WorstCase: {
             /** Caseid */
@@ -5014,6 +6266,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProjectDatasetBinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDatasetBinding"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bindProjectDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectDatasetBindingPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDatasetBinding"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDatasetCatalogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetCatalogue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    importCatalogueDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
                 };
             };
             /** @description Validation Error */
@@ -5432,6 +6813,8 @@ export interface operations {
                 /** @description case attribute holding the flow type (default: the mapping's) */
                 attribute?: string | null;
                 abstraction?: number;
+                /** @description saved EDA cohort used for these flow counts and maps */
+                selectionId?: string | null;
             };
             header?: never;
             path: {
@@ -5630,6 +7013,208 @@ export interface operations {
             };
         };
     };
+    getCaseTableEDA: {
+        parameters: {
+            query: {
+                datasetId: string;
+                attribute?: string | null;
+                insight?: boolean;
+                compareAttribute?: string | null;
+                filter?: string | null;
+                /** @description JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected. */
+                selection?: string | null;
+                categoryMode?: ("missing" | "other") | null;
+                timeMissing?: boolean;
+                spanMissing?: boolean;
+                spanMin?: number | null;
+                spanMax?: number | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EDAResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listCaseTableSelections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSelection"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createCaseTableSelection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSelectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSelection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCaseTableSelection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+                selectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSelection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggestGroupings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupingSuggestionsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupingSuggestionsResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getNormSignalDistribution: {
         parameters: {
             query: {
@@ -5655,6 +7240,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NormSignalDistribution"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNormRelevance: {
+        parameters: {
+            query: {
+                /** @description the exact mapped case table to inspect */
+                caseTableId: string;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                normVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NormRelevance"];
                 };
             };
             /** @description Not Found */
@@ -5768,6 +7397,62 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getNormTemplates: {
+        parameters: {
+            query: {
+                /** @description the prepared table for the fixed project dataset */
+                caseTableId: string;
+                /** @description an explicitly selected curated activity label pack */
+                labelPack?: string | null;
+                /** @description preview only this template; omit for the catalogue */
+                templateId?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NormTemplateCatalogue"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6438,7 +8123,7 @@ export interface operations {
     getBacklog: {
         parameters: {
             query: {
-                /** @description slicing id or comma-separated case attributes */
+                /** @description saved slicing id, comma-separated case attributes, or self-contained group: JSON token */
                 slicing: string;
                 view?: string | null;
                 gamma?: number | null;
@@ -6495,10 +8180,42 @@ export interface operations {
             };
         };
     };
+    getSlicingOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlicingOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     previewSlicing: {
         parameters: {
             query: {
-                /** @description slicing id or comma-separated case attributes */
+                /** @description saved slicing id, comma-separated case attributes, or self-contained group: JSON token */
                 slicing: string;
                 /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
                 bands?: string | null;
@@ -6784,6 +8501,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SliceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getInvestigationQuestions: {
+        parameters: {
+            query?: {
+                filter?: string | null;
+                family?: "overview" | "frequency" | "repetition" | "timing" | "sequence" | "boundaries" | "identity" | "missingness";
+                activity?: string | null;
+                source?: string | null;
+                target?: string | null;
+                relation?: ("direct" | "eventual") | null;
+                /** @description Maximum profiles per family; overview combines three families */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationQuestions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProcessVariants: {
+        parameters: {
+            query?: {
+                slicing?: string | null;
+                sliceKey?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+                limit?: number;
+                exampleLimit?: number;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProcessVariants"];
                 };
             };
             /** @description Validation Error */
@@ -7308,13 +9107,22 @@ export interface operations {
                     "application/json": components["schemas"]["ReviewItem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

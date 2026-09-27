@@ -7,10 +7,11 @@ import { server } from "@/mocks/node";
 import { filterParam, canonicalParam, filterPreviewQuery, slicingPreviewQuery, runCaveats, uncalibratedById } from "./exploration";
 import type { Filter } from "./filter-types";
 import { flowFocusedQuery, bpmnUrl, pathsOf } from "./flow";
-import { runManifestQuery, scopeOf, flowTypeOf } from "./runs";
+import { runManifestQuery, scopeOf, flowTypeOf, flowTypesQuery } from "./runs";
 import { notebookQuery, useCreateSnapshot, snapshotImageUrl } from "./notebook";
 import { guidanceQuery, hubPageQuery, useSetOverlay } from "./knowledge";
 import { gatesQuery, whatCanWeDoQuery, useDecideGate, useCreateReviewItem, useUpdateReviewItem, blockingGates, reviewQuery, isRunWide } from "./review";
+import { distributionQuery, flowQuery } from "@/lib/queries";
 import { inventoryQuery } from "./norms";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -39,8 +40,8 @@ it("keeps raw and canonical filters distinct, along with existing key options", 
   const slicing = slicingPreviewQuery("p", "r", ["company", "vendor"], [], 0);
   expect(slicing.queryKey).toEqual(["projects", "p", "runs", "r", "slicings", "preview", "company,vendor", "", 0]);
   const focused = flowFocusedQuery("p", "r", { focus: "A", filter, abstraction: 0 });
-  expect(focused.queryKey).toEqual(["projects", "p", "runs", "r", "flow", "focus", "", "", "A", JSON.stringify(filter)]);
-  expect(flowFocusedQuery("p", "r", { focus: "A", filter, abstraction: 1 }).queryKey).toEqual(focused.queryKey);
+  expect(focused.queryKey).toEqual(["projects", "p", "runs", "r", "flow", "focus", "", "", "A", JSON.stringify(filter), 0]);
+  expect(flowFocusedQuery("p", "r", { focus: "A", filter, abstraction: 1 }).queryKey).not.toEqual(focused.queryKey);
   const fetch = vi.fn().mockResolvedValue(Response.json({ nodes: [], edges: [] })); vi.stubGlobal("fetch", fetch);
   await new QueryClient().fetchQuery(focused);
   expect(Object.fromEntries(new URL(fetch.mock.calls[0]![0] as string).searchParams)).toEqual({ focus: "A", filter: JSON.stringify(filter), abstraction: "0" });
@@ -120,5 +121,72 @@ it("keeps view helpers and run-wide gate classification", () => {
   expect(uncalibratedById({ uncalibrated: [{ id: "c", text: "Check" }] }).get("c")?.text).toBe("Check");
   expect(pathsOf({ nodes: [], edges: [], paths: { incoming: [], outgoing: [] }, meta: { pathsHidden: 2 } }, "A")).toEqual({ focus: "A", incoming: [], outgoing: [], hidden: 2 });
   expect(snapshotImageUrl({ id: "s", projectId: "p", title: "T", note: "", context: {}, order: 0, createdAt: "now", updatedAt: "now", hasImage: false })).toBeUndefined();
-  expect(blockingGates([{ id: "whole", kind: "readiness", status: "failed", text: "Whole run" }, { id: "group", kind: "readiness", status: "failed", text: "Group", evidence: { scope: "group" } }]).map(g => g.id)).toEqual(["group"]);
+  expect(blockingGates([{ id: "whole", kind: "readiness", status: "failed", text: "Whole run" }, { id: "group", kind: "readiness", status: "failed", text: "Group", evidence: { scope: "group" } }]).map(g => g.id)).toEqual(["whole", "group"]);
+});
+
+
+it("allows pending checks for an open hypothesis but blocks any failed check", () => {
+  expect(blockingGates([
+    { id: "pending", kind: "domain", status: "pending", text: "Check applicability" },
+    { id: "run", kind: "readiness", status: "failed", text: "Incomplete data", scope: "run" },
+    { id: "waived", kind: "replication", status: "waived", text: "Reviewed" },
+  ]).map(g => g.id)).toEqual(["run"]);
+});
+
+
+it("keeps measurement caches and requests bound to the exact selected filter", async () => {
+  const seen: Record<string, string>[] = [];
+  server.use(http.get("*/api/v1/projects/p/runs/r/signals/c", ({ request }) => {
+    seen.push(Object.fromEntries(new URL(request.url).searchParams));
+    return HttpResponse.json({ histogram: [], statistics: {}, casesInScope: seen.length });
+  }));
+  const client = new QueryClient();
+  const selected = JSON.stringify({ and: [{ kind: "count", activity: "Change Quantity", min: 2 }] });
+  const whole = distributionQuery("p", "r", "c", "company", '["B"]');
+  const filtered = distributionQuery("p", "r", "c", "company", '["B"]', selected);
+  expect(filtered.queryKey).not.toEqual(whole.queryKey);
+  await client.fetchQuery(whole);
+  await client.fetchQuery(filtered);
+  expect(seen).toEqual([
+    { slicing: "company", sliceKey: '["B"]' },
+    { slicing: "company", sliceKey: '["B"]', filter: selected },
+  ]);
+});
+
+
+it("requests complete flow graphs for comparison and caches abstraction levels separately", async () => {
+  let params: Record<string, string> | undefined;
+  server.use(http.get("*/api/v1/projects/p/case-tables/ct/flow-types", ({ request }) => {
+    params = Object.fromEntries(new URL(request.url).searchParams);
+    return HttpResponse.json({ types: [] });
+  }));
+  const complete = flowTypesQuery("p", "ct", undefined, 0);
+  expect(complete.queryKey).not.toEqual(flowTypesQuery("p", "ct").queryKey);
+  await new QueryClient().fetchQuery(complete);
+  expect(params).toEqual({ abstraction: "0" });
+});
+
+
+it("requests complete flow graphs by default with distinct explicit-abstraction cache keys", async () => {
+  const requests: Record<string, string>[] = [];
+  server.use(http.get("*/api/v1/projects/p/runs/r/flow", ({ request }) => {
+    requests.push(Object.fromEntries(new URL(request.url).searchParams));
+    return HttpResponse.json({ nodes: [], edges: [] });
+  }));
+  const params = { filter: JSON.stringify(filter), slicing: "company", sliceKey: '["B"]' };
+  const full = flowQuery("p", "r", params);
+  const reduced = flowQuery("p", "r", { ...params, abstraction: 0.05 });
+  const focused = flowFocusedQuery("p", "r", { ...params, filter, focus: "A" });
+  expect(full.queryKey).toEqual(flowQuery("p", "r", { ...params, abstraction: 0 }).queryKey);
+  expect(full.queryKey).not.toEqual(reduced.queryKey);
+  expect(focused.queryKey).not.toEqual(flowFocusedQuery("p", "r", { ...params, filter, focus: "A", abstraction: 0.05 }).queryKey);
+  const client = new QueryClient();
+  await client.fetchQuery(full);
+  await client.fetchQuery(reduced);
+  await client.fetchQuery(focused);
+  expect(requests).toEqual([
+    { ...params, abstraction: "0" },
+    { ...params, abstraction: "0.05" },
+    { ...params, focus: "A", abstraction: "0" },
+  ]);
 });

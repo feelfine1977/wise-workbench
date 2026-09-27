@@ -1,0 +1,315 @@
+.eda-workspace {
+  --eda-blue: #4263eb;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 12px;
+}
+.eda-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+.eda-heading h2 {
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  margin: 8px 0;
+}
+.eda-heading > div > p:last-child {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+.eda-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  font-weight: 700;
+  color: #4263eb;
+}
+.eda-pill {
+  border: 1px solid #94d2c9;
+  background: #e6fcf5;
+  color: #087f5b;
+  font-size: 11px;
+  border-radius: 99px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+.eda-pages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.eda-pages button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 16px 12px;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: var(--color-surface-sunken);
+}
+.eda-pages button.active {
+  border-bottom-color: #4263eb;
+  background: color-mix(in srgb, #4263eb 8%, transparent);
+}
+.eda-pages strong {
+  display: block;
+  font-size: 12px;
+}
+.eda-pages small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+.eda-page-index {
+  font-size: 10px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+.eda-scope {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  border-left: 3px solid #4263eb;
+}
+.eda-scope strong {
+  font-size: 14px;
+}
+.eda-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, #4263eb 35%, transparent);
+  background: color-mix(in srgb, #4263eb 6%, transparent);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 11px;
+  max-width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.eda-chip:hover {
+  background: color-mix(in srgb, #4263eb 14%, transparent);
+}
+.eda-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  padding: 8px 0 28px;
+}
+.eda-metrics > div {
+  border-left: 2px solid #4263eb;
+  padding-left: 14px;
+}
+.eda-metrics > div:nth-child(2) {
+  border-color: #0c8599;
+}
+.eda-metrics > div:nth-child(3) {
+  border-color: #ae3ec9;
+}
+.eda-metrics > div:nth-child(4) {
+  border-color: #d9480f;
+}
+.eda-metrics small {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  font-weight: 600;
+}
+.eda-metrics strong {
+  display: block;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  margin: 5px 0;
+}
+.eda-metrics span {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.eda-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.eda-cell {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 0;
+  overflow: hidden;
+}
+.eda-cell h3 {
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+.eda-caption {
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.73;
+  margin: 8px 0 20px;
+  max-width: 85ch;
+}
+.eda-note {
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.72;
+  margin-top: 12px;
+}
+.eda-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  min-width: 0;
+}
+.eda-context-controls {
+  display: flex;
+  gap: 20px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.eda-context-controls label,
+.eda-filter-editor label {
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.eda-context-controls select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  max-width: 300px;
+  font-size: 13px;
+}
+.eda-context-controls p {
+  max-width: 36ch;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.eda-filter-editor {
+  border-top: 1px solid var(--color-border);
+  margin-top: 16px;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.eda-filter-editor button {
+  align-self: start;
+}
+.eda-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0;
+}
+.eda-footer p {
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.7;
+}
+.eda-methods {
+  font-size: 11px;
+  opacity: 0.75;
+  padding-bottom: 12px;
+}
+.eda-methods summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.eda-methods ul {
+  list-style: disc;
+  padding: 16px 24px;
+  display: grid;
+  gap: 8px;
+  max-width: 110ch;
+}
+.eda-empty {
+  padding: 20px;
+  border: 1px dashed #ae3ec9;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.eda-handoff {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.eda-handoff strong {
+  font-size: 14px;
+}
+.eda-handoff p {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 6px;
+}
+.eda-workspace svg {
+  overflow: visible;
+}
+.eda-workspace svg [role="button"]:focus {
+  outline: 2px solid #4263eb;
+  outline-offset: 2px;
+}
+@media (max-width: 1000px) {
+  .eda-pages {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .eda-two {
+    grid-template-columns: 1fr;
+  }
+  .eda-metrics {
+    gap: 12px;
+  }
+  .eda-metrics strong {
+    font-size: 22px;
+  }
+}
+@media (max-width: 640px) {
+  .eda-heading {
+    flex-direction: column;
+  }
+  .eda-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .eda-cell {
+    padding: 16px;
+  }
+  .eda-pages button {
+    padding: 12px 8px;
+  }
+  .eda-page-index {
+    display: none;
+  }
+  .eda-footer,
+  .eda-handoff {
+    align-items: start;
+    flex-direction: column;
+  }
+  .eda-context-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .eda-context-controls select {
+    max-width: 100%;
+  }
+}

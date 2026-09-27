@@ -1,10 +1,10 @@
-# Order-to-cash playbooks per journey stage (docs/CUSTOMER_JOURNEY.md §3).
+# Order-to-cash playbooks per journey stage (the pack journey-stage contract).
 pack: o2c
 version: 1
 review_status: draft
 sources:
-  - docs/CUSTOMER_JOURNEY.md journey stages S0 to S12
-  - docs/panel/process_panel.md §5 (O2C pitfalls)
+  - packages/process-knowledge/PACK_DESIGN.md (journey stages S0 to S12)
+  - packages/process-knowledge/PACK_DESIGN.md (O2C pitfalls)
   - o2c/README.md §3 and §4
 playbooks:
   - id: o2c.pb.s0_scope

@@ -42,11 +42,17 @@ jobs:
         run: |
           python -m pip install "$WISE_PM"
           python -m pip install -e ../../packages/process-knowledge -e ../../packages/wise-analytics -e ".[dev]"
-          python -c "import wise, wise_knowledge, wise_analytics; assert wise.__version__ == '0.1.0'"
+          python ../../tools/check-core-profile.py --core classic
+          python -c "import wise, wise_knowledge, wise_analytics"
+      - name: Offline core profile tooling tests
+        working-directory: .
+        run: python -m unittest discover -s tests/tooling -v
       - name: Lint and format
         run: |
           ruff check src tests
           ruff format --check src tests
+          ruff check --config pyproject.toml ../../tools/check-core-profile.py ../../tools/check_analysis_acceptance.py ../../tests/tooling
+          ruff format --check --config pyproject.toml ../../tools/check-core-profile.py ../../tools/check_analysis_acceptance.py ../../tests/tooling
       - name: Types
         run: mypy
       - name: Full API and regression tests
@@ -59,6 +65,50 @@ jobs:
         run: |
           wise-workbench openapi --yaml --out /tmp/openapi.yaml
           diff -u ../../packages/api-schema/openapi.yaml /tmp/openapi.yaml
+
+  backend-next:
+    name: next candidate regression (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            tools/check-core-profile.py
+            apps/backend/pyproject.toml
+            packages/process-knowledge/pyproject.toml
+            packages/wise-analytics/pyproject.toml
+      - name: Install and verify the pinned next candidate
+        run: |
+          python -m pip install --force-reinstall --no-deps "$(python ../../tools/check-core-profile.py --core next --requirement)"
+          python -m pip install -e "../../packages/process-knowledge[dev]" -e "../../packages/wise-analytics[dev]" -e ".[dev]"
+          python ../../tools/check-core-profile.py --core next
+          python -c "import wise, wise_knowledge, wise_analytics"
+      - name: Full API and regression tests
+        env:
+          WISE_LOG_FORMAT: console
+          WISE_LOG_LEVEL: WARNING
+          WISE_TEST_PROFILE: full
+        run: python -m pytest -q
+      - name: Analytics regression tests
+        working-directory: packages/wise-analytics
+        run: python -m pytest -q
+      - name: Knowledge regression tests
+        working-directory: packages/process-knowledge
+        run: python -m pytest -q
+      - name: Exact contract drift on each Python runtime
+        run: |
+          wise-workbench openapi --yaml --out /tmp/openapi-next.yaml
+          diff -u ../../packages/api-schema/openapi.yaml /tmp/openapi-next.yaml
 
   backend-minimal:
     name: minimal backend (Python ${{ matrix.python }})
@@ -82,7 +132,7 @@ jobs:
       - name: Explicit fallback contract
         env:
           WISE_TEST_PROFILE: minimal
-        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py tests/api/test_norm_persistence.py tests/api/test_action_eligibility.py
+        run: python -m pytest -q tests/api/test_dependency_profiles.py tests/api/test_contract.py tests/api/test_norm_persistence.py tests/api/test_action_eligibility.py tests/api/test_hypothesis_integrity.py tests/api/test_filtered_action_evidence.py
 
   analytics:
     name: analytics package

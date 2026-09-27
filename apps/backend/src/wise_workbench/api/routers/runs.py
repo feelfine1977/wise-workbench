@@ -109,7 +109,9 @@ def get_backlog(
     projectId: str,
     runId: str,
     c: ContainerDep,
-    slicing: Annotated[str, Query(description="slicing id or comma-separated case attributes")],
+    slicing: Annotated[
+        str, Query(description="saved slicing id, comma-separated case attributes, or self-contained group: JSON token")
+    ],
     view: str | None = None,
     gamma: float | None = None,
     minCases: Annotated[int, Query(ge=1)] = 20,
@@ -162,6 +164,16 @@ def get_backlog(
 
 
 @router.get(
+    "/{runId}/slicings/options",
+    operation_id="getSlicingOptions",
+    response_model=schemas.SlicingOptions,
+    description="Actual case-attribute profiles and deterministic grouping suggestions for this run's scoped population.",
+)
+def get_slicing_options(projectId: str, runId: str, c: ContainerDep) -> schemas.SlicingOptions:
+    return schemas.SlicingOptions(**c.runs.slicing_options(projectId, runId))
+
+
+@router.get(
     "/{runId}/slicings/preview",
     operation_id="previewSlicing",
     response_model=schemas.SlicingPreview,
@@ -171,7 +183,9 @@ def preview_slicing(
     projectId: str,
     runId: str,
     c: ContainerDep,
-    slicing: Annotated[str, Query(description="slicing id or comma-separated case attributes")],
+    slicing: Annotated[
+        str, Query(description="saved slicing id, comma-separated case attributes, or self-contained group: JSON token")
+    ],
     bands: BandsParam = None,
     minCases: Annotated[int, Query(ge=1)] = 20,
 ) -> schemas.SlicingPreview:
@@ -327,6 +341,69 @@ def get_slice(
     return schemas.SliceDetail(
         **c.runs.slice_detail(
             projectId, runId, slicing=slicing, slice_key=sliceKey, view=view, drilldown=drilldown, bands=bands
+        )
+    )
+
+
+@router.get(
+    "/{runId}/investigation-questions",
+    operation_id="getInvestigationQuestions",
+    response_model=schemas.InvestigationQuestions,
+    description="Dataset-adaptive descriptive analysis of the exact run/filter population. Overview returns "
+    "bounded repetition, direct-transition timing and boundary profiles. Explicit timing/sequence requires "
+    "source and target. Eventual means a strictly later recorded event position, not timestamp >=. "
+    "A null question filter disables drill links. Unknown query parameters are rejected.",
+)
+def get_investigation_questions(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    params: Annotated[schemas.InvestigationQuery, Query()],
+) -> schemas.InvestigationQuestions:
+    return schemas.InvestigationQuestions(
+        **c.runs.investigation_questions(
+            projectId,
+            runId,
+            filter_text=params.filter,
+            family=params.family,
+            activity=params.activity,
+            source=params.source,
+            target=params.target,
+            relation=params.relation,
+            limit=params.limit,
+        )
+    )
+
+
+@router.get(
+    "/{runId}/variants",
+    operation_id="getProcessVariants",
+    response_model=schemas.ProcessVariants,
+    description="Top exact activity sequences in the run population, optionally filtered and sliced. "
+    "Shares include selected zero-event cases in the denominator. Equal timestamps use the log's stable "
+    "mapped ordering, not business causality. Durations are descriptive first-to-last spans, not savings.",
+)
+def get_process_variants(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    slicing: str | None = None,
+    sliceKey: str | None = None,
+    filter: FilterParam = None,
+    bands: BandsParam = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    exampleLimit: Annotated[int, Query(ge=1, le=5)] = 3,
+) -> schemas.ProcessVariants:
+    return schemas.ProcessVariants(
+        **c.runs.variants(
+            projectId,
+            runId,
+            slicing=slicing,
+            slice_key=sliceKey,
+            filter_text=filter,
+            bands=bands,
+            limit=limit,
+            example_limit=exampleLimit,
         )
     )
 

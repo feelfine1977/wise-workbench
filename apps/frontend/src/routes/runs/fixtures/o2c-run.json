@@ -1,0 +1,600 @@
+{
+  "run": {
+    "caseTableId": "ct_0mtqjsqpud5r2q3hk",
+    "normVersionId": "nv_0mtqjsswd1bm32i1r",
+    "views": [
+      "Logistics",
+      "Sales",
+      "Finance",
+      "Customer service"
+    ],
+    "slicings": [
+      {
+        "id": "Customer ID",
+        "attributes": [
+          "Customer ID"
+        ],
+        "bands": []
+      },
+      {
+        "id": "SKU ID",
+        "attributes": [
+          "SKU ID"
+        ],
+        "bands": []
+      },
+      {
+        "id": "Incoterms (Part 1)",
+        "attributes": [
+          "Incoterms (Part 1)"
+        ],
+        "bands": []
+      },
+      {
+        "id": "order_month",
+        "attributes": [
+          "order_month"
+        ],
+        "bands": []
+      }
+    ],
+    "gamma": 20.0,
+    "minCases": 20,
+    "baselineRunId": null,
+    "note": "Observed O2C validation with pinned next core; same assessment parameters.",
+    "scope": null,
+    "id": "run_0muj34x198mjkgjdg",
+    "status": "done",
+    "jobId": "job_0muj34x1a9r1wj66v",
+    "manifest": {
+      "normFingerprint": "6bddd1ed7599482e19817c4f60b429587edebb52e1ebfc9ee31dc4c4c928425f",
+      "contentHash": "9c887faa36c9203ca6f8d1f357af3956ca17b592548d95238eeb45a8bdf1758c",
+      "mappingId": "map_0mtqjspkyame3ar8o",
+      "paramsHash": "62843fc39af32a6683d441e9394ef9ef7a3cf72371c123e98c9bed589db6833a",
+      "wiseVersion": "0.1.0",
+      "workbenchVersion": "0.1.0",
+      "startedAt": "2026-09-27T00:33:25.869228+00:00",
+      "finishedAt": "2026-09-27T00:33:30.631522+00:00",
+      "views": [
+        "Logistics",
+        "Sales",
+        "Finance",
+        "Customer service"
+      ],
+      "slicings": [
+        {
+          "id": "Customer ID",
+          "attributes": [
+            "Customer ID"
+          ]
+        },
+        {
+          "id": "SKU ID",
+          "attributes": [
+            "SKU ID"
+          ]
+        },
+        {
+          "id": "Incoterms (Part 1)",
+          "attributes": [
+            "Incoterms (Part 1)"
+          ]
+        },
+        {
+          "id": "order_month",
+          "attributes": [
+            "order_month"
+          ]
+        }
+      ],
+      "scope": null,
+      "cases": 51164,
+      "windowEnd": "2026-01-26T19:04:43",
+      "normWarnings": [
+        "constraint 'o_capture_no_credit_block': activity 'o2c.credit_block_set' never occurs in the log",
+        "constraint 'o_capture_credit_release_days': activity 'o2c.credit_block_set' never occurs in the log",
+        "constraint 'o_capture_credit_release_days': activity 'o2c.credit_block_release' never occurs in the log",
+        "constraint 'o_commit_no_postponement': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commit_no_confirmation_removed': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commit_no_delivery_block': activity 'o2c.delivery_block_set' never occurs in the log",
+        "constraint 'o_commit_no_stockout': activity 'o2c.item_out_of_stock' never occurs in the log",
+        "constraint 'o_commit_confirmed_equals_ordered': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_delivery_present': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_goods_issue_present': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_order_to_issue_days': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_days_late': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_no_failed_delivery': activity 'o2c.failed_delivery' never occurs in the log",
+        "constraint 'o_change_churn': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commercial_no_manual_price_change': activity 'o2c.price_change_manual' never occurs in the log",
+        "constraint 'o_return_no_reversal': activity 'o2c.delivery_reversal' never occurs in the log",
+        "constraint 'o_return_receipt_present': activity 'o2c.return_delivery' never occurs in the log",
+        "constraint 'o_return_receipt_present': activity 'o2c.return_to_own_stock' never occurs in the log",
+        "constraint 'o_return_order_before_receipt': activity 'o2c.return_order_create' never occurs in the log",
+        "constraint 'o_return_order_before_receipt': activity 'o2c.return_delivery' never occurs in the log",
+        "constraint 'o_invoice_present': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_invoice_present': activity 'o2c.goods_issue' never occurs in the log",
+        "constraint 'o_invoice_days_after_issue': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.invoice_cancel' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.invoice_correction_request' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.credit_memo_create' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.debit_memo_create' never occurs in the log",
+        "constraint 'o_pay_present': activity 'o2c.payment_receive' never occurs in the log",
+        "constraint 'o_pay_present': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_pay_within_terms': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_pay_within_terms': activity 'o2c.payment_receive' never occurs in the log",
+        "constraint 'o_pay_no_dunning': activity 'o2c.dunning' never occurs in the log"
+      ]
+    },
+    "paramsHash": "62843fc39af32a6683d441e9394ef9ef7a3cf72371c123e98c9bed589db6833a",
+    "error": null,
+    "createdAt": "2026-09-27T00:33:25.821138",
+    "links": {
+      "self": "/api/v1/projects/prj_0mtqjsk8a0u3wk46z/runs/run_0muj34x198mjkgjdg",
+      "summary": "/api/v1/projects/prj_0mtqjsk8a0u3wk46z/runs/run_0muj34x198mjkgjdg/summary",
+      "backlog": "/api/v1/projects/prj_0mtqjsk8a0u3wk46z/runs/run_0muj34x198mjkgjdg/backlog?slicing=Customer ID"
+    }
+  },
+  "manifest": {
+    "runId": "run_0muj34x198mjkgjdg",
+    "status": "done",
+    "caseNoun": "sales order items",
+    "plain": [
+      {
+        "label": "Log",
+        "value": "Sales_Eventlog.csv",
+        "note": "51,164 sales order items",
+        "options": null
+      },
+      {
+        "label": "Expectations",
+        "value": "O2C baseline v1",
+        "note": "draft; 30 expectations; 32 warnings",
+        "options": null
+      },
+      {
+        "label": "Perspective",
+        "value": "Logistics, Sales, Finance, Customer service",
+        "note": "the weighting of the expectation areas this run was read with",
+        "options": null
+      },
+      {
+        "label": "Grouped by",
+        "value": "Customer ID; SKU ID; Incoterms (Part 1); order_month",
+        "note": "groups of at least 20 sales order items",
+        "options": null
+      },
+      {
+        "label": "Ranked by",
+        "value": "number of sales order items",
+        "note": "in force; the same run also ranks by Order Quantity (rank by quantity)",
+        "options": [
+          {
+            "id": "cases",
+            "label": "by sales order items",
+            "inForce": true
+          },
+          {
+            "id": "exposure",
+            "label": "by Order Quantity",
+            "inForce": false
+          }
+        ]
+      },
+      {
+        "label": "Small groups",
+        "value": "\u03b3 = 20",
+        "note": "a group of 20 sales order items keeps half of its shortfall; larger groups keep more",
+        "options": null
+      },
+      {
+        "label": "Scope",
+        "value": "the whole log",
+        "note": null,
+        "options": null
+      },
+      {
+        "label": "End of the data",
+        "value": "2026-01-26T19:04:43",
+        "note": "every open-case number in this run is counted at that moment",
+        "options": null
+      },
+      {
+        "label": "Run",
+        "value": "2026-09-27 00:33:30",
+        "note": "took 5 s",
+        "options": null
+      },
+      {
+        "label": "Data caveats",
+        "value": "8 to keep in mind",
+        "note": "186 events lie outside the observation window (earliest 2023-01-02 07:44:15, latest 2026-01-27 11:56:26); 12 timestamp value(s) look like placeholders (identical stamp on many events or a known sentinel date); 137 events are exact duplicates (same case, activity and timestamp)",
+        "options": null
+      }
+    ],
+    "technical": {
+      "normFingerprint": "6bddd1ed7599482e19817c4f60b429587edebb52e1ebfc9ee31dc4c4c928425f",
+      "contentHash": "9c887faa36c9203ca6f8d1f357af3956ca17b592548d95238eeb45a8bdf1758c",
+      "mappingId": "map_0mtqjspkyame3ar8o",
+      "paramsHash": "62843fc39af32a6683d441e9394ef9ef7a3cf72371c123e98c9bed589db6833a",
+      "wiseVersion": "0.1.0",
+      "workbenchVersion": "0.1.0",
+      "startedAt": "2026-09-27T00:33:25.869228+00:00",
+      "finishedAt": "2026-09-27T00:33:30.631522+00:00",
+      "views": [
+        "Logistics",
+        "Sales",
+        "Finance",
+        "Customer service"
+      ],
+      "slicings": [
+        {
+          "id": "Customer ID",
+          "attributes": [
+            "Customer ID"
+          ]
+        },
+        {
+          "id": "SKU ID",
+          "attributes": [
+            "SKU ID"
+          ]
+        },
+        {
+          "id": "Incoterms (Part 1)",
+          "attributes": [
+            "Incoterms (Part 1)"
+          ]
+        },
+        {
+          "id": "order_month",
+          "attributes": [
+            "order_month"
+          ]
+        }
+      ],
+      "scope": null,
+      "cases": 51164,
+      "windowEnd": "2026-01-26T19:04:43",
+      "normWarnings": [
+        "constraint 'o_capture_no_credit_block': activity 'o2c.credit_block_set' never occurs in the log",
+        "constraint 'o_capture_credit_release_days': activity 'o2c.credit_block_set' never occurs in the log",
+        "constraint 'o_capture_credit_release_days': activity 'o2c.credit_block_release' never occurs in the log",
+        "constraint 'o_commit_no_postponement': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commit_no_confirmation_removed': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commit_no_delivery_block': activity 'o2c.delivery_block_set' never occurs in the log",
+        "constraint 'o_commit_no_stockout': activity 'o2c.item_out_of_stock' never occurs in the log",
+        "constraint 'o_commit_confirmed_equals_ordered': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_delivery_present': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_goods_issue_present': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_order_to_issue_days': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_days_late': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_deliv_no_failed_delivery': activity 'o2c.failed_delivery' never occurs in the log",
+        "constraint 'o_change_churn': activity 'o2c.rejection_change' never occurs in the log",
+        "constraint 'o_commercial_no_manual_price_change': activity 'o2c.price_change_manual' never occurs in the log",
+        "constraint 'o_return_no_reversal': activity 'o2c.delivery_reversal' never occurs in the log",
+        "constraint 'o_return_receipt_present': activity 'o2c.return_delivery' never occurs in the log",
+        "constraint 'o_return_receipt_present': activity 'o2c.return_to_own_stock' never occurs in the log",
+        "constraint 'o_return_order_before_receipt': activity 'o2c.return_order_create' never occurs in the log",
+        "constraint 'o_return_order_before_receipt': activity 'o2c.return_delivery' never occurs in the log",
+        "constraint 'o_invoice_present': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_invoice_present': activity 'o2c.goods_issue' never occurs in the log",
+        "constraint 'o_invoice_days_after_issue': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.invoice_cancel' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.invoice_correction_request' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.credit_memo_create' never occurs in the log",
+        "constraint 'o_invoice_no_corrections': activity 'o2c.debit_memo_create' never occurs in the log",
+        "constraint 'o_pay_present': activity 'o2c.payment_receive' never occurs in the log",
+        "constraint 'o_pay_present': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_pay_within_terms': activity 'o2c.invoice_create' never occurs in the log",
+        "constraint 'o_pay_within_terms': activity 'o2c.payment_receive' never occurs in the log",
+        "constraint 'o_pay_no_dunning': activity 'o2c.dunning' never occurs in the log"
+      ],
+      "caseTableId": "ct_0mtqjsqpud5r2q3hk",
+      "datasetId": "ds_0mtqjsnnv3dowh0ot",
+      "datasetContentHash": "9c887faa36c9203ca6f8d1f357af3956ca17b592548d95238eeb45a8bdf1758c",
+      "normVersionId": "nv_0mtqjsswd1bm32i1r"
+    },
+    "uncalibrated": [
+      {
+        "id": "o_return_receipt_present",
+        "layer": "returns",
+        "plain_name": "Returned goods received",
+        "description": "Return items should show the returned goods.",
+        "share_violated": 1.0,
+        "evaluated": 10,
+        "applies_to": 10,
+        "measured": 10,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_always_missed",
+        "text": "Returned goods received is missed by 100 % of all sales order items it applies to \u2014 a threshold to calibrate, not a difference between groups.",
+        "hub_node": "expectation:o2c_baseline:o_return_receipt_present"
+      },
+      {
+        "id": "o_invoice_days_after_issue",
+        "layer": "invoice_payment",
+        "plain_name": "Invoiced within two days of shipping",
+        "description": "Invoices should follow the goods issue within a target time.",
+        "share_violated": 0.9987064451881814,
+        "evaluated": 48703,
+        "applies_to": 51154,
+        "measured": 0,
+        "violated_without_value": 48640,
+        "measures_logging": true,
+        "reason": "missing_partner",
+        "text": "Invoiced within two days of shipping: this expectation is missed mostly where the pair of events is missing \u2014 48,640 of its 48,640 misses have no partner event, not a measured value beyond the threshold.",
+        "hub_node": "expectation:o2c_baseline:o_invoice_days_after_issue"
+      },
+      {
+        "id": "o_deliv_pick_to_issue_days",
+        "layer": "delivery",
+        "plain_name": "Picked goods leave promptly",
+        "description": "Picked goods should leave within a target time.",
+        "share_violated": 0.8864391048777972,
+        "evaluated": 48485,
+        "applies_to": 51164,
+        "measured": 5677,
+        "violated_without_value": 42747,
+        "measures_logging": true,
+        "reason": "missing_partner",
+        "text": "Picked goods leave promptly: this expectation is missed mostly where the pair of events is missing \u2014 42,747 of its 42,979 misses have no partner event, not a measured value beyond the threshold.",
+        "hub_node": "expectation:o2c_baseline:o_deliv_pick_to_issue_days"
+      },
+      {
+        "id": "o_deliv_order_to_issue_days",
+        "layer": "delivery",
+        "plain_name": "Shipped within the target time",
+        "description": "Items should ship within a target time; open items are scored by their age.",
+        "share_violated": 0.31436446807678775,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 48703,
+        "violated_without_value": 2145,
+        "measures_logging": false,
+        "reason": "declared",
+        "text": "Shipped within the target time carries an uncalibrated threshold in the norm; set it on the distribution lens.",
+        "hub_node": "expectation:o2c_baseline:o_deliv_order_to_issue_days"
+      },
+      {
+        "id": "o_change_churn",
+        "layer": "changes",
+        "plain_name": "Few changes on the item",
+        "description": "Items should not carry more than the tolerated number of change events.",
+        "share_violated": 0.10175157367947765,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "declared",
+        "text": "Few changes on the item carries an uncalibrated threshold in the norm; set it on the distribution lens.",
+        "hub_node": "expectation:o2c_baseline:o_change_churn"
+      },
+      {
+        "id": "o_deliv_days_late",
+        "layer": "delivery",
+        "plain_name": "Not later than the customer asked",
+        "description": "Goods issue should not be later than the requested delivery date.",
+        "share_violated": 0.031620228733342914,
+        "evaluated": 48703,
+        "applies_to": 51154,
+        "measured": 48703,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "declared",
+        "text": "Not later than the customer asked carries an uncalibrated threshold in the norm; set it on the distribution lens.",
+        "hub_node": "expectation:o2c_baseline:o_deliv_days_late"
+      },
+      {
+        "id": "o_change_avail_date",
+        "layer": "changes",
+        "plain_name": "Availability date settled once",
+        "description": "Repeated availability date changes indicate planning churn.",
+        "share_violated": 0.019916347431787974,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "declared",
+        "text": "Availability date settled once carries an uncalibrated threshold in the norm; set it on the distribution lens.",
+        "hub_node": "expectation:o2c_baseline:o_change_avail_date"
+      },
+      {
+        "id": "o_commercial_no_incoterms_change",
+        "layer": "commercial",
+        "plain_name": "Delivery terms as agreed",
+        "description": "Delivery terms should not change after capture.",
+        "share_violated": 0.007681182081150809,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Delivery terms as agreed: rarely missed on this log \u2014 393 of 51,164 evaluated sales order items; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_commercial_no_incoterms_change"
+      },
+      {
+        "id": "o_change_prepone",
+        "layer": "changes",
+        "plain_name": "Date not moved forward repeatedly",
+        "description": "Repeated date moves in either direction indicate unstable commitments.",
+        "share_violated": 0.00547259792041279,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Date not moved forward repeatedly: rarely missed on this log \u2014 280 of 51,164 evaluated sales order items; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_change_prepone"
+      },
+      {
+        "id": "o_change_requested_quantity",
+        "layer": "changes",
+        "plain_name": "Requested quantity stays",
+        "description": "Requested quantity changes after capture should be rare.",
+        "share_violated": 0.0026190290047689783,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Requested quantity stays: rarely missed on this log \u2014 134 of 51,164 evaluated sales order items; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_change_requested_quantity"
+      },
+      {
+        "id": "o_commit_no_delivery_block",
+        "layer": "commitment",
+        "plain_name": "No delivery block",
+        "description": "Delivery blocks should be exceptional.",
+        "share_violated": 0.00105563592289948,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "No delivery block: rarely missed on this log \u2014 54 of 51,154 evaluated sales order items; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_commit_no_delivery_block"
+      },
+      {
+        "id": "o_commit_confirmed_equals_ordered",
+        "layer": "commitment",
+        "plain_name": "Confirmed what was ordered",
+        "description": "The confirmed quantity should equal the ordered quantity.",
+        "share_violated": 0.00011729288032216445,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Confirmed what was ordered: rarely missed on this log \u2014 6 of 51,154 evaluated sales order items; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_commit_confirmed_equals_ordered"
+      },
+      {
+        "id": "o_capture_no_credit_block",
+        "layer": "capture",
+        "plain_name": "No credit block on the order",
+        "description": "Credit blocks should be exceptional.",
+        "share_violated": 0.0,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "No credit block on the order: no observed misses among 51,164 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_capture_no_credit_block"
+      },
+      {
+        "id": "o_commit_no_stockout",
+        "layer": "commitment",
+        "plain_name": "No stock-out after commitment",
+        "description": "Committed items should not run out of stock.",
+        "share_violated": 0.0,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "No stock-out after commitment: no observed misses among 51,154 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_commit_no_stockout"
+      },
+      {
+        "id": "o_deliv_no_split",
+        "layer": "delivery",
+        "plain_name": "One delivery per item",
+        "description": "Items should not be split across deliveries unless partial deliveries are allowed.",
+        "share_violated": 0.0,
+        "evaluated": 49486,
+        "applies_to": 49486,
+        "measured": 49486,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "One delivery per item: no observed misses among 49,486 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_deliv_no_split"
+      },
+      {
+        "id": "o_deliv_no_failed_delivery",
+        "layer": "delivery",
+        "plain_name": "Delivered at the first attempt",
+        "description": "Delivery attempts should not fail.",
+        "share_violated": 0.0,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Delivered at the first attempt: no observed misses among 51,164 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_deliv_no_failed_delivery"
+      },
+      {
+        "id": "o_commercial_no_manual_price_change",
+        "layer": "commercial",
+        "plain_name": "Price from the price list",
+        "description": "Manual price changes indicate commercial inconsistency risk.",
+        "share_violated": 0.0,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Price from the price list: no observed misses among 51,164 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_commercial_no_manual_price_change"
+      },
+      {
+        "id": "o_return_no_reversal",
+        "layer": "returns",
+        "plain_name": "Goods issue not reversed",
+        "description": "Goods issues should not be reversed.",
+        "share_violated": 0.0,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Goods issue not reversed: no observed misses among 51,154 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_return_no_reversal"
+      },
+      {
+        "id": "o_invoice_no_corrections",
+        "layer": "invoice_payment",
+        "plain_name": "Invoice right the first time",
+        "description": "Invoice corrections should be exceptional outside returns.",
+        "share_violated": 0.0,
+        "evaluated": 51154,
+        "applies_to": 51154,
+        "measured": 51154,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "Invoice right the first time: no observed misses among 51,154 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_invoice_no_corrections"
+      },
+      {
+        "id": "o_pay_no_dunning",
+        "layer": "invoice_payment",
+        "plain_name": "No payment reminder needed",
+        "description": "Payment reminders should be exceptional.",
+        "share_violated": 0.0,
+        "evaluated": 51164,
+        "applies_to": 51164,
+        "measured": 51164,
+        "violated_without_value": null,
+        "measures_logging": false,
+        "reason": "almost_never_missed",
+        "text": "No payment reminder needed: no observed misses among 51,164 evaluated sales order items on this log; check whether it distinguishes the problem you want to detect.",
+        "hub_node": "expectation:o2c_baseline:o_pay_no_dunning"
+      }
+    ]
+  }
+}

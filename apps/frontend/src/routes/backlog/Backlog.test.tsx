@@ -1,3 +1,5 @@
+import { http, HttpResponse } from "msw";
+import { server } from "@/mocks/node";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -14,6 +16,19 @@ const firstLabel = JSON.parse(first.key)[0] as string;
 
 describe("where is it worst: the signals list on the verified run", () => {
   beforeEach(() => useUiStore.getState().setVocabulary("plain"));
+
+  it("offers a saved grouping when a link names attributes the run does not have", async () => {
+    server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/backlog", ({ request }) => {
+      if (new URL(request.url).searchParams.get("slicing") === "company,spend_area") {
+        return HttpResponse.json({ code: "backlog.attribute", detail: "Unknown slice attributes" }, { status: 422 });
+      }
+    }));
+    renderApp("/p/p2p2018/runs/run_41/backlog?view=Finance&slicing=company%2Cspend_area");
+    const recovery = await screen.findByRole("button", { name: "Use this run's saved grouping" }, T);
+    await userEvent.setup().click(recovery);
+    expect(await screen.findByRole("list", { name: "Signals" }, T)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use this run's saved grouping" })).not.toBeInTheDocument();
+  });
 
   it("opens on ranked sentence cards: one sentence, the priority bar, one Why? per card, filters behind Refine", async () => {
     renderApp(BACKLOG);
@@ -95,7 +110,7 @@ describe("where is it worst: the signals list on the verified run", () => {
     const chips = screen.getByRole("list", { name: "Active filters" });
     expect(chips).toHaveTextContent(/acute: few cases, far off/);
     await user.click(within(chips).getByRole("button", { name: /^Remove filter: acute/ }));
-    await waitFor(() => expect(within(list).getAllByRole("article")).toHaveLength(10));
+    await waitFor(() => expect(within(screen.getByRole("list", { name: "Signals" })).getAllByRole("article")).toHaveLength(10));
   });
 
   it("the Refine drawer holds the filter questions and the active ones show as chips", async () => {

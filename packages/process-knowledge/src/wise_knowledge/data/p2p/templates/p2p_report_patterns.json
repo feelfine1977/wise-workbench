@@ -1,0 +1,764 @@
+{
+  "schema_version": 2,
+  "name": "Report-inspired P2P diagnostic candidates",
+  "version": "0.1",
+  "description": "Opt-in canonical activity template; explicit mapping required. Draft screens, not approved obligations. Optional validated automation metric requires additional attributes.",
+  "scoring_mode": "layer_balanced",
+  "metadata": {
+    "meta": {
+      "template": "p2p_report_patterns",
+      "review_status": "draft",
+      "calibration": "uncalibrated",
+      "activity_labels": "canonical_ids",
+      "uncalibrated_parameters": {
+        "rp_any_commercial_correction": [
+          "weight",
+          "activity"
+        ],
+        "rp_repeated_quantity_correction": [
+          "weight",
+          "activity",
+          "k",
+          "K"
+        ],
+        "rp_repeated_price_correction": [
+          "weight",
+          "activity",
+          "k",
+          "K"
+        ],
+        "rp_quantity_change_after_receipt": [
+          "weight",
+          "activity",
+          "after"
+        ],
+        "rp_price_change_after_invoice": [
+          "weight",
+          "activity",
+          "after"
+        ],
+        "rp_invoice_capture_interval": [
+          "weight",
+          "a",
+          "b",
+          "delta",
+          "width",
+          "unit",
+          "activation",
+          "response",
+          "missing_a",
+          "missing_b"
+        ],
+        "rp_invoice_recorded_before_vendor_date": [
+          "weight",
+          "a",
+          "b",
+          "k",
+          "K",
+          "missing_a",
+          "missing_b"
+        ],
+        "rp_invoice_before_order": [
+          "weight",
+          "a",
+          "b",
+          "k",
+          "K",
+          "missing_a",
+          "missing_b"
+        ],
+        "rp_recorded_invoice_to_clearing_interval": [
+          "weight",
+          "a",
+          "b",
+          "delta",
+          "width",
+          "unit",
+          "activation",
+          "response",
+          "missing_a",
+          "missing_b"
+        ],
+        "rp_repeated_clearing_limited_receipts": [
+          "weight",
+          "activity",
+          "k",
+          "K"
+        ],
+        "rp_clearing_after_cancellation": [
+          "weight",
+          "activity",
+          "after"
+        ],
+        "rp_clearing_without_recorded_invoice": [
+          "weight",
+          "activity"
+        ],
+        "rp_recorded_transfer_failure": [
+          "weight",
+          "activity"
+        ],
+        "rp_validated_automation_recovery": [
+          "weight",
+          "attribute",
+          "threshold",
+          "width",
+          "direction"
+        ]
+      }
+    },
+    "guidance": {
+      "version": "1",
+      "review_status": "draft",
+      "source": "report-pattern-catalogue.json",
+      "layers": {
+        "RP_corrections": {
+          "plain_name": "Correction and repetition candidates",
+          "expectation": "Draft diagnostic screening; business applicability and thresholds require review.",
+          "meaning_when_missed": "A review candidate; confirm business applicability and obtain the required context."
+        },
+        "RP_invoice_capture": {
+          "plain_name": "Invoice capture and ordering evidence",
+          "expectation": "Draft diagnostic screening; business applicability and thresholds require review.",
+          "meaning_when_missed": "A review candidate; confirm business applicability and obtain the required context."
+        },
+        "RP_settlement": {
+          "plain_name": "Settlement review candidates",
+          "expectation": "Draft diagnostic screening; business applicability and thresholds require review.",
+          "meaning_when_missed": "A review candidate; confirm business applicability and obtain the required context."
+        },
+        "RP_automation": {
+          "plain_name": "Automation and transfer evidence",
+          "expectation": "Draft diagnostic screening; business applicability and thresholds require review.",
+          "meaning_when_missed": "A review candidate; confirm business applicability and obtain the required context."
+        }
+      },
+      "constraints": {
+        "rp_any_commercial_correction": {
+          "plain_name": "Price or quantity correction observed",
+          "expectation": "One affected case if either change occurs; multiple changes still count as one affected case. Raw event counts remain separate.",
+          "meaning_when_missed": "Reported event occurrence does not establish an avoidable defect.",
+          "what_to_check_first": [
+            "Old/new values, correction reasons, contract version, legitimate amendment review",
+            "Service, recurring and installment applicability; handling time if effort is assessed"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+            "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+            "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+          ]
+        },
+        "rp_repeated_quantity_correction": {
+          "plain_name": "Repeated quantity corrections",
+          "expectation": "max(count − 1, 0), saturated at 1; flags at least two recorded changes per item.",
+          "meaning_when_missed": "Reported event occurrence does not establish an avoidable defect.",
+          "what_to_check_first": [
+            "Old/new values, correction reasons, contract version, legitimate amendment review",
+            "Service, recurring and installment applicability; handling time if effort is assessed"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+            "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+            "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+          ]
+        },
+        "rp_repeated_price_correction": {
+          "plain_name": "Repeated price corrections",
+          "expectation": "max(count − 1, 0), saturated at 1; flags at least two recorded changes per item.",
+          "meaning_when_missed": "Reported event occurrence does not establish an avoidable defect.",
+          "what_to_check_first": [
+            "Old/new values, correction reasons, contract version, legitimate amendment review",
+            "Service, recurring and installment applicability; handling time if effort is assessed"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+            "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+            "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+          ]
+        },
+        "rp_quantity_change_after_receipt": {
+          "plain_name": "Quantity change after first receipt",
+          "expectation": "Any quantity change at a strictly later timestamp than the earliest goods receipt OR service entry; missing anchor is unmeasured. Equal timestamps do not count.",
+          "meaning_when_missed": "Not cycle-matched. Partial delivery and services may justify changes; no causal delay or labor estimate.",
+          "what_to_check_first": [
+            "Old/new values, correction reasons, contract version, legitimate amendment review",
+            "Service, recurring and installment applicability; handling time if effort is assessed"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+            "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+            "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+          ]
+        },
+        "rp_price_change_after_invoice": {
+          "plain_name": "Price change after invoice recording",
+          "expectation": "Any price change strictly after the first invoice recording; missing anchor is unmeasured, ties excluded.",
+          "meaning_when_missed": "Reported event occurrence does not establish an avoidable defect.",
+          "what_to_check_first": [
+            "Old/new values, correction reasons, contract version, legitimate amendment review",
+            "Service, recurring and installment applicability; handling time if effort is assessed"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+            "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+            "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+          ]
+        },
+        "rp_invoice_capture_interval": {
+          "plain_name": "Vendor creation to invoice recording interval",
+          "expectation": "Calendar days from the sole vendor-invoice event to the sole receipt recording. Reversed endpoints are unmeasured, zero lag is measured. Requires exactly one event of each kind.",
+          "meaning_when_missed": "Vendor creation is not AP arrival. Does not measure AP queue, labor or recoverable delay. Repeated, missing and reversed endpoints are outside finite lag coverage; no FIFO matching.",
+          "what_to_check_first": [
+            "Actual invoice arrival/channel, readiness/holds, unique invoice identity",
+            "Open invoices and cutoff; business threshold review"
+          ],
+          "source": [
+            "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), p.14, Table 5 (supplied merged collection p.353); first cycles of completed cases."
+          ]
+        },
+        "rp_invoice_recorded_before_vendor_date": {
+          "plain_name": "Invoice recording before vendor creation date",
+          "expectation": "Counts invoice recordings strictly before the vendor creation timestamp in single-event pairs; timestamp ties are allowed.",
+          "meaning_when_missed": "Chronology/data-quality review only, not proof of incorrect accounting.",
+          "what_to_check_first": [
+            "Timestamp semantics, business-effective versus posting date, timezone, document identity"
+          ],
+          "source": [
+            "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), p.14, Table 5 (supplied merged collection p.353); first cycles of completed cases."
+          ]
+        },
+        "rp_invoice_before_order": {
+          "plain_name": "Vendor invoice before order creation",
+          "expectation": "Any vendor invoice timestamp strictly before first PO-item creation; both endpoints required. This is not an exact starts-with-vendor cohort.",
+          "meaning_when_missed": "Does not establish unauthorized purchasing; missing authorization logging is not absence of approval.",
+          "what_to_check_first": [
+            "Actual commitment/authorization, framework coverage, emergency exception and posting dates"
+          ],
+          "source": [
+            "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), pp.14–15 (supplied merged collection pp.60–61); reported starts-with cohort, with 3,416 versus appendix 3,415 discrepancy."
+          ]
+        },
+        "rp_recorded_invoice_to_clearing_interval": {
+          "plain_name": "Invoice recording to clearing interval",
+          "expectation": "Calendar days from sole recorded invoice receipt to sole clearing; reversed endpoints unmeasured. Start is recorded receipt only, never vendor creation.",
+          "meaning_when_missed": "No FIFO pairing, no due-date or payment completion claim. Repeated/missing/reversed endpoints outside finite coverage.",
+          "what_to_check_first": [
+            "Invoice identity, terms/baseline/due date, readiness, block history, actual bank settlement"
+          ],
+          "source": [
+            "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), p.15, Table 7 (supplied merged collection p.175).",
+            "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.16–19 (supplied merged collection pp.355–358)."
+          ]
+        },
+        "rp_repeated_clearing_limited_receipts": {
+          "plain_name": "Repeated clearing with at most one receipt",
+          "expectation": "At least two clearing events in a case with zero or one invoice-receipt recording. Includes non-adjacent repeats; NOT the exact report direct-repeat cohort.",
+          "meaning_when_missed": "Broader repetition screen, never duplicate-payment proof. Exact adjacency is an explicit unsupported constraint gap.",
+          "what_to_check_first": [
+            "Invoice/clearing/payment IDs, allocation and signed reversal links, extraction deduplication review"
+          ],
+          "source": [
+            "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+            "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+          ]
+        },
+        "rp_clearing_after_cancellation": {
+          "plain_name": "Clearing after invoice cancellation",
+          "expectation": "Any clearing at a strictly later timestamp than first invoice cancellation. Missing cancellation is unmeasured; ties excluded.",
+          "meaning_when_missed": "No document or cycle matching, no immediate-adjacency claim, no proof of payment after a void invoice.",
+          "what_to_check_first": [
+            "Cancellation document identity, replacement invoices, clearing allocation, signed reversals, payment records"
+          ],
+          "source": [
+            "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+            "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+          ]
+        },
+        "rp_clearing_without_recorded_invoice": {
+          "plain_name": "Clearing without recorded invoice receipt",
+          "expectation": "Cases with no invoice-receipt event and one or more clearing events; denominator is invoice-bearing cases lacking receipt.",
+          "meaning_when_missed": "Missing event may reflect logging. Does not establish settlement without an invoice obligation.",
+          "what_to_check_first": [
+            "Invoice linkage, extraction coverage, alternate settlement and credit processes"
+          ],
+          "source": [
+            "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+            "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+          ]
+        },
+        "rp_recorded_transfer_failure": {
+          "plain_name": "Recorded transfer failure",
+          "expectation": "At least one explicit transfer-failure event among cases with transfer or failure evidence; no actor identity classification.",
+          "meaning_when_missed": "Explicit interface failure evidence only. Does not establish automated execution mode, labor or general automation opportunity; report provides the question, not this exact operational rule.",
+          "what_to_check_first": [
+            "Interface/automation configuration, failure reason, retry outcome, eligibility and recovery effort"
+          ],
+          "source": [
+            "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.10–13 (supplied merged collection pp.349–352).",
+            "Hüser and Heisenberger, BPI Challenge 2019 (2019), pp.19–20 (supplied merged collection pp.251–252)."
+          ]
+        },
+        "rp_validated_automation_recovery": {
+          "plain_name": "Validated automation recovery evidence",
+          "expectation": "Recovery count > 0 only for eligible cases with validated execution evidence. Missing metric remains unmeasured; no regex on user IDs.",
+          "meaning_when_missed": "Optional component omitted when required validated fields are unavailable. No labor estimate from identity or event count.",
+          "what_to_check_first": [
+            "Mapped validated eligibility, validated execution evidence and numeric recovery count",
+            "Rule/configuration version, measured handling minutes and errors"
+          ],
+          "source": [
+            "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.10–13 (supplied merged collection pp.349–352).",
+            "Hüser and Heisenberger, BPI Challenge 2019 (2019), pp.19–20 (supplied merged collection pp.251–252)."
+          ]
+        }
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "RP_corrections",
+      "name": "Correction and repetition candidates",
+      "description": "Draft diagnostic screening; business applicability and thresholds require review."
+    },
+    {
+      "id": "RP_invoice_capture",
+      "name": "Invoice capture and ordering evidence",
+      "description": "Draft diagnostic screening; business applicability and thresholds require review."
+    },
+    {
+      "id": "RP_settlement",
+      "name": "Settlement review candidates",
+      "description": "Draft diagnostic screening; business applicability and thresholds require review."
+    },
+    {
+      "id": "RP_automation",
+      "name": "Automation and transfer evidence",
+      "description": "Draft diagnostic screening; business applicability and thresholds require review."
+    }
+  ],
+  "views": [
+    {
+      "name": "Report candidates",
+      "description": "Draft observable report-inspired candidates; no validated defect or benefit claim.",
+      "layer_weights": {
+        "RP_corrections": 1.0,
+        "RP_invoice_capture": 1.0,
+        "RP_settlement": 1.0,
+        "RP_automation": 1.0
+      }
+    }
+  ],
+  "derived_attributes": [
+    {
+      "name": "rp_vendor_invoice_count",
+      "kind": "count",
+      "activities": [
+        "p2p.vendor_invoice"
+      ]
+    },
+    {
+      "name": "rp_invoice_receipt_count",
+      "kind": "count",
+      "activities": [
+        "p2p.ir"
+      ]
+    },
+    {
+      "name": "rp_clearing_count",
+      "kind": "count",
+      "activities": [
+        "p2p.invoice_clear"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "rp_any_commercial_correction",
+      "layer": "RP_corrections",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.po_change_price",
+          "p2p.po_change_quantity"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "all_items"
+        ]
+      },
+      "description": "Price or quantity correction observed. One affected case if either change occurs; multiple changes still count as one affected case. Raw event counts remain separate."
+    },
+    {
+      "id": "rp_repeated_quantity_correction",
+      "layer": "RP_corrections",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "p2p.po_change_quantity"
+        ],
+        "k": 1,
+        "K": 1.0
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "all_items"
+        ]
+      },
+      "description": "Repeated quantity corrections. max(count − 1, 0), saturated at 1; flags at least two recorded changes per item."
+    },
+    {
+      "id": "rp_repeated_price_correction",
+      "layer": "RP_corrections",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "p2p.po_change_price"
+        ],
+        "k": 1,
+        "K": 1.0
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "all_items"
+        ]
+      },
+      "description": "Repeated price corrections. max(count − 1, 0), saturated at 1; flags at least two recorded changes per item."
+    },
+    {
+      "id": "rp_quantity_change_after_receipt",
+      "layer": "RP_corrections",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.po_change_quantity"
+        ],
+        "after": [
+          "p2p.gr",
+          "p2p.ses"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "all_items"
+            ]
+          },
+          {
+            "has": [
+              "p2p.po_item_create"
+            ]
+          }
+        ]
+      },
+      "description": "Quantity change after first receipt. Any quantity change at a strictly later timestamp than the earliest goods receipt OR service entry; missing anchor is unmeasured. Equal timestamps do not count."
+    },
+    {
+      "id": "rp_price_change_after_invoice",
+      "layer": "RP_corrections",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.po_change_price"
+        ],
+        "after": [
+          "p2p.ir"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "invoice_bearing"
+        ]
+      },
+      "description": "Price change after invoice recording. Any price change strictly after the first invoice recording; missing anchor is unmeasured, ties excluded."
+    },
+    {
+      "id": "rp_invoice_capture_interval",
+      "layer": "RP_invoice_capture",
+      "type": "lag",
+      "params": {
+        "a": [
+          "p2p.vendor_invoice"
+        ],
+        "b": [
+          "p2p.ir"
+        ],
+        "delta": 14.0,
+        "width": 14.0,
+        "unit": "D",
+        "activation": "first",
+        "response": "first_overall",
+        "missing_a": "skip",
+        "missing_b": "skip"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "invoice_bearing"
+            ]
+          },
+          {
+            "attr": "rp_vendor_invoice_count",
+            "eq": 1
+          },
+          {
+            "attr": "rp_invoice_receipt_count",
+            "eq": 1
+          }
+        ]
+      },
+      "description": "Vendor creation to invoice recording interval. Calendar days from the sole vendor-invoice event to the sole receipt recording. Reversed endpoints are unmeasured, zero lag is measured. Requires exactly one event of each kind."
+    },
+    {
+      "id": "rp_invoice_recorded_before_vendor_date",
+      "layer": "RP_invoice_capture",
+      "type": "precedence",
+      "params": {
+        "a": [
+          "p2p.vendor_invoice"
+        ],
+        "b": [
+          "p2p.ir"
+        ],
+        "k": 0,
+        "K": 1.0,
+        "missing_a": "skip",
+        "missing_b": "skip"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "invoice_bearing"
+            ]
+          },
+          {
+            "attr": "rp_vendor_invoice_count",
+            "eq": 1
+          },
+          {
+            "attr": "rp_invoice_receipt_count",
+            "eq": 1
+          }
+        ]
+      },
+      "description": "Invoice recording before vendor creation date. Counts invoice recordings strictly before the vendor creation timestamp in single-event pairs; timestamp ties are allowed."
+    },
+    {
+      "id": "rp_invoice_before_order",
+      "layer": "RP_invoice_capture",
+      "type": "precedence",
+      "params": {
+        "a": [
+          "p2p.po_item_create"
+        ],
+        "b": [
+          "p2p.vendor_invoice"
+        ],
+        "k": 0,
+        "K": 1.0,
+        "missing_a": "skip",
+        "missing_b": "skip"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "invoice_bearing"
+        ]
+      },
+      "description": "Vendor invoice before order creation. Any vendor invoice timestamp strictly before first PO-item creation; both endpoints required. This is not an exact starts-with-vendor cohort."
+    },
+    {
+      "id": "rp_recorded_invoice_to_clearing_interval",
+      "layer": "RP_settlement",
+      "type": "lag",
+      "params": {
+        "a": [
+          "p2p.ir"
+        ],
+        "b": [
+          "p2p.invoice_clear"
+        ],
+        "delta": 30.0,
+        "width": 60.0,
+        "unit": "D",
+        "activation": "first",
+        "response": "first_overall",
+        "missing_a": "skip",
+        "missing_b": "skip"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "invoice_bearing"
+            ]
+          },
+          {
+            "attr": "rp_invoice_receipt_count",
+            "eq": 1
+          },
+          {
+            "attr": "rp_clearing_count",
+            "eq": 1
+          }
+        ]
+      },
+      "description": "Invoice recording to clearing interval. Calendar days from sole recorded invoice receipt to sole clearing; reversed endpoints unmeasured. Start is recorded receipt only, never vendor creation."
+    },
+    {
+      "id": "rp_repeated_clearing_limited_receipts",
+      "layer": "RP_settlement",
+      "type": "singularity",
+      "params": {
+        "activity": [
+          "p2p.invoice_clear"
+        ],
+        "k": 1,
+        "K": 1.0
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "invoice_bearing"
+            ]
+          },
+          {
+            "attr": "rp_invoice_receipt_count",
+            "lte": 1
+          }
+        ]
+      },
+      "description": "Repeated clearing with at most one receipt. At least two clearing events in a case with zero or one invoice-receipt recording. Includes non-adjacent repeats; NOT the exact report direct-repeat cohort."
+    },
+    {
+      "id": "rp_clearing_after_cancellation",
+      "layer": "RP_settlement",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.invoice_clear"
+        ],
+        "after": [
+          "p2p.ir_cancel"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "attr": "flow_type",
+        "in": [
+          "invoice_bearing"
+        ]
+      },
+      "description": "Clearing after invoice cancellation. Any clearing at a strictly later timestamp than first invoice cancellation. Missing cancellation is unmeasured; ties excluded."
+    },
+    {
+      "id": "rp_clearing_without_recorded_invoice",
+      "layer": "RP_settlement",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.invoice_clear"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "invoice_bearing"
+            ]
+          },
+          {
+            "lacks": [
+              "p2p.ir"
+            ]
+          }
+        ]
+      },
+      "description": "Clearing without recorded invoice receipt. Cases with no invoice-receipt event and one or more clearing events; denominator is invoice-bearing cases lacking receipt."
+    },
+    {
+      "id": "rp_recorded_transfer_failure",
+      "layer": "RP_automation",
+      "type": "exclusion",
+      "params": {
+        "activity": [
+          "p2p.srm_transfer_failed"
+        ]
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "all_items"
+            ]
+          },
+          {
+            "has": [
+              "p2p.srm_transfer",
+              "p2p.srm_transfer_failed"
+            ]
+          }
+        ]
+      },
+      "description": "Recorded transfer failure. At least one explicit transfer-failure event among cases with transfer or failure evidence; no actor identity classification."
+    },
+    {
+      "id": "rp_validated_automation_recovery",
+      "layer": "RP_automation",
+      "type": "metric",
+      "params": {
+        "attribute": "automation_recovery_count",
+        "threshold": 0.0,
+        "width": 1.0,
+        "direction": "high"
+      },
+      "weight": 1.0,
+      "applicability": {
+        "all": [
+          {
+            "attr": "flow_type",
+            "in": [
+              "all_items"
+            ]
+          },
+          {
+            "attr": "automation_evidence_validated",
+            "eq": true
+          },
+          {
+            "attr": "automation_eligible",
+            "eq": true
+          }
+        ]
+      },
+      "description": "Validated automation recovery evidence. Recovery count > 0 only for eligible cases with validated execution evidence. Missing metric remains unmeasured; no regex on user IDs."
+    }
+  ]
+}

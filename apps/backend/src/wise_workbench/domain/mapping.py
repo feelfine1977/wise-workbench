@@ -268,7 +268,9 @@ class ColumnMapping:
         cls, id: str, dataset_id: str, d: dict[str, Any], created_at: datetime | None = None
     ) -> ColumnMapping:
         flow = tuple(
-            FlowTypingRule(name=str(r["name"]), rule=dict(r.get("rule") or {}), note=(str(r["note"]) if r.get("note") else None))
+            FlowTypingRule(
+                name=str(r["name"]), rule=dict(r.get("rule") or {}), note=(str(r["note"]) if r.get("note") else None)
+            )
             for r in d.get("flowTyping") or []
         )
         kwargs: dict[str, Any] = {}

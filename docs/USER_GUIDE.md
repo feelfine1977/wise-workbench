@@ -10,14 +10,9 @@ numbers are those of the BPI Challenge 2019 log in the verified workspace.
 
 ## Workflow
 
-The stepper across the top of every screen names the seven steps of an
-analysis — **Data → Norm → Run → Signals → Flow → Why → What can we do?** —
-and shows where you are (*you are here*), what is done (●), what is in
-progress (◐) and what is still waiting (○, with the reason in a tooltip:
-*needs a finished run*). Every step is a link to where its work happens;
-`Alt+1` … `Alt+7` jump to them; **Back to …** and `Alt+←` return to where
-you came from, with its filters. A reader who wants one path rather than
-seven steps can open any address with `?mode=guided` (section 2).
+Start at **Projects** and choose **New project** or continue an existing project. The main path is **Project → Understand data → Process norm → Run WISE → Analyse → Improve**. The selected step has a coloured background and bold text; its substeps appear below. `Alt+1` … `Alt+6` jump to main steps. **Back to …** and `Alt+←` preserve the previous analysis context.
+
+Labelled **View** bookmarks identify stakeholder priorities where weighting or assessed results are relevant. Their colours identify the business focus, not a good or bad score. They do not change the dataset or the shared meaning of an individual constraint.
 
 **Data.** You give the application an event log (one row per event: which
 case, which activity, when), name the columns, say what a case is (an order
@@ -92,15 +87,12 @@ builds the screens once and starts the server; the browser opens at
 Details, folders and settings: `docs/DEPLOY.md`; the verified workspace and
 what is new: `docs/START_HERE.md`.
 
-The first screen is the project's dashboard (or **Projects** when there is
-more than one; a project is one process with a steering question, its logs,
-norm versions and runs). A fresh workspace has one project, **Demo**, created
+The first screen is **Projects**, with **New project** and links to existing projects. A project groups one process, its improvement question, logs, Process norm versions and runs. A fresh workspace has one project, **Demo**, created
 by the public-log preset described in section 3.
 
 ## 2. What every screen shares
 
-**Three bands.** The ribbon, the stepper, the page. Nothing else stays on
-every screen.
+**Shared navigation.** The context ribbon, main steps with local substeps, and labelled view bookmarks stay above the page.
 
 **The ribbon** shows the context every number belongs to — **project**,
 **run** (its note and date, *Run of Sep 5, 2026* without one), and the
@@ -117,7 +109,9 @@ mean*, section 11), density, theme, the **words** switch, *live backend* or
 under their step: on the norm lens opened from Why it reads *Why › Packaging
 · lens of "Invoice-bearing flows should clear in a reasonable time"*; the
 notebook shows under the step it was opened from. **All stages** (⋯) at
-the right end lists the twelve stages of the method with their state.
+the right end lists eleven stages, with recorded facts, availability and
+explicitly planned stages. Pilot and follow-up remain planned; navigation
+does not certify a completed improvement.
 
 **Back to …** is the first element of every sub-screen's header — *Back to
 Where is it worst? (page 1, widespread only)* — and returns to the last
@@ -147,7 +141,7 @@ stability) appear behind **more**, in tooltips and with the **words** switch
 (**plain** | **method**) in **⋯**; the choice is remembered in your browser.
 Section 17 lists all pairs.
 
-**Keyboard.** `Alt+1` … `Alt+7` the steps, `Alt+←` back, `⌘K` the palette,
+**Keyboard.** `Alt+1` … `Alt+6` the steps, `Alt+←` back, `⌘K` the palette,
 `?` the help; on the signals list `↑` `↓` move between cards, `↵` opens
 **Why?**, `p` pins, `f` opens the decision pane, `/` opens **Refine**; on the
 map the arrow keys move between activities, `Space` selects, `Enter` opens
@@ -157,10 +151,8 @@ the actions menu, `Esc` clears.
 path for a reader who has a question rather than an analysis to run; it is
 remembered until `?mode=analyst` turns it off. What changes:
 
-- **three steps instead of seven** — **Where is it worst? → Why? → What can
-  we do?**; loading a log, writing a norm and scoring a run are the
-  analyst's work and are not on the path;
-- **the ribbon keeps the project, the run and the scope**; the perspective,
+- **the same six main steps** remain visible, so setup and return paths remain discoverable; analysis explanations and local controls are simplified;
+- **the ribbon keeps the project, the run and the scope**; the labelled view bookmarks remain visible;
   the grouping, γ and the **words** switch move under **⋯**, and the
   duplicated selects beside the ranked list are gone;
 - **the explanations open with the screen** — the *How to read this*
@@ -641,8 +633,10 @@ activities and paths as rows.
 
 ### The explore board
 
-**Board** in the page header arranges the same step as linked panels, so one
-selection answers everywhere at once:
+**Board** in the page header arranges the same step as linked panels. Its
+supported panels share filter inputs; this is a partial scope contract. Exact
+membership/denominator reconciliation and coordinated multi-table analysis
+remain acceptance and development work respectively. The existing panels are:
 
 - **four selectors** — flow type, period, expectation area, group — which
   are views on the filter itself, so removing a chip clears the selector;
@@ -670,12 +664,13 @@ Company × Spend area · all flows · no filter · 251,734 purchase order items
 (the dialog reads *Save this board*; boards are kept per project in your
 browser) and one primary action, *Why? Packaging →*.
 
-**What to expect of the speed.** Every panel answers a click in well under a
-second. The four tiles of an unfiltered board are read from the run's own
-artefacts (0.20 s the first time after the server starts, 0.009 s again);
-a filtered selection is computed for that filter and costs about 0.13 s once
-the log is in the server's memory, and about three seconds the first time
-after a start for a run scored before this release.
+**Recorded performance example.** The timings below belong to the earlier
+BPIC19 build and fixture documented in this guide; they are not current
+release budgets or guarantees for every panel or dataset. The unfiltered
+tiles used saved run artefacts: 0.20 s on first access and 0.009 s on repeat
+access. The filtered example took about 0.13 s with the log already in memory
+and about three seconds on first access after restart for a previously scored
+run. Qualify cold and warm behavior separately on the current build.
 
 **One population.** The board's ranked list counts the groups the signals
 list counts — **23 groups**, *10 of 23* on the first page — and the name
@@ -794,7 +789,7 @@ are kept on the server (section 11).
 
 ## 11. What can we do?, hypotheses and gates, and the knowledge hub
 
-**What can we do?** (step 7, `Alt+7`) opens for one group, from the Why
+**Improve** (step 6, `Alt+6`) opens for one group, from the Why
 screen or from the stepper. It begins with **Back to Why?**, the group's
 name and the same reading sentence the card carries, then the **drivers** —
 the expectations behind the shortfall, worst first. Each driver holds:
@@ -1150,7 +1145,7 @@ Shrinkage, Stable gap, Stable PI, Lower bound, Soft violation) and
 | cases furthest off | worst cases | the cases with the lowest score in the group |
 | detail level | abstraction | how much of the process the map draws, from the stages only to all activities that fit |
 | path | directly-follows edge | one activity followed directly by another, with the items on it and the median wait |
-| board | linked panels | one selection answered by the map, the ranked list, the distribution, the breakdown and the four numbers at once |
+| board | linked panels | supported panels share filter inputs; exact population reconciliation and coordinated multi-table analysis remain bounded acceptance/development work |
 | gate | validation gate | a check that must pass, fail or be waived with a note before a group carries a hypothesis or an action |
 | what can we do? | remedy set | the usual reasons and actions for the expectations a group misses, with a countermeasure type and an owner role |
 | knowledge hub | process knowledge graph | the pack's stages, layers, expectations, failure modes, reasons, actions and KPIs, and the pages that join them |
@@ -1252,5 +1247,23 @@ section names that selection and keeps its decisions separate from other filters
 and the whole group. Missing measurements require review; an unsupported or
 empty selection cannot be committed. Suggestions above the checks still describe
 the whole group. Legacy records remain readable; open an assessed group and save
-a new proposal when their evidence context is missing. See
-[Proposals and commitment checks](ACTION_REVIEW.md) for the policy and limits.
+a new proposal when their evidence context is missing.
+
+## Compare flow types and inspect constraints
+
+Open **Data → Your process**. The flow cards explain the saved categories; **What actually differs?** aligns activities or direct connections across those categories using each type's own item count. Search a complete activity name, switch to Direct connections, or show all rows. Use **Common process paths** on a card to inspect recorded sequences for that type.
+
+Open the type's map for detailed exploration. It starts with recorded paths. Turn on **WISE evidence** and open **Choose constraints**. Tick multiple constraints, or choose a **Business layer** to add all of its constraints. Uncheck any you do not need. Select a result and open **Meaning and coverage** for its interpretation. The percentages retain their individual populations; they are not added together. This keeps observations and expectations distinguishable.
+
+
+## Change the grouping of an existing analysis
+
+From **Signals**, use **Create / explore groups** to choose dataset-based suggestions or combine up to three attributes, including custom value bands. Preview group sizes before applying. The top-bar **+** opens the same builder elsewhere.
+
+## Choose a dataset or start another assessment
+
+The analysis navigation includes **Datasets** and **Runs / new run**. Open Datasets to select or import data. Open Runs / new run, then **New run**, to choose the case table and Process norm for another assessment. Existing results continue to refer to the data and norm version used for that run.
+
+## Read and calibrate figures
+
+Constraint calibration labels the **Target** and **Tolerance width** in the measurement's units and states where full penalty is reached. Chart legends sit outside the plotting area. Expand a chart's table alternative for exact values. Constraint contribution charts use horizontal names and explicit score-point units. Use the flow activity count controls to add or remove one activity at a time, and Common process paths to read individual cases without overlapping labels.

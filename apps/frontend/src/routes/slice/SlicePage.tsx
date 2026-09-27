@@ -15,6 +15,7 @@ import { whatCanWeDoQuery } from "@/lib/api/review";
 import { ReasonList } from "@/components/knowledge/HubTemplate";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
 import { GatesBlock } from "@/components/review/Gates";
+import { GainExplanation, GainScenario } from "@/components/GainExplanation";
 import { CalibrationChip, ConfidenceMark, KindBadge } from "@/components/badges";
 import { DistributionLens } from "@/components/DistributionLens";
 import { Metric, backlogExplain } from "@/components/explain";
@@ -39,7 +40,7 @@ import { flowQuery } from "@/lib/api/flow";
 import { normQuery } from "@/lib/api/norms";
 import { traceQuery } from "@/lib/queries";
 import { belowExpectation, comparisonSentence, groupLabel, missedPhrase, sharedKeyValues } from "@/lib/sentences";
-import { findingId, useFindingStore } from "@/lib/stores/findings";
+import { useScopedFinding } from "@/lib/api/findings";
 import { useNavStore } from "@/lib/stores/nav";
 import { cn, tableRecords } from "@/lib/utils";
 import { distanceSentence } from "../backlog/SignalCard";
@@ -172,7 +173,7 @@ export default function SlicePage() {
   }, [drivers]);
   const constraint = search.constraint && lensConstraints.includes(search.constraint) ? search.constraint : lensConstraints[0];
   const lensWanted = !!constraint && (search.tab === "compared" || search.tab === "why");
-  const dist = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? "", slicing, sliceKey), enabled: lensWanted });
+  const dist = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? "", slicing, sliceKey, search.filter), enabled: lensWanted });
   // the same expectation over the whole log: "everyone else" is the whole minus the group
   const distAll = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? ""), enabled: lensWanted });
   const selectedCase = search.case;
@@ -200,8 +201,7 @@ export default function SlicePage() {
   const actAnswer = useQuery({ ...whatCanWeDoQuery(ctx.projectId, runId, { slicing, sliceKey, view }), enabled: !!run && !!slicing && search.tab === "why" });
   const [highlight, setHighlight] = useState<string>();
   const [showAll, setShowAll] = useState(false);
-  const findings = useFindingStore((s) => s.findings);
-  const existingFinding = findings[findingId(runId, slicing, sliceKey)];
+  const {finding:existingFinding} = useScopedFinding({projectId:ctx.projectId,runId,slicing,sliceKey,view,filter:search.filter,within:search.within});
 
   const setTab = (tab: SliceTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab }) });
   const selectCase = (c: WorstCase) => void navigate({ to: ".", search: (s) => ({ ...s, tab: "cases", case: c.caseId }) });
@@ -373,9 +373,9 @@ export default function SlicePage() {
             sliders="method"
             title={lensTitle}
             noun={noun}
-            groupName={name}
+            groupName={filter ? `${name} (selected items)` : name}
             unitLabel={plain ? unitLabel : undefined}
-            sentences={plain ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined, dist.data.binary ?? false) : undefined}
+            sentences={plain && !filter ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined, dist.data.binary ?? false) : undefined}
             height={search.tab === "why" ? 240 : 320}
           />
         ) : null;
@@ -400,6 +400,7 @@ export default function SlicePage() {
                   <FreezeButton projectId={ctx.projectId} screen="why" context={{ run_id: runId, slicing, view, slice_key: row.key, filters: filter ?? null, scope: run.scope ?? null }} data={{ row, drivers: top, contrast, validation }} defaultTitle={`${name} — ${missed ?? "why"}`} />
                 </div>
               </div>
+              {filter && <p role="status" className="reading rounded-md border border-border bg-surface-sunken p-3 text-sm" data-testid="diagnostic-scope-note"><strong>Whole-group assessment below.</strong> Scores, rule contributions, gain estimates and example items describe the whole group. The flow and measurement chart use your selected items. Saved decisions retain your exact selection.</p>}
               <p className="reading headline text-text" data-testid="why-sentence" title={plain && row.gap > 0 ? distanceSentence(row, true) : undefined}>
                 <strong className="tnum">{fmtInt(row.n_cases)}</strong> {noun} ·{" "}
                 {row.gap > 0 ? (
@@ -483,10 +484,11 @@ export default function SlicePage() {
               )}
               <HowToRead id="why">
                 One group, its reasons, one question per tab. <strong>Why</strong> lists the expectations behind the shortfall in plain words, with the comparison against everyone else for the top one and the group's process map. <strong>Compared</strong> shows one expectation
-                in real units, <strong>Flow</strong> the full map (click an activity for its card; the filters travel with the address and scope every tab), <strong>Cases</strong> what kind of cases carry it, <strong>Data trust</strong> what could distort the reading,{" "}
+                in real units, <strong>Flow</strong> the full map (click an activity for its card; filters travel with the address), <strong>Cases</strong> what kind of cases carry it, <strong>Data trust</strong> what could distort the reading,{" "}
                 <strong>Gain</strong> what would be won. Your reading goes into the decision pane.
               </HowToRead>
               <FilterChipsRow filter={filter} preview={preview.data} noun={noun} onChange={changeFilter} />
+
               <p className="sr-only" aria-live="polite" data-testid="filter-announcement">
                 {announcement}
               </p>
@@ -494,7 +496,7 @@ export default function SlicePage() {
 
             <div className={search.tab === "flow" ? "" : "xl:hidden"}>
               <Button variant="outline" size="sm" aria-expanded={paneOpen} onClick={() => setPaneOpen((v) => !v)}>
-                Decision{existingFinding?.disposition ? ` · ${existingFinding.disposition.replace("_", " ")}` : ""}
+                Decision{typeof existingFinding?.disposition === "string" ? ` · ${existingFinding.disposition.replace("_", " ")}` : ""}
               </Button>
             </div>
 
@@ -512,7 +514,7 @@ export default function SlicePage() {
 
                   <TabsContent value="why" className="flex flex-col gap-4">
                     <Card>
-                      <CardTitle>{plain ? "Which expectations are missed" : "Top drivers"}</CardTitle>
+                      <CardTitle>{filter ? "Whole group: which expectations are missed" : plain ? "Which expectations are missed" : "Top drivers"}</CardTitle>
                       {/* never a borrowed reading (R2-05): a group without a scored case says so, and a group whose
                           header names a missed expectation never reads "no expectation is missed more here" alone */}
                       {top.length === 0 && (
@@ -602,7 +604,7 @@ export default function SlicePage() {
                     )}
                     {constraint && (
                       <Card data-testid="why-lens">
-                        <CardTitle>Compared with everyone else, for the top expectation</CardTitle>
+                        <CardTitle>{filter ? "Selected items: measurement" : "Compared with everyone else, for the top expectation"}</CardTitle>
                         {dist.isPending && <LoadingBlock rows={4} />}
                         {dist.isError && <ErrorBlock error={dist.error} />}
                         {lens}
@@ -865,36 +867,33 @@ export default function SlicePage() {
                           {plain ? "Possible gain" : "Headroom under the norm"}
                         </Term>
                       </CardTitle>
-                      {headroomRows.some((h) => h.gain_points !== null && h.gain_points !== undefined) ? (
+                      {headroomRows.some((h) => typeof h.gain_points === "number" && Number.isFinite(h.gain_points)) ? (
                         <>
-                          <ol className="flex flex-col gap-3" data-testid="headroom-list">
+                          <GainExplanation view={view} wholeGroup={search.filter !== undefined || search.within !== undefined} />
+                          <ol className="mt-4 flex flex-col gap-4" data-testid="headroom-list">
                             {headroomRows
-                              .filter((h) => h.gain_points !== null && h.gain_points !== undefined)
+                              .filter((h) => typeof h.gain_points === "number" && Number.isFinite(h.gain_points))
                               .slice(0, 6)
                               .map((h) => (
                                 <li key={h.constraint} className="flex flex-col gap-1">
                                   <p className="reading text-base">
-                                    If <strong title={h.constraint}>{plain ? (h.plain ?? h.description ?? h.constraint) : h.constraint}</strong> were always met, this group would gain <strong className="tnum">{fmtNum(h.gain_points ?? 0, 1)} points</strong>
-                                    {h.gain_percent !== null && h.gain_percent !== undefined ? ` (${fmtNum(h.gain_percent, 0)} % of its shortfall)` : ""}
-                                    {h.share_violated !== null && h.share_violated !== undefined ? <span className="text-text-muted">; {fmtPct(h.share_violated, 0)} of these {noun} miss it today</span> : null}.
+                                    Removing all recorded violations of <strong title={h.constraint}>{plain ? (h.plain ?? h.description ?? h.constraint) : h.constraint}</strong> would add <strong className="tnum">{fmtNum(h.gain_points, 1)} score points</strong>
+                                    {h.share_violated !== null && h.share_violated !== undefined ? <span className="text-text-muted">; {fmtPct(h.share_violated, 0)} of evaluated {noun} miss this constraint</span> : null}.
                                   </p>
-                                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface-sunken" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, h.gain_percent ?? 0)} aria-label={`${h.plain ?? h.constraint}: ${fmtNum(h.gain_percent ?? 0, 0)} % of the shortfall`}>
-                                    <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(2, Math.min(100, h.gain_percent ?? 0))}%` }} />
-                                  </div>
+                                  <GainScenario name={h.plain ?? h.constraint} meanScore={row.mean_score} points={h.gain_points} priorityPercent={h.gain_percent} meter />
                                 </li>
                               ))}
                           </ol>
-                          <p className="mt-3 text-xs text-text-subtle">Each gain is computed on its own, as if that one expectation were met and nothing else changed; the gains do not add up.</p>
                         </>
                       ) : (
-                        <p className="text-sm text-text-muted">The possible gain per expectation{area ? ` (starting with ${area})` : ""} arrives when the analytics have run for this run.</p>
+                        <p className="text-sm text-text-muted">The possible gain per constraint{area ? ` (starting with ${area})` : ""} arrives when the analytics have run for this run.</p>
                       )}
                     </Card>
                   </TabsContent>
                 </Tabs>
               </div>
               <div className={cn("flex flex-col gap-3", paneOpen ? "block" : search.tab === "flow" ? "hidden" : "hidden xl:block")}>
-                <DecisionPane projectId={ctx.projectId} runId={runId} slicing={slicing} row={row} layerName={area} missed={missed} focus={search.focus === "finding"} onSaved={() => setPaneOpen(false)} />
+                <DecisionPane projectId={ctx.projectId} runId={runId} slicing={slicing} row={row} view={view} filter={search.filter} within={search.within} layerName={area} missed={missed} focus={search.focus === "finding"} onSaved={() => setPaneOpen(false)} />
                 {existingFinding && (
                   <NextStep
                     label="Freeze this screen for the notebook"

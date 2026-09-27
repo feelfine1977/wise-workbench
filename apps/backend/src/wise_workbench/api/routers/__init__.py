@@ -3,13 +3,30 @@
 from fastapi import APIRouter
 from fastapi.routing import APIRoute
 
-from . import datasets, jobs, knowledge, norms, notebook, projects, review, runs, system, whatif
+from . import (
+    datasets,
+    eda,
+    grouping_suggestions,
+    jobs,
+    knowledge,
+    norms,
+    notebook,
+    project_binding,
+    projects,
+    review,
+    runs,
+    system,
+    whatif,
+)
 
 api_router = APIRouter()
 for r in (
     system.router,
     projects.router,
+    project_binding.router,
     datasets.router,
+    eda.router,
+    grouping_suggestions.router,
     norms.router,
     knowledge.router,
     runs.router,

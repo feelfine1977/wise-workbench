@@ -7,9 +7,12 @@ free of dataframes.
 
 from __future__ import annotations
 
+import json
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -23,7 +26,9 @@ from wise_workbench.domain import (
     Project,
     ReviewItem,
     Run,
+    Slicing,
     Snapshot,
+    ValidationError,
 )
 
 Table = dict[str, Any]  # {"columns": [...], "rows": [[...], ...]}
@@ -130,6 +135,9 @@ class Engine(Protocol):
         provenance: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
     def check_norm(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]: ...
+    def norm_relevance(
+        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]
+    ) -> dict[str, Any]: ...
     def norm_signals(
         self,
         case_table_dir: Path,
@@ -169,7 +177,40 @@ class Engine(Protocol):
         filter_obj: dict[str, Any],
     ) -> dict[str, Any]: ...
     def trace(self, run: Run, ctx: RunContext, case_id: str) -> dict[str, Any]: ...
-    def diagnostics(self, run: Run, ctx: RunContext, attributes: list[str], view: str | None) -> Table: ...
+    def investigation_questions(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        filter_obj: dict[str, Any] | None = None,
+        family: str = "overview",
+        activity: str | None = None,
+        source: str | None = None,
+        target: str | None = None,
+        relation: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]: ...
+    def variants(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str] | None,
+        key: list[Any] | None,
+        *,
+        filter_obj: dict[str, Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+        limit: int = 10,
+        example_limit: int = 3,
+    ) -> dict[str, Any]: ...
+    def diagnostics(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        view: str | None,
+        *,
+        bands: list[dict[str, Any]] | None = None,
+    ) -> Table: ...
     def signals(
         self, run: Run, ctx: RunContext, constraint_id: str, attributes: list[str] | None, key: list[Any] | None
     ) -> dict[str, Any]: ...
@@ -226,14 +267,118 @@ class Engine(Protocol):
         attribute: str | None,
         process: str | None,
         abstraction: float,
+        case_noun: str | None = None,
+        selection_id: str | None = None,
     ) -> dict[str, Any]: ...
     def compare_flow_types(self, run: Run, ctx: RunContext, *, attribute: str | None) -> dict[str, Any]: ...
     def run_analytics(self, run: Run, ctx: RunContext, progress: ProgressFn) -> dict[str, Any]: ...
     def analytics_status(self, run: Run, ctx: RunContext) -> dict[str, Any]: ...
     def filter_preview(self, run: Run, ctx: RunContext, filter_obj: dict[str, Any] | None) -> dict[str, Any]: ...
+    def slicing_options(self, run: Run, ctx: RunContext) -> dict[str, Any]: ...
     def slicing_preview(
         self, run: Run, ctx: RunContext, attributes: list[str], bands: list[dict[str, Any]], min_cases: int
     ) -> dict[str, Any]: ...
+
+
+GROUPING_PREFIX = "group:"
+MAX_GROUPING_TOKEN_LENGTH = 8192
+GROUPING_ATTRIBUTES = ("start_month", "start_year", "recorded_span_days", "n_events")
+
+
+def _finite_number(value: int | float) -> bool:
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def validate_grouping_spec(value: Any) -> Slicing:
+    """Typed, closed grouping grammar; the domain Slicing validates its semantics."""
+
+    def invalid(message: str) -> None:
+        raise ValidationError(message, code="run.grouping")
+
+    if not isinstance(value, dict) or set(value) - {"attributes", "bands"}:
+        invalid("a grouping contains only attributes and bands")
+    attributes = value.get("attributes")
+    if not isinstance(attributes, list) or any(
+        not isinstance(a, str) or not a.strip() or len(a) > 256 or "\x00" in a for a in attributes
+    ):
+        invalid("grouping attributes must be nonempty column names, at most 256 characters each")
+    bands = value.get("bands", [])
+    if not isinstance(bands, list) or len(bands) > 3:
+        invalid("grouping bands must be a list with at most one band per attribute")
+    for band in bands:
+        if not isinstance(band, dict) or set(band) - {"attribute", "method", "q", "cuts", "labels"}:
+            invalid("a band contains only attribute, method, q, cuts and labels")
+        if not isinstance(band.get("attribute"), str):
+            invalid("a band must name its attribute")
+        method = band.get("method", "quantile")
+        if method not in ("quantile", "cuts"):
+            invalid("band method must be quantile or cuts")
+        if method == "quantile":
+            if "cuts" in band or ("q" in band and (type(band["q"]) is not int or not 2 <= band["q"] <= 20)):
+                invalid("quantile bands accept an integer q from 2 to 20, not cuts")
+        else:
+            cuts = band.get("cuts")
+            if "q" in band or not isinstance(cuts, list) or not 1 <= len(cuts) <= 100:
+                invalid("cut bands require 1 to 100 ascending numeric cuts, not q")
+            if any(type(c) not in (int, float) or not _finite_number(c) for c in cuts):
+                invalid("cut points must be finite numbers")
+            if any(a >= b for a, b in pairwise(cuts)):
+                invalid("cut points must be strictly increasing")
+        if "labels" in band:
+            labels = band["labels"]
+            if (
+                not isinstance(labels, list)
+                or not labels
+                or any(not isinstance(label, str) or not label.strip() or len(label) > 256 for label in labels)
+            ):
+                invalid("band labels must be nonempty strings of at most 256 characters")
+            expected = band.get("q", 4) if method == "quantile" else len(band["cuts"]) + 1
+            if len(labels) != expected or len(set(labels)) != len(labels):
+                invalid("provide one distinct label per band")
+    try:
+        return Slicing(id="", attributes=tuple(attributes), bands=tuple(bands))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValidationError("invalid grouping specification", code="run.grouping") from exc
+
+
+def grouping_slicing(token: str) -> Slicing | None:
+    """Decode a self-contained selection, never evaluating expressions or code."""
+    if not token.startswith(GROUPING_PREFIX):
+        return None
+    if len(token) > MAX_GROUPING_TOKEN_LENGTH:
+        raise ValidationError("grouping token exceeds 8192 characters", code="run.grouping")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in out:
+                raise ValueError("duplicate object key")
+            out[key] = value
+        return out
+
+    def invalid_constant(value: str) -> Any:
+        raise ValueError(f"non-finite number {value}")
+
+    try:
+        spec = json.loads(
+            token[len(GROUPING_PREFIX) :], object_pairs_hook=unique_object, parse_constant=invalid_constant
+        )
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise ValidationError("grouping token must contain valid JSON", code="run.grouping") from exc
+    return validate_grouping_spec(spec)
+
+
+def grouping_token(attributes: list[str], bands: list[dict[str, Any]] | None = None) -> str:
+    spec = validate_grouping_spec({"attributes": attributes, "bands": bands or []})
+    token = GROUPING_PREFIX + json.dumps(
+        {"attributes": list(spec.attributes), "bands": list(spec.bands)}, ensure_ascii=False, separators=(",", ":")
+    )
+    if len(token) > MAX_GROUPING_TOKEN_LENGTH:
+        raise ValidationError("grouping token exceeds 8192 characters", code="run.grouping")
+    return token
 
 
 @dataclass(frozen=True)
@@ -261,14 +406,20 @@ class RunContext:
     analytics: dict[str, Any] = field(default_factory=dict)  # bootstrap B, comparison top, cluster share, seed
 
     def slicing_attributes(self, slicing: str) -> list[str]:
-        """Resolve a slicing id or comma-separated attribute list."""
+        """Resolve an inline grouping, saved slicing id, or comma-separated attributes."""
+        inline = grouping_slicing(slicing)
+        if inline is not None:
+            return list(inline.attributes)
         for sid, attrs in self.slicings:
             if sid == slicing:
                 return list(attrs)
         return [a.strip() for a in slicing.split(",") if a.strip()]
 
     def slicing_bands(self, slicing: str) -> list[dict[str, Any]]:
-        """The band specs of a run slicing named by id (none for ad-hoc attribute lists)."""
+        """Bands travel inside inline tokens or belong to a saved slicing."""
+        inline = grouping_slicing(slicing)
+        if inline is not None:
+            return [dict(b) for b in inline.bands]
         return [dict(b) for b in self.bands.get(slicing, ())]
 
     def slicing_id(self, attributes: list[str], bands: list[dict[str, Any]] | None = None) -> str | None:

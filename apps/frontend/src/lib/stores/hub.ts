@@ -11,7 +11,7 @@ interface HubState {
 /**
  * The hub's side panel is opened from anywhere — a card, a driver row, a caveat chip, a legend entry — so
  * the target lives in one store rather than in the props of every screen that carries a chip
- * (`docs/panel/knowledge_hub_panel.md` §3: *without leaving the screen*).
+ * (`packages/process-knowledge/PACK_DESIGN.md`: *without leaving the screen*).
  */
 export const useHubStore = create<HubState>((set) => ({
   open: undefined,

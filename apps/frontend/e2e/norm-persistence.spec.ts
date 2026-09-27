@@ -30,25 +30,22 @@ test("selected norm values and names survive reload; missing fields are focused 
   await page.goto(`/p/${PROJECT}/norms/${draft.id}?tab=constraints&constraint=${encodeURIComponent(constraint!.id)}&caseTable=${encodeURIComponent(CASE_TABLE!)}`);
   await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
   const dialog = page.getByTestId("sign-norm");
-  await dialog.getByRole("button", { name: "Mark reviewed", exact: true }).click();
-  await expect(dialog.getByLabel("Who signs it")).toHaveAttribute("aria-invalid", "true");
-  await expect(dialog.getByLabel("Who signs it")).toBeFocused();
-  await dialog.getByLabel("Who signs it").fill("Explicit reviewer");
-  const refusedResponse = page.waitForResponse(r => r.url() === `${base}/${draft.id}` && r.request().method() === "PATCH");
-  await dialog.getByRole("button", { name: "Mark reviewed", exact: true }).click();
-  expect((await refusedResponse).status()).toBe(422);
-  await expect(dialog.getByRole("alert")).toContainText(/rationale|owner/i);
-  await expect(dialog.getByLabel("Who signs it")).toHaveValue("Explicit reviewer");
-  await page.screenshot({ path: testInfo.outputPath("refusal.png"), fullPage: true });
+  await expect(dialog.getByRole("list", { name: "Required decisions" })).toBeVisible();
+  await expect(dialog.getByLabel("Who signs it")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Save 0 decisions as new draft" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Record decision", exact: true }).click();
+  await expect(dialog.getByLabel("Reason for this constraint (required)")).toBeFocused();
+  await expect(dialog.getByLabel("Reason for this constraint (required)")).toHaveAttribute("aria-invalid", "true");
+  await page.screenshot({ path: testInfo.outputPath("preflight.png"), fullPage: true });
   const refusedVersion = await (await request.get(`${base}/${draft.id}`)).json() as { status: string; author?: string };
   expect(refusedVersion.status).toBe("draft");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("button", { name: "the rule", exact: true }).click();
-  await page.getByLabel("Expectation name", { exact: true }).fill("");
+  await page.getByLabel("Constraint name", { exact: true }).fill("");
   await page.getByRole("button", { name: "Save as the next version" }).click();
-  await expect(page.getByLabel("Expectation name", { exact: true })).toBeFocused();
-  await expect(page.getByLabel("Expectation name", { exact: true })).toHaveAttribute("aria-invalid", "true");
-  await page.getByLabel("Expectation name", { exact: true }).fill("Invoice follows receipt within 12 days");
+  await expect(page.getByLabel("Constraint name", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Constraint name", { exact: true })).toHaveAttribute("aria-invalid", "true");
+  await page.getByLabel("Constraint name", { exact: true }).fill("Invoice follows receipt within 12 days");
   await page.getByLabel("within", { exact: true }).fill(String((constraint!.params.delta ?? 1) + 2));
   await page.getByRole("button", { name: "Save as the next version" }).click();
   await expect(page.getByLabel("why this change (required)", { exact: true })).toBeFocused();
@@ -67,8 +64,8 @@ test("selected norm values and names survive reload; missing fields are focused 
   expect(new URL(page.url()).searchParams.get("caseTable")).toBe(CASE_TABLE);
   await expect(page.getByText("Invoice follows receipt within 12 days", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "the numbers", exact: true }).click();
-  await expect(page.getByLabel("ϑ threshold (D)")).toHaveValue("12");
-  await expect(page.getByLabel("W width (D)")).toHaveValue("20");
+  await expect(page.getByLabel(/Target \(/)).toHaveValue("12");
+  await expect(page.getByLabel(/Tolerance width \(/)).toHaveValue("20");
   await expect(page.getByTestId("lens-sentences")).toContainText("25%");
   await expect(page.getByTestId("lens-sentences")).not.toContainText("About");
   await expect(page.getByRole("img", { name: /expected 12.00 days/ })).toBeVisible();
@@ -107,7 +104,8 @@ test("selected norm values and names survive reload; missing fields are focused 
   await expect(rename).toBeHidden();
   await page.reload();
   await expect(page.getByRole("heading", { name: /Purchasing targets for the walkthrough/ })).toBeVisible();
-  await expect(page.getByLabel("ϑ threshold (D)")).toHaveValue("12");
+  await page.getByRole("button", { name: "the numbers", exact: true }).click();
+  await expect(page.getByLabel(/Target \(/)).toHaveValue("12");
   await expect(page.getByTestId("saved-calibration")).toContainText("Calibration owner");
   await page.getByRole("button", { name: "who it applies to", exact: true }).click();
   await page.getByLabel("Not applicable to this log", { exact: false }).check();
@@ -128,5 +126,49 @@ test("selected norm values and names survive reload; missing fields are focused 
   await expect(page.getByTestId("saved-exclusions")).toContainText("Invoice follows receipt within 12 days");
   expect((await (await request.get(`${base}/${VERSION}`)).json()).norm).toEqual(original.norm);
   expect(await (await request.get(baselineURL)).json()).toEqual(baseline);
+  // Reproduce the seven long definitions seen in review without changing any real workspace.
+  const longDescription = "This synthetic constraint describes the agreed payment timing target and the business scope where that target applies. ".repeat(10);
+  const longConstraints = Array.from({ length: 7 }, (_, index) => ({ ...constraint!, id: `layout_${index}`, description: `Payment target ${index + 1}. ${longDescription}` }));
+  const layoutResponse = await request.post(base, { data: {
+    norm: { ...original.norm, constraints: longConstraints, views: [{ name: "Finance", constraint_weights: Object.fromEntries(longConstraints.map(c => [c.id, 1])) }] },
+    parentId: VERSION, note: "Synthetic review layout fixture with seven long definitions",
+  } });
+  expect(layoutResponse.status()).toBe(201);
+  const layoutVersion = await layoutResponse.json() as { id: string };
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`/p/${PROJECT}/norms/${layoutVersion.id}?tab=review&caseTable=${CASE_TABLE}`);
+  await page.getByRole("button", { name: "Complete review decisions", exact: true }).click();
+  const list = dialog.getByRole("list", { name: "Required decisions" });
+  await expect(list.getByRole("button")).toHaveCount(7);
+  await expect(list.getByRole("button").first()).toHaveAttribute("title", longConstraints[0]!.description);
+  const footer = dialog.getByTestId("review-footer");
+  await expect(footer).toBeInViewport({ ratio: 1 });
+  const footerBox = await footer.boundingBox();
+  expect(footerBox).not.toBeNull();
+  expect(footerBox!.y).toBeGreaterThan(0);
+  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(720);
+  const reasonBox = await dialog.getByLabel("Reason for this constraint (required)").boundingBox();
+  const ownerBox = await dialog.getByLabel("Constraint owner (required)").boundingBox();
+  expect(reasonBox!.y + reasonBox!.height).toBeLessThanOrEqual(footerBox!.y);
+  expect(ownerBox!.y + ownerBox!.height).toBeLessThanOrEqual(footerBox!.y);
+  const titleHeights = await list.getByTestId("review-nav-title").evaluateAll(elements => elements.map(el => ({
+    height: el.getBoundingClientRect().height, lineHeight: Number.parseFloat(el.ownerDocument.defaultView!.getComputedStyle(el).lineHeight),
+  })));
+  expect(titleHeights.every(box => box.height <= box.lineHeight * 2 + 1)).toBe(true);
+  const listSize = await list.evaluate(el => ({ height: el.clientHeight, content: el.scrollHeight }));
+  expect(listSize.content).toBeGreaterThan(listSize.height);
+  await list.hover(); await page.mouse.wheel(0, 600);
+  await expect.poll(() => list.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  expect(await footer.boundingBox()).toEqual(footerBox);
+  await list.getByRole("button").last().click();
+  await expect(dialog.getByLabel("Reason for this constraint (required)")).toBeFocused();
+  await dialog.getByText("Full constraint meaning and rule", { exact: true }).click();
+  await expect(dialog.getByTestId("review-meaning")).toContainText(longConstraints[6]!.description.trim());
+  await expect(dialog.getByLabel("Constraint owner (required)")).toBeInViewport({ ratio: 1 });
+  await expect(dialog.getByRole("button", { name: "Record decision", exact: true })).toBeInViewport({ ratio: 1 });
+  expect(await footer.boundingBox()).toEqual(footerBox);
+  await page.screenshot({ path: testInfo.outputPath("preflight-long-descriptions.png"), fullPage: true });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect((await (await request.get(`${base}/${layoutVersion.id}`)).json()).status).toBe("draft");
   expect(pageErrors).toEqual([]);
 });

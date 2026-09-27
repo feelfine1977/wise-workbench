@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from wise_workbench.domain import ConflictError, NotFoundError, ValidationError
 
@@ -125,6 +125,8 @@ def capture(
     slice_key: str | None,
     view: str | None,
     filter_value: Any,
+    *,
+    comparison: Literal["run_population", "group_vs_rest"] = "run_population",
 ) -> dict[str, Any] | None:
     filter_obj = canonical_filter(filter_value)
     if not any((run_id, slicing, slice_key, view, filter_obj)):
@@ -186,13 +188,19 @@ def capture(
         "filter": filter_obj,
         "flowScope": ctx.scope,
         "scenario": run.params.scenario or ("What-if scenario" if run.params.transforms else None),
-        "comparator": {"kind": "run_population", "view": selected_view},
+        "comparator": {"kind": comparison, "view": selected_view},
         "populationCases": None if selection.get("selectionState") == "unavailable" else detail["row"].get("n_cases"),
         **selection,
     }
 
 
-def require_current(c: Container, project_id: str, saved: dict[str, Any] | None) -> None:
+def require_current(
+    c: Container,
+    project_id: str,
+    saved: dict[str, Any] | None,
+    *,
+    comparison: Literal["run_population", "group_vs_rest"] = "run_population",
+) -> None:
     if not saved:
         raise ConflictError(
             "This proposal has no saved evidence context. Open the intended assessed group and save a new proposal before agreeing or starting work.",
@@ -251,6 +259,7 @@ def require_current(c: Container, project_id: str, saved: dict[str, Any] | None)
             saved.get("sliceKey"),
             saved.get("view"),
             saved.get("filter"),
+            comparison=comparison,
         )
     except (NotFoundError, ValidationError, ConflictError, OSError) as exc:
         raise ConflictError(

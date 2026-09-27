@@ -58,7 +58,7 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(page.getByTestId("top-signal")).toContainText("Packaging", { timeout: 60_000 });
   await expect(page.getByTestId("top-signal")).not.toContainText("companyID");
   await expect(page.getByTestId("next-step")).toContainText("Why? Packaging");
-  await expect(page.getByRole("navigation", { name: "Analysis path" })).toContainText("Signals");
+  await expect(page.getByRole("navigation", { name: "Analysis path" })).toContainText("Process questions");
   if (await served(request, `/projects/${pid}/case-tables/${(run as Run).caseTableId}/flow-types`)) {
     await expect(page.getByRole("list", { name: "Flow types" })).toContainText("DF2", { timeout: 60_000 });
   } else {

@@ -8,8 +8,37 @@ from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from wise_workbench.api import schemas
 from wise_workbench.api.deps import ContainerDep
+from wise_workbench.application.services.dataset_catalogue import (
+    DatasetCatalogue,
+    dataset_catalogue,
+    import_catalogue_entry,
+)
 
 router = APIRouter(prefix="/projects/{projectId}", tags=["datasets"])
+
+
+@router.get(
+    "/dataset-catalogue",
+    operation_id="getDatasetCatalogue",
+    response_model=DatasetCatalogue,
+    description="Registered datasets across this local workspace and explicitly configured links to other local workspaces. Read-only; no imports, file scanning or server probes.",
+)
+def get_dataset_catalogue(projectId: str, c: ContainerDep) -> DatasetCatalogue:
+    return dataset_catalogue(c, projectId)
+
+
+@router.post(
+    "/dataset-catalogue/imports/{entryId}",
+    operation_id="importCatalogueDataset",
+    response_model=schemas.Job,
+    status_code=status.HTTP_202_ACCEPTED,
+    description="Import an explicitly configured local source by catalogue ID. The request cannot supply a file path. Mapping and norm review remain separate steps.",
+)
+def import_catalogue_dataset(projectId: str, entryId: str, c: ContainerDep) -> schemas.Job:
+    dataset_id, job = import_catalogue_entry(c, projectId, entryId)
+    out = schemas.Job.from_domain(job)
+    out.resultRef = f"dataset:{dataset_id}"
+    return out
 
 
 @router.get("/datasets", operation_id="listDatasets", response_model=list[schemas.DatasetVersion])
@@ -143,9 +172,15 @@ def get_flow_types(
         str | None, Query(description="case attribute holding the flow type (default: the mapping's)")
     ] = None,
     abstraction: Annotated[float, Query(ge=0.0, le=1.0)] = 0.05,
+    selectionId: Annotated[
+        str | None,
+        Query(pattern=r"^sel_[a-z0-9]{17,24}$", description="saved EDA cohort used for these flow counts and maps"),
+    ] = None,
 ) -> schemas.FlowTypes:
     return schemas.FlowTypes(
-        **c.mappings.flow_types(projectId, caseTableId, attribute=attribute, abstraction=abstraction)
+        **c.mappings.flow_types(
+            projectId, caseTableId, attribute=attribute, abstraction=abstraction, selection_id=selectionId
+        )
     )
 
 

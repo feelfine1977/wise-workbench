@@ -37,7 +37,7 @@ export type HubNode = S["HubNode"];
 
 export type HubEdge = S["HubEdge"];
 
-/** The blocks of one guidance tier (`knowledge_hub_panel.md` §1); the contract leaves the object open. */
+/** The blocks of one guidance tier (the guidance contract); the contract leaves the object open. */
 export interface GuidanceText {
   kind?: string;
   id?: string;

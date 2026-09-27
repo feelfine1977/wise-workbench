@@ -5,8 +5,8 @@ version: 1
 review_status: draft
 sources:
   - o2c/README.md §3 (slice keys, exposure, applicability measured on the hackathon extract)
-  - docs/panel/process_panel.md §5 (O2C slice keys and pitfalls)
-  - docs/panel/llm_knowledge_architecture.md §2.1
+  - packages/process-knowledge/PACK_DESIGN.md (O2C slice keys and pitfalls)
+  - packages/process-knowledge/PACK_DESIGN.md
 roles:
   - id: sales
     name: {en: Sales, de: Vertrieb}

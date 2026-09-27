@@ -49,7 +49,9 @@ export default function RunPage() {
   // the plain block the server serves; without it the run's own fields say the same in the same words
 
   const caseNoun = manifest.data?.caseNoun ?? (ctx.caseTable?.readiness as { caseNoun?: string | null } | undefined)?.caseNoun ?? "cases";
-  const casesScored = ctx.caseTable?.cases ?? (manifest.data?.technical as { cases?: number } | undefined)?.cases;
+  const casesScored = (run.data?.manifest as { cases?: number } | undefined)?.cases
+    ?? (manifest.data?.technical as { cases?: number } | undefined)?.cases
+    ?? (flowTypeOf(run.data) ? undefined : ctx.caseTable?.cases);
   const grouped = (run.data?.slicings ?? []).map((s) => groupingLabel(s.id ?? undefined, s.attributes)).join("; ");
   /**
    * The plain block the server serves, with the grouping row said in the reader's words (R3-13). The server
@@ -90,11 +92,12 @@ export default function RunPage() {
               <p className="reading text-sm text-text-muted">
                 {/* R3-13: the run's own noun, not "cases", wherever the mapping has set one */}
                 {r.status === "done"
-                  ? `${casesScored === undefined ? "Every one of the log's" : fmtInt(casesScored)} ${caseNoun} scored against the norm in ${(r.views ?? []).length} perspectives, small groups discounted with γ = ${fmtNum(r.gamma, 0)}.`
+                  ? `${casesScored === undefined ? "The selected" : fmtInt(casesScored)} ${caseNoun} scored against the norm in ${(r.views ?? []).length} perspectives, small groups discounted with γ = ${fmtNum(r.gamma, 0)}.`
                   : r.note}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2" data-no-capture>
+              {r.status === "done" && <Button variant="outline" asChild><Link to="/p/$projectId/runs/$runId/investigate" params={{projectId:ctx.projectId,runId:r.id}} search={{view:ctx.view,slicing:ctx.slicing}}>Investigate a process question</Link></Button>}
               {r.status === "done" && <FreezeButton projectId={ctx.projectId} screen={search.tab === "compare" ? "compare-flow-types" : search.tab === "flow" ? "run-flow" : "run"} context={{ run_id: r.id, scope: (r.scope as never) ?? null }} data={{ manifest: r.manifest, params: { gamma: r.gamma, minCases: r.minCases, views: r.views, slicings: r.slicings } }} defaultTitle={`${r.note?.trim() || `Run of ${fmtDate(r.manifest?.finishedAt ?? r.createdAt)}`}${search.tab === "compare" ? " · flow types side by side" : search.tab === "flow" ? " · process map" : ""}`} />}
               {(r.status === "queued" || r.status === "running") && r.jobId && (
                 <Button variant="outline" onClick={() => r.jobId && cancel.mutate(r.jobId)}>
@@ -103,7 +106,7 @@ export default function RunPage() {
               )}
               {r.status === "done" && (
                 <Button asChild>
-                  <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0] }}>
+                  <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: ctx.slicing, view: ctx.view }}>
                     Open the ranked list
                   </Link>
                 </Button>
@@ -141,7 +144,7 @@ export default function RunPage() {
             <TabsContent value="flow">
               <Card>
                 <CardTitle>
-                  <Term id="flow">Process map of the whole log</Term>
+                  <span>Process map · {flowTypeOf(r) ? `${flowTypeOf(r)} flow` : "all flow types"}</span>
                 </CardTitle>
                 {/* a doorway, not a second map: the Flow step is where the map is the screen and its actions work (§3.1) */}
                 <p className="reading mb-3 text-sm text-text-muted">
@@ -156,7 +159,7 @@ export default function RunPage() {
                 {flow.isError && <ErrorBlock error={flow.error} retry={() => void flow.refetch()} />}
                 {flow.data && (
                   <Suspense fallback={<LoadingBlock rows={6} />}>
-                    <FlowMap graph={flow.data} frame="panel" height={420} title="Process map of the whole log with the expectations drawn on it" noun={(flow.data.meta as { caseNoun?: string } | undefined)?.caseNoun ?? "cases"} />
+                    <FlowMap graph={flow.data} frame="panel" height={420} title={`Recorded process · ${flowTypeOf(r) ?? "all flow types"}`} noun={(flow.data.meta as { caseNoun?: string } | undefined)?.caseNoun ?? "cases"} />
                   </Suspense>
                 )}
               </Card>

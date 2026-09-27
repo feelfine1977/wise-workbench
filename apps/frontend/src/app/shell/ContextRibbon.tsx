@@ -1,3 +1,4 @@
+import { GroupingControl } from "@/components/GroupingControl";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Camera, HelpCircle, MoreHorizontal, Search } from "lucide-react";
@@ -9,12 +10,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/misc";
-import { flowTypeOf } from "@/lib/api/runs";
+import { flowTypeOf, selectionIdOf } from "@/lib/api/runs";
+import { analysisSelectionsQuery } from "@/lib/api/analysisSelections";
 import { notebookQuery } from "@/lib/api/notebook";
 import { useMocks } from "@/lib/config";
 import { fmtDate, fmtInt, fmtNum } from "@/lib/format";
 import { projectsQuery } from "@/lib/queries";
-import { groupingLabel } from "@/lib/sentences";
 import { useNavStore } from "@/lib/stores/nav";
 import { useUiStore } from "@/lib/stores/ui";
 import { VOCABULARIES, type Vocabulary } from "@/lib/vocabulary";
@@ -37,7 +38,7 @@ function Switcher({ label, value, options, onChange, placeholder, stacked, disab
   const current = options.find((o) => o.value === value);
   const control = (
     <Select value={value ?? ""} onValueChange={onChange} disabled={disabled || options.length === 0}>
-      <SelectTrigger compact aria-label={t("ribbon.switch", { what: label })} title={current?.title} className={stacked ? "w-full" : undefined}>
+      <SelectTrigger compact aria-label={t("ribbon.switch", { what: label })} title={current ? `${current.label}${current.title ? ` · ${current.title}` : ""}` : undefined} className={stacked ? "w-full" : "max-w-[13rem] [&>span:first-child]:truncate"}>
         <SelectValue placeholder={placeholder ?? "–"} />
       </SelectTrigger>
       <SelectContent>
@@ -70,7 +71,7 @@ function Switcher({ label, value, options, onChange, placeholder, stacked, disab
  * The context ribbon, reduced per step: only the switchers a step needs (project · dataset on Data; project ·
  * norm on Norm; project · run on Run; project · run · perspective · grouping · scope on Signals and Why;
  * project on the notebook), everything else in the ⋯ menu together with density, theme and the words switch.
- * No id is visible: the run switcher reads the run's note and date, the mapping switcher "case table v2 ·
+ * The run switcher reads the run's note and date, the mapping switcher "case table v2 ·
  * 251,734 cases"; ids sit in the tooltips. On the right: the caveats chip, the notebook with its snapshot
  * count, the camera, help and the command palette.
  */
@@ -95,8 +96,14 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
 
   // The flow-type scope: the unscoped run and the runs forked from it.
   const current = ctx.run;
-  const parent = current && !flowTypeOf(current) ? current : [...ctx.runs].reverse().find((r) => r.status === "done" && !flowTypeOf(r) && r.caseTableId === current?.caseTableId && r.normVersionId === current?.normVersionId);
-  const family = ctx.runs.filter((r) => r.status === "done" && flowTypeOf(r) && r.caseTableId === current?.caseTableId && r.normVersionId === current?.normVersionId);
+  const selectionId = selectionIdOf(current);
+  const selections = useQuery({ ...analysisSelectionsQuery(pid, current?.caseTableId ?? ""), enabled: !!selectionId && !!current?.caseTableId });
+  const selection = selections.data?.find((item) => item.id === selectionId);
+  const selectedCases = current?.manifest?.cases;
+  const cohort = selectionId ? <li key="cohort" data-testid="ribbon-saved-selection" className="text-xs" title="The saved filter is baked into this assessment; changing flow keeps the same saved filter.">Saved analysis filter: {selection?.name ? `${selection.name} · ` : ""}{selectionId}{typeof selectedCases === "number" && Number.isFinite(selectedCases) ? ` · ${fmtInt(selectedCases)} cases in this assessment` : " · case count unavailable"}</li> : null;
+  const scopeRuns = ctx.scopeRuns ?? [];
+  const parent = scopeRuns.find((r) => !flowTypeOf(r));
+  const family = scopeRuns.filter((r) => flowTypeOf(r));
   const scopeOptions = current ? [...(parent ? [{ value: parent.id, label: "all flows" }] : []), ...family.map((r) => ({ value: r.id, label: `${flowTypeOf(r)} only`, title: r.id }))] : [];
 
   const readiness = ctx.caseTable?.readiness;
@@ -104,10 +111,20 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   const runLabel = (r: (typeof ctx.runs)[number]) => (r.note?.trim() ? `${r.note.trim()} · ${fmtDate(r.manifest?.finishedAt ?? r.createdAt)}` : `Run of ${fmtDate(r.manifest?.finishedAt ?? r.createdAt)}`);
 
   const project = <Switcher key="project" label={t("ribbon.project")} value={pid} options={(projects.data ?? []).map((p) => ({ value: p.id, label: p.name, title: p.id }))} onChange={(v) => void navigate({ to: "/p/$projectId", params: { projectId: v } })} />;
-  const dataset = (stacked?: boolean) => (
-    <Switcher key="dataset" stacked={stacked} label={t("ribbon.dataset")} value={ctx.dataset?.id} options={ctx.datasets.map((d) => ({ value: d.id, label: d.name, hint: d.status, title: d.id }))} onChange={(v) => void navigate({ to: "/p/$projectId/data/$datasetId", params: { projectId: pid, datasetId: v }, search: {} })} />
+  const historical = ctx.datasetBindingConflict?.kind === "run";
+  const fixedDatasetId = ctx.datasetBinding?.datasetId;
+  const dataset = () => (
+    <li key="dataset" className="flex items-center gap-1 text-xs" data-testid="ribbon-project-dataset">
+      {historical ? <span>Assessment dataset: {ctx.dataset?.name ?? ctx.datasetBindingConflict?.datasetId}</span>
+        : fixedDatasetId ? <><span>Project dataset (fixed):</span><Link to="/p/$projectId/data/$datasetId" params={{ projectId: pid, datasetId: fixedDatasetId }} search={{}} className="font-medium text-accent-text hover:underline">{ctx.projectDataset?.name ?? fixedDatasetId}</Link></>
+        : ctx.datasetBindingState === "error" ? <span>Project dataset unavailable</span>
+        : ctx.datasetBindingState === "loading" ? <span>Loading project dataset…</span>
+        : <><span>{ctx.dataset ? `Preview: ${ctx.dataset.name} · ` : ""}Project dataset not fixed.</span><Link to="/p/$projectId/data" params={{ projectId: pid }} className="text-accent-text hover:underline">Choose project dataset</Link></>}
+    </li>
   );
-  const mapping = (stacked?: boolean) => (
+  const mapping = (stacked?: boolean) => historical ? (
+    <li key="mapping" className="text-xs">Historical case table: {ctx.caseTable?.id ?? ctx.run?.caseTableId}</li>
+  ) : (
     <Switcher
       key="mapping"
       stacked={stacked}
@@ -115,21 +132,18 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
       value={ctx.caseTable?.id}
       options={ctx.caseTableIds.map((id, i) => ({ value: id, label: `case table v${i + 1}${id === ctx.caseTable?.id ? ` · ${fmtInt(ctx.caseTable.cases)} cases` : ""}`, title: `${id}${id === ctx.caseTable?.id && ctx.caseTable?.mappingId ? ` · mapping ${ctx.caseTable.mappingId}` : ""}` }))}
       onChange={(v) => {
-        const datasetId = ctx.dataset?.id ?? ctx.datasets[0]?.id;
+        const datasetId = ctx.datasetBinding?.datasetId ?? ctx.dataset?.id;
         if (datasetId) void navigate({ to: "/p/$projectId/data/$datasetId", params: { projectId: pid, datasetId }, search: { caseTable: v } });
       }}
     />
   );
   const norm = (stacked?: boolean) => (
-    <Switcher key="norm" stacked={stacked} label={t("ribbon.norm")} value={ctx.norm?.id} options={ctx.norms.map((n) => ({ value: n.id, label: `v${n.version}`, hint: n.status, title: n.id }))} onChange={(v) => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: pid, normVersionId: v }, search: { tab: "constraints" } })} />
+    <Switcher key="norm" stacked={stacked} label={t("ribbon.norm")} value={ctx.norm?.id} options={ctx.norms.map((n) => ({ value: n.id, label: `v${n.version}`, hint: n.status, title: n.id }))} onChange={(v) => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: pid, normVersionId: v }, search: { caseTable: ctx.caseTable?.id, tab: "guide" } })} />
   );
   const run = (stacked?: boolean) => (
-    <Switcher key="run" stacked={stacked} label={t("ribbon.run")} value={ctx.run?.id} placeholder={t("ribbon.noRun")} options={ctx.runs.filter((r) => !flowTypeOf(r)).map((r) => ({ value: r.id, label: runLabel(r), hint: r.status === "done" ? undefined : r.status, title: r.id }))} onChange={(v) => ctx.navigateRun(v)} />
+    <Switcher key="run" stacked={stacked} label={t("ribbon.run")} value={parent?.id ?? ctx.run?.id} placeholder={t("ribbon.noRun")} options={ctx.runs.filter((r) => !flowTypeOf(r) && (ctx.projectRuns?.some((candidate) => candidate.id === r.id) || r.id === parent?.id || r.id === ctx.run?.id)).map((r) => ({ value: r.id, label: runLabel(r), hint: r.id === ctx.run?.id && historical ? "historical dataset" : r.status === "done" ? undefined : r.status, title: r.id }))} onChange={(v) => ctx.navigateRun(v)} />
   );
-  const perspective = <Switcher key="perspective" label={vocabulary === "plain" ? t("ribbon.perspective") : t("ribbon.view")} value={ctx.view} options={(ctx.run?.views ?? []).map((v) => ({ value: v, label: v }))} onChange={ctx.setView} />;
-  const grouping = (
-    <Switcher key="grouping" label={vocabulary === "plain" ? t("ribbon.grouping") : t("ribbon.sliceKey")} value={ctx.slicing} options={(ctx.run?.slicings ?? []).map((s) => ({ value: s.id ?? "", label: groupingLabel(s.id ?? undefined, s.attributes ?? undefined) || (s.id ?? ""), title: s.id ?? undefined }))} onChange={ctx.setSlicing} />
-  );
+  const grouping = <li key="grouping" className="shrink-0"><GroupingControl ctx={ctx} compact /></li>;
   const scope = <Switcher key="scope" label={t("ribbon.scope")} value={scopeOptions.length ? ctx.run?.id : undefined} placeholder="all flows" options={scopeOptions} onChange={(v) => ctx.navigateRun(v)} disabled={scopeOptions.length <= 1} />;
   const words = (
     <Switcher key="words" stacked label={t("ribbon.vocabulary")} value={vocabulary} options={VOCABULARIES.map((v) => ({ value: v, label: t(`ribbon.vocabularies.${v}`), hint: v === "plain" ? "method terms as secondary labels" : "plain words as secondary labels" }))} onChange={(v) => setVocabulary(v as Vocabulary)} />
@@ -155,11 +169,11 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
       more = guided ? [mapping(true)] : [mapping(true), words];
       break;
     case "norm":
-      shown = [project, norm()];
-      more = guided ? [dataset(true)] : [dataset(true), words];
+      shown = [project, dataset(), norm()];
+      more = guided ? [] : [words];
       break;
     case "run":
-      shown = [project, run()];
+      shown = [project, dataset(), run(), scope, cohort];
       more = guided ? [norm(true), mapping(true)] : [norm(true), mapping(true), words];
       break;
     // the Flow step and the board are one step of the analysis and need the same context as Signals and Why:
@@ -168,15 +182,16 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
     case "signals":
     case "why":
     case "act":
-      shown = guided ? [project, run(), scope] : [project, run(), perspective, grouping, scope];
-      more = guided ? [perspective, grouping] : [dataset(true), mapping(true), norm(true), gamma, words];
+      shown = guided ? [project, dataset(), run(), scope, cohort] : [project, dataset(), run(), grouping, scope, cohort];
+      more = guided ? [grouping] : [mapping(true), norm(true), gamma, words];
       break;
     default:
-      shown = [project];
+      shown = [project, dataset()];
       more = guided ? [] : [words];
   }
 
   return (
+    <>
     <header role="banner" className="sticky top-0 z-ribbon flex h-12 items-center gap-3 border-b border-border bg-surface px-3">
       <a href="/" className="mr-1 flex items-center gap-2 whitespace-nowrap text-sm font-semibold" aria-label={t("app.name")}>
         <span aria-hidden className="inline-flex size-6 items-center justify-center rounded bg-accent font-mono text-xs text-accent-on">
@@ -184,6 +199,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
         </span>
         <span className="hidden lg:inline">WISE</span>
       </a>
+      <Link to="/projects" className="shrink-0 text-sm font-medium text-accent-text hover:underline">Projects / new</Link>
       <nav aria-label="Context" className="min-w-0 flex-1 overflow-x-auto">
         <ul className="flex items-center gap-3 whitespace-nowrap">{shown}</ul>
       </nav>
@@ -281,5 +297,8 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
         </Popover>
       </div>
     </header>
+    {ctx.datasetBindingState === "error" && <p role="alert" className="border-b border-warning/40 bg-warning-subtle px-4 py-2 text-sm">The project dataset binding could not be verified. Reload before continuing.</p>}
+    {ctx.datasetBindingConflict && <p role="alert" data-testid="dataset-binding-conflict" className="border-b border-warning/40 bg-warning-subtle px-4 py-2 text-sm">{historical ? `This historical assessment uses ${ctx.dataset?.name ?? ctx.datasetBindingConflict.datasetId}.` : "The dataset or case table in this address does not match this project."} Project dataset remains fixed to {ctx.projectDataset?.name ?? ctx.datasetBindingConflict.boundDatasetId}. <Link to="/p/$projectId/data/$datasetId" params={{ projectId: pid, datasetId: ctx.datasetBindingConflict.boundDatasetId }} search={{}} className="text-accent-text underline">Open project dataset</Link></p>}
+    </>
   );
 }

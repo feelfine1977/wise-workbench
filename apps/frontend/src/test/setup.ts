@@ -7,6 +7,9 @@ import { resetDb } from "@/mocks/db";
 import { useJobStore } from "@/lib/stores/jobs";
 import { useUiStore } from "@/lib/stores/ui";
 import { useNavStore } from "@/lib/stores/nav";
+import { useAnalysisSelection } from "@/lib/stores/analysisSelection";
+import { useViewPreference } from "@/lib/stores/viewPreference";
+import { useGroupingStore } from "@/lib/stores/groupings";
 import { focusManager, onlineManager } from "@tanstack/react-query";
 
 // jsdom lacks a few browser APIs the shell relies on.
@@ -68,6 +71,9 @@ afterEach(() => {
   useJobStore.setState(useJobStore.getInitialState(), true);
   useUiStore.setState(useUiStore.getInitialState(), true);
   useNavStore.setState(useNavStore.getInitialState(), true);
+  useGroupingStore.setState(useGroupingStore.getInitialState(), true);
+  useAnalysisSelection.setState(useAnalysisSelection.getInitialState(), true);
+  useViewPreference.setState(useViewPreference.getInitialState(), true);
   focusManager.setFocused(undefined);
   onlineManager.setOnline(true);
 });

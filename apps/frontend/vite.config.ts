@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
       // With mocks on, the mock middleware answers /api/v1 before the proxy sees the request.
       proxy: { "/api": { target: backend, changeOrigin: true } },
     },
+    worker: { format: "es" },
     build: {
       target: "es2022",
       sourcemap: true,

@@ -1,6 +1,6 @@
 # Order-to-cash guidance: the generic tier of the knowledge hub.
 # One entry per layer, per constraint of o2c_baseline.json and per failure
-# mode, in the blocks of docs/panel/knowledge_hub_panel.md §1. Plain words
+# mode, in the blocks of packages/process-knowledge/PACK_DESIGN.md Plain words
 # first, the method term second; every usual reason says whether the log can
 # show it (with the check) or whether someone must be asked; every action names
 # a countermeasure type, an owner role and the expectation area it affects.
@@ -12,14 +12,14 @@ pack: o2c
 version: 1
 review_status: draft
 sources:
-  - docs/panel/knowledge_hub_panel.md §1 and §5 (guidance object; O2C extension named there)
+  - packages/process-knowledge/PACK_DESIGN.md (guidance object; O2C extension named there)
   - failure_modes.yaml of this pack (candidate causes, remedies, evidence to check, measured shares)
   - o2c/README.md (stage coverage, measured shares, pitfalls)
   - cycle-02/GOAL.md (business question, case notion, pitfalls)
   - SAP SD documentation (availability check, schedule lines, delivery and credit blocks, returns, billing, dunning)
 defaults:
   stakeholders: "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note."
-  sources: [docs/panel/knowledge_hub_panel.md §1, failure_modes.yaml (o2c), o2c/README.md, ICPM 2026 hackathon sales extract measured 2026-09-05]
+  sources: [packages/process-knowledge/PACK_DESIGN.md, failure_modes.yaml (o2c), o2c/README.md, ICPM 2026 hackathon sales extract measured 2026-09-05]
   review_status: draft
   version: 1
 

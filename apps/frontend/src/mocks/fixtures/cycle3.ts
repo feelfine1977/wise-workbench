@@ -6,6 +6,7 @@
  * against; where a payload would need content the pack owns, the answer carries the empty list rather than
  * invented text.
  */
+import type { components } from "@wise/api-schema";
 import { db, summaryFor } from "../db";
 import { verifiedCaseTable, verifiedFlowAll, VERIFIED_CASE_NOUN } from "./verified";
 import { UNCALIBRATED } from "./backlog";
@@ -25,9 +26,11 @@ export interface MockReviewItem {
   note?: string | null;
   createdAt: string;
   updatedAt: string;
+  evidenceContext?: components["schemas"]["ActionEvidenceContext"] | null;
+  evidenceState?: "recorded" | "unassessed";
 }
 
-/** Review entities live in memory for the session, as the findings store does in the browser. */
+/** In-memory stand-in for server review records; tests reset this collection explicitly. */
 export const review: MockReviewItem[] = [];
 
 export function newReviewItem(projectId: string, kind: MockReviewItem["kind"], body: Record<string, unknown>): MockReviewItem {
@@ -36,7 +39,7 @@ export function newReviewItem(projectId: string, kind: MockReviewItem["kind"], b
     id: `${kind}_${(review.length + 1).toString(36)}`,
     projectId,
     kind,
-    status: kind === "action" ? "proposed" : "open",
+    status: kind === "finding" && typeof body.status === "string" ? body.status : kind === "action" ? "proposed" : "open",
     title: typeof body.title === "string" ? body.title : typeof body.constraint_id === "string" ? `Hypothesis on ${body.constraint_id}` : undefined,
     runId: typeof body.runId === "string" ? body.runId : typeof body.run_id === "string" ? body.run_id : null,
     slicing: typeof body.slicing === "string" ? body.slicing : null,
@@ -47,8 +50,29 @@ export function newReviewItem(projectId: string, kind: MockReviewItem["kind"], b
     createdAt: now,
     updatedAt: now,
     // the fields a screen reads back on the record it just wrote (owner role, statement, links)
-    ...Object.fromEntries(Object.entries(body).filter(([k]) => ["owner_role", "countermeasure", "statement_plain", "constraint_id", "expected_direction", "links", "due"].includes(k))),
+    ...Object.fromEntries(Object.entries(body).filter(([k]) => ["owner_role", "countermeasure", "statement_plain", "constraint_id", "expected_direction", "links", "due", "hotspotType", "overrideNote"].includes(k))),
   };
+  if (kind === "finding") {
+    const run = db.runs.find((r) => r.id === item.runId);
+    let filter: Record<string, unknown> | null = null;
+    let valid = true;
+    if (body.filter !== undefined && body.filter !== null) {
+      try {
+        const parsed: unknown = typeof body.filter === "string" ? JSON.parse(body.filter) : body.filter;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) valid = false;
+        else filter = parsed as Record<string, unknown>;
+      } catch { valid = false; }
+    }
+    item.evidenceContext = valid && run?.manifest?.normFingerprint && run.manifest.contentHash && run.paramsHash && item.slicing && item.sliceKey && item.view ? {
+      version: 1, runId: run.id, normVersionId: run.normVersionId, caseTableId: run.caseTableId,
+      normFingerprint: run.manifest.normFingerprint, contentHash: run.manifest.contentHash,
+      paramsHash: run.paramsHash, manifestFingerprint: `mock-manifest:${run.id}:${run.paramsHash}`,
+      view: item.view, slicing: item.slicing, sliceKey: item.sliceKey, filter,
+      comparator: { kind: "run_population", view: item.view }, populationCases: null,
+      ...(filter ? { selectionState: "unavailable" as const, selectionReason: "Mock selection is not measured; live backend tests verify membership." } : {}),
+    } : null;
+    item.evidenceState = item.evidenceContext ? "recorded" : "unassessed";
+  }
   review.push(item);
   return item;
 }

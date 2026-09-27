@@ -31,6 +31,8 @@ export const scopeOf = (run: Run | RunWithScope | undefined): RunScope | undefin
 
 export const flowTypeOf = (run: Run | RunWithScope | undefined): string | undefined => scopeOf(run)?.flow_type ?? undefined;
 
+export const selectionIdOf = (run: Run | RunWithScope | undefined): string | undefined => (scopeOf(run) as { selection_id?: string } | undefined)?.selection_id;
+
 /** One element of `FlowTypeComparison.types` (the contract leaves it open). */
 export interface FlowTypeComparisonEntry {
   name: string;
@@ -45,12 +47,19 @@ export interface FlowTypeComparisonEntry {
   runId?: string | null;
 }
 
-export const flowTypesQuery = (projectId: string, caseTableId: string, attribute?: string) =>
+export const flowTypesQuery = (projectId: string, caseTableId: string, attribute?: string, abstraction = 0.05, selectionId?: string) =>
   queryOptions({
-    queryKey: runKeys.flowTypes(projectId, caseTableId, attribute),
-    queryFn: () => http.get<FlowTypes>(`/projects/${enc(projectId)}/case-tables/${enc(caseTableId)}/flow-types`, { attribute }),
+    queryKey: [...runKeys.flowTypes(projectId, caseTableId, attribute), abstraction, selectionId ?? ""],
+    queryFn: () => http.get<FlowTypes>(`/projects/${enc(projectId)}/case-tables/${enc(caseTableId)}/flow-types`, { attribute, abstraction, selectionId }),
     staleTime: IMMUTABLE,
   });
+
+/** Saved classification, separate from observed event order. */
+export const flowTypeDefinitionsQuery = (projectId: string, caseTableId: string) => queryOptions({
+  queryKey: ["projects", projectId, "case-tables", caseTableId, "mapping"],
+  queryFn: () => http.get<S["ColumnMappingOut"]>(`/projects/${enc(projectId)}/case-tables/${enc(caseTableId)}/mapping`),
+  staleTime: IMMUTABLE,
+});
 
 export const compareFlowTypesQuery = (projectId: string, runId: string, attribute?: string) =>
   queryOptions({

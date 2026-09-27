@@ -110,7 +110,7 @@ def test_zero_share_is_measured_and_missing_measurements_stay_pending(world, dep
     "clause",
     [
         {"kind": "time", "field": "active", "from": "2024-01-01"},
-        {"kind": "follows", "a": "Record Goods Receipt", "b": "Record Invoice Receipt", "never": True},
+        {"kind": "follows", "a": "Record Goods Receipt", "b": "Record Invoice Receipt", "never": "false"},
         {"kind": "lag", "a": "Record Goods Receipt", "b": "Record Invoice Receipt", "min": 1, "directly": True},
         {"kind": "attribute", "field": "vendor", "in": ["V1"], "not_in": ["V2"]},
         {"kind": "count", "activity": "Record Goods Receipt", "min": 1.5},
@@ -180,6 +180,16 @@ def test_measurement_change_invalidates_a_filtered_waiver(world, monkeypatch):
         ({"kind": "count", "activity": "Record Goods Receipt", "min": 2}, 1),
         ({"kind": "lag", "a": "Record Goods Receipt", "b": "Record Invoice Receipt", "min": 10, "unit": "D"}, 1),
         ({"kind": "follows", "a": "Record Goods Receipt", "b": "Record Invoice Receipt", "directly": True}, 2),
+        (
+            {
+                "kind": "follows",
+                "a": "Record Invoice Receipt",
+                "b": "Record Goods Receipt",
+                "directly": True,
+                "never": True,
+            },
+            2,
+        ),
     ],
 )
 def test_supported_filter_membership_matches_the_public_example(world, clause, expected):

@@ -78,6 +78,6 @@ Reference logs require explicit dataset paths. The BPIC19 norm defaults to the p
 
 ## Deployment limits and licences
 
-There is no login, role-based access, or supported multi-user deployment yet. Keep the service on localhost. Postgres and Docker files describe future profiles and are not validated production distributions. The actionability extension stays separate from classic; runtime capability selection is still a design ([ADR 0012](adr/0012-optional-actionability-extension.md)).
+There is no login, role-based access, or supported multi-user deployment yet. Keep the service on localhost. Postgres and Docker files describe future profiles and are not validated production distributions. The actionability extension stays separate from classic; runtime capability selection is still a design (see [compatibility](COMPATIBILITY.md)).
 
 Workbench and its flow renderer use PolyForm Noncommercial 1.0.0. Check the actual licence before organisational deployment; public source alone does not grant commercial rights. Core wise-pm is MIT. Retain dependency notices and visible BPMN attribution.

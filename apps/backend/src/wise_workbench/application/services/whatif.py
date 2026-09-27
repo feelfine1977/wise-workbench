@@ -130,14 +130,14 @@ class WhatIfService:
         """Every scenario of the project, newest first; with ``baseline_run_id`` only that baseline's."""
         out = []
         for run in self.c.runs.list(project_id):
-            if not run.params.scenario:
+            if not (run.params.scenario or run.params.transforms):
                 continue
             if baseline_run_id and run.params.baseline_run_id != baseline_run_id:
                 continue
             out.append(
                 {
                     "runId": run.id,
-                    "name": run.params.scenario,
+                    "name": run.params.scenario or "Transformed scenario",
                     "baselineRunId": run.params.baseline_run_id,
                     "status": str(run.status),
                     "note": run.params.note,

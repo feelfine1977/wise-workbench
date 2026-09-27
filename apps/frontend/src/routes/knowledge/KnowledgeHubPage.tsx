@@ -21,7 +21,7 @@ import { Card, CardTitle } from "@/components/ui/misc";
 import { fmtInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** The order the hub is walked in (`knowledge_hub_panel.md` §3), not the order the pack lists. */
+/** The order the hub is walked in (the guidance contract), not the order the pack lists. */
 const KIND_ORDER = ["stage", "layer", "expectation", "failure_mode", "kpi", "reason", "action"] as const;
 
 const nameOf = (n: HubNode) => n.plain_name ?? n.method_name ?? n.id;

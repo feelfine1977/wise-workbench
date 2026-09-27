@@ -495,7 +495,9 @@ def test_uncalibrated_expectations_are_flagged_on_the_list(world: dict[str, Any]
         if f["reason"] == "almost_always_missed":
             assert f["share_violated"] > 0.90 and "threshold to calibrate" in f["text"]
         if f["reason"] == "almost_never_missed":
-            assert f["share_violated"] < 0.01 and "cannot fail" in f["text"]
+            assert f["share_violated"] < 0.01 and "cannot fail" not in f["text"]
+            observation = "rarely missed" if f["share_violated"] > 0 else "no observed misses"
+            assert observation in f["text"] and "evaluated" in f["text"]
 
 
 # ---------------------------------------------------------------- RK-2, RK-3 guidance and the hub
@@ -675,6 +677,16 @@ def test_gates_block_a_hypothesis_until_they_are_waived_with_a_note(world: dict[
         assert hyp["test"]["constraint_id"] == "c1" and len(hyp["test"]["interval"]) == 2
     listed = c.get(f"/api/v1/projects/{pid}/hypotheses", params={"runId": rid}).json()
     assert [h["id"] for h in listed] == [hyp["id"]]
+    # Recording an open question can precede review; a conclusion cannot.
+    current = c.get(f"/api/v1/projects/{pid}/runs/{rid}/gates", params=params).json()
+    for gate in current["gates"]:
+        if gate["status"] not in {"passed", "waived"}:
+            response = c.post(
+                f"/api/v1/projects/{pid}/runs/{rid}/gates/{gate['id']}",
+                params=params,
+                json={"status": "waived", "note": "Reviewed for this synthetic conclusion"},
+            )
+            assert response.status_code == 200, response.text
     patched = c.patch(
         f"/api/v1/projects/{pid}/hypotheses/{hyp['id']}", json={"status": "supported", "note": "confirmed"}
     ).json()

@@ -113,7 +113,7 @@ class Slicing:
         return out
 
 
-SCOPE_KEYS = ("flow_type", "attribute", "value")
+SCOPE_KEYS = ("flow_type", "attribute", "value", "selection_id")
 
 
 def validate_scope(scope: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -124,14 +124,22 @@ def validate_scope(scope: dict[str, Any] | None) -> dict[str, Any] | None:
     if unknown:
         raise ValidationError(f"scope accepts {list(SCOPE_KEYS)}; unknown: {unknown}", code="run.scope")
     out: dict[str, Any] = {}
+    if scope.get("selection_id") is not None:
+        import re
+
+        if not isinstance(scope["selection_id"], str) or not re.fullmatch(
+            r"sel_[a-z0-9]{17,24}", scope["selection_id"]
+        ):
+            raise ValidationError("Invalid saved selection ID", code="run.scope")
+        out["selection_id"] = scope["selection_id"]
     if scope.get("flow_type") is not None:
         out["flow_type"] = str(scope["flow_type"])
         out["attribute"] = str(scope.get("attribute") or "flow_type")
     elif scope.get("attribute") and scope.get("value") is not None:
         out["attribute"] = str(scope["attribute"])
         out["value"] = str(scope["value"])
-    else:
-        raise ValidationError("scope needs flow_type, or attribute and value", code="run.scope")
+    elif not out or scope.get("attribute") is not None or scope.get("value") is not None:
+        raise ValidationError("scope needs selection_id, flow_type, or attribute and value", code="run.scope")
     return out
 
 
@@ -149,6 +157,7 @@ class RunParams:
     # a what-if scenario: the transform layer applied to the log before it is scored (R3-27)
     transforms: tuple[dict[str, Any], ...] = ()
     scenario: str | None = None
+    general_benchmark: str | None = None
 
     def __post_init__(self) -> None:
         if not self.case_table_id or not self.norm_version_id:
@@ -175,6 +184,7 @@ class RunParams:
             "scope": dict(self.scope) if self.scope else None,
             "transforms": [dict(t) for t in self.transforms],
             "scenario": self.scenario,
+            "generalBenchmark": self.general_benchmark,
         }
 
     @classmethod
@@ -199,6 +209,7 @@ class RunParams:
             scope=dict(d["scope"]) if d.get("scope") else None,
             transforms=tuple(dict(t) for t in d.get("transforms") or ()),
             scenario=d.get("scenario") or None,
+            general_benchmark=d.get("generalBenchmark") or None,
         )
 
     def params_hash(self) -> str:
@@ -218,6 +229,8 @@ class RunParams:
         )
         if bands:
             payload["bands"] = bands
+        if self.general_benchmark:
+            payload["generalBenchmark"] = self.general_benchmark
         if self.scope:
             payload["scope"] = self.scope
         if self.transforms:

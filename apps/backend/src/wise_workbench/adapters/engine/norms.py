@@ -74,6 +74,62 @@ class NormInspector:
         out["casesInScope"] = int(mask.sum())
         return out
 
+    def relevance(self, document: dict[str, Any]) -> dict[str, Any]:
+        """Read applicability and observed activity coverage; never evaluate or score a rule."""
+        norm = _norm_from(document)
+        log = self._load_log()  # the gateway supplies a fresh, uncached log
+        derivation_issues: list[str] = []
+        for recipe in norm.derived_attributes:
+            try:
+                log.derive([recipe], overwrite=False)
+            except (wise.NormError, wise.LogSchemaError, KeyError, TypeError, ValueError) as exc:
+                derivation_issues.append(f"derived attribute {recipe.get('name')!r}: {exc}")
+                # A failed replacement must not leave a same-named source or
+                # mapping attribute masquerading as the norm's derived value.
+                name = str(recipe.get("name") or "")
+                if name in log.cases.columns:
+                    log.cases.drop(columns=[name], inplace=True)
+
+        references = {nc.id: tuple(sorted(set(nc.constraint.activities()))) for nc in norm.constraints}
+        labels = {label for refs in references.values() for label in refs}
+        # One pass over the referenced event labels. Sets count distinct cases,
+        # even when a case repeats a label or contains several referenced labels.
+        events = log.events
+        pairs = events.loc[events[log.activity_col].isin(labels), [log.activity_col, log.case_col]].drop_duplicates()
+        activity_cases = {
+            str(label): frozenset(group[log.case_col])
+            for label, group in pairs.groupby(log.activity_col, observed=True)
+        }
+        unions: dict[tuple[str, ...], frozenset[Any]] = {}
+        rows = []
+        for nc in norm.constraints:
+            refs = references[nc.id]
+            issues = list(derivation_issues)
+            in_scope: int | None = None
+            observed: int | None = None
+            try:
+                mask = nc.applies_to(log.cases, log)
+                if not mask.index.equals(log.case_ids) or not pd.api.types.is_bool_dtype(mask.dtype) or mask.isna().any():
+                    raise ValueError("applicability did not return one known boolean per case")
+                in_scope = int(mask.sum())
+                if refs:
+                    if refs not in unions:
+                        unions[refs] = frozenset().union(*(activity_cases.get(label, frozenset()) for label in refs))
+                    observed = len(unions[refs].intersection(log.case_ids[mask.to_numpy(dtype=bool)]))
+            except (wise.NormError, wise.LogSchemaError, KeyError, TypeError, ValueError) as exc:
+                in_scope = observed = None
+                issues.append(f"applicability: {exc}")
+            rows.append(
+                {
+                    "id": nc.id,
+                    "casesInScope": in_scope,
+                    "observedCases": observed,
+                    "missingActivities": [label for label in refs if not activity_cases.get(label)],
+                    "issues": issues,
+                }
+            )
+        return {"cases": len(log), "constraints": rows}
+
     def inventory(
         self,
         *,

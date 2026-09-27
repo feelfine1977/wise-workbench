@@ -142,10 +142,24 @@ def sublog(log: wise.EventLog, mapping: ColumnMapping, case_mask: pd.Series) -> 
     return out
 
 
-def scope_mask(log: wise.EventLog, scope: dict[str, Any] | None) -> pd.Series | None:
+def scope_mask(
+    log: wise.EventLog, scope: dict[str, Any] | None, *, member_ids: list[str] | None = None
+) -> pd.Series | None:
     """Boolean per case for a run scope ``{"flow_type": …}`` or ``{"attribute", "value"}``."""
     if not scope:
         return None
+    membership = pd.Series(True, index=log.case_ids)
+    if scope.get("selection_id") is not None:
+        if member_ids is None:
+            raise ValidationError("Saved selection membership was not resolved", code="selection.unresolved")
+        ids = log.case_ids.astype(str)
+        if len(set(ids)) != len(ids) or not set(member_ids) <= set(ids):
+            raise ValidationError("Saved selection IDs do not match the prepared event log", code="selection.case_ids")
+        membership = pd.Series(ids.isin(member_ids), index=log.case_ids)
+        if scope.get("flow_type") is None and scope.get("value") is None:
+            if not membership.any():
+                raise ValidationError("The saved selection contains no cases", code="run.scope_empty")
+            return membership
     attribute = str(scope.get("attribute") or FLOW_TYPE_ATTRIBUTE)
     value = scope.get("flow_type", scope.get("value"))
     if attribute not in log.cases.columns:
@@ -154,7 +168,7 @@ def scope_mask(log: wise.EventLog, scope: dict[str, Any] | None) -> pd.Series | 
             code="run.scope_attribute",
         )
     col = log.cases[attribute]
-    mask = col.astype(str) == str(value)
+    mask = (col.astype(str) == str(value)) & membership
     if not mask.any():
         raise ValidationError(
             f"no case has {attribute} = {value!r}; values: {sorted(col.dropna().astype(str).unique().tolist())[:20]}",

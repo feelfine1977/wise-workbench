@@ -6,6 +6,7 @@ from typing import Any
 
 from wise_workbench.application.ports import ProgressFn
 from wise_workbench.domain import CaseTableStatus, RunManifest, RunStatus, ValidationError
+from wise_workbench.domain.norm_views import BENCHMARK_POLICY, with_general_benchmark
 from wise_workbench.jobs.queue import JobCancelled
 from wise_workbench.jobs.worker import JobContext
 
@@ -30,12 +31,15 @@ def perform(c: Any, run_id: str, progress: ProgressFn) -> str:
     case_table_dir = c.workspace.case_table_dir(table.project_id, table.id)
     dest = c.workspace.run_dir(run_.project_id, run_.id)
     dest.mkdir(parents=True, exist_ok=True)
+    document = with_general_benchmark(norm.document) if run_.params.general_benchmark == BENCHMARK_POLICY else norm.document
     manifest = c.engine.score_run(
-        run_, case_table_dir, mapping, norm.document, dest, progress, content_hash=dataset.content_hash or ""
+        run_, case_table_dir, mapping, document, dest, progress, content_hash=dataset.content_hash or ""
     )
     done = run_.transition(RunStatus.DONE, manifest=RunManifest.from_dict(manifest), error=None)
     c.repos.update_run(done)
-    c.repos.set_latest_run(run_.project_id, run_.id)
+    # What-if runs stay addressable without replacing the project's observed default.
+    if not (run_.params.scenario or run_.params.transforms):
+        c.repos.set_latest_run(run_.project_id, run_.id)
     from . import analytics
 
     analytics.enqueue(c, run_.project_id, run_.id)

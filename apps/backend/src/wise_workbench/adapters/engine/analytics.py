@@ -628,18 +628,27 @@ COMPARISON_REASONS: dict[str, str] = {
         "No comparison was computed for this group in this run (the analytics compute the top groups first); "
         "open the group to compute it."
     ),
+    "not_computed_for_selection": (
+        "No comparison has been computed for this selection. Stored run-wide comparisons do not describe these selected cases."
+    ),
     "analytics_unavailable": "Comparisons are not computed in this installation (the analytics package is missing).",
     "analytics_error": "The comparison could not be computed for this group.",
 }
 
 
-def comparison_reason(code: str, *, items: str, view: str | None = None, detail: str | None = None) -> dict[str, str]:
+def comparison_reason(
+    code: str, *, items: str, view: str | None = None, detail: str | None = None, selection: bool = False
+) -> dict[str, str]:
     """Why a card or a reason screen carries no comparison sentence, in plain words (R2-05)."""
-    template = COMPARISON_REASONS.get(code, COMPARISON_REASONS["not_computed"])
+    template = (
+        COMPARISON_REASONS["not_computed_for_selection"]
+        if selection
+        else COMPARISON_REASONS.get(code, COMPARISON_REASONS["not_computed"])
+    )
     text = template.format(items=items, view=view or "chosen")
     if detail:
         text = f"{text} {detail}"
-    return {"code": code, "text": text}
+    return {"code": "not_computed" if selection else code, "text": text}
 
 
 # ---------------------------------------------------------------------------- read side: backlog enrichment
@@ -884,7 +893,10 @@ def slice_analytics(
     out: dict[str, Any] = {"record_ids": {}, "readings": [], "comparison_reason": None}
 
     # contrast with intervals
-    c_params = {**base, "B": bootstrap_b}
+    # Include the producer's interval contract so old cached rows are recomputed.
+    from wise_analytics.contrast import CONTRAST_VERSION
+
+    c_params = {**base, "B": bootstrap_b, "contrast_version": CONTRAST_VERSION}
     c_hash = params_hash("contrast_slice", c_params)
     cached = store.load("contrast_slice", c_hash)
     if cached is None:

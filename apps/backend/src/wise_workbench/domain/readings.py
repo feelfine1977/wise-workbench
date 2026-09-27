@@ -1,7 +1,7 @@
 """Reading sentences in plain language.
 
-The vocabulary follows the translation table of the guidance panel
-(``docs/panel/guidance_and_insight_panel.md`` section 2): group, expectation,
+The vocabulary uses the pack guidance contract
+(``packages/process-knowledge/PACK_DESIGN.md``): group, expectation,
 expectation area, shortfall, priority, confidence, kind of problem. The
 method's terms (slice, constraint, layer, gap, PI, hotspot type, stability)
 stay available as aliases so that both vocabularies can be shown. Every

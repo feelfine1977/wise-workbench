@@ -1,6 +1,6 @@
 /**
  * One page of the knowledge hub, in the panel's own template
- * (`docs/panel/knowledge_hub_panel.md` §3), used by the hub route and by the side panel a
+ * (`packages/process-knowledge/PACK_DESIGN.md`), used by the hub route and by the side panel a
  * *What does this mean?* chip opens, so a word means the same thing in both places:
  *
  *   [plain name]                                        [method term]
@@ -258,7 +258,7 @@ export function HubTemplate({ projectId, page, onOpen, compact, className }: Hub
       ) : null}
       <Overlay projectId={projectId} kind={entryKind} entryId={entryId} overlay={page.overlay} />
       {/* a source the reader can go to, never a file of this repository: the page printed
-          "docs/panel/knowledge_hub_panel.md §1 and §5; failure_modes.yaml (p2p)" under every expectation (P1-13) */}
+          "packages/process-knowledge/PACK_DESIGN.md; failure_modes.yaml (p2p)" under every expectation (P1-13) */}
       {!compact && readableSources(g.sources).length ? <p className="text-xs text-text-subtle">Sources: {readableSources(g.sources).join("; ")}</p> : null}
     </article>
   );

@@ -6,15 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { uniqueSlicingId } from "@/lib/api/groupingSuggestions";
 
-const NUMERIC = /^(exposure|n_events|header_event_count|.*(days|hours|count|value|amount|net worth|quantity).*)$/i;
-export const isNumericAttribute = (a: string) => NUMERIC.test(a);
+export const isNumericAttribute = (a: string, types: Record<string, string> = {}) => types[a] === "numeric";
 const NONE = "__none__";
-
-export const slicingId = (attributes: string[]) => attributes.join("+");
 
 export interface SliceDesignerProps {
   attributes: string[];
+  attributeTypes?: Record<string, string>;
   value: SlicingSpecC2[];
   onChange: (next: SlicingSpecC2[]) => void;
   className?: string;
@@ -41,15 +40,19 @@ function SlicingPreviewLine({ projectId, runId, attributes, bands, minCases }: {
  * banded (quantiles or explicit cut points) so that "exposure band × spend area" is one grouping. Rule-based
  * and saved groupings are cycle 3.
  */
-export function SliceDesigner({ attributes, value, onChange, className, preview }: SliceDesignerProps) {
-  const update = (i: number, patch: Partial<SlicingSpecC2>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch, id: slicingId(patch.attributes ?? s.attributes) } : s)));
+export function SliceDesigner({ attributes, value, onChange, className, preview, attributeTypes = {} }: SliceDesignerProps) {
+  const update = (i: number, patch: Partial<SlicingSpecC2>) => {
+    const next = { ...value[i]!, ...patch };
+    next.id = uniqueSlicingId(next, value.filter((_, j) => j !== i));
+    onChange(value.map((s, j) => j === i ? next : s));
+  };
   const setAttribute = (i: number, pos: number, attr: string) => {
     const current = value[i]!;
     const next = [...current.attributes];
-    if (attr === NONE) next.splice(pos, 1);
+    if (attr === NONE) { if (next.length <= 1) return; next.splice(pos, 1); }
     else next[pos] = attr;
     const bands = (current.bands ?? []).filter((b) => next.includes(b.attribute));
-    for (const a of next) if (isNumericAttribute(a) && !bands.some((b) => b.attribute === a)) bands.push({ attribute: a, method: "quantile", q: 4 });
+    for (const a of next) if (isNumericAttribute(a, attributeTypes) && !bands.some((b) => b.attribute === a)) bands.push({ attribute: a, method: "quantile", q: 4 });
     update(i, { attributes: next.filter(Boolean).slice(0, 3), bands: bands.length ? bands : undefined });
   };
   const setBand = (i: number, attr: string, patch: Partial<BandSpec>) => {
@@ -79,20 +82,18 @@ export function SliceDesigner({ attributes, value, onChange, className, preview 
                         .map((a) => (
                           <SelectItem key={a} value={a}>
                             <span className="font-mono text-xs">{a}</span>
-                            {isNumericAttribute(a) && <span className="ml-1 text-xs text-text-subtle">(banded)</span>}
+                            {isNumericAttribute(a, attributeTypes) && <span className="ml-1 text-xs text-text-subtle">(banded)</span>}
                           </SelectItem>
                         ))}
                     </SelectContent>
                   </Select>
+                  {chosen && s.attributes.length > 1 && <Button variant="ghost" size="iconSm" aria-label={`Remove ${chosen} from grouping ${i + 1}`} onClick={() => setAttribute(i, pos, NONE)}><X /></Button>}
                 </span>
               );
             })}
-            <span className="ml-auto font-mono text-[11px] text-text-subtle">{s.id}</span>
-            {value.length > 1 && (
-              <Button variant="ghost" size="iconSm" aria-label={`Remove grouping ${i + 1}`} onClick={() => onChange(value.filter((_, j) => j !== i))}>
-                <X />
-              </Button>
-            )}
+            <Button variant="ghost" size="iconSm" className="ml-auto" aria-label={`Remove grouping ${i + 1}`} onClick={() => onChange(value.filter((_, j) => j !== i))}>
+              <X />
+            </Button>
           </div>
           {preview && <SlicingPreviewLine projectId={preview.projectId} runId={preview.runId} attributes={s.attributes} bands={s.bands} minCases={preview.minCases} />}
           {(s.bands ?? []).map((b) => (
@@ -117,7 +118,11 @@ export function SliceDesigner({ attributes, value, onChange, className, preview 
           ))}
         </div>
       ))}
-      <Button variant="outline" size="sm" className="self-start" disabled={value.length >= 6} onClick={() => onChange([...value, { id: attributes[0] ?? "", attributes: attributes[0] ? [attributes[0]] : [] }])}>
+      <Button variant="outline" size="sm" className="self-start" disabled={!attributes.length} onClick={() => {
+        const a = attributes.find((name) => !value.some((s) => s.attributes.length === 1 && s.attributes[0] === name)) ?? attributes[0]!;
+        const next: SlicingSpecC2 = { attributes: [a], bands: isNumericAttribute(a, attributeTypes) ? [{ attribute: a, method: "quantile", q: 4 }] : [] };
+        onChange([...value, { ...next, id: uniqueSlicingId(next, value) }]);
+      }}>
         <Plus aria-hidden />
         another grouping
       </Button>

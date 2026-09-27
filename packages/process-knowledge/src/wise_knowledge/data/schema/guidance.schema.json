@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://wise-workbench.local/schema/guidance.schema.json",
   "title": "Stakeholder guidance for layers, expectations (template constraints) and failure modes",
-  "description": "The generic tier of the knowledge hub (docs/panel/knowledge_hub_panel.md §1). One entry per layer of the pack, per constraint of the pack's templates and per failure mode. Every entry carries the same blocks: what it is called, what is expected, what it means when missed, why it matters, how it is detected, usual reasons (each in the log with a check, or outside the log with whom to ask), usual actions (each with a countermeasure type, owner role and effect area), what to check first, examples, KPIs, owner, stakeholders, sources, review status and version.",
+  "description": "The generic tier of the knowledge hub (packages/process-knowledge/PACK_DESIGN.md). One entry per layer of the pack, per constraint of the pack's templates and per failure mode. Every entry carries the same blocks: what it is called, what is expected, what it means when missed, why it matters, how it is detected, usual reasons (each in the log with a check, or outside the log with whom to ask), usual actions (each with a countermeasure type, owner role and effect area), what to check first, examples, KPIs, owner, stakeholders, sources, review status and version.",
   "type": "object",
   "required": ["pack", "version", "review_status", "layers", "constraints", "failure_modes"],
   "properties": {

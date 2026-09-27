@@ -144,7 +144,9 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     const share = (v: number) => Math.max(0, Math.min(1, v));
     const groupShares = bins.map((b) => share(nGroup > 0 ? (b.n ?? 0) / nGroup : 0));
     const restBars = restShares?.map(share);
-    const maxShare = Math.min(1, Math.max(0.0001, ...groupShares, ...(restBars ?? [])));
+    const observedMax = Math.max(0.0001, ...groupShares, ...(restBars ?? []));
+    const magnitude = 10 ** Math.floor(Math.log10(observedMax));
+    const maxShare = Math.min(1, Math.ceil(observedMax / magnitude) * magnitude);
     const lo = direction === "high" ? t : t - w;
     const hi = direction === "high" ? t + w : t;
     const bar = (name: string, shares: number[], color: string, opacity: number, z: number) => ({
@@ -171,12 +173,12 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     if (restBars) series.push(bar("everyone else", restBars, tk.muted, 0.6, 1));
     series.push({
       ...bar(groupName, groupShares, tk.accent, restShares ? 0.85 : 0.9, 2),
-      markArea: { silent: true, itemStyle: { color: tk.violation[1], opacity: 0.3 }, label: { show: true, position: "insideTop", color: tk.muted, fontSize: 11, formatter: plain ? `tolerance to ${fmtNum(hi, 0)} ${unitWord}` : `ϑ … ϑ${direction === "high" ? "+" : "−"}W` }, data: [[{ xAxis: lo }, { xAxis: hi }]] },
+      markArea: { silent: true, itemStyle: { color: tk.violation[1], opacity: 0.3 }, label: { show: false }, data: [[{ xAxis: lo }, { xAxis: hi }]] },
       markLine: {
         silent: true,
         symbol: "none",
         lineStyle: { color: tk.reference, type: "dashed", width: 1.5 },
-        label: { formatter: (p: { name: string }) => p.name, position: "insideEndTop", fontSize: 11 },
+        label: { show: false },
         data: [{ xAxis: t, name: plain ? `expected ${direction === "high" ? "≤" : "≥"} ${fmtNum(t, t >= 10 ? 0 : 1)} ${unitWord}` : `ϑ = ${fmtNum(t, 2)}` }],
       },
     });
@@ -185,7 +187,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
     }
     return {
       animation: false,
-      grid: { left: 62, right: cumulative ? 56 : 24, top: 44, bottom: 48 },
+      grid: { left: 62, right: cumulative ? 68 : 32, top: 40, bottom: 56 },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "line" },
@@ -202,13 +204,13 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           return lines.join("<br/>");
         },
       },
-      legend: { top: 0, right: 8, data: [...(restShares ? ["everyone else"] : []), groupName, ...(cumulative ? ["cumulative"] : [])] },
+      legend: { show: false },
       // every tick is formatted: the axis printed 0.0374236111111111 where the values are small (R3-16)
-      xAxis: { type: "value", name: unitLabel ?? unitWord, nameLocation: "middle", nameGap: 30, min: xMin, max: xMax, axisLabel: { formatter: (v: number) => tick(v) } },
+      xAxis: { type: "value", name: unitLabel ?? unitWord, nameLocation: "middle", nameGap: 34, min: xMin, max: xMax, splitNumber: 5, axisLabel: { hideOverlap: true, fontSize: 13, formatter: (v: number) => tick(v) } },
       yAxis: [
         // the y-axis is labelled with the run's own noun, and its title sits above the plot rather than
         // rotated across it
-        { type: "value", name: `share of ${noun}`, nameLocation: "end", nameTextStyle: { align: "left" }, nameGap: 14, max: maxShare, splitLine: { show: true }, axisLabel: { formatter: (v: number) => fmtPct(v, v < 0.01 ? 1 : 0) } },
+        { type: "value", name: "Share of measured items", nameLocation: "end", nameTextStyle: { align: "left", fontSize: 13 }, nameGap: 16, max: maxShare, splitNumber: 4, splitLine: { show: true }, axisLabel: { fontSize: 13, formatter: (v: number) => fmtPct(v, v < 0.01 ? 1 : 0) } },
         ...(cumulative ? [{ type: "value" as const, name: "cumulative", min: 0, max: 1, position: "right" as const, splitLine: { show: false }, axisLabel: { formatter: (v: number) => fmtPct(v) } }] : []),
       ],
       series,
@@ -239,9 +241,9 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
           onDragEnd(this.x + 6);
         },
         children: [
-          { type: "rect", shape: { x: 0, y: 0, width: 12, height: h - 80 }, style: { fill: "transparent" } },
+          { type: "rect", shape: { x: 0, y: 0, width: 12, height: h - 92 }, style: { fill: "transparent" } },
           { type: "rect", shape: { x: 3, y: 0, width: 6, height: 14, r: 2 }, style: { fill: tk.reference } },
-          { type: "text", x: 6, y: -12, style: { text: label, fill: tk.muted, fontSize: 10, textAlign: "center" } },
+          { type: "text", x: 6, y: -12, style: { text: label, fill: tk.muted, fontSize: 12, textAlign: "center" } },
         ],
       });
       chart.setOption(
@@ -267,10 +269,18 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
   useEffect(() => {
     if (!instance) return;
     const raf = requestAnimationFrame(() => positionHandles(instance));
-    const onResize = () => positionHandles(instance);
+    let resizeFrame = 0;
+    const onResize = () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => positionHandles(instance));
+    };
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(onResize);
+    observer?.observe(instance.getDom());
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(resizeFrame);
+      observer?.disconnect();
       window.removeEventListener("resize", onResize);
     };
   }, [instance, positionHandles, option]);
@@ -282,18 +292,18 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
   const fmtStat = (k: string, v: number) => (/^share|^meanViolation|^ecdf/.test(k) ? fmtPct(v, 1) : k === "n" || k === "nCases" ? fmtInt(v) : `${fmtNum(v, v >= 10 ? 0 : 1)} ${unitWord}`);
   const controls = (
     <div className="flex flex-wrap items-end gap-3">
-      <Field label={`ϑ threshold (${unit})`} htmlFor={`${idBase}-t`}>
+      <Field label={`Target (${unitWord || "value"})`} htmlFor={`${idBase}-t`}>
         <Input id={`${idBase}-t`} type="number" step={step} value={t} className="w-28" onChange={(e) => set({ threshold: Number(e.target.value), width: w })} />
       </Field>
-      <Field label={`W width (${unit})`} htmlFor={`${idBase}-w`}>
+      <Field label={`Tolerance width (${unitWord || "value"})`} htmlFor={`${idBase}-w`}>
         <Input id={`${idBase}-w`} type="number" step={step} min={0} value={w} className="w-28" onChange={(e) => set({ threshold: t, width: Number(e.target.value) })} />
       </Field>
       <label className="flex items-center gap-2 text-xs text-text-muted">
-        <span>ϑ</span>
+        <span>Target</span>
         <input type="range" aria-label="threshold slider" min={xMin} max={xMax} step={step} value={t} onChange={(e) => set({ threshold: Number(e.target.value), width: w })} className="w-40 accent-[var(--color-accent)]" />
       </label>
       <label className="flex items-center gap-2 text-xs text-text-muted">
-        <span>W</span>
+        <span>Tolerance</span>
         <input type="range" aria-label="width slider" min={0} max={Math.max(step, xMax - xMin)} step={step} value={w} onChange={(e) => set({ threshold: t, width: Number(e.target.value) })} className="w-40 accent-[var(--color-accent)]" />
       </label>
       {dirty && <span className="text-xs text-warning">exploring: not saved</span>}
@@ -307,7 +317,8 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
 
   // a yes/no signal (every value 0 or 1, a prepared flag scored as a metric): two shares side by side say it;
   // a histogram over -0.5 … 1.5 with a tolerance band and "expected ≤ 0.0 e5_open_older_than_year" did not
-  if (distribution.binary && total(distribution) > 0) {
+  // Calibration needs the numeric signal and editable target even when all observed values are 0/1.
+  if (distribution.binary && total(distribution) > 0 && !(onCommit && showSliders)) {
     // exact shares from the stats: the ECDF estimate used for the histogram reads a 0/1 signal as "all beyond
     // 0" and drew everyone else at 100 % beside a sentence saying 33 %
     const exact = (d: Distribution) => (typeof d.stats?.shareViolated === "number" ? (d.stats.shareViolated as number) : undefined);
@@ -319,19 +330,19 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
       animation: false,
       grid: { left: 140, right: 56, top: 12, bottom: 44 },
       xAxis: { type: "value", min: 0, max: 1, axisLabel: { formatter: (v: number) => fmtPct(v, 0) }, name: `share of ${noun} that miss it`, nameLocation: "middle", nameGap: 28 },
-      yAxis: { type: "category", data: rows.map((r) => r.name).reverse(), axisLabel: { width: 120, overflow: "truncate" } },
+      yAxis: { type: "category", data: rows.map((r) => r.name).reverse(), axisLabel: { width: 120, overflow: "break", fontSize: 13 } },
       tooltip: { trigger: "axis", formatter: (params: unknown) => (params as Array<{ name: string; value: number }>).map((p) => `${p.name}: ${fmtPct(p.value, 1)}`).join("<br/>") },
       series: [
         {
           type: "bar",
           data: rows.map((r, i) => ({ value: r.share, itemStyle: { color: i === 0 ? tk.accent : tk.muted, opacity: i === 0 ? 0.9 : 0.6 } })).reverse(),
           barMaxWidth: 28,
-          label: { show: true, position: "right", formatter: (p: { value: number }) => fmtPct(p.value, 0), color: tk.muted, fontSize: 11 },
+          label: { show: true, position: "right", formatter: (p: { value: number }) => fmtPct(p.value, 0), color: tk.muted, fontSize: 13 },
         },
       ],
     };
     return (
-      <section className={cn("flex flex-col gap-3", className)} aria-label={title ?? `Shares of ${constraintId ?? "signal"}`} data-testid="lens-binary">
+      <section className={cn("min-w-0 flex flex-col gap-3", className)} aria-label={title ?? `Shares of ${constraintId ?? "signal"}`} data-testid="lens-binary">
         <header className="flex flex-col gap-1">
           {title && <h3 className="text-sm font-semibold">{title}</h3>}
           <div className="reading flex flex-col gap-0.5 text-base text-text" data-testid="lens-sentences">
@@ -342,7 +353,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
             )}
           </div>
         </header>
-        <EChart option={binaryOption} height={Math.min(height, 60 + rows.length * 44)} ariaLabel={`${title ?? "Shares"}: ${rows.map((r) => `${r.name} ${fmtPct(r.share, 0)}`).join(", ")}`} notMerge={false} />
+        <EChart option={binaryOption} height={Math.max(180, 90 + rows.length * 56)} ariaLabel={`${title ?? "Shares"}: ${rows.map((r) => `${r.name} ${fmtPct(r.share, 0)}`).join(", ")}`} notMerge={false} />
         <p className="text-xs text-text-subtle">
           A yes/no expectation: each {noun.replace(/s$/, "")} either meets it or misses it, so the comparison is the share that misses it. {fmtInt(nGroup)} {noun} of {groupName} have a value{elseShare !== undefined ? `; ${fmtInt(nRest)} elsewhere` : ""}.
         </p>
@@ -384,7 +395,7 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
   }
 
   return (
-    <section className={cn("flex flex-col gap-3", className)} aria-label={title ?? `Distribution of ${constraintId ?? "signal"}`}>
+    <section className={cn("min-w-0 flex flex-col gap-3", className)} aria-label={title ?? `Distribution of ${constraintId ?? "signal"}`}>
       <header className="flex flex-col gap-1">
         {title && <h3 className="text-sm font-semibold">{title}</h3>}
         {plain ? (
@@ -418,6 +429,15 @@ export function DistributionLens({ distribution, rest, title, constraintId, dire
       </header>
       {!stats.shareIsExact && <p className="text-xs text-text-muted">This percentage is estimated from the displayed distribution.{onCommit && " Save the threshold to calculate it for this norm version."}</p>}
       {sliders === "always" && controls}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" aria-label="Chart legend">
+        <span className="inline-flex items-center gap-2"><span aria-hidden className="h-3 w-3 rounded-sm" style={{ background: tk.accent }} />{groupName}</span>
+        {restShares && <span className="inline-flex items-center gap-2"><span aria-hidden className="h-3 w-3 rounded-sm" style={{ background: tk.muted }} />Everyone else</span>}
+        {cumulative && <span>Cumulative share uses the right axis</span>}
+      </div>
+      <p className="rounded-md bg-surface-sunken px-3 py-2 text-sm" aria-live="polite" data-testid="lens-target-summary">
+        <strong>Target:</strong> {direction === "high" ? "at most" : "at least"} {tick(t)} {unitWord} · <strong>Full penalty:</strong> {tick(direction === "high" ? t + w : t - w)} {unitWord}.
+        {w > 0 && " The shaded band is the gradual increase in penalty."}
+      </p>
       <EChart ref={chartRef} option={option} height={height} ariaLabel={`${title ?? "Distribution"} for ${groupName}${restShares ? " and everyone else" : ""}; expected ${fmtNum(t, 2)} ${unitWord}, tolerance ${fmtNum(w, 2)} ${unitWord}`} onReady={setInstance} notMerge={false} />
       <p className="text-xs text-text-subtle">
         {groupName}{restShares ? " against everyone else" : ""}, {fmtInt(stats.n)} {noun} with a value

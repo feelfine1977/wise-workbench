@@ -11,7 +11,7 @@ const enc = encodeURIComponent;
 const IMMUTABLE = 1000 * 60 * 30;
 
 const flowKeys = {
-  flowFocused: (p: string, r: string, slicing: string | undefined, sliceKey: string | undefined, focus: string, filter: string | undefined) => ["projects", p, "runs", r, "flow", "focus", slicing ?? "", sliceKey ?? "", focus, filter ?? ""] as const,
+  flowFocused: (p: string, r: string, slicing: string | undefined, sliceKey: string | undefined, focus: string, filter: string | undefined, abstraction: number) => ["projects", p, "runs", r, "flow", "focus", slicing ?? "", sliceKey ?? "", focus, filter ?? "", abstraction] as const,
 };
 
 export type FlowPaths = S["FlowPaths"];
@@ -31,9 +31,9 @@ export interface ActivityPaths {
 export const flowFocusedQuery = (projectId: string, runId: string, params: { slicing?: string; sliceKey?: string; focus: string; filter?: Filter; abstraction?: number }) => {
   const f = filterParam(params.filter);
   return queryOptions({
-    queryKey: flowKeys.flowFocused(projectId, runId, params.slicing, params.sliceKey, params.focus, f),
+    queryKey: flowKeys.flowFocused(projectId, runId, params.slicing, params.sliceKey, params.focus, f, params.abstraction ?? 0),
     queryFn: () =>
-      http.get<FlowGraph>(`/projects/${enc(projectId)}/runs/${enc(runId)}/flow`, { slicing: params.slicing, sliceKey: params.sliceKey, focus: params.focus, filter: f, abstraction: params.abstraction ?? 0.05 }),
+      http.get<FlowGraph>(`/projects/${enc(projectId)}/runs/${enc(runId)}/flow`, { slicing: params.slicing, sliceKey: params.sliceKey, focus: params.focus, filter: f, abstraction: params.abstraction ?? 0 }),
     staleTime: IMMUTABLE,
   });
 };

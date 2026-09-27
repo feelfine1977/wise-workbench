@@ -7,6 +7,9 @@ import {
   NODE_WIDTH,
   abstractAt,
   activitiesAt,
+  activitiesByCount,
+  abstractToActivities,
+  clampActivityCount,
   boundsOf,
   drawnNodeBox,
   fittedZoom,
@@ -249,5 +252,140 @@ describe("every text on the canvas, and the room the drawing needs (P1-4, P1-5)"
     // the routes belong to the layout the engine chose; spread by ten they describe nothing, and the lanes
     // drawn around them made the fit small
     expect(withoutRoutes(positions)?.edges.e1?.points).toEqual([]);
+  });
+});
+
+
+it("reserves multiple lines for full business activity names at ordinary map zoom", () => {
+  for (const zoom of [0.5, 0.6, 0.7, 0.9]) {
+    const box = drawnNodeBox(labelUnitsAt(zoom));
+    expect(box.chars).toBeGreaterThanOrEqual("Create Purchase Order Item".length);
+    expect(box.chars).toBeGreaterThanOrEqual("Change Approval for Purchase Order".length);
+    expect(box.width).toBeLessThan(CELL_WIDTH);
+  }
+});
+
+
+it("retains the common route when a rare cohort produces many repeated transitions", () => {
+  const graph = {
+    nodes: [{ id: "a", kind: "activity", metrics: { cases: 100 } }, { id: "b", kind: "activity", metrics: { cases: 100 } }],
+    edges: [{ id: "common", kind: "follows", source: "a", target: "b", metrics: { cases: 90, count: 90 } }, { id: "repeat", kind: "follows", source: "a", target: "a", metrics: { cases: 1, count: 10000 } }],
+  };
+  const drawn = abstractAt(graph, 2);
+  expect(drawn.edges.map((e) => e.id)).toContain("common");
+  expect(DETAIL[2]?.abstraction.edgeMetric).toBe("cases");
+});
+
+
+describe("recorded connections across detail levels", () => {
+  it("shows every supplied activity and observed edge at maximum detail, including rare returns and loops", () => {
+    const graph: Scene = {
+      nodes: [
+        { id: "order", kind: "activity", metrics: { cases: 14498 } },
+        { id: "confirmation", kind: "activity", metrics: { cases: 741 } },
+        { id: "receipt", kind: "activity", metrics: { cases: 13000 } },
+        { id: "rare", kind: "activity", metrics: { cases: 1 } },
+      ],
+      edges: [
+        { id: "order-receipt", kind: "follows", source: "order", target: "receipt", metrics: { cases: 12000, count: 13000 } },
+        { id: "order-confirmation", kind: "follows", source: "order", target: "confirmation", metrics: { cases: 718, count: 718 } },
+        { id: "confirmation-receipt", kind: "follows", source: "confirmation", target: "receipt", metrics: { cases: 637, count: 637 } },
+        { id: "receipt-rare", kind: "follows", source: "receipt", target: "rare", metrics: { cases: 1, count: 1 } },
+        { id: "rare-return", kind: "follows", source: "rare", target: "order", metrics: { cases: 1, count: 1 } },
+        { id: "receipt-loop", kind: "follows", source: "receipt", target: "receipt", metrics: { cases: 1, count: 2 } },
+      ],
+    };
+    const before = structuredClone(graph);
+    const full = abstractAt(graph, DETAIL.length - 1);
+    expect(activitiesAt(graph, DETAIL.length - 1)).toHaveLength(4);
+    expect(full.nodes).toEqual(graph.nodes);
+    expect(full.edges).toEqual(graph.edges);
+    expect(graph).toEqual(before);
+  });
+
+  it("restores real incoming and outgoing connections even when a loop or constraint touches the node", () => {
+    const graph: Scene = {
+      nodes: ["a", "b", "c"].map((id) => ({ id, kind: "activity", metrics: { cases: 1000 } })),
+      edges: [
+        { id: "ac", kind: "follows", source: "a", target: "c", metrics: { cases: 1000, count: 1000 } },
+        { id: "bb", kind: "follows", source: "b", target: "b", metrics: { cases: 900, count: 9000 } },
+        { id: "rule", kind: "constraint", source: "b", target: "c", metrics: {} },
+        { id: "ab", kind: "follows", source: "a", target: "b", metrics: { cases: 120, count: 123 } },
+        { id: "bc", kind: "follows", source: "b", target: "c", metrics: { cases: 110, count: 111 } },
+      ],
+    };
+    const coarse = abstractAt(graph, 1);
+    expect(coarse.edges).toContain(graph.edges[3]);
+    expect(coarse.edges).toContain(graph.edges[4]);
+    expect(coarse.edges.find((e) => e.id === "ab")?.metrics).toEqual({ cases: 120, count: 123 });
+    expect(coarse.edges.find((e) => e.id === "bc")?.metrics).toEqual({ cases: 110, count: 111 });
+  });
+
+  it("does not invent a bridge through an omitted activity or a genuinely isolated node", () => {
+    const graph: Scene = {
+      nodes: [
+        ...["a", "b", "isolated"].map((id) => ({ id, kind: "activity", metrics: { cases: 1000 } })),
+        { id: "rare", kind: "activity", metrics: { cases: 1 } },
+      ],
+      edges: [
+        { id: "a-rare", kind: "follows", source: "a", target: "rare", metrics: { cases: 1 } },
+        { id: "rare-b", kind: "follows", source: "rare", target: "b", metrics: { cases: 1 } },
+      ],
+    };
+    const coarse = abstractAt(graph, 1);
+    expect(coarse.nodes.some((n) => n.id === "rare")).toBe(false);
+    expect(coarse.edges).toEqual([]);
+    expect(abstractAt(graph, DETAIL.length - 1).edges).toEqual(graph.edges);
+  });
+});
+
+
+describe("exact activity counts", () => {
+  const graph: Scene = {
+    nodes: [
+      { id: "start", kind: "event" },
+      { id: "b", kind: "activity", group: "stage", metrics: { cases: 100, events: 9000 } },
+      { id: "rare", kind: "activity", metrics: { cases: 1, events: 99999 } },
+      { id: "a", kind: "activity", group: "stage", metrics: { cases: 100 } },
+      { id: "isolated", kind: "activity", metrics: { cases: 0 } },
+      { id: "end", kind: "event" },
+    ],
+    edges: [
+      { id: "start-a", kind: "flow", source: "start", target: "a" },
+      { id: "a-b", kind: "follows", source: "a", target: "b", metrics: { cases: 1, count: 2 } },
+      { id: "a-rare", kind: "follows", source: "a", target: "rare", metrics: { cases: 1 } },
+      { id: "rare-b", kind: "follows", source: "rare", target: "b", metrics: { cases: 1 } },
+      { id: "loop", kind: "follows", source: "b", target: "b", metrics: { cases: 1, count: 9000 } },
+      { id: "b-end", kind: "flow", source: "b", target: "end" },
+    ],
+    groups: [{ id: "stage", kind: "stage" }],
+    overlays: [{ kind: "badge", target: "rare" }, { kind: "arc", target: "rule", payload: { source: "a", target: "rare" } }],
+  };
+  it("adds exactly one activity in stable case-frequency order, including ties and structural nodes", () => {
+    const before = structuredClone(graph);
+    const ranking = ["a", "b", "rare", "isolated"];
+    for (let count = 1; count <= ranking.length; count++) {
+      const ids = activitiesByCount(graph, count);
+      expect(ids).toEqual(ranking.slice(0, count));
+      expect(activitiesByCount({ ...graph, nodes: [...graph.nodes].reverse() }, count)).toEqual(ids);
+      const scene = abstractToActivities(graph, ids);
+      expect(scene.nodes.filter((node) => node.kind === "activity")).toHaveLength(count);
+      expect(scene.nodes.filter((node) => node.kind === "event")).toHaveLength(2);
+      expect(scene.edges.every((edge) => graph.edges.includes(edge))).toBe(true);
+    }
+    expect(graph).toEqual(before);
+  });
+  it("retains rare links and loops without projecting paths, and restores the entire graph at maximum", () => {
+    const partial = abstractToActivities(graph, activitiesByCount(graph, 2));
+    expect(partial.edges.map((edge) => edge.id)).toEqual(["start-a", "a-b", "loop", "b-end"]);
+    expect(partial.overlays).toEqual([]);
+    expect(partial.groups).toEqual(graph.groups);
+    const withoutDirectLink = { ...graph, edges: graph.edges.filter((edge) => edge.id !== "a-b") };
+    expect(abstractToActivities(withoutDirectLink, ["a", "b"]).edges.some((edge) => edge.source === "a" && edge.target === "b")).toBe(false);
+    expect(abstractToActivities(graph, activitiesByCount(graph, 4))).toBe(graph);
+  });
+  it("clamps boundaries and handles empty graphs", () => {
+    expect([-5, 0, 1, 2.6, 100, NaN, Infinity].map((count) => clampActivityCount(count, 4))).toEqual([1, 1, 1, 3, 4, 1, 1]);
+    expect(activitiesByCount({ nodes: [{ id: "start", kind: "event" }], edges: [] }, 99)).toEqual([]);
   });
 });

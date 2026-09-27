@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { fmtDateTime, fmtInt, fmtPct, fmtShare } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { HypothesisEvidence } from "./HypothesisEvidence";
 
 const GATE_WORDS: Record<string, string> = {
   readiness: "the data is fit to read",
@@ -204,8 +205,8 @@ export function GatePanel({ projectId, runId, slicing, sliceKey, view, filter, w
           {filtered
             ? `These checks describe the selected ${noun}. Recording a reading does not accept a proposal; acceptance requires current, unchanged evidence and all required checks passed or waived.`
             : blocking.length === 0
-            ? "Every check that applies to this group has a reading. A hypothesis can be recorded."
-            : `${blocking.length === 1 ? "One check" : `${blocking.length} checks`} on this group ${blocking.length === 1 ? "has" : "have"} no reading yet. Pass, fail or waive ${blocking.length === 1 ? "it" : "them"} with a note before a hypothesis is recorded.`}
+            ? "No failed check blocks an open hypothesis. Any pending checks must be resolved before a conclusion is recorded."
+            : `${blocking.length === 1 ? "One failed check blocks" : `${blocking.length} failed checks block`} a hypothesis. Resolve the failure or record a justified waiver before saving.`}
         </p>
         <ul className="mt-1 flex flex-col" data-testid="gate-list">
           {list.map((g) => (
@@ -329,7 +330,7 @@ function HypothesisForm({
           {create.isPending ? "Saving…" : "Record the hypothesis"}
         </Button>
       </div>
-      {create.isError && <p className="text-xs text-danger">The hypothesis could not be saved on this backend; nothing was recorded.</p>}
+      {create.isError && <p role="alert" className="text-xs text-danger">The hypothesis could not be saved; nothing was recorded. {create.error instanceof ApiError ? create.error.problem?.detail : "Please retry after checking the connection."}</p>}
     </form>
   );
 }
@@ -347,8 +348,8 @@ function HypothesisList({ projectId, runId, sliceKey }: { projectId: string; run
             <p className="reading text-text">{h.title || (h as { statement_plain?: string }).statement_plain || "A hypothesis"}</p>
             <p className="text-xs text-text-muted">
               {h.status} · {h.author ?? "unnamed"} · {fmtDateTime(h.createdAt)}
-              {typeof (h as { risk_difference?: number }).risk_difference === "number" ? ` · risk difference ${(h as { risk_difference?: number }).risk_difference?.toFixed(3)}` : ""}
             </p>
+            <HypothesisEvidence test={h.test} />
           </li>
         ))}
       </ul>

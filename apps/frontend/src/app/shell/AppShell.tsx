@@ -12,6 +12,7 @@ import { ContextRibbon } from "./ContextRibbon";
 import { HelpDrawer } from "./HelpDrawer";
 import { JobTray } from "./JobTray";
 import { Stepper } from "./Stepper";
+import { ViewBookmarks } from "./ViewBookmarks";
 
 function isEditable(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -68,8 +69,8 @@ export function AppShell() {
           e.preventDefault();
           back.click();
         }
-      } else if (e.altKey && !e.metaKey && !e.ctrlKey && /^Digit[1-7]$/.test(e.code) && !isEditable(e.target)) {
-        // Alt+1 … Alt+7 jump to the steps of the analysis path.
+      } else if (e.altKey && !e.metaKey && !e.ctrlKey && /^Digit[1-6]$/.test(e.code) && !isEditable(e.target)) {
+        // Alt+1 … Alt+6 jump to the steps of the analysis path.
         const index = e.code.slice(5);
         const step = document.querySelector<HTMLElement>(`[data-testid='stepper'] [data-step-index='${index}'] a, [data-testid='stepper'] [data-step-index='${index}'] button`);
         if (step) {
@@ -103,6 +104,12 @@ export function AppShell() {
       </a>
       <ContextRibbon ctx={ctx} />
       <Stepper ctx={ctx} />
+      <ViewBookmarks ctx={ctx} />
+      {ctx.isScenario && (
+        <div role="status" className="shrink-0 border-b border-warning bg-warning-subtle px-8 py-2 text-sm text-text" data-testid="scenario-banner">
+          <strong>Hypothetical scenario.</strong> Results use changed assumptions or events. They do not show an observed improvement.
+        </div>
+      )}
       {mode === "guided" && (
         <div className="border-b border-border bg-accent-subtle px-8 py-1.5 text-xs text-accent-text" data-testid="guided-banner">
           <span className="mx-auto flex w-full max-w-[1424px] flex-wrap items-center gap-3">

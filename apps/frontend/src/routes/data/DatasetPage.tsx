@@ -11,6 +11,11 @@ import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProcessPrimer } from "./ProcessPrimer";
+import { useBindProjectDataset } from "@/lib/api/projectBinding";
+import { analysisKey, draftSelection, emptyAnalysisDraft, useAnalysisSelection } from "@/lib/stores/analysisSelection";
+import { AnalysisSelectionBar } from "./AnalysisSelectionBar";
+import { DataExploration } from "./DataExploration";
 import { YourProcess } from "../flow/YourProcess";
 import { ReadinessDecisions } from "./ReadinessDecisions";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +25,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { datasetCatalogueQuery } from "@/lib/api/dataset-catalogue";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { caseTableQuery, datasetQuery, mappingSuggestionQuery, useCreateMapping, useJob } from "@/lib/queries";
 
@@ -113,9 +119,21 @@ export default function DatasetPage() {
   const navigate = useNavigate();
   const track = useTrackJob(ctx.projectId);
   const dataset = useQuery(datasetQuery(ctx.projectId, datasetId));
-  const caseTable = useQuery({ ...caseTableQuery(ctx.projectId, search.caseTable ?? ""), enabled: !!search.caseTable });
+  const catalogue = useQuery(datasetCatalogueQuery(ctx.projectId));
+  const publishedContext = catalogue.data?.projects.find((p) => p.id === ctx.projectId)?.datasets.find((d) => d.id === datasetId)?.context;
+  // A known challenge's process takes priority over a project's chosen knowledge pack.
+  const primerProcess = publishedContext?.title ?? (/bpi.?c|bpi.?challenge/i.test(dataset.data?.name ?? "") ? dataset.data?.name : ctx.project?.process ?? undefined);
+  const selectedTableId = search.caseTable ?? (ctx.caseTable?.datasetId === datasetId ? ctx.caseTable.id : undefined);
+  const caseTable = useQuery({ ...caseTableQuery(ctx.projectId, selectedTableId ?? ""), enabled: !!selectedTableId });
   const suggestion = useQuery({ ...mappingSuggestionQuery(ctx.projectId, datasetId), enabled: dataset.data?.status === "ready" });
   const create = useCreateMapping(ctx.projectId, datasetId);
+  const bindDataset = useBindProjectDataset(ctx.projectId);
+  const selectionKey = analysisKey(ctx.projectId, datasetId, selectedTableId ?? "");
+  const analysisSelection = useAnalysisSelection((s) => s.entries[selectionKey]);
+  const unsavedSelection = !analysisSelection?.savedId && Object.keys(draftSelection(analysisSelection?.draft ?? emptyAnalysisDraft)).length > 0;
+  const isBoundDataset = ctx.datasetBinding?.datasetId === datasetId;
+  const differentDataset = Boolean(ctx.datasetBinding?.datasetId && !isBoundDataset);
+
 
   const columns = useMemo(() => (dataset.data?.columns ?? []).map((c) => c.name).filter((n): n is string => !!n), [dataset.data]);
   const [form, setForm] = useState<ColumnMapping>({ caseId: "", activity: "", timestamp: "" });
@@ -162,10 +180,12 @@ export default function DatasetPage() {
 
   const isValid = form.caseId && form.activity && form.timestamp;
   const readyCaseTable = caseTable.data;
-  const tab: DatasetTab = readyCaseTable ? search.tab : "mapping";
+  const tab: DatasetTab = readyCaseTable || search.tab === "understand" || search.tab === "overview" ? search.tab : "mapping";
   const setTab = (t: DatasetTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab: t }) });
   const warns = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "warn").length;
   const fails = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "fail").length;
+
+  if (differentDataset) return <Card><CardTitle>This project has a fixed dataset</CardTitle><p className="mt-2 text-sm">Continue with {ctx.projectDataset?.name ?? "the selected project dataset"}. To analyse a different dataset, start a new project.</p><div className="mt-3 flex gap-3"><Button onClick={() => void navigate({ to: "/p/$projectId/data/$datasetId", params: { projectId: ctx.projectId, datasetId: ctx.datasetBinding!.datasetId! }, search: { tab: "overview" } })}>Open project dataset</Button><Button variant="outline" onClick={() => void navigate({ to: "/projects" })}>Projects</Button></div></Card>;
 
   const mappingForm = (
     <QueryState query={dataset} rows={6}>
@@ -307,7 +327,7 @@ export default function DatasetPage() {
             {dataset.data?.name ?? datasetId}
             <HowToReadToggle id="dataset" />
           </h1>
-          {readyCaseTable && (
+          {readyCaseTable && ["readiness", "mapping", "flows"].includes(tab) && (
             <div data-no-capture>
               <FreezeButton projectId={ctx.projectId} screen={tab === "flows" ? "flow-types" : tab === "readiness" ? "readiness" : "mapping"} data={{ caseTable: readyCaseTable.id, readiness: readyCaseTable.readiness }} defaultTitle={`${dataset.data?.name ?? datasetId} · ${tab === "flows" ? "flow types" : tab === "readiness" ? "data caveats" : "column mapping"}`} />
             </div>
@@ -331,32 +351,46 @@ export default function DatasetPage() {
         </HowToRead>
       </header>
 
+      <section aria-label="Project dataset" className="rounded-lg border border-border bg-surface p-4">
+        {isBoundDataset ? <p className="text-sm"><strong>Project dataset fixed:</strong> {dataset.data?.name ?? datasetId}. Norms, runs and analysis use this dataset.</p> : <div className="flex flex-wrap items-center gap-3"><p className="text-sm">Explore this dataset, then keep it as the source for this project.</p><Button disabled={ctx.datasetBindingState !== "unbound" || dataset.data?.status !== "ready" || bindDataset.isPending} onClick={() => bindDataset.mutate(datasetId)}>Use this dataset for project</Button></div>}
+        {bindDataset.isError && <ErrorBlock error={bindDataset.error} />}
+      </section>
       {readyCaseTable && readyCaseTable.status !== "ready" && <p className="text-sm text-text-muted">The case table is {readyCaseTable.status}{readyCaseTable.error ? `: ${readyCaseTable.error}` : ""}.</p>}
       {caseTable.isError && <ErrorBlock error={caseTable.error} />}
-      {caseTable.isPending && search.caseTable && <LoadingBlock rows={2} />}
+      {caseTable.isPending && selectedTableId && <LoadingBlock rows={2} />}
       {create.data && !search.caseTable && <MappingJobFollower jobId={create.data.id} onDone={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />}
 
-      {readyCaseTable ? (
+      {(
         <Tabs value={tab} onValueChange={(v) => setTab(v as DatasetTab)}>
           <TabsList aria-label="Data sections">
-            <TabsTrigger value="readiness">Data caveats{warns ? ` (${warns})` : ""}</TabsTrigger>
-            <TabsTrigger value="flows">Your process</TabsTrigger>
+            <TabsTrigger value="understand">Process guide</TabsTrigger>
             <TabsTrigger value="mapping">Column mapping</TabsTrigger>
+            <TabsTrigger value="readiness" disabled={!readyCaseTable}>Data caveats{warns ? ` (${warns})` : ""}</TabsTrigger>
+            <TabsTrigger value="overview">Explore data</TabsTrigger>
+            <TabsTrigger value="flows" disabled={!readyCaseTable}>Flow types</TabsTrigger>
           </TabsList>
-          <TabsContent value="readiness" className="flex flex-col gap-4">
+          <TabsContent value="understand" className="space-y-4">
+            {publishedContext && <Card><CardTitle>{publishedContext.title}</CardTitle><p className="mt-2 max-w-prose text-sm">{publishedContext.processDescription}</p>
+              {publishedContext.challengeDescription && <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium">Questions from the challenge</summary><p className="mt-2 max-w-prose text-text-muted">{publishedContext.challengeDescription}</p></details>}
+              <p className="mt-3 flex flex-wrap gap-3 text-xs">{publishedContext.sources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="text-accent-text underline">{source.title}</a>)}</p>
+            </Card>}
+            <ProcessPrimer process={primerProcess} />
+          </TabsContent>
+          <TabsContent value="overview">{selectedTableId && caseTable.isPending ? null : selectedTableId && caseTable.isError ? <ErrorBlock error={caseTable.error} retry={() => void caseTable.refetch()} /> : <DataExploration projectId={ctx.projectId} datasetId={datasetId} caseTableId={readyCaseTable?.id} pageMode={search.explore} onPageChange={(explore) => void navigate({ to: ".", search: (s) => ({ ...s, explore }) })} />}</TabsContent>
+          {readyCaseTable && <TabsContent value="readiness" className="flex flex-col gap-4">
             <p className="text-sm text-text-muted" title={`case table ${readyCaseTable.id}${readyCaseTable.mappingId ? ` · mapping ${readyCaseTable.mappingId}` : ""}`}>
               Data readiness: {fails ? `${fails} blocking issue${fails === 1 ? "" : "s"}, ` : ""}
               {warns} caveat{warns === 1 ? "" : "s"} travel with every result until you decide about them.
             </p>
             <ReadinessDecisions readiness={readyCaseTable.readiness} projectId={ctx.projectId} caseTableId={readyCaseTable.id} onRebuilt={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />
-          </TabsContent>
-          <TabsContent value="flows">
-            <YourProcess projectId={ctx.projectId} caseTableId={readyCaseTable.id} runs={ctx.runs} mode="data" caseNoun="cases" />
-          </TabsContent>
+          </TabsContent>}
+          {readyCaseTable && <TabsContent value="flows">
+            <div className="mb-4"><AnalysisSelectionBar projectId={ctx.projectId} datasetId={datasetId} caseTableId={readyCaseTable.id} canRun={isBoundDataset} /></div>
+            {unsavedSelection ? <Card><CardTitle>Keep your custom selection</CardTitle><p className="mt-2 text-sm">Save the filter above to explore its flow types. Your dates and selected bars have been retained.</p><Button className="mt-3" variant="outline" onClick={() => setTab("overview")}>Edit selection in Explore data</Button></Card> : <YourProcess projectId={ctx.projectId} caseTableId={readyCaseTable.id} runs={ctx.runs} mode="data" caseNoun="cases" selectionId={analysisSelection?.savedId} canAnalyse={isBoundDataset} />}
+
+          </TabsContent>}
           <TabsContent value="mapping">{mappingForm}</TabsContent>
         </Tabs>
-      ) : (
-        mappingForm
       )}
     </div>
   );

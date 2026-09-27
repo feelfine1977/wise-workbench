@@ -26,6 +26,10 @@ export const EChart = forwardRef<EChartHandle, EChartProps>(function EChart({ op
   const resolved = resolveTheme(theme);
   const eventsRef = useRef(onEvents);
   eventsRef.current = onEvents;
+  const optionRef = useRef(option);
+  optionRef.current = option;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
 
   useImperativeHandle(ref, () => ({ instance: () => chart.current }), []);
 
@@ -38,11 +42,11 @@ export const EChart = forwardRef<EChartHandle, EChartProps>(function EChart({ op
       chart.current?.dispose();
       const inst = core.init(el.current, resolved === "dark" ? "wise-dark" : "wise-light", { renderer: "canvas" });
       chart.current = inst;
-      inst.setOption({ aria: { enabled: true, label: { enabled: false }, decal: { show: true } }, ...option }, { notMerge: true });
-      for (const [name, handler] of Object.entries(eventsRef.current ?? {})) {
-        inst.on(name, (params: unknown) => handler(params, inst));
+      inst.setOption({ aria: { enabled: true, label: { enabled: false }, decal: { show: true } }, ...optionRef.current }, { notMerge: true });
+      for (const name of Object.keys(eventsRef.current ?? {})) {
+        inst.on(name, (params: unknown) => eventsRef.current?.[name]?.(params, inst));
       }
-      onReady?.(inst);
+      readyRef.current?.(inst);
     });
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => chart.current?.resize()) : undefined;
     ro?.observe(node);
@@ -53,12 +57,11 @@ export const EChart = forwardRef<EChartHandle, EChartProps>(function EChart({ op
       chart.current = undefined;
     };
     // The chart is re-created only when the theme changes; options update in the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved]);
 
   useEffect(() => {
     chart.current?.setOption({ aria: { enabled: true, label: { enabled: false }, decal: { show: true } }, ...option }, { notMerge: notMerge ?? false });
   }, [option, notMerge]);
 
-  return <div ref={el} role="img" aria-label={ariaLabel} className={cn("w-full", className)} style={{ height }} />;
+  return <div ref={el} role="img" aria-label={ariaLabel} className={cn("min-w-0 w-full", className)} style={{ height }} />;
 });

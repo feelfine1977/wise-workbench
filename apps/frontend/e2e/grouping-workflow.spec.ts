@@ -1,0 +1,51 @@
+import { expect, test } from "@playwright/test";
+const API = process.env.E2E_API_URL;
+test.skip(!API, "requires a prepared live workspace");
+const PID = process.env.E2E_PROJECT_ID ?? "prj_0mtoq2jvx8mcfcg6j";
+const RUN = process.env.E2E_RUN_ID ?? "run_0mujjz34x0x1q03eo";
+
+test("custom value grouping survives a detail link, reload and flow navigation", async ({ page, request }) => {
+  const prefix = `${API}/api/v1/projects/${PID}/runs/${RUN}`;
+  const optionsResponse = await request.get(`${prefix}/slicings/options`);
+  expect(optionsResponse.ok()).toBeTruthy();
+  const options = await optionsResponse.json();
+  const suggestion = options.suggestions.find((s: { bands?: unknown[] }) => s.bands?.length);
+  expect(suggestion, "a real numeric grouping on the prepared dataset").toBeTruthy();
+  await page.goto(`/p/${PID}/runs/${RUN}/backlog?view=Logistics`);
+  await page.getByRole("button", { name: "Create or explore groupings" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: suggestion.label, exact: false }).click();
+  await dialog.getByRole("button", { name: "Preview group sizes" }).click();
+  await expect(dialog.getByRole("button", { name: "Use this grouping" })).toBeEnabled({ timeout: 60000 });
+  await dialog.getByRole("button", { name: "Use this grouping" }).click();
+  await expect(page).toHaveURL(/slicing=group/);
+  await expect(page.getByRole("list", { name: "Signals" })).toBeVisible({ timeout: 60000 });
+  const token = new URL(page.url()).searchParams.get("slicing")!;
+  expect(JSON.parse(token.slice(6)).bands.length).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Choose analysis grouping" })).not.toBeEmpty();
+  const backlog = await (await request.get(`${prefix}/backlog`, { params: { slicing: token, view: "Logistics", minCases: 1 } })).json();
+  expect(backlog.rows.length).toBeGreaterThan(0);
+  const row = backlog.rows[0];
+  const graphResponse = await request.get(`${prefix}/flow`, { params: { slicing: token, sliceKey: row.key, abstraction: 0 } });
+  expect(graphResponse.ok()).toBeTruthy();
+  const graph = await graphResponse.json();
+  expect(graph.meta.cases).toBe(row.n_cases);
+  await page.goto(`/p/${PID}/runs/${RUN}/slices/${encodeURIComponent(row.key)}?${new URLSearchParams({ slicing: token, view: "Logistics", tab: "flow" })}`);
+  await expect(page.getByTestId("flow-map")).toBeVisible({ timeout: 60000 });
+  await expect(page.getByText(/Unknown slice attributes|Something went wrong/)).toHaveCount(0);
+});
+
+test("flow scope changes the graph and keeps the map open", async ({ page, request }) => {
+  const runs = await (await request.get(`${API}/api/v1/projects/${PID}/runs`)).json();
+  const current = runs.find((r: { id: string }) => r.id === RUN);
+  const other = runs.find((r: { id: string; status: string; caseTableId: string; normVersionId: string; scope?: { flow_type?: string } }) => r.id !== RUN && r.status === "done" && r.caseTableId === current.caseTableId && r.normVersionId === current.normVersionId && r.scope?.flow_type && r.scope.flow_type !== current.scope?.flow_type);
+  test.skip(!other, "a second completed flow scope is needed");
+  await page.goto(`/p/${PID}/runs/${RUN}/flow?view=Logistics&render=map`);
+  await expect(page.getByTestId("flow-map")).toBeVisible({ timeout: 60000 });
+  await page.getByRole("combobox", { name: "Switch scope" }).click();
+  await page.getByRole("option", { name: `${other.scope.flow_type} only`, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/runs/${other.id}/flow`));
+  await expect(page.getByTestId("flow-map")).toBeVisible({ timeout: 60000 });
+  await expect(page.getByRole("combobox", { name: "Switch scope" })).toHaveText(`${other.scope.flow_type} only`);
+});

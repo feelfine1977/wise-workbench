@@ -19,6 +19,7 @@ from wise_workbench.domain import (
     missing_rationales,
     thresholds_of,
 )
+from wise_workbench.domain.norm_views import with_general_benchmark
 from wise_workbench.ids import new_id
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -61,6 +62,8 @@ class NormService:
         document = _with_calibration(
             document, calibration, not_applicable, author, parent=parent.document if parent else None, pending=pending
         )
+        validated, _ = self.c.engine.validate_norm(document)
+        document = with_general_benchmark(validated)
         canonical, fingerprint = self.c.engine.validate_norm(document)
         canonical.setdefault("metadata", {})
         for block in ("calibration", "not_applicable"):
@@ -242,6 +245,13 @@ class NormService:
             ],
         }
 
+    def templates(
+        self, project_id: str, case_table_id: str, *, label_pack: str | None = None, template_id: str | None = None
+    ) -> dict[str, Any]:
+        from .norm_templates import list_norm_templates
+
+        return list_norm_templates(self.c, project_id, case_table_id, label_pack=label_pack, template_id=template_id)
+
     # ------------------------------------------------------------- norm builder (R3-O6)
     def inventory(
         self,
@@ -312,6 +322,21 @@ class NormService:
             if guidance_ref(process, "layer", lid, document=n.document).plain_name is None:
                 out.append(lid)
         return out
+
+    def relevance(self, project_id: str, norm_version_id: str, case_table_id: str) -> dict[str, Any]:
+        """Dataset-bound descriptive coverage; does not update validation or create run artefacts."""
+        n = self.get(project_id, norm_version_id)
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        if table.status != CaseTableStatus.READY:
+            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        if mapping.dataset_id != table.dataset_id:
+            raise ValidationError("Case table mapping does not match its dataset", code="case_table.mapping_mismatch")
+        self.c.datasets.get(project_id, table.dataset_id)
+        out = self.c.engine.norm_relevance(
+            self.c.workspace.case_table_dir(project_id, table.id), mapping, n.document
+        )
+        return {**out, "normVersionId": n.id, "caseTableId": table.id}
 
     def signals(
         self,

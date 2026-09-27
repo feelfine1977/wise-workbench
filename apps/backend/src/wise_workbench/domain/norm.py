@@ -87,7 +87,7 @@ class NormVersion:
 
 
 # ---------------------------------------------------------------------------- calibration (R3-02)
-THRESHOLD_FIELDS = ("delta", "width", "k", "K", "max", "min", "threshold", "tolerance")
+THRESHOLD_FIELDS = ("delta", "width", "k", "K", "max", "min", "threshold", "tolerance", "tau")
 
 
 def thresholds_of(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -103,19 +103,26 @@ def thresholds_of(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def changed_thresholds(document: dict[str, Any], parent: dict[str, Any] | None) -> list[str]:
-    """Expectations whose threshold or applicability differs from the version this one was written from."""
+    """Threshold decisions remain reusable only while the measured rule is unchanged.
+
+    A new activity, attribute, direction, unit or missing-event policy changes the
+    meaning of a limit even when the number stays the same. Names, layer placement
+    and weights are presentation/aggregation choices and do not reset calibration.
+    """
     if not parent:
         return []
-    here, before = thresholds_of(document), thresholds_of(parent)
-    applicability_here = {str(c.get("id")): c.get("applicability") for c in document.get("constraints") or []}
-    applicability_before = {str(c.get("id")): c.get("applicability") for c in parent.get("constraints") or []}
-    changed = [cid for cid, values in here.items() if before.get(cid) != values]
-    changed += [
-        cid
-        for cid, value in applicability_here.items()
-        if cid in before and applicability_before.get(cid) != value and cid not in changed
-    ]
-    return sorted(set(changed))
+    here = {str(c.get("id")): c for c in document.get("constraints") or []}
+    before = {str(c.get("id")): c for c in parent.get("constraints") or []}
+    numeric = set(thresholds_of(document))
+
+    def definition(c: dict[str, Any]) -> tuple[Any, Any, Any]:
+        return c.get("type"), c.get("params") or {}, c.get("applicability") or {}
+
+    derivations_changed = document.get("derived_attributes", []) != parent.get("derived_attributes", [])
+    return sorted(
+        cid for cid in numeric
+        if derivations_changed or cid not in before or definition(here[cid]) != definition(before[cid])
+    )
 
 
 def missing_rationales(

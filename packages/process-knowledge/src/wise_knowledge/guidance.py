@@ -1,6 +1,6 @@
 """Knowledge hub: guidance pages, hub index and the ``metadata.guidance`` block of norm templates.
 
-The hub is one page per node (``docs/panel/knowledge_hub_panel.md`` §3):
+The hub is one page per node (``packages/process-knowledge/PACK_DESIGN.md``):
 stages, layers (expectation areas), expectations (template constraints),
 failure modes, usual reasons, usual actions and KPIs. Every page follows the
 same template; the generic tier of the text comes from ``guidance.yaml``,
@@ -352,7 +352,7 @@ def build_hub(pack: Pack, lang: str = "en") -> Hub:
 
 # --------------------------------------------------------------------------- page rendering
 def render_page(hub: Hub, node_id: str, lang: str = "en") -> str:
-    """The hub page as text, in the template of knowledge_hub_panel.md §3."""
+    """The hub page as text, in the template of the guidance contract."""
     pack = hub.pack
     page = hub.page(node_id)
     n, g, rel = page["node"], page["guidance"], page["related"]

@@ -221,3 +221,63 @@ class ConstraintCheck(BaseModel):
     note: str | None = None
     caseTableId: str | None = None
     caseNoun: str | None = None
+
+
+class NormRelevanceConstraint(BaseModel):
+    """Descriptive applicability and activity presence; neither violations nor compliance."""
+
+    id: str
+    casesInScope: int | None = Field(ge=0, description="Applicable cases; null when applicability is unavailable")
+    observedCases: int | None = Field(
+        ge=0,
+        description="Distinct in-scope cases with ANY referenced rule activity; null for no activity references or unavailable scope",
+    )
+    missingActivities: list[str] = Field(description="Referenced raw activity labels with zero occurrences in the whole mapped table")
+    issues: list[str]
+
+
+class NormRelevance(BaseModel):
+    normVersionId: str
+    caseTableId: str
+    cases: int = Field(ge=0, description="Total cases in the explicit mapped table")
+    constraints: list[NormRelevanceConstraint]
+
+
+class NormTemplateLabelPack(BaseModel):
+    id: str
+    observedLabels: int
+    totalLabels: int
+
+
+class NormTemplateConstraint(NormRelevanceConstraint):
+    layer: str
+    type: str
+    description: str
+    priority: Literal["normal", "low"]
+
+
+class NormTemplate(BaseModel):
+    id: str
+    name: str
+    description: str
+    source: Literal["process_pack", "configured_norm"]
+    activityLabels: str
+    available: bool
+    reason: str | None
+    norm: dict[str, Any] | None
+    documentHash: str | None
+    warnings: list[str]
+    constraints: list[NormTemplateConstraint]
+    pendingConstraintIds: list[str]
+
+
+class NormTemplateCatalogue(BaseModel):
+    projectId: str
+    process: str | None
+    caseTableId: str
+    datasetId: str
+    labelPack: str | None
+    templateId: str | None
+    cases: int | None
+    labelPacks: list[NormTemplateLabelPack]
+    templates: list[NormTemplate]

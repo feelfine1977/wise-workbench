@@ -1,5 +1,5 @@
 /**
- * One hub node as a page of its own (R3-05): the template of `knowledge_hub_panel.md` §3, with the way
+ * One hub node as a page of its own (R3-05): the template of the guidance contract, with the way
  * back to the hub and the neighbours as links rather than as a panel's buttons.
  */
 import { Link, useNavigate } from "@tanstack/react-router";

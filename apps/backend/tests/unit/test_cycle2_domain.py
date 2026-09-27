@@ -198,7 +198,9 @@ def test_band_edges_labels_and_reserved_columns() -> None:
 
 # ---------------------------------------------------------------------------- filters
 def test_parse_filter_shapes() -> None:
-    assert parse_filter(None) is None and parse_filter("") is None
+    assert parse_filter(None) is None
+    with pytest.raises(ValidationError):
+        parse_filter("")
     single = parse_filter(json.dumps({"kind": "open", "value": True}))
     assert single == {"and": [{"kind": "open", "value": True}]}
     assert parse_filter(json.dumps({"and": []})) == {"and": []}

@@ -1,7 +1,7 @@
 import { LABEL_PX, labelUnitsAt, mapScaleAt, smallLabelUnitsAt } from "@wise/flow";
 
 /**
- * The geometry of the map's frame (`docs/panel/ui_design_cycle3_board.md` §3.2): the detail levels, which of
+ * The geometry of the map's frame (`packages/process-knowledge/PACK_DESIGN.md`): the detail levels, which of
  * them a frame can draw with readable labels, the zoom a fit chooses, and the stretch that makes a wide
  * process graph the shape of its frame. Nothing here reads or writes the DOM, so all of it is testable and
  * none of it can take part in a resize loop.
@@ -30,13 +30,13 @@ export interface Scene {
   overlays?: { kind?: string; target?: string; payload?: unknown }[];
 }
 
-/** One control from "stages only" to "all that fit"; the paths follow the activities (§3.4). */
-export const DETAIL: { label: string; abstraction: { minNodeShare: number; minEdgeShare: number; keepConnected: true; collapse?: "all" } }[] = [
-  { label: "stages only", abstraction: { minNodeShare: 0, minEdgeShare: 0, keepConnected: true, collapse: "all" } },
-  { label: "main activities", abstraction: { minNodeShare: 0.2, minEdgeShare: 0.2, keepConnected: true } },
-  { label: "more activities", abstraction: { minNodeShare: 0.1, minEdgeShare: 0.1, keepConnected: true } },
-  { label: "most activities", abstraction: { minNodeShare: 0.05, minEdgeShare: 0.05, keepConnected: true } },
-  { label: "all that fit", abstraction: { minNodeShare: 0.02, minEdgeShare: 0.03, keepConnected: true } },
+/** One control from "stages only" to all recorded activities and connections; the paths follow the activities (§3.4). */
+export const DETAIL: { label: string; abstraction: { minNodeShare: number; minEdgeShare: number; keepConnected: true; edgeMetric: "cases"; nodeMetric: "cases"; collapse?: "all" } }[] = [
+  { label: "stages only", abstraction: { minNodeShare: 0, minEdgeShare: 0, keepConnected: true, edgeMetric: "cases", nodeMetric: "cases", collapse: "all" } },
+  { label: "main activities", abstraction: { minNodeShare: 0.2, minEdgeShare: 0.2, keepConnected: true, edgeMetric: "cases", nodeMetric: "cases" } },
+  { label: "more activities", abstraction: { minNodeShare: 0.1, minEdgeShare: 0.1, keepConnected: true, edgeMetric: "cases", nodeMetric: "cases" } },
+  { label: "most activities", abstraction: { minNodeShare: 0.05, minEdgeShare: 0.05, keepConnected: true, edgeMetric: "cases", nodeMetric: "cases" } },
+  { label: "all activities and connections", abstraction: { minNodeShare: 0, minEdgeShare: 0, keepConnected: true, edgeMetric: "cases", nodeMetric: "cases" } },
 ];
 export const DEFAULT_DETAIL = 2;
 
@@ -57,6 +57,30 @@ export function activitiesAt(graph: Scene, level: number): string[] {
 /** How many activities a level draws. */
 export function activityCountAt(graph: Scene, level: number): number {
   return activitiesAt(graph, level).length;
+}
+
+/** Frequency order is independent of layout and input order; ties use the stable activity id. */
+export function activitiesByCount(graph: Scene, count: number): string[] {
+  const value = (node: SceneNode) => node.metrics?.cases ?? node.metrics?.events ?? node.metrics?.share ?? 0;
+  const ranked = graph.nodes.filter((node) => node.kind === "activity").sort((a, b) =>
+    value(b) - value(a) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  return ranked.slice(0, clampActivityCount(count, ranked.length)).map((node) => node.id);
+}
+
+/** A non-empty scene always shows at least one activity; structural nodes never count. */
+export function clampActivityCount(count: number, total: number): number {
+  return total === 0 ? 0 : Math.max(1, Math.min(total, Number.isFinite(count) ? Math.round(count) : 1));
+}
+
+/** Keep the chosen activities and every supplied connection between retained endpoints. Never project paths. */
+export function abstractToActivities<G extends Scene>(graph: G, activities: readonly string[]): G {
+  const keep = new Set(activities);
+  const nodes = graph.nodes.filter((node) => node.kind !== "activity" || keep.has(node.id));
+  if (nodes.length === graph.nodes.length) return graph;
+  const ids = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
+  return retainedScene(graph, nodes, edges);
 }
 
 /** Padding the fit leaves: 4 % of the width, 8 % of the height (§3.2). */
@@ -155,28 +179,43 @@ export function readableMaxLevel(graph: Scene, box: { width: number; height: num
  * The scene a detail level draws (§3.4). The level is applied to the graph before it is laid out, so the
  * drawing of a coarse level is a small drawing and its labels are large — a shared layout of every activity
  * would keep the same spread at every level and leave the labels unreadable whatever the level.
- * Structural nodes, constraint and flow edges are kept; an activity that would be left with no path keeps
- * its strongest one, as the library's own abstraction does.
+ * Structural nodes, constraint and flow edges are kept. Retained activities keep their strongest observed
+ * incoming and outgoing connections to retained nodes. Loops do not substitute for those connections.
+ * Missing intermediate activities never become invented direct edges; maximum detail retains the input.
  */
 export function abstractAt<G extends Scene>(graph: G, level: number): G {
   const spec = DETAIL[level]?.abstraction;
-  if (!spec || spec.collapse === "all") return graph;
+  if (!spec || spec.collapse === "all" || (spec.minNodeShare === 0 && spec.minEdgeShare === 0)) return graph;
   const keep = new Set(activitiesAt(graph, level));
   const nodes = graph.nodes.filter((n) => n.kind !== "activity" || keep.has(n.id));
   const ids = new Set(nodes.map((n) => n.id));
   const follows = graph.edges.filter((e) => e.kind === "follows");
-  const value = (e: SceneEdge) => e.metrics?.count ?? e.metrics?.cases ?? 0;
+  const value = (e: SceneEdge) => e.metrics?.cases ?? e.metrics?.count ?? 0;
   const max = Math.max(1, ...follows.map(value));
   const inside = (e: SceneEdge) => ids.has(e.source) && ids.has(e.target);
-  const kept = graph.edges.filter((e) => inside(e) && (e.kind !== "follows" || value(e) / max >= spec.minEdgeShare));
-  const touched = new Set(kept.flatMap((e) => [e.source, e.target]));
-  const extra = spec.keepConnected
-    ? nodes
-        .filter((n) => n.kind === "activity" && !touched.has(n.id))
-        .map((n) => [...follows].filter((e) => inside(e) && (e.source === n.id || e.target === n.id)).sort((a, b) => value(b) - value(a))[0])
-        .filter((e): e is G["edges"][number] => !!e)
-    : [];
-  const edges = [...kept, ...extra.filter((e, i) => !kept.includes(e) && extra.indexOf(e) === i)];
+  const kept = new Set(graph.edges.filter((e) => inside(e) && (e.kind !== "follows" || e.source === e.target || value(e) / max >= spec.minEdgeShare)));
+  if (spec.keepConnected) {
+    const candidates = follows.filter((e) => inside(e) && e.source !== e.target).sort((a, b) => value(b) - value(a));
+    const incoming = new Set(candidates.filter((e) => kept.has(e)).map((e) => e.target));
+    const outgoing = new Set(candidates.filter((e) => kept.has(e)).map((e) => e.source));
+    for (const n of nodes.filter((node) => node.kind === "activity")) {
+      if (!incoming.has(n.id)) {
+        const edge = candidates.find((e) => e.target === n.id);
+        if (edge) { kept.add(edge); incoming.add(edge.target); outgoing.add(edge.source); }
+      }
+      if (!outgoing.has(n.id)) {
+        const edge = candidates.find((e) => e.source === n.id);
+        if (edge) { kept.add(edge); incoming.add(edge.target); outgoing.add(edge.source); }
+      }
+    }
+  }
+  // Preserve original edge objects, metrics and order; no synthesized bridges or summed case counts.
+  const edges = graph.edges.filter((e) => kept.has(e));
+  return retainedScene(graph, nodes, edges);
+}
+
+function retainedScene<G extends Scene>(graph: G, nodes: SceneNode[], edges: SceneEdge[]): G {
+  const ids = new Set(nodes.map((node) => node.id));
   const used = new Set(nodes.map((n) => n.group).filter((g): g is string => !!g));
   const groups = (graph.groups ?? []).filter((g) => used.has(g.id));
   const edgeIds = new Set(edges.map((e) => e.id));
@@ -207,7 +246,7 @@ export const MIN_LABEL_CHARS = 18;
 /** Layout units left between two drawn boxes, so a path can still be seen to arrive at one. */
 const BOX_MARGIN = 16;
 /** The name wraps over at most this many lines; below it the box would be a paragraph, not a label. */
-const MAX_LINES = 3;
+const MAX_LINES = 5;
 /** The item count sits under the name at this share of its size, on a line of its own. */
 const META_LINE = 0.72;
 /** Line height and the padding above and below, in units of the font size and in layout units. */
@@ -254,9 +293,9 @@ export function heightRoom(pairs: { dx: number; dy: number }[], grownX: number):
  * are tried and the one that shows the most characters wins, so a drawing whose activities sit above one
  * another keeps its width and one whose activities sit side by side keeps its height.
  *
- * `chars` is the length of the names to plan for; the acceptance asks for eighteen.
+ * `chars` plans room for a full activity name. Eighteen characters is only the minimum warning threshold; it must not cap the normal label.
  */
-export function drawnNodeBox(units: number, boxes: Box[] = [], chars = 18): { width: number; height: number; lines: number; chars: number } {
+export function drawnNodeBox(units: number, boxes: Box[] = [], chars = 48): { width: number; height: number; lines: number; chars: number } {
   if (units <= LABEL_PX) return { width: NODE_WIDTH, height: NODE_HEIGHT, lines: 1, chars: Math.floor((NODE_WIDTH - LABEL_INSET) / (units * CHAR_WIDTH)) };
   const pairs = boxes.length > 1 ? gapsBetween(boxes) : [];
   const lineHeight = units * LINE_HEIGHT;

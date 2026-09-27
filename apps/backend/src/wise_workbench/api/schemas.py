@@ -28,7 +28,10 @@ from .schema_models.norms import NormCalibration as NormCalibration
 from .schema_models.norms import NormCheck as NormCheck
 from .schema_models.norms import NormCheckConstraint as NormCheckConstraint
 from .schema_models.norms import NormCheckRequest as NormCheckRequest
+from .schema_models.norms import NormRelevance as NormRelevance
+from .schema_models.norms import NormRelevanceConstraint as NormRelevanceConstraint
 from .schema_models.norms import NormStatusUpdate as NormStatusUpdate
+from .schema_models.norms import NormTemplateCatalogue as NormTemplateCatalogue
 from .schema_models.norms import NormVersion as NormVersion
 from .schema_models.norms import NormVersionCreate as NormVersionCreate
 from .schema_models.norms import NotApplicableEntry as NotApplicableEntry
@@ -313,6 +316,13 @@ class SlicingSpec(BaseModel):
 
 
 class RunScope(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    selection_id: str | None = Field(
+        default=None,
+        pattern=r"^sel_[a-z0-9]{17,24}$",
+        description="immutable saved EDA cohort; intersects an optional flow/attribute scope",
+    )
     flow_type: str | None = Field(default=None, description="restrict the run to this flow type of the mapping")
     attribute: str | None = Field(
         default=None, description="the attribute that holds the flow type (default flow_type)"
@@ -329,7 +339,9 @@ class RunCreate(BaseModel):
     minCases: int = 20
     baselineRunId: str | None = None
     note: str | None = None
-    scope: RunScope | None = Field(default=None, description="a sub-log: one flow type (applicability untouched)")
+    scope: RunScope | None = Field(
+        default=None, description="a sub-log: saved EDA cohort and/or one flow type (applicability untouched)"
+    )
 
 
 class RunManifest(BaseModel):
@@ -351,6 +363,7 @@ class RunManifest(BaseModel):
 
 
 class Run(RunCreate):
+    generalBenchmark: str | None = None
     id: str
     scope: dict[str, Any] | None = Field(default=None, description="the run's sub-log scope as recorded")  # type: ignore[assignment]
     status: Literal["queued", "running", "done", "failed", "cancelled"]
@@ -386,6 +399,7 @@ class Run(RunCreate):
             jobId=r.job_id,
             manifest=RunManifest(**r.manifest.to_dict()) if r.manifest else None,
             paramsHash=r.params_hash,
+            generalBenchmark=p.general_benchmark,
             error=r.error,
             createdAt=r.created_at,
             links=links,
@@ -612,6 +626,118 @@ class SliceDetail(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+InvestigationFamily = Literal[
+    "overview", "frequency", "repetition", "timing", "sequence", "boundaries", "identity", "missingness"
+]
+
+
+class InvestigationQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filter: str | None = None
+    family: InvestigationFamily = "overview"
+    activity: str | None = None
+    source: str | None = None
+    target: str | None = None
+    relation: Literal["direct", "eventual"] | None = None
+    limit: int = Field(
+        default=20, ge=1, le=50, description="Maximum profiles per family; overview combines three families"
+    )
+
+
+class InvestigationMetric(BaseModel):
+    id: str
+    label: str
+    value: int | float | None
+    unit: str
+    note: str | None = None
+
+
+class InvestigationRow(BaseModel):
+    label: str
+    metrics: list[InvestigationMetric]
+
+
+class InvestigationParameters(BaseModel):
+    activity: str | None = None
+    source: str | None = None
+    target: str | None = None
+    relation: Literal["direct", "eventual"] | None = None
+
+
+class InvestigationQuestion(BaseModel):
+    id: str
+    family: InvestigationFamily
+    title: str
+    status: Literal["observed", "unavailable"]
+    summary: str
+    measurement: str
+    parameters: InvestigationParameters
+    metrics: list[InvestigationMetric]
+    filter: dict[str, Any] | None = Field(
+        description="Exact inherited-plus-profile case filter, or null: disable all drill links"
+    )
+    limitations: list[str]
+    contextNeeded: list[str]
+    nextCheck: str
+    exampleCaseIds: list[str] = Field(max_length=3)
+    rows: list[InvestigationRow] = Field(default_factory=list, max_length=53)
+
+
+class InvestigationChoiceList(BaseModel):
+    values: list[str] = Field(max_length=100)
+    total: int = Field(ge=0)
+    truncated: bool
+
+
+class InvestigationChoices(BaseModel):
+    activities: InvestigationChoiceList
+    attributes: InvestigationChoiceList
+
+
+class InvestigationQuestions(BaseModel):
+    runId: str
+    caseNoun: str
+    totalCases: int = Field(ge=0, description="Frozen run population, already scoped and transformed")
+    selectedCases: int = Field(ge=0)
+    filter: dict[str, Any] | None = None
+    family: InvestigationFamily
+    choices: InvestigationChoices
+    questions: list[InvestigationQuestion] = Field(max_length=150)
+
+
+class ProcessVariant(BaseModel):
+    id: str = Field(description="SHA-256 of the complete ordered activity sequence")
+    activities: list[str | None] = Field(description="Complete sequence, including loops, repeats and null labels")
+    count: int = Field(ge=1)
+    share: float = Field(ge=0, le=1, description="Count divided by totalSelectedCases, including zero-event cases")
+    medianDurationHours: float | None = Field(description="Observed first-to-last span; descriptive, not savings")
+    durationCases: int = Field(
+        ge=0, description="Cases contributing to the median; all event timestamps must be present"
+    )
+    exampleCaseIds: list[str] = Field(max_length=5)
+
+
+class ProcessVariants(BaseModel):
+    runId: str
+    variants: list[ProcessVariant] = Field(max_length=50)
+    totalSelectedCases: int = Field(ge=0)
+    excludedZeroEventCases: int = Field(
+        ge=0, description="Selected cases without events; excluded from variant grouping"
+    )
+    totalVariants: int = Field(ge=0)
+    coveredCount: int = Field(ge=0, description="Cases covered by the returned top variants only")
+    coverage: float = Field(ge=0, le=1, description="coveredCount / totalSelectedCases, or zero for empty selection")
+    limit: int = Field(ge=1, le=50)
+    exampleLimit: int = Field(ge=1, le=5)
+    ordering: str
+    durationDescription: str
+    scope: dict[str, Any] | None = None
+    filter: dict[str, Any] | None = None
+    slicing: list[str] | None = None
+    sliceKey: list[Any] | None = None
+
+
 class TraceEvent(BaseModel):
     activity: str | None = None
     canonicalId: str | None = None
@@ -663,7 +789,10 @@ class Distribution(BaseModel):
     width: float | None = None
     saturation: float | None = Field(default=None, description="δ + W")
     scale: Literal["linear", "log"] = "linear"
-    binary: bool = Field(default=False, description="every value is 0 or 1: a yes/no signal, read as shares of cases rather than as a histogram")
+    binary: bool = Field(
+        default=False,
+        description="every value is 0 or 1: a yes/no signal, read as shares of cases rather than as a histogram",
+    )
     markers: list[DistributionMarker] = Field(default_factory=list)
     stats: dict[str, Any] = Field(default_factory=dict)
     slice: dict[str, Any] | None = None
@@ -763,7 +892,10 @@ class FlowType(BaseModel):
     activities: int
     map: FlowGraph
     readiness: FlowTypeReadiness
-    note: str | None = Field(default=None, description="what this flow type is (from the mapping's rule); a data-quality variant says so here")
+    note: str | None = Field(
+        default=None,
+        description="what this flow type is (from the mapping's rule); a data-quality variant says so here",
+    )
     scope: dict[str, Any] = Field(description="the run scope that analyses this flow type alone")
 
 
@@ -776,6 +908,7 @@ class AbsentFlowType(BaseModel):
 
 
 class FlowTypes(BaseModel):
+    selectionId: str | None = None
     caseTableId: str
     attribute: str
     source: Literal["mapping", "attribute"]
@@ -897,6 +1030,30 @@ class FilterPreview(BaseModel):
     filter: dict[str, Any] | None = None
 
 
+class SlicingAttribute(BaseModel):
+    name: str
+    type: Literal["categorical", "numeric"]
+    distinct: int = Field(ge=0, description="Distinct nonmissing values among this run's cases")
+    missing: int = Field(ge=0, description="Cases without a usable value")
+    description: str | None = None
+
+
+class SlicingSuggestion(BaseModel):
+    id: str = Field(description="Self-contained group: JSON token, usable as the slicing query parameter")
+    label: str
+    description: str
+    attributes: list[str]
+    bands: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SlicingOptions(BaseModel):
+    attributes: list[SlicingAttribute]
+    suggestions: list[SlicingSuggestion]
+    scope: dict[str, Any] | None = None
+    cases: int = Field(ge=0, description="Number of cases in the run's scoped population")
+    caseNoun: str
+
+
 class SlicingPreview(BaseModel):
     attributes: list[str]
     effectiveAttributes: list[str] = Field(
@@ -951,6 +1108,24 @@ class ActionEvidenceContext(BaseModel):
     selectionReason: str | None = None
 
 
+class HypothesisTest(BaseModel):
+    """Computed comparison. Missing metadata on older records is not inferred."""
+
+    model_config = ConfigDict(extra="allow")
+
+    constraint_id: str
+    plain_name: str | None = None
+    comparison: Literal["group_vs_rest"] | None = None
+    risk_difference: float | None = None
+    interval: list[float | None] = Field(default_factory=list)
+    interval_method: str | None = None
+    confidence_level: float | None = None
+    n_group: int | None = None
+    n_rest: int | None = None
+    reading: str | None = None
+    median_reading: str | None = None
+
+
 class ReviewItem(BaseModel):
     """A hypothesis, a gate decision, a finding or an action; the kind's own fields sit next to these."""
 
@@ -969,6 +1144,7 @@ class ReviewItem(BaseModel):
     note: str | None = None
     createdAt: str
     updatedAt: str
+    test: HypothesisTest | None = Field(default=None, json_schema_extra={"readOnly": True})
     evidenceContext: ActionEvidenceContext | None = Field(default=None, json_schema_extra={"readOnly": True})
     evidenceState: Literal["unassessed", "recorded"] | None = Field(
         default=None,
@@ -998,7 +1174,9 @@ class HypothesisCreate(BaseModel):
     sliceKey: str | None = None
     view: str | None = None
     constraint_id: str = Field(description="the expectation the hypothesis is about")
-    comparison: Literal["group_vs_rest", "period", "subgroup"] = "group_vs_rest"
+    comparison: Literal["group_vs_rest"] = Field(
+        default="group_vs_rest", description="Period and subgroup comparisons are not implemented and return 422."
+    )
     expected_direction: Literal["higher", "lower", "none"] = "higher"
     statement_plain: str | None = Field(default=None, description="the hypothesis in the reader's own words")
     evidence_links: list[str] = Field(default_factory=list)

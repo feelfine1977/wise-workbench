@@ -45,6 +45,8 @@ def create_table(client: TestClient, project_id: str) -> str:
     job = wait_job(client, response.json()["id"])
     assert job["status"] == "done", job
     dataset_id = job["resultRef"].split(":", 1)[1]
+    binding = client.put(base + "/dataset-binding", json={"datasetId": dataset_id})
+    assert binding.status_code == 200, binding.text
     response = client.post(
         base + f"/datasets/{dataset_id}/mappings",
         json={

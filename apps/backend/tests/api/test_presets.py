@@ -6,10 +6,16 @@ import csv
 import io
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import BPIC19_NORM, make_settings, wait_job
+from wise_workbench.adapters.storage import sha256_file
 from wise_workbench.api.app import create_app
+from wise_workbench.application.services.project_binding import bind_dataset
+from wise_workbench.domain import DatasetStatus, DatasetVersion
+from wise_workbench.jobs import Worker
+from wise_workbench.jobs.handlers.load_preset import bound_preset_dataset
 from wise_workbench.presets import suggest_mapping
 
 NORM = BPIC19_NORM
@@ -200,6 +206,7 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
     app = create_app(make_settings(tmp_path, inprocess_worker=True, bpic19_csv=log, bpic19_norm=NORM))
     with TestClient(app) as client:
         pid = client.post("/api/v1/projects", json={"name": "Preset", "process": "p2p"}).json()["id"]
+        assert client.get(f"/api/v1/projects/{pid}/dataset-binding").json()["datasetId"] is None
         presets = client.get(f"/api/v1/projects/{pid}/datasets/presets").json()
         assert presets[0]["available"] is True and presets[0]["source"] == str(log)
         r = client.post(f"/api/v1/projects/{pid}/datasets/presets/bpic2019")
@@ -213,6 +220,8 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
         assert "Automation" in run["views"]
         datasets = client.get(f"/api/v1/projects/{pid}/datasets").json()
         assert len(datasets) == 1 and datasets[0]["status"] == "ready" and datasets[0]["name"] == log.name
+        binding = client.get(f"/api/v1/projects/{pid}/dataset-binding").json()
+        assert binding["datasetId"] == datasets[0]["id"] and binding["boundAt"]
         tables = client.get(f"/api/v1/projects/{pid}/case-tables").json()
         assert len(tables) == 1 and tables[0]["cases"] == 10 and "flow_type" in tables[0]["attributes"]
         mapping = client.get(f"/api/v1/projects/{pid}/case-tables/{tables[0]['id']}/mapping").json()
@@ -235,6 +244,7 @@ def test_bpic2019_preset_loads_a_scored_run_in_one_job(tmp_path: Path) -> None:
         assert wait_job(client, again["id"], timeout=60)["resultRef"] == f"run:{run_id}"
         assert len(client.get(f"/api/v1/projects/{pid}/datasets").json()) == 1
         assert len(client.get(f"/api/v1/projects/{pid}/runs").json()) == 1
+        assert client.get(f"/api/v1/projects/{pid}/dataset-binding").json() == binding
 
 
 def test_preset_without_the_file_is_refused(tmp_path: Path) -> None:
@@ -244,3 +254,58 @@ def test_preset_without_the_file_is_refused(tmp_path: Path) -> None:
         assert client.get(f"/api/v1/projects/{pid}/datasets/presets").json()[0]["available"] is False
         r = client.post(f"/api/v1/projects/{pid}/datasets/presets/bpic2019")
         assert r.status_code == 422 and r.json()["code"] == "preset.unavailable"
+
+
+@pytest.mark.parametrize("bind_after_queue", [False, True])
+def test_different_bound_dataset_blocks_preset_before_preparation(tmp_path, bind_after_queue):
+    log = tmp_path / "BPI_Challenge_2019.csv"
+    log.write_bytes(small_bpic_csv())
+    settings = make_settings(
+        tmp_path, inprocess_worker=False, analytics_auto=False, job_max_attempts=1, bpic19_csv=log, bpic19_norm=NORM
+    )
+    with TestClient(create_app(settings)) as client:
+        c = client.app.state.container
+        pid = client.post("/api/v1/projects", json={"name": "Already chosen", "process": "p2p"}).json()["id"]
+        c.repos.add_dataset(
+            DatasetVersion(
+                id="chosen",
+                project_id=pid,
+                name="Different data",
+                status=DatasetStatus.READY,
+                content_hash="different-source",
+            )
+        )
+        endpoint = f"/api/v1/projects/{pid}/datasets/presets/bpic2019"
+        if bind_after_queue:
+            response = client.post(endpoint)
+            assert response.status_code == 202, response.text
+        saved_binding = bind_dataset(c, pid, "chosen")
+        if bind_after_queue:
+            Worker(c, worker_id="preset-binding-test").drain()
+            job = client.get(f"/api/v1/jobs/{response.json()['id']}").json()
+            assert job["status"] == "failed", job
+            assert "fixed dataset" in job["error"]
+        else:
+            response = client.post(endpoint)
+            assert response.status_code == 409 and response.json()["code"] == "project.dataset_binding_mismatch"
+            assert c.queue.list(project_id=pid) == []
+        assert client.get(f"/api/v1/projects/{pid}/dataset-binding").json() == saved_binding
+        assert [row.id for row in c.repos.list_datasets(pid)] == ["chosen"]
+        assert c.repos.list_case_tables(pid) == []
+        assert c.repos.list_norm_versions(pid) == []
+        assert c.repos.list_runs(pid) == []
+
+
+def test_preset_resolves_exact_bound_dataset_when_hashes_are_equal(tmp_path):
+    log = tmp_path / "BPI_Challenge_2019.csv"
+    log.write_bytes(small_bpic_csv())
+    with TestClient(create_app(make_settings(tmp_path))) as client:
+        c = client.app.state.container
+        project = c.projects.create("Duplicate imports")
+        digest = sha256_file(log)
+        for did in ("first-copy", "explicit-choice"):
+            c.repos.add_dataset(
+                DatasetVersion(id=did, project_id=project.id, name=did, status=DatasetStatus.READY, content_hash=digest)
+            )
+        bind_dataset(c, project.id, "explicit-choice")
+        assert bound_preset_dataset(c, project.id, digest).id == "explicit-choice"
