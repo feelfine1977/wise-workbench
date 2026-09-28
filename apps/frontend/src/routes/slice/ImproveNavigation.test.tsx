@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { expect, it } from "vitest";
 import { server } from "@/mocks/node";
 import { verifiedSlice, VERIFIED_PACKAGING_KEY } from "@/mocks/fixtures/verified";
-import { renderApp } from "@/test/utils";
+import { renderApp, ROUTE_READY } from "@/test/utils";
 
 const path = `/p/p2p2018/runs/run_41/slices/${encodeURIComponent(VERIFIED_PACKAGING_KEY)}?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation`;
 const filter = '{"and":[{"kind":"open","value":true}]}';
@@ -25,7 +25,7 @@ it("keeps non-threshold expectation and exact selection through comparison, grou
   );
   const user = userEvent.setup();
   renderApp(`${path}&filter=${encodeURIComponent(filter)}&within=${encodeURIComponent(parent)}`);
-  const chart = await screen.findByTestId("score-waterfall");
+  const chart = await screen.findByTestId("score-waterfall", {}, ROUTE_READY);
   await user.click(within(chart).getByRole("button", { name: "Inspect Exact expectation: −20.00 score points" }));
   expect(await screen.findByTestId("measured-comparison")).toHaveTextContent("Exact expectation");
   expect(screen.getByText(/This expectation has no threshold distribution/)).toBeVisible();
@@ -34,7 +34,7 @@ it("keeps non-threshold expectation and exact selection through comparison, grou
   expect(await screen.findByTestId("evidence-support")).toHaveTextContent("Exact expectation");
   expect(screen.getByRole("img", { name: /Whole group: 100 purchase order items; Scored in this view: 80 purchase order items; Evaluated for this expectation: 60 purchase order items/ })).toBeVisible();
   await user.click(screen.getByRole("button", { name: /Review actions for this expectation/ }));
-  await screen.findByTestId("act-selection-notice");
+  await screen.findByTestId("act-selection-notice", {}, ROUTE_READY);
   const back = await screen.findByRole("link", { name: /Inspect the measured comparison/ });
   const query = new URL(back.getAttribute("href")!, "http://localhost").searchParams;
   expect(query.get("constraint")).toBe("exact/non-threshold");
@@ -57,7 +57,7 @@ it.each(["why", "act"])("keeps the selected denominator beside whole-group diagn
   );
   const start = page === "act" ? path.replace("?", "/act?") : path;
   renderApp(`${start}&filter=${encodeURIComponent(filter)}`);
-  const summary = await screen.findByTestId("selection-scope");
+  const summary = await screen.findByTestId("selection-scope", {}, ROUTE_READY);
   await waitFor(() => expect(summary).toHaveTextContent("Selected in this group: 3,698 / Whole group: 5,242"));
   expect(summary).toHaveTextContent("Selected-group rank, score and rank confidence are not supplied on this screen");
   expect(within(summary).getByRole("list", { name: "Active filters" })).toBeVisible();
@@ -74,7 +74,7 @@ it.each(["why", "act"])("keeps the selected denominator beside whole-group diagn
 it("does not replace a missing selected count with a legacy whole-group response", async () => {
   server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/gates", () => HttpResponse.json({ gates: [] })));
   renderApp(`${path}&filter=${encodeURIComponent(filter)}`);
-  const summary = await screen.findByTestId("selection-scope");
+  const summary = await screen.findByTestId("selection-scope", {}, ROUTE_READY);
   await waitFor(() => expect(summary).toHaveTextContent("Selected in this group: unavailable / Whole group: 109,199"));
   expect(summary).toHaveTextContent("no whole-group count has been substituted");
 });
@@ -94,7 +94,7 @@ it.each([false, true])("uses the saved support threshold and never mixes a rank 
     }),
   );
   renderApp(path);
-  const strip = await screen.findByTestId("why-strip");
+  const strip = await screen.findByTestId("why-strip", {}, ROUTE_READY);
   await waitFor(() => expect(requests).toEqual(["1"]));
   expect(strip).toHaveTextContent("rank · whole group1 of 2");
   expect(strip).toHaveTextContent("priority · whole group0.3");
@@ -118,8 +118,8 @@ it.each([1, 20])("preserves minimum support %s from the ranked group into Why", 
   );
   const user = userEvent.setup();
   renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=${minimum}`);
-  await user.click(await screen.findByRole("button", { name: /^Why\?/ }));
-  const strip = await screen.findByTestId("why-strip");
+  await user.click(await screen.findByRole("button", { name: /^Why\?/ }, ROUTE_READY));
+  const strip = await screen.findByTestId("why-strip", {}, ROUTE_READY);
   await waitFor(() => expect(strip).toHaveTextContent(`rank · whole group1 of ${total}`));
   expect(strip).toHaveTextContent(`Groups with at least ${minimum} purchase order items`);
   expect(requests.length).toBeGreaterThan(0);

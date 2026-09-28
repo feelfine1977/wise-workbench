@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 import { server } from "@/mocks/node";
 import { db } from "@/mocks/db";
 import { verifiedSlice, verifiedFlowAll, verifiedFlowPackaging, VERIFIED_PACKAGING_KEY } from "@/mocks/fixtures/verified";
-import { renderApp } from "@/test/utils";
+import { renderApp, ROUTE_READY } from "@/test/utils";
 
 const path = `/p/p2p2018/runs/run_41/slices/${encodeURIComponent(VERIFIED_PACKAGING_KEY)}?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation`;
 const api = "*/api/v1/projects/p2p2018/runs/run_41";
@@ -22,7 +22,7 @@ it("applies parent and date to group, baseline and focused charts and retains bo
     http.get(`${api}/signals/:id`, ({ request }) => { signals.push(new URL(request.url)); return HttpResponse.json(distribution); }),
   );
   renderApp(`${path}&within=${encodeURIComponent(parent)}&filter=${encodeURIComponent(JSON.stringify({ and: [date] }))}&activity=Record%20Goods%20Receipt`);
-  await screen.findByTestId("flow-map");
+  await screen.findByTestId("flow-map", {}, ROUTE_READY);
   await waitFor(() => expect(signals.length).toBe(2));
   await waitFor(() => expect(flows.some(u => u.searchParams.has("focus"))).toBe(true));
   const expected = [date, { kind: "attribute", field: "case Company", in: ["companyID_0000"] }];
@@ -48,7 +48,7 @@ it.each([
   const requests: string[] = [];
   server.use(http.get(`${api}/flow`, ({ request }) => { requests.push(request.url); return HttpResponse.json(verifiedFlowAll); }), http.get(`${api}/signals/:id`, ({ request }) => { requests.push(request.url); return HttpResponse.json(distribution); }));
   renderApp(`${path}&within=${encodeURIComponent(withinParam)}&activity=Record%20Goods%20Receipt`);
-  expect((await screen.findAllByTestId("chart-scope-unavailable"))[0]).toHaveTextContent("no broader population is substituted");
+  expect((await screen.findAllByTestId("chart-scope-unavailable", {}, ROUTE_READY))[0]).toHaveTextContent("no broader population is substituted");
   expect(screen.queryByTestId("flow-map")).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("tab", { name: "Flow" }));
   expect(screen.getByRole("button", { name: "Open full →" })).toBeDisabled();
@@ -59,7 +59,7 @@ it("carries the saved population to Define and states the narrower-scope limitat
   const run = db.runs.find(r => r.id === "run_41")!;
   run.scope = { selection_id: "quarter-2018", flow_type: "standard" };
   renderApp(`${path}&tab=compared&within=${encodeURIComponent(parent)}&filter=${encodeURIComponent(JSON.stringify({ and: [date] }))}`);
-  const link = await screen.findByRole("link", { name: "norm's calibration lens" });
+  const link = await screen.findByRole("link", { name: "norm's calibration lens" }, ROUTE_READY);
   const query = new URL(link.getAttribute("href")!, "http://localhost").searchParams;
   expect(query.get("caseTable")).toBe("ct_1");
   expect(query.get("selection")).toBe("quarter-2018");
@@ -75,7 +75,7 @@ it("labels weighted case and mean scores on 0–100 rather than rules passed", a
   data.worstCases = [{ caseId: "unequal-weights", score: .9, violated: ["c_l3_invoice_to_clear_days"] }];
   server.use(http.get(`${api}/slices/:key`, () => HttpResponse.json(data)));
   renderApp(`${path}&tab=cases`);
-  expect(await screen.findByTestId("why-strip")).toHaveTextContent("Mean WISE score (0–100) · whole group90.0 (everyone 83.6)");
+  expect(await screen.findByTestId("why-strip", {}, ROUTE_READY)).toHaveTextContent("Mean WISE score (0–100) · whole group90.0 (everyone 83.6)");
   const cases = screen.getByTestId("worst-cases");
   expect(cases).toHaveTextContent("WISE score (0–100)");
   expect(cases).toHaveTextContent("90.0");
@@ -88,9 +88,9 @@ it.each(["case_table.artefacts_missing", "run.not_found", "slice.not_found"])("d
   server.use(http.get(`${api}/flow`, ({ request }) => new URL(request.url).searchParams.has("sliceKey") ? problem(404, code) : HttpResponse.json(verifiedFlowAll)));
   renderApp(`${path}&tab=flow`);
   if (code === "slice.not_found") {
-    expect(await screen.findByTestId("no-map")).toHaveTextContent("No cases match this group and chart selection");
+    expect(await screen.findByTestId("no-map", {}, ROUTE_READY)).toHaveTextContent("No cases match this group and chart selection");
   } else {
-    expect(await screen.findByText(code)).toBeInTheDocument();
+    expect(await screen.findByText(code, {}, ROUTE_READY)).toBeInTheDocument();
     expect(screen.queryByTestId("no-map")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
   }
@@ -103,7 +103,7 @@ it("separates reasons pending, failed and successfully empty, and recovers on re
   let count = 0;
   server.use(http.get(`${api}/what-can-we-do`, async () => { if (++count === 1) { await waiting; return problem(500, "knowledge.unavailable"); } return HttpResponse.json({ drivers: [] }); }));
   renderApp(path);
-  const card = await screen.findByTestId("typical-causes");
+  const card = await screen.findByTestId("typical-causes", {}, ROUTE_READY);
   expect(within(card).getByRole("status")).toBeInTheDocument();
   expect(card).not.toHaveTextContent("No candidate reasons");
   release();
@@ -120,7 +120,7 @@ it("labels failed comparison baselines while retaining successfully measured gro
     http.get(`${api}/signals/:id`, ({ request }) => new URL(request.url).searchParams.has("sliceKey") ? HttpResponse.json(distribution) : problem(500, "baseline.unavailable")),
   );
   renderApp(path);
-  expect(await screen.findByTestId("map-baseline-unavailable")).toHaveTextContent("only this group's paths are shown");
+  expect(await screen.findByTestId("map-baseline-unavailable", {}, ROUTE_READY)).toHaveTextContent("only this group's paths are shown");
   expect(await screen.findByTestId("distribution-baseline-unavailable")).toHaveTextContent("only this group's measurements are shown");
   expect(screen.getByTestId("flow-map")).toBeVisible();
   expect(screen.getByTestId("why-lens")).not.toHaveTextContent("83 days here; everywhere else 55");

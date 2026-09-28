@@ -1,10 +1,10 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { expect, it } from "vitest";
 import { server } from "@/mocks/node";
 import { verifiedBacklog } from "@/mocks/fixtures/verified";
-import { renderApp } from "@/test/utils";
+import { renderApp, ROUTE_READY } from "@/test/utils";
 
 const path = "/p/p2p2018/runs/run_41/backlog?slicing=case%20Vendor&view=Finance";
 
@@ -13,15 +13,19 @@ it("opens the exact bubble group with its view, filter and parent selection inta
   const filter = '{"and":[{"kind":"open","value":true}]}';
   const parent = '{"slicing":"case Company","key":"[\\"companyID_0000\\"]"}';
   const fixture = verifiedBacklog("case Vendor", "Finance")!;
-  server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/backlog", () => HttpResponse.json({ ...fixture, rows: fixture.rows.slice(0, 1), total: 1 })));
+  server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/backlog", async () => {
+    // Exercise route readiness beyond Testing Library's default one-second wait.
+    await delay(1200);
+    return HttpResponse.json({ ...fixture, rows: fixture.rows.slice(0, 1), total: 1 });
+  }));
   renderApp(`${path}&filter=${encodeURIComponent(filter)}&within=${encodeURIComponent(parent)}`);
-  const overview = await screen.findByTestId("priority-support");
+  const overview = await screen.findByTestId("priority-support", {}, ROUTE_READY);
   const point = within(overview).getAllByRole("button", { name: /^Investigate / })[0]!;
   point.focus();
   await user.keyboard("{Enter}");
-  await screen.findByTestId("contribution-icicle");
+  await screen.findByTestId("contribution-icicle", {}, ROUTE_READY);
   await user.click(screen.getByRole("button", { name: /What can we do/ }));
-  const link = await screen.findByRole("link", { name: /Back to why this group is worst/ });
+  const link = await screen.findByRole("link", { name: /Back to why this group is worst/ }, ROUTE_READY);
   const url = new URL(link.getAttribute("href")!, "http://localhost");
   expect(url.searchParams.get("filter")).toBe(filter);
   expect(url.searchParams.get("within")).toBe(parent);
@@ -36,14 +40,14 @@ it("does not substitute a partial page when the all-groups request fails", async
     if (new URL(request.url).searchParams.get("pageSize") === "500") return HttpResponse.json({ detail: "The chart population is unavailable." }, { status: 503 });
   }));
   renderApp(`${path}&tab=scatter`);
-  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(await screen.findByRole("alert", {}, ROUTE_READY)).toBeVisible();
   expect(screen.getByText("The chart population is unavailable.")).toBeInTheDocument();
   expect(screen.queryByTestId("priority-support")).not.toBeInTheDocument();
 });
 
 it("has a visible problem key and uses the shell view control without a duplicate selector", async () => {
   renderApp(path);
-  const chart = await screen.findByTestId("priority-support");
+  const chart = await screen.findByTestId("priority-support", {}, ROUTE_READY);
   const key = within(chart).getByRole("list", { name: "Problem kind key" });
   expect(within(key).getAllByRole("listitem")).toHaveLength(4);
   expect(key).toHaveTextContent("Unknown / unclassified");
