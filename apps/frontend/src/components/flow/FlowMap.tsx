@@ -8,6 +8,7 @@ import elkWorkerUrl from "elkjs/lib/elk-worker.min.js?url";
 import "@xyflow/react/dist/style.css";
 import "@wise/flow/tokens.css";
 import "@wise/flow/style.css";
+import "./FlowMap.css";
 import type { Filter, FilterClause } from "@/lib/api/filter-types";
 import type { FilterPreview } from "@/lib/api/exploration";
 import type { FlowPath } from "@/lib/api/flow";
@@ -234,7 +235,7 @@ function ConstantLabels({ container, boxes, readable = false }: { container: Rea
 
 /** Changes under this many pixels are noise: they never refit and never re-measure (§3.2). */
 const MIN_RESIZE = 2;
-/** Toolbars and evidence scroll with the page before the drawing becomes too short to use. */
+/** Numeric fallback for a model before its host has been measured; never a CSS minimum. */
 const MIN_DRAWING_HEIGHT = 400;
 /** Layout units the badge above an activity reaches over its own box. */
 const BADGE_OVERHANG = 24;
@@ -603,8 +604,7 @@ function MapLegend({
 
 /**
  * The frame's own size, **read and never written** (§3.2). A `page` frame takes the height the layout
- * gives it, with a CSS minimum and scrolling when controls need more room, so nothing measured here can change
- * it back. The reading exists only for the things that need a number (the model's canvas, how many activities
+ * gives it; optional controls overlay that space, so nothing measured here can change it back. The reading exists only for the things that need a number (the model's canvas, how many activities
  * fit); it is coalesced into one animation frame and ignores changes under two pixels, so a one-pixel
  * rounding difference cannot start a second pass.
  */
@@ -698,6 +698,7 @@ export function FlowMap({
   const requestedCount = countSelection.detail === detail ? countSelection.count : undefined;
   const [innerRender, setInnerRender] = useState<RenderMode>("map");
   const [innerFull, setInnerFull] = useState(false);
+  const [displayOpen, setDisplayOpen] = useState(initialEvidenceMode === "wise");
   const [selection, setSelection] = useState<Selection>({ nodes: [], edges: [], groups: [] });
   const inspectOnlySelection = useRef(false);
   const manualViewport = useRef<string | undefined>(undefined);
@@ -722,6 +723,7 @@ export function FlowMap({
   const [levelTouched, setLevelTouched] = useState(false);
   const mode = render ?? innerRender;
   const isFull = full ?? innerFull;
+  const workspaceFrame = kind === "page" || isFull;
   const setLevel = useCallback(
     (next: number) => {
       const clamped = Math.max(0, Math.min(DETAIL.length - 1, next));
@@ -1066,7 +1068,8 @@ export function FlowMap({
           act(() => setFull(!isFull));
           break;
         case "Escape":
-          if (selection.nodes.length || selection.edges.length || selection.groups.length) act(() => select({ nodes: [], edges: [], groups: [] }));
+          if (displayOpen) act(() => setDisplayOpen(false));
+          else if (selection.nodes.length || selection.edges.length || selection.groups.length) act(() => select({ nodes: [], edges: [], groups: [] }));
           else if (isFull) act(() => setFull(false));
           break;
         default:
@@ -1075,7 +1078,7 @@ export function FlowMap({
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [kind, selected, focus, chosenCount, mode, isFull, selection, applyClauses, onAction, onFocusChange, select, setActivityCount, setMode, setFull]);
+  }, [kind, selected, focus, chosenCount, mode, isFull, displayOpen, selection, applyClauses, onAction, onFocusChange, select, setActivityCount, setMode, setFull]);
 
   if (kind === "compact") {
     return (
@@ -1159,6 +1162,18 @@ export function FlowMap({
     />
   );
 
+  const evidenceToggle = (
+    <label className="flex items-center gap-1.5 font-medium text-text">
+      <input type="checkbox" checked={evidenceOn} disabled={!constraints.length} onChange={(event) => {
+        setEvidenceMode(event.target.checked ? "wise" : "observed");
+        if (workspaceFrame) setDisplayOpen(event.target.checked);
+        setHiddenOverlays(new Set());
+        setHiddenAreas(new Set());
+      }} />
+      WISE evidence
+    </label>
+  );
+
   const filterBar = (
     <div className={cn("flex min-h-[44px] shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border py-1.5 text-sm", isFull ? "px-2" : "px-1")} data-testid="flow-bar">
       {chips !== false && (
@@ -1188,19 +1203,23 @@ export function FlowMap({
           </>
         )}
       </div>
-      {((requestedCount === undefined && level > maxLevel) || !namesFit) && !isFull && (
+      {((requestedCount === undefined && level > maxLevel) || !namesFit) && !workspaceFrame && (
         <span className="text-xs text-warning" data-testid="detail-warning">
           All requested detail is retained. Zoom and pan to read the names, or open the full window.
         </span>
       )}
       {(Number(meta.abstraction ?? 0) > 0 || (meta.nodesTotal ?? totalActivities) > totalActivities) && (
-        <span className="text-xs text-warning" role="status" data-testid="incomplete-flow">
-          The supplied graph is simplified; some recorded activities or connections are unavailable.
+        <span className="text-xs text-warning" role="status" title="The supplied graph is simplified; some recorded activities or connections are unavailable." data-testid="incomplete-flow">
+          {workspaceFrame ? "Simplified graph" : "The supplied graph is simplified; some recorded activities or connections are unavailable."}
         </span>
       )}
       {layout.status === "pending" && <span aria-live="polite">placing {collapsing && shownStages ? `${shownStages} ${shownStages === 1 ? "stage" : "stages"}` : `${shownActivities} activities`}…</span>}
       {layout.status === "error" && <span role="alert">layout failed: {layout.error?.message}</span>}
-      <span className="ml-auto flex items-center gap-1">
+      <span className="flow-primary-actions ml-auto flex items-center gap-1">
+        {workspaceFrame && <>
+          {evidenceToggle}
+          <Button variant="outline" size="sm" aria-label="Display & meaning" aria-expanded={displayOpen} onClick={() => setDisplayOpen((open) => !open)}>Display</Button>
+        </>}
         {mode !== "table" && legendOverCanvas && (
           <Popover>
             <PopoverTrigger asChild>
@@ -1239,7 +1258,7 @@ export function FlowMap({
             </button>
           ))}
         </span>
-        {mode === "map" && !collapsing && <Button variant="outline" size="sm" disabled={!Object.keys(manualPoints).length} onClick={() => {
+        {mode === "map" && !collapsing && (!workspaceFrame || Object.keys(manualPoints).length > 0) && <Button variant="outline" size="sm" disabled={!Object.keys(manualPoints).length} onClick={() => {
           setManualLayout({ scope: manualScope, points: {} });
           manualViewport.current = undefined;
         }}>Reset layout</Button>}
@@ -1449,7 +1468,7 @@ export function FlowMap({
           }}
           announce={announce}
         >
-          <FitToView container={container} fitKey={fitKey} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} readable manualViewport={manualViewport} />
+          <FitToView container={container} fitKey={fitKey} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} readable={!workspaceFrame} manualViewport={manualViewport} />
           {/* the names are drawn at a constant size on the screen, whatever the width of the process (R3-06) */}
           <ConstantLabels container={container} boxes={drawnBoxes} readable />
           <ZoomControls onViewportChange={() => { manualViewport.current = fitKey; }} disabled={layout.status !== "ready"} container={container} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} />
@@ -1502,65 +1521,64 @@ export function FlowMap({
     </>
   );
 
+  const evidencePanel = (
+    <div className={cn("shrink-0 space-y-1 border-b border-border px-1 py-2 text-xs text-text-muted", workspaceFrame && "flow-display-panel")} data-testid="flow-evidence">
+      {workspaceFrame && <div className="flex items-center justify-between gap-3"><strong>Display &amp; meaning</strong><Button variant="ghost" size="sm" aria-label="Close display settings" onClick={() => setDisplayOpen(false)}><X className="size-4" aria-hidden /></Button></div>}
+      <div className="flex min-h-9 flex-wrap items-center gap-3">
+        {mode === "map" && <>
+          <span className="inline-flex rounded border border-border" role="group" aria-label="Activity labels">
+            {(["names", "ids"] as const).map((labelMode) => <button key={labelMode} type="button" aria-pressed={labelPreferences.mode === labelMode} className={cn("px-2 py-1.5", labelPreferences.mode === labelMode && "bg-accent-subtle text-accent-text")} onClick={() => {
+              setLabelPreferences((previous) => ({ ...previous, mode: labelMode }));
+              if (labelMode === "ids") setKeyOpen(true);
+            }}>{labelMode === "names" ? "Activity names" : "IDs + key"}</button>)}
+          </span>
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={labelPreferences.showCounts !== false} onChange={(event) => setLabelPreferences((previous) => ({ ...previous, showCounts: event.target.checked }))} />Item counts</label>
+          <Button ref={keyButton} variant="outline" size="sm" aria-expanded={keyOpen} onClick={() => setKeyOpen((open) => !open)}>Activity key</Button>
+        </>}
+        {!workspaceFrame && evidenceToggle}
+        {!evidenceOn && <span>Recorded process</span>}
+        {evidenceOn && <ConstraintPicker constraints={constraints} selected={selectedConstraintIds} onChange={changeConstraints} />}
+        {evidenceOn && <span data-testid="evidence-count" aria-live="polite">Selected {selectedConstraints.length} of {constraints.length} constraints</span>}
+      </div>
+      <p className="min-h-8 leading-4" data-testid="process-map-semantics">{mode === "model" ? "Generated BPMN: connectors show sequence relationships. Crossings are not junctions; gateways organise observed alternatives. Start/end mark the first/last recorded event." : <>Nodes: distinct {noun}. Arrows: recorded directly-follows transitions. Width: occurrences (including repeats). Start/end: first/last recorded event.</>}</p>
+      {workspaceFrame && (Number(meta.abstraction ?? 0) > 0 || (meta.nodesTotal ?? totalActivities) > totalActivities) && <p className="text-warning">The supplied graph is simplified; some recorded activities or connections are unavailable.</p>}
+      {evidenceOn && <>
+        <p className="h-8 overflow-y-auto text-xs text-text-muted">Each result uses its own evaluated {noun}. Results are not combined. Focus a result for its meaning and map marks.</p>
+        <div className={cn("grid min-w-0 gap-2", selectedConstraints.length > 1 && "md:grid-cols-2")}>
+          {selectedConstraints.length > 1 && selectedConstraint && <ConstraintResultsList constraints={selectedConstraints} focusedId={selectedConstraint.id} onFocus={setConstraintId} noun={noun} placement={(id) =>
+            drawnOverlays.some((overlay) => overlay.payload?.constraintId === id) ? "WISE map marks available"
+              : (evidenceGraph.overlays ?? []).some((overlay) => overlay.payload?.constraintId === id) ? "Map marks hidden; case result shown" : "Case result only; no map anchor"
+          } />}
+          {selectedConstraint ? <ConstraintResult constraint={selectedConstraint} noun={noun}
+            hasSuppliedOverlay={(evidenceGraph.overlays ?? []).some((overlay) => overlay.payload?.constraintId === selectedConstraint.id)}
+            hasVisibleOverlay={drawnOverlays.some((overlay) => overlay.payload?.constraintId === selectedConstraint.id)} />
+            : <p className="flex h-28 items-center rounded border border-border px-3 text-sm">No constraints selected. Choose constraints to show their individual results.</p>}
+        </div>
+      </>}
+
+    </div>
+  );
+
   return (
     <div
       ref={root}
       tabIndex={-1}
-      className={cn("flex min-w-0 flex-col outline-none", isFull ? "fixed inset-0 z-overlay bg-bg" : "", className, fluid && "overflow-y-auto")}
-      style={fluid ? { scrollbarGutter: "stable" } : undefined}
+      className={cn("flow-instrument flex min-w-0 flex-col outline-none", isFull ? "fixed inset-0 z-overlay bg-bg" : "", className, workspaceFrame && "flow-workspace")}
       data-testid="flow-map"
       data-full={isFull ? "1" : undefined}
       role={isFull ? "dialog" : undefined}
       aria-label={isFull ? `${title} — full window` : undefined}
     >
       {filterBar}
-      <div className="shrink-0 space-y-1 border-b border-border px-1 py-2 text-xs text-text-muted" data-testid="flow-evidence">
-        <div className="flex min-h-9 flex-wrap items-center gap-3">
-          {mode === "map" && <>
-            <span className="inline-flex rounded border border-border" role="group" aria-label="Activity labels">
-              {(["names", "ids"] as const).map((labelMode) => <button key={labelMode} type="button" aria-pressed={labelPreferences.mode === labelMode} className={cn("px-2 py-1.5", labelPreferences.mode === labelMode && "bg-accent-subtle text-accent-text")} onClick={() => {
-                setLabelPreferences((previous) => ({ ...previous, mode: labelMode }));
-                if (labelMode === "ids") setKeyOpen(true);
-              }}>{labelMode === "names" ? "Activity names" : "IDs + key"}</button>)}
-            </span>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={labelPreferences.showCounts !== false} onChange={(event) => setLabelPreferences((previous) => ({ ...previous, showCounts: event.target.checked }))} />Item counts</label>
-            <Button ref={keyButton} variant="outline" size="sm" aria-expanded={keyOpen} onClick={() => setKeyOpen((open) => !open)}>Activity key</Button>
-          </>}
-          <label className="flex items-center gap-1.5 font-medium text-text">
-            <input type="checkbox" checked={evidenceOn} disabled={!constraints.length} onChange={(event) => {
-              setEvidenceMode(event.target.checked ? "wise" : "observed");
-              setHiddenOverlays(new Set());
-              setHiddenAreas(new Set());
-            }} />
-            WISE evidence
-          </label>
-          {!evidenceOn && <span>Recorded process</span>}
-          {evidenceOn && <ConstraintPicker constraints={constraints} selected={selectedConstraintIds} onChange={changeConstraints} />}
-          {evidenceOn && <span data-testid="evidence-count" aria-live="polite">Selected {selectedConstraints.length} of {constraints.length} constraints</span>}
-        </div>
-        <p className="min-h-8 leading-4" data-testid="process-map-semantics">{mode === "model" ? "Generated BPMN: connectors show sequence relationships. Crossings are not junctions; gateways organise observed alternatives. Start/end mark the first/last recorded event." : <>Nodes: distinct {noun}. Arrows: recorded directly-follows transitions. Width: occurrences (including repeats). Start/end: first/last recorded event.</>}</p>
-        {evidenceOn && <>
-          <p className="h-8 overflow-y-auto text-xs text-text-muted">Each result uses its own evaluated {noun}. Results are not combined. Focus a result for its meaning and map marks.</p>
-          <div className={cn("grid min-w-0 gap-2", selectedConstraints.length > 1 && "md:grid-cols-2")}>
-            {selectedConstraints.length > 1 && selectedConstraint && <ConstraintResultsList constraints={selectedConstraints} focusedId={selectedConstraint.id} onFocus={setConstraintId} noun={noun} placement={(id) =>
-              drawnOverlays.some((overlay) => overlay.payload?.constraintId === id) ? "WISE map marks available"
-                : (evidenceGraph.overlays ?? []).some((overlay) => overlay.payload?.constraintId === id) ? "Map marks hidden; case result shown" : "Case result only; no map anchor"
-            } />}
-            {selectedConstraint ? <ConstraintResult constraint={selectedConstraint} noun={noun}
-              hasSuppliedOverlay={(evidenceGraph.overlays ?? []).some((overlay) => overlay.payload?.constraintId === selectedConstraint.id)}
-              hasVisibleOverlay={drawnOverlays.some((overlay) => overlay.payload?.constraintId === selectedConstraint.id)} />
-              : <p className="flex h-28 items-center rounded border border-border px-3 text-sm">No constraints selected. Choose constraints to show their individual results.</p>}
-          </div>
-        </>}
-
-      </div>
+      {!workspaceFrame && evidencePanel}
       <div
         ref={frameRef}
         className={cn("relative flex min-h-0 min-w-0 items-stretch overflow-hidden border border-border bg-surface", isFull ? "rounded-none" : "rounded-md", fluid && "flex-1")}
-        style={fluid ? { minHeight: MIN_DRAWING_HEIGHT } : { height: frameHeight }}
+        style={fluid ? { minHeight: 0 } : { height: frameHeight }}
         data-testid="map-frame"
       >
         {body}
+        {workspaceFrame && displayOpen && evidencePanel}
         {keyOpen && mode === "map" && <ActivityKey graph={graph} references={references} drawnIds={drawnIds} selectedId={selectedId} noun={noun} onClose={() => { setKeyOpen(false); keyButton.current?.focus(); }} onSelect={(id) => {
           select({ nodes: [id], edges: [], groups: [] }, true);
         }} />}
@@ -1596,12 +1614,11 @@ export function FlowMap({
             /* a browser without storage keeps the legend open for this visit only */
           }
         })}
-        {isFull && card && <div className="absolute inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 backdrop-blur-sm">{card}</div>}
+        {workspaceFrame && card && <div className="flow-selection-panel absolute z-10 rounded-md border border-border bg-surface/95 shadow-2 backdrop-blur-sm">{card}</div>}
       </div>
-      {/* The card's band is reserved whether or not something is selected: opening it must never resize the
-          frame. The same holds for the line under the frame. In the full window the card
-          overlays the bottom of the map instead, so that the frame keeps the whole window (§3.8). */}
-      {isFull ? null : (
+      {/* Embedded panels reserve a selection band. Page/full-window instruments overlay details so
+          selecting an activity never resizes the drawing or moves the model attribution off-screen. */}
+      {workspaceFrame ? null : (
         <div className="h-[96px] shrink-0 overflow-y-auto" data-testid="card-band">
           {card ?? <p className="px-3 py-2 text-xs text-text-muted">Select an activity for its full name, exact counts and analysis actions. Selection emphasizes connections without filtering items.</p>}
         </div>

@@ -25,8 +25,8 @@ import { HypothesisEvidence } from "./HypothesisEvidence";
 
 const GATE_WORDS: Record<string, string> = {
   readiness: "the data is fit to read",
-  censoring: "items still open at the end of the data",
-  replication: "duplicated events",
+  censoring: "recent-unclosed diagnostic (legacy)",
+  replication: "event concentration per timestamp (legacy)",
   domain: "the numbers are plausible to the people who know the process",
 };
 
@@ -35,7 +35,10 @@ const badgeState = (g: Gate) => (g.status === "waived" ? "waived" : g.status ===
 
 function evidenceWords(gate: Gate): string | undefined {
   const e = (gate.evidence ?? {}) as { share?: number | null; warnAt?: number | null; failAt?: number | null; readinessStatus?: string };
-  if (typeof e.share === "number") return `${fmtShare(e.share)} of these items${typeof e.warnAt === "number" ? `, a warning above ${fmtPct(e.warnAt, 0)}` : ""}`;
+  if (typeof e.share === "number") {
+    const population = gate.kind === "censoring" || gate.kind === "replication" ? " of assessed cases" : " reported share";
+    return `${fmtShare(e.share)}${population}${typeof e.warnAt === "number" ? `, warning at or above ${fmtPct(e.warnAt, 0)}` : ""}${typeof e.failAt === "number" ? `, failure at or above ${fmtPct(e.failAt, 0)}` : ""}`;
+  }
   if (e.readinessStatus) return `the readiness report of this log reads ${e.readinessStatus}`;
   return undefined;
 }
@@ -153,6 +156,7 @@ export interface GatesBlockProps {
    */
   draft?: { constraint?: string; statement?: string; nonce: number };
   className?: string;
+  headingLevel?: "h3" | "h4";
 }
 
 /** Everything the Data trust tab and *What can we do?* share: the gates, the hypothesis form, the records. */
@@ -161,7 +165,7 @@ export function GatesBlock(props: GatesBlockProps) {
   return <GatePanel key={JSON.stringify([props.projectId, props.runId, props.slicing, props.sliceKey, props.view, props.filter, props.within])} {...props} />;
 }
 
-export function GatePanel({ projectId, runId, slicing, sliceKey, view, filter, within, constraints, draft, className }: GatesBlockProps) {
+export function GatePanel({ projectId, runId, slicing, sliceKey, view, filter, within, constraints, draft, className, headingLevel }: GatesBlockProps) {
   const filtered = filter !== undefined;
   const selected = filtered || within !== undefined;
   const gates = useQuery({ ...gatesQuery(projectId, runId, { slicing, sliceKey, view, filter }), enabled: !!slicing && !!sliceKey && within === undefined });
@@ -227,8 +231,9 @@ export function GatePanel({ projectId, runId, slicing, sliceKey, view, filter, w
         constraints={constraints}
         draft={draft}
         blocking={blocking}
+        headingLevel={headingLevel}
       />}
-      <HypothesisList projectId={projectId} runId={runId} sliceKey={sliceKey} />
+      <HypothesisList headingLevel={headingLevel} projectId={projectId} runId={runId} sliceKey={sliceKey} />
     </div>
   );
 }
@@ -242,6 +247,7 @@ function HypothesisForm({
   constraints,
   draft,
   blocking,
+  headingLevel: Heading = "h4",
 }: {
   projectId: string;
   runId: string;
@@ -251,6 +257,7 @@ function HypothesisForm({
   constraints?: { id: string; label: string }[];
   draft?: { constraint?: string; statement?: string; nonce: number };
   blocking: Gate[];
+  headingLevel?: "h3" | "h4";
 }) {
   const [constraint, setConstraint] = useState(draft?.constraint ?? constraints?.[0]?.id ?? "");
   const [statement, setStatement] = useState(draft?.statement ?? "");
@@ -284,7 +291,7 @@ function HypothesisForm({
         );
       }}
     >
-      <h4 className="text-sm font-semibold text-text">Record a hypothesis to test</h4>
+      <Heading className="text-sm font-semibold text-text">Record a hypothesis to test</Heading>
       {blocked && (
         <p className="reading rounded-md border border-warning/40 bg-warning-subtle p-2 text-sm text-text" role="status" data-testid="hypothesis-blocked">
           Not yet: {blocking.map((g) => GATE_WORDS[g.kind] ?? g.kind).join(" and ")} {blocking.length === 1 ? "has" : "have"} no reading on this group. A hypothesis rests on numbers that can be trusted, so decide the
@@ -335,13 +342,13 @@ function HypothesisForm({
   );
 }
 
-function HypothesisList({ projectId, runId, sliceKey }: { projectId: string; runId: string; sliceKey: string }) {
+function HypothesisList({ projectId, runId, sliceKey, headingLevel: Heading = "h4" }: { projectId: string; runId: string; sliceKey: string; headingLevel?: "h3" | "h4" }) {
   const items = useQuery(reviewQuery(projectId, "hypotheses", { runId }));
   const rows = (items.data ?? []).filter((h: ReviewItem) => !h.sliceKey || h.sliceKey === sliceKey);
   if (items.isError || rows.length === 0) return null;
   return (
     <section data-testid="hypothesis-list">
-      <h4 className="mb-1 text-sm font-semibold text-text">Hypotheses on this group</h4>
+      <Heading className="mb-1 text-sm font-semibold text-text">Hypotheses on this group</Heading>
       <ul className="flex flex-col gap-2 text-sm">
         {rows.map((h) => (
           <li key={h.id} className="rounded-md border border-border p-2">

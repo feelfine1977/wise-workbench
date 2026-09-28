@@ -1827,48 +1827,48 @@
         "c_l3_df2_rpb_to_clear_days": {
           "kind": "constraint",
           "id": "c_l3_df2_rpb_to_clear_days",
-          "plain_name": "Paid soon after the release",
-          "plain_name_de": "Bald nach der Freigabe bezahlt",
-          "missed_label": "released but paid late",
-          "missed_label_de": "freigegeben, aber spät bezahlt",
+          "plain_name": "Cleared soon after release",
+          "plain_name_de": "Zeitnah nach der Freigabe ausgeglichen",
+          "missed_label": "clearing later than the elapsed-time target",
+          "missed_label_de": "Ausgleich später als das Laufzeitziel",
           "expectation": "Once the block is released, the invoice is cleared within days (5 days, tolerance to 25 in the paper's norm).",
-          "meaning_when_missed": "The invoice was released for payment but waited for a payment run or a second hold.",
-          "why_it_matters": "Late payment after the control has passed is pure waiting; it costs discounts and goodwill.",
+          "meaning_when_missed": "Recorded clearing occurred later than the norm’s elapsed-time target after release, or is still unobserved. The timestamps do not establish a payment run, a second hold or contractual lateness.",
+          "why_it_matters": "This interval identifies cases to investigate. Planned waiting until the due date can be appropriate; discount loss, cash effects and supplier impact require payment terms and linked financial evidence.",
           "how_detected": "A time rule from the block release to the clearing on invoice-first items; the baseline applies it to every item with a release and scores open ones by age.",
           "usual_reasons": [
             {
-              "text": "Payment runs on fixed dates",
+              "text": "A fixed payment schedule may contribute to the observed calendar pattern",
               "where": "log",
-              "check": "lag distribution from release to clearing; weekday and day-of-month pattern"
+              "check": "inspect measured release-to-clearing durations and calendar counts, then confirm the schedule with accounts payable; clustering alone is not proof"
             },
             {
-              "text": "The invoice was not yet due under the payment terms when released",
-              "where": "log",
-              "check": "release-to-clearing lag against the vendor's terms; early releases wait for the due date"
+              "text": "The invoice may not yet have been due when released",
+              "where": "outside",
+              "check": "obtain a mapped invoice payment due date and calculate due date minus release date; positive lead time may be planned waiting"
             },
             {
-              "text": "A second block or a cash hold after the release",
+              "text": "A second block or a cash hold may have followed release",
               "where": "outside",
               "check": "ask accounts payable for holds after release"
             }
           ],
           "usual_actions": [
             {
-              "text": "Payment-run cadence reviewed against the terms of the largest vendors",
+              "text": "Review a confirmed payment schedule against agreed invoice due dates before changing its cadence",
               "countermeasure": "review",
               "owner_role": "accounts_payable",
               "effect_area": "timeliness_ageing"
             },
             {
-              "text": "Score days beyond the due date rather than days after the release",
+              "text": "If reliable due dates are mapped, assess a separate due-date measure before proposing a new norm version",
               "countermeasure": "measurement",
               "owner_role": "finance_controlling",
               "effect_area": "timeliness_ageing"
             }
           ],
           "what_to_check_first": [
-            "Day-of-month pattern of clearings",
-            "Whether the release came long before the due date"
+            "Count clearing event records and distinct items by day of month; distinguish records from unique bank payments",
+            "Check release-to-due lead time only with a mapped invoice payment due date; otherwise keep it unavailable"
           ],
           "examples": [
             {

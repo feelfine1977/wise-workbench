@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy } from "react";
 import { useWorkbench } from "@/app/context";
@@ -24,6 +24,10 @@ import { groupingLabel } from "@/lib/sentences";
 import { plainReadiness } from "../data/ReadinessDecisions";
 import { runStatusGlyph, runStatusVariant } from "./RunsPage";
 
+declare module "@tanstack/react-router" {
+  interface HistoryState { reusedAssessmentId?: string }
+}
+
 /** A value the server serves: a machine stamp is read as a date and a time, anything else as it came (P1-13). */
 function readableValue(value: string | null | undefined): string {
   const text = String(value ?? "").trim();
@@ -38,6 +42,7 @@ export default function RunPage() {
   const ctx = useWorkbench();
   const { runId } = runRoute.useParams();
   const search = runRoute.useSearch();
+  const reusedAssessmentId = useLocation({ select: location => location.state.reusedAssessmentId });
   const navigate = useNavigate();
   const run = useQuery({ ...runQuery(ctx.projectId, runId), refetchInterval: (q) => (q.state.data?.status === "queued" || q.state.data?.status === "running" ? 1000 : false) });
   const job = useJob(run.data?.jobId ?? undefined);
@@ -75,6 +80,11 @@ export default function RunPage() {
     <QueryState query={run} rows={6}>
       {(r) => (
         <div className="flex flex-col gap-5">
+          {r.status === "done" && reusedAssessmentId === r.id && (
+            <div role="status" className="rounded-md border border-border bg-surface-raised p-3 text-sm">
+              Opened existing completed assessment: inputs unchanged.
+            </div>
+          )}
           <header className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
@@ -106,7 +116,7 @@ export default function RunPage() {
               )}
               {r.status === "done" && (
                 <Button asChild>
-                  <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: ctx.slicing, view: ctx.view }}>
+                  <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: ctx.slicing, view: ctx.view, minCases: r.minCases ?? undefined }}>
                     Open the ranked list
                   </Link>
                 </Button>

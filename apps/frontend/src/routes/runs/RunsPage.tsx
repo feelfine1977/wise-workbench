@@ -90,9 +90,8 @@ function NewRunDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
       { ...form, views: selectedViews, slicings: (form.slicings ?? []).filter((s) => s.attributes.length > 0) },
       {
         onSuccess: (run) => {
-          if (run.jobId) track({ id: run.jobId, kind: "score_run", status: "queued", progress: 0, attempts: 0, cancelRequested: false, createdAt: run.createdAt, updatedAt: run.createdAt }, `Score ${run.id} (${form.note || "no note"})`, { kind: "run", id: run.id });
-          onOpenChange(false);
-          void navigate({ to: "/p/$projectId/runs/$runId", params: { projectId: ctx.projectId, runId: run.id }, search: { tab: "monitor" } });
+          if (run.jobId) track({ id: run.jobId, kind: "score_run", status: run.status, progress: run.status === "done" ? 1 : 0, attempts: 0, cancelRequested: false, createdAt: run.createdAt, updatedAt: run.createdAt }, `Score ${run.id} (${form.note || "no note"})`, { kind: "run", id: run.id });
+          void navigate({ to: "/p/$projectId/runs/$runId", params: { projectId: ctx.projectId, runId: run.id }, search: { tab: "monitor" }, state: { reusedAssessmentId: run.status === "done" ? run.id : undefined } });
         },
       },
     );
@@ -238,7 +237,7 @@ function NewRunDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o:
               Cancel
             </Button>
             <Button type="submit" disabled={!tableMatchesProject || (!!form.scope?.selection_id && !chosenSelection) || !form.caseTableId || !form.normVersionId || !selectedViews.length || selectedTable.data?.status !== "ready" || !(form.slicings ?? []).some((s) => s.attributes.length > 0) || create.isPending}>
-              Start run
+              {create.isPending ? "Starting run…" : "Start run"}
             </Button>
           </DialogFooter>
         </form>
@@ -253,7 +252,9 @@ export default function RunsPage() {
   const ctx = useWorkbench();
   const runs = useQuery(runsQuery(ctx.projectId));
   const setup = runsRoute.useSearch();
-  const [open, setOpen] = useState(setup.new === true);
+  const navigate = useNavigate();
+  const open = setup.new === true;
+  const setOpen = (next: boolean) => void navigate({ to: ".", search: previous => ({ ...previous, new: next ? true : undefined }), replace: !next });
 
   return (
     <div className="flex flex-col gap-5">
@@ -328,7 +329,7 @@ export default function RunsPage() {
                       <Td>
                         {r.status === "done" && (
                           <Button asChild size="sm" variant="outline">
-                            <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0] }}>
+                            <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: ctx.projectId, runId: r.id }} search={{ slicing: r.slicings?.[0]?.id ?? undefined, view: r.views?.[0], minCases: r.minCases ?? undefined }}>
                               Backlog
                             </Link>
                           </Button>

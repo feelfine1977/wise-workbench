@@ -229,12 +229,16 @@ it("keeps multiple selected results and overlays across all renderers without ch
     { kind: "badge", target: "a02", payload: { constraintId: "receipt" } },
   ];
   render(<FlowMap graph={graph} title="Process" detail={4} frame="page" className="min-h-0 flex-1" />);
-  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "400px" });
-  expect(screen.getByTestId("flow-map")).toHaveClass("overflow-y-auto");
-  expect(screen.getByTestId("flow-map")).toHaveStyle({ scrollbarGutter: "stable" });
+  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "0" });
+  expect(screen.getByTestId("flow-map")).toHaveClass("flow-workspace");
+  expect(screen.getByTestId("flow-map")).not.toHaveStyle({ scrollbarGutter: "stable" });
+  expect(screen.queryByTestId("card-band")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("flow-evidence")).not.toBeInTheDocument();
   const layoutBefore = renderer.scenes;
   const fitKey = () => (renderer.map!.children as { props?: { fitKey?: string } }[]).find((child) => child?.props?.fitKey)?.props?.fitKey;
   const fitBefore = fitKey();
+  const fitter = (renderer.map!.children as { props?: { fitKey?: string; readable?: boolean } }[]).find((child) => child?.props?.fitKey);
+  expect(fitter?.props?.readable).toBe(false);
   fireEvent.click(screen.getByRole("checkbox", { name: "WISE evidence" }));
   expect(screen.getByTestId("evidence-count")).toHaveTextContent("Selected 1 of 3 constraints");
   fireEvent.click(screen.getByRole("button", { name: "Choose constraints" }));
@@ -251,7 +255,7 @@ it("keeps multiple selected results and overlays across all renderers without ch
   expect(screen.getAllByRole("region", { name: "Selected constraint result" })).toHaveLength(1);
   expect(renderer.scenes).toBe(layoutBefore);
   expect(fitKey()).toBe(fitBefore);
-  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "400px" });
+  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "0" });
   const overlays = renderer.map!.graph.overlays;
   expect(overlays?.map((overlay) => overlay.payload?.constraintId).sort()).toEqual(["chronology", "receipt"]);
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "model" })); });
@@ -269,11 +273,11 @@ it("keeps multiple selected results and overlays across all renderers without ch
 });
 
 
-it("gives full-window Map and Model a scrollable 400px minimum drawing even from a short panel", async () => {
+it("uses the workspace frame in full-window Map and Model even from a short panel", async () => {
   render(<FlowMap graph={countGraph()} title="Process" detail={4} height={260} full />);
-  expect(screen.getByTestId("flow-map")).toHaveClass("overflow-y-auto");
-  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "400px" });
+  expect(screen.getByTestId("flow-map")).toHaveClass("flow-workspace");
+  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "0" });
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "model" })); });
   expect(renderer.model!.height).toBe(400);
-  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "400px" });
+  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "0" });
 });

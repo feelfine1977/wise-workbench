@@ -396,7 +396,7 @@ it("previews only the selected norm and table, resets lens values between versio
   await act(async () => { history.push(`/p/p2p2018/norms/nv_preview?caseTable=${table.id}&constraint=c_save`); });
   await waitFor(() => expect(screen.getByLabelText(/Target \(/)).toHaveValue(12));
   expect(screen.getByLabelText(/Tolerance width \(/)).toHaveValue(20);
-  expect(screen.getByTestId("norm-builder")).toHaveTextContent(`Evidence for saved norm version 8 on preparation ${table.id}`);
+  expect(screen.getByTestId("norm-builder")).toHaveTextContent("Evidence: All prepared cases · saved norm version 8");
   expect(screen.getByTestId("norm-sentence")).toHaveTextContent("with 20 days of tolerance");
   await act(async () => { history.push(`/p/p2p2018/norms/nv_refused?caseTable=${table.id}&constraint=c_save`); });
   const builder = await screen.findByTestId("norm-builder", {}, LOAD); await within(builder).findByRole("alert");

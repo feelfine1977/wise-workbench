@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -25,9 +25,10 @@ const source: NormDocument = {
   metadata: { calibration_pending: ["c1", "c2", "c3", "c4"], untouched: "keep", calibration: { inherited: { rationale: "Approved earlier", owner: "Original owner", decidedAt: "2026-01-01" } } },
 };
 
-function setup(options: { failSave?: boolean; failRead?: boolean; failSignal?: string; emptySignal?: string } = {}) {
+function setup(options: { failSave?: boolean; failRead?: boolean; failSignal?: string; emptySignal?: string; selectionId?: string; responseScope?: components["schemas"]["NormEvidenceScope"] | null } = {}) {
   const document = structuredClone(source);
   const bodies: NormVersionCreate[] = [], signals: string[] = [], signatures: unknown[] = [];
+  const signalRequests: URL[] = [];
   const documents = new Map<string, NormDocument>([["v1", document]]);
   let failSave = options.failSave, failRead = options.failRead, failSignal = options.failSignal;
   const onSaved = vi.fn(), onConstraint = vi.fn();
@@ -43,10 +44,13 @@ function setup(options: { failSave?: boolean; failRead?: boolean; failSignal?: s
     }),
     http.get("*/projects/batch-test/norms/:id/signals/:constraint", ({ params, request }) => {
       signals.push(String(params.constraint));
+      const url = new URL(request.url); signalRequests.push(url);
+      const selectionId = url.searchParams.get("selectionId");
+      const scope = options.responseScope === null ? undefined : options.responseScope ?? (selectionId === null ? { kind: "all_cases" } : { kind: "saved_selection", selectionId, selectionName: "Selected invoices", membershipChecksum: "checksum-" + selectionId });
       if (params.constraint === failSignal) { failSignal = undefined; return HttpResponse.json({ title: "No signal" }, { status: 503 }); }
       const c = documents.get(String(params.id))!.constraints!.find(c => c.id === params.constraint)!;
       const rule = batchNumericRule(c)!;
-      return HttpResponse.json({ normVersionId: params.id, caseTableId: new URL(request.url).searchParams.get("caseTableId"), constraintId: c.id, type: c.type, unit: rule.unit, direction: rule.direction, threshold: rule.target, width: rule.width, casesInScope: 10, stats: { n: c.id === options.emptySignal ? 0 : 7, nCases: 10, median: 8, p90: 22, shareViolated: 0.2, casesMissing: 2 }, bins: [], ecdf: [] });
+      return HttpResponse.json({ scope, normVersionId: params.id, caseTableId: new URL(request.url).searchParams.get("caseTableId"), constraintId: c.id, type: c.type, unit: rule.unit, direction: rule.direction, threshold: rule.target, width: rule.width, casesInScope: 10, stats: { n: c.id === options.emptySignal ? 0 : 7, nCases: 10, median: 8, p90: 22, shareViolated: 0.2, casesMissing: 2 }, bins: [], ecdf: [] });
     }),
     http.post("*/projects/batch-test/norms", async ({ request }) => {
       const body = await request.json() as NormVersionCreate; bodies.push(body);
@@ -58,9 +62,9 @@ function setup(options: { failSave?: boolean; failRead?: boolean; failSignal?: s
     }),
     http.patch("*/projects/batch-test/norms/:id", async ({ request }) => { signatures.push(await request.json()); return HttpResponse.json({}, { status: 500 }); }),
   );
-  const element = (overrides: Partial<BatchNormDecisionsProps> = {}) => <QueryClientProvider client={client}><BatchNormDecisions projectId="batch-test" versionId="v1" document={document} caseTableId="ct1" onSaved={onSaved} onConstraint={onConstraint} {...overrides} /></QueryClientProvider>;
+  const element = (overrides: Partial<BatchNormDecisionsProps> = {}) => <QueryClientProvider client={client}><BatchNormDecisions projectId="batch-test" versionId="v1" document={document} caseTableId="ct1" selectionId={options.selectionId} onSaved={onSaved} onConstraint={onConstraint} {...overrides} /></QueryClientProvider>;
   const ui = render(element());
-  return { bodies, signals, signatures, documents, document, onSaved, onConstraint, ui, element };
+  return { bodies, signals, signalRequests, signatures, documents, document, client, onSaved, onConstraint, ui, element };
 }
 async function fillDecision(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Shared decision reason"), "Agreed service policy for these rules");
@@ -230,3 +234,126 @@ it("preserves an explicit lower-bound proposal on save failure and subtracts the
 
 // These existing decision/signature regressions use the explicit Expert requirements.
 beforeEach(() => localStorage.setItem("wise-norm-authoring-preferences", JSON.stringify({ mode: "expert", skipReasonOwner: true })));
+
+
+async function previewScopedThreshold(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByText(/4 pending decisions/); await chooseDays(user);
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await user.click(screen.getByRole("button", { name: "Load selected evidence" }));
+  await screen.findByText(/7 measured \/ 10 in scope/);
+  await waitFor(() => expect(screen.getByLabelText("New target")).toBeEnabled());
+  await user.type(screen.getByLabelText("New target"), "15");
+  await user.type(screen.getByLabelText("New tolerance width"), "4");
+  await fillDecision(user);
+  await user.click(screen.getByRole("button", { name: "Preview selected threshold settings" }));
+}
+
+it("requests selected-cohort signals and persists their exact scope in the supported version note", async () => {
+  const selectionId = "cohort / A";
+  const api = setup({ selectionId }); const user = userEvent.setup();
+  await previewScopedThreshold(user);
+  expect(api.signalRequests[0]!.searchParams.get("selectionId")).toBe(selectionId);
+  expect(api.signalRequests[0]!.searchParams.get("caseTableId")).toBe("ct1");
+  const preview = screen.getByRole("region", { name: "Batch change preview" });
+  expect(preview).toHaveTextContent("selected cohort Selected invoices");
+  await user.click(within(preview).getByRole("checkbox", { name: "Apply Pay target 1" }));
+  await user.click(screen.getByRole("button", { name: "Save 1 selected threshold changes as new draft" }));
+  await waitFor(() => expect(api.onSaved).toHaveBeenCalledWith("saved_1"));
+  const body = api.bodies[0]!;
+  expect(body.note).toContain(JSON.stringify({ kind: "saved_selection", selectionId }));
+  expect(body.note).toContain(JSON.stringify({ constraintId: "c1", scope: { kind: "saved_selection", selectionId, selectionName: "Selected invoices", membershipChecksum: "checksum-" + selectionId } }));
+  expect(Object.keys(body.calibration!.c1!).sort()).toEqual(["owner", "rationale"]);
+  expect(body.norm.metadata).toEqual(source.metadata);
+  expect(api.document).toEqual(source);
+});
+
+it("records cohort review context for confirmation-only decisions without claiming measured evidence", async () => {
+  const api = setup({ selectionId: "cohort-a" }); const user = userEvent.setup();
+  await screen.findByText(/4 pending decisions/);
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await fillDecision(user);
+  await user.click(screen.getByRole("button", { name: "Preview selected decisions" }));
+  await user.click(screen.getByRole("button", { name: "Save 1 selected decisions as new draft" }));
+  await waitFor(() => expect(api.onSaved).toHaveBeenCalled());
+  expect(api.bodies[0]!.note).toContain('"requestedScope":{"kind":"saved_selection","selectionId":"cohort-a"}');
+  expect(api.bodies[0]!.note).toContain("No signal evidence loaded for these decisions");
+  expect(api.signals).toEqual([]);
+  expect(api.bodies[0]!.norm).toEqual(source);
+});
+
+it.each([
+  [undefined, "cohort-a"], ["cohort-a", "cohort-b"], ["cohort-a", undefined],
+])("resets evidence, entries and preview when population changes from %s to %s", async (initial, next) => {
+  const api = setup({ selectionId: initial }); const user = userEvent.setup();
+  const fetchQuery = vi.spyOn(api.client, "fetchQuery");
+  await previewScopedThreshold(user);
+  await user.click(screen.getByRole("checkbox", { name: "Apply Pay target 1" }));
+  api.ui.rerender(api.element({ selectionId: next }));
+  await screen.findByText(/4 pending decisions/);
+  expect(screen.queryByRole("region", { name: "Batch change preview" })).not.toBeInTheDocument();
+  expect(screen.getByText("0 selected")).toBeVisible();
+  expect(screen.getByLabelText("Shared decision reason")).toHaveValue("");
+  expect(screen.getByLabelText("Shared decision owner")).toHaveValue("");
+  await chooseDays(user);
+  expect(screen.getByLabelText("New target")).toHaveValue(null);
+  expect(screen.getByLabelText("New tolerance width")).toHaveValue(null);
+  expect(screen.queryByText(/7 measured \/ 10 in scope/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await user.click(screen.getByRole("button", { name: "Load selected evidence" }));
+  await screen.findByText(/7 measured \/ 10 in scope/);
+  expect(api.signalRequests.map(url => url.searchParams.get("selectionId"))).toEqual([initial ?? null, next ?? null]);
+  expect(fetchQuery.mock.calls.map(([options]) => options.queryKey)).toEqual([
+    ["projects", "batch-test", "norms", "v1", "signals", "ct1", "c1", initial ?? null],
+    ["projects", "batch-test", "norms", "v1", "signals", "ct1", "c1", next ?? null],
+  ]);
+  expect(api.bodies).toEqual([]);
+});
+
+it.each([
+  { selectionId: "cohort-a", responseScope: null },
+  { selectionId: "cohort-a", responseScope: { kind: "all_cases" as const } },
+  { selectionId: "cohort-a", responseScope: { kind: "saved_selection" as const, selectionId: "cohort-b" } },
+  { selectionId: undefined, responseScope: { kind: "saved_selection" as const, selectionId: "cohort-a" } },
+])("rejects an evidence response from a different or unknown population: %j", async options => {
+  const api = setup(options); const user = userEvent.setup();
+  await screen.findByText(/4 pending decisions/); await chooseDays(user);
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await user.click(screen.getByRole("button", { name: "Load selected evidence" }));
+  await screen.findByText("Evidence belongs to a different or unknown population. Reload it for this selection.");
+  expect(screen.queryByText(/7 measured \/ 10 in scope/)).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByLabelText("New target")).toBeEnabled());
+  await user.type(screen.getByLabelText("New target"), "15"); await user.type(screen.getByLabelText("New tolerance width"), "4"); await fillDecision(user);
+  await user.click(screen.getByRole("button", { name: "Preview selected threshold settings" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("No changes are ready");
+  expect(screen.queryByRole("region", { name: "Batch change preview" })).not.toBeInTheDocument();
+  expect(api.bodies).toEqual([]);
+});
+
+it("ignores a late response after switching cohorts while evidence is loading", async () => {
+  const api = setup({ selectionId: "old" }); const user = userEvent.setup();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const requested: string[] = [];
+  server.use(http.get("*/projects/batch-test/norms/v1/signals/c1", async ({ request }) => {
+    const selectionId = new URL(request.url).searchParams.get("selectionId")!;
+    requested.push(selectionId);
+    if (selectionId === "old") await gate;
+    return HttpResponse.json({ normVersionId: "v1", caseTableId: "ct1", constraintId: "c1", type: "lag", unit: "D", direction: "high", threshold: 10, width: 2,
+      scope: { kind: "saved_selection", selectionId }, casesInScope: 10, stats: { n: selectionId === "old" ? 9 : 2, nCases: 10 }, bins: [], ecdf: [] });
+  }));
+  await screen.findByText(/4 pending decisions/); await chooseDays(user);
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await user.click(screen.getByRole("button", { name: "Load selected evidence" }));
+  await waitFor(() => expect(requested).toEqual(["old"]));
+  api.ui.rerender(api.element({ selectionId: "new" }));
+  await screen.findByText(/4 pending decisions/); await chooseDays(user);
+  await user.click(screen.getByRole("checkbox", { name: /^Pay target 1/ }));
+  await user.click(screen.getByRole("button", { name: "Load selected evidence" }));
+  await screen.findByText(/2 measured \/ 10 in scope/);
+  await act(async () => { release(); await gate; });
+  await waitFor(() => expect(api.client.isFetching({ queryKey: ["projects", "batch-test", "norms", "v1", "signals"] })).toBe(0));
+  expect(requested).toEqual(["old", "new"]);
+  expect(screen.queryByText(/9 measured/)).not.toBeInTheDocument();
+  expect(screen.getByText(/2 measured \/ 10 in scope/)).toBeVisible();
+  expect(api.bodies).toEqual([]);
+});

@@ -53,6 +53,143 @@ SENTINEL_DATES = (
 )
 
 
+IDENTICAL_ROW_POLICY = "identical_prepared_rows_v1"
+
+
+def _duplicate_policy(mapping: ColumnMapping) -> tuple[bool, bool]:
+    """Return (identical-row cleanup, inherited legacy key cleanup)."""
+    for decision in reversed(mapping.decisions):
+        if decision.get("kind") == "collapse_duplicates" and decision.get("policy"):
+            if decision["policy"] != IDENTICAL_ROW_POLICY:
+                raise ValidationError("Unknown duplicate-removal policy", code="mapping.dedupe_policy")
+            return True, bool(decision.get("legacyKeyDedupeInherited"))
+    return False, bool(mapping.dedupe)
+
+
+def identical_event_rows(log: wise.EventLog) -> pd.Series:
+    """Repeated prepared rows across every retained event column, including IDs and values."""
+    return log.events.duplicated(keep="first")
+
+
+def closure_diagnostics(log: wise.EventLog, mapping: ColumnMapping, window_end: Any = None) -> dict[str, Any]:
+    """Add observed-closure applicability without changing legacy flags or filter membership."""
+    end = window_end if window_end is not None else resolve_window_end(log)
+    legacy = censored_mask(log, mapping, window_end=end)
+    all_cases = pd.Series(True, index=log.case_ids)
+    applicable = all_cases.copy()
+    not_applicable = ~all_cases
+    unknown = ~all_cases
+    basis = "Configured closure activities; business applicability has not been independently verified."
+    category = "case Item Category"
+    bpic_rules = any(r.rule.get("attr") == category for r in mapping.flow_typing)
+    if mapping.closure_activities == ("Clear Invoice",) and bpic_rules and category in log.events:
+        values = log.events.groupby(log.case_col, observed=True)[category]
+        unique = values.nunique(dropna=False).reindex(log.case_ids)
+        first = values.first().reindex(log.case_ids)
+        consistent = unique.eq(1) & first.notna()
+        applicable = consistent & first.isin(
+            ["3-way match, invoice after GR", "3-way match, invoice before GR", "2-way match"]
+        )
+        not_applicable = consistent & first.eq("Consignment")
+        unknown = ~(applicable | not_applicable)
+        basis = "BPIC19 item category; invoice closure is not applicable to consignment."
+    if not mapping.closure_activities:
+        applicable, unknown = ~all_cases, all_cases
+        basis = "No configured closure activities."
+    observed = log.count(list(mapping.closure_activities)).gt(0) if mapping.closure_activities else ~all_cases
+    dated = log.cases["last_ts"].notna()
+    measurable = applicable & dated
+    recent = (legacy & measurable) if legacy is not None else ~all_cases
+    n_measurable = int(measurable.sum())
+    return {
+        "policy": "closure_observation_v1",
+        "applicabilityBasis": basis,
+        "totalCases": len(log),
+        "applicableCases": int(applicable.sum()),
+        "notApplicableCases": int(not_applicable.sum()),
+        "unknownApplicabilityCases": int(unknown.sum()),
+        "closureObservedCases": int((applicable & observed).sum()),
+        "closureNotObservedCases": int((applicable & ~observed).sum()),
+        "timestampUnknownCases": int((applicable & ~dated).sum()),
+        "recentUnclosedEvaluableCases": n_measurable,
+        "recentUnclosedCases": int(recent.sum()),
+        "recentUnclosedShare": int(recent.sum()) / n_measurable if n_measurable else None,
+        "legacyFlaggedCases": int(legacy.sum()) if legacy is not None else None,
+        "legacyFlaggedShare": float(legacy.mean()) if legacy is not None and len(log) else None,
+        "closure": list(mapping.closure_activities),
+        "window": mapping.censoring_window,
+        "windowEnd": jsonable(end),
+        "filterPolicy": "legacy_recent_unclosed_unchanged",
+        "note": "Closure observed is not proof of business completion; not flagged does not mean closed.",
+    }
+
+
+def _activity_labels(value: Any) -> list[str]:
+    return [value] if isinstance(value, str) else [str(x) for x in value or []]
+
+
+def norm_interpretation_label(constraint_id: str, document: dict[str, Any]) -> str | None:
+    """Presentation only: describe actual endpoints without editing the norm or its fingerprint."""
+    for spec in document.get("constraints") or []:
+        if spec.get("id") != constraint_id:
+            continue
+        params = spec.get("params") or {}
+        a, b = set(_activity_labels(params.get("a"))), set(_activity_labels(params.get("b")))
+        invoices = {"Vendor creates invoice", "Record Invoice Receipt"}
+        if spec.get("type") == "lag" and b == {"Clear Invoice"} and a and a <= invoices:
+            start = (
+                "Invoice evidence"
+                if a == invoices
+                else ("Vendor invoice" if a == {"Vendor creates invoice"} else "Invoice receipt")
+            )
+            return f"{start}-to-clearing elapsed time"
+        if (
+            spec.get("type") == "precedence"
+            and b == invoices
+            and a
+            and a <= {"Record Goods Receipt", "Record Service Entry Sheet"}
+        ):
+            return "Invoice evidence before first receipt"
+    return None
+
+
+def norm_interpretation_warnings(log: wise.EventLog, document: dict[str, Any]) -> list[str]:
+    """Advisory evidence limitations, never validation errors or a draft-save gate."""
+    labels = set(log.activity_labels)
+    warnings_out: list[str] = []
+    for spec in document.get("constraints") or []:
+        cid, params = str(spec.get("id", "")), spec.get("params") or {}
+        required = set()
+        for key in ("activity", "a", "b", "after", "before", "activities_x", "activities_y"):
+            required.update(_activity_labels(params.get(key)))
+        for label in sorted(required - labels):
+            suggestion = (
+                " The observed label is 'Change payment term'; review an explicit new norm version."
+                if label == "Change Payment Terms" and "Change payment term" in labels
+                else ""
+            )
+            warnings_out.append(
+                f"{cid}: activity {label!r} is not observed in the supplied evidence population.{suggestion} "
+                "This is an evidence-coverage warning, not proof of compliance or an automatic rule waiver."
+            )
+        a, b = set(_activity_labels(params.get("a"))), set(_activity_labels(params.get("b")))
+        invoices = {"Vendor creates invoice", "Record Invoice Receipt"}
+        if (a == invoices or b == invoices) and spec.get("type") in {"lag", "precedence"}:
+            warnings_out.append(
+                f"{cid}: combines vendor invoice creation and invoice receipt. "
+                "They are different event meanings; inspect the exact endpoints and pairing policy. "
+                "Vendor dating before receipt alone does not prove an invoice-posting breach."
+            )
+        if norm_interpretation_label(cid, document) and spec.get("type") == "lag":
+            warnings_out.append(
+                f"{cid}: elapsed-time target {params.get('delta')} {params.get('unit', 'D')}, "
+                f"width {params.get('width', 0)}; activation={params.get('activation', 'first')}, "
+                f"response={params.get('response', 'first_after')}, missing_b={params.get('missing_b', 'violate')}. "
+                "This does not measure contractual lateness without due dates or match all repeated invoices."
+            )
+    return warnings_out
+
+
 def _library_error(exc: Exception, code: str) -> ValidationError:
     return ValidationError(str(exc), code=code)
 
@@ -85,7 +222,7 @@ def build_log(df: pd.DataFrame, mapping: ColumnMapping, *, typed: bool = False) 
     if not typed:
         kwargs["lifecycle_col"] = mapping.lifecycle
         kwargs["keep_transitions"] = mapping.keep_transitions
-        kwargs["dedupe"] = mapping.dedupe
+        kwargs["dedupe"] = mapping.dedupe and _duplicate_policy(mapping)[1]
     try:
         log = wise.EventLog(df, **kwargs)
     except wise.LogSchemaError as exc:
@@ -94,6 +231,10 @@ def build_log(df: pd.DataFrame, mapping: ColumnMapping, *, typed: bool = False) 
         raise _library_error(exc, "mapping.invalid") from exc
     if not typed:
         log = apply_event_decisions(log, mapping)
+        if mapping.dedupe and _duplicate_policy(mapping)[0]:
+            duplicate = identical_event_rows(log)
+            if duplicate.any():
+                log = rebuild(log, log.events.loc[~duplicate], mapping)
     if mapping.open_cases == "censor" and log.window is None:
         # open lags are censored at the window end (Lag(missing_b="censor") reads the log's window)
         start, end = log.observation_window()
@@ -297,8 +438,16 @@ def preview_decision(log: wise.EventLog, mapping: ColumnMapping, kind: str, para
     elif kind == "sentinel_as_missing":
         cases, events = by_events(_sentinel_mask(log, params))
     elif kind == "collapse_duplicates":
-        dup = ev.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).to_numpy()
+        dup = identical_event_rows(log).to_numpy()
         cases, events = by_events(dup)
+        detail = {
+            "policy": IDENTICAL_ROW_POLICY,
+            "columns": list(ev.columns),
+            "keyCollisions": int(ev.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum()),
+            "legacyKeyDedupeInherited": _duplicate_policy(mapping)[1] if mapping.dedupe else False,
+            "message": "Remove identical prepared rows across all retained columns; distinct IDs or values are preserved. "
+            "Inherited legacy cleanup is retained; this operation does not restore previously removed rows.",
+        }
     elif kind in ("day_precision", "header_events"):
         acts = [str(a) for a in params.get("activities") or []]
         mask = ev[log.activity_col].astype(str).isin(acts).to_numpy()
@@ -317,7 +466,14 @@ def preview_decision(log: wise.EventLog, mapping: ColumnMapping, kind: str, para
             c = wise.right_censored(log, closure, window=str(params.get("window") or "60D"), window_end=end)
         cases = int(c.sum())
         events = int(log.cases.loc[c, "n_events"].sum())
-        detail = {"handling": params.get("handling", "censor"), "windowEnd": jsonable(end), "closure": closure}
+        detail = {
+            "handling": params.get("handling", "censor"),
+            "windowEnd": jsonable(end),
+            "closure": closure,
+            "filterPolicy": "legacy_recent_unclosed_unchanged",
+            "message": "Counts refer to the legacy recent-unclosed diagnostic, not every unfinished case. "
+            "Setting a window does not change a rule's skip, violate, censor or presence semantics.",
+        }
     elif kind == "zero_exposure":
         if "exposure" not in log.cases.columns:
             raise ValidationError("the mapping has no exposure column", code="decision.params")
@@ -853,19 +1009,45 @@ def readiness_report(
             {"activities": precision_rows},
         )
     )
-    dup = int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
-    if gate is not None and "duplicate_events" in gate.table.index:
-        # the gate counts the same key (case, activity, timestamp); its evidence is printed next to the count
-        gate_dup = gate.evidence.get("duplicate_events")
-        if gate_dup is not None and "n" in getattr(gate_dup, "columns", []):
-            dup = int(gate_dup["n"].sum()) if len(gate_dup) else dup
-    if dup:
+    identical = identical_event_rows(log)
+    key_collision = log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col])
+    exact = int(identical.sum())
+    collisions = int(key_collision.sum())
+    exact_cases = int(log.events.loc[identical, log.case_col].nunique())
+    collision_cases = int(log.events.loc[key_collision, log.case_col].nunique())
+    if exact:
         items.append(
             ReadinessItem(
                 "duplicate_events",
                 ReadinessLevel.WARN,
-                f"{dup:,} events are exact duplicates (same case, activity and timestamp); counts and singularity constraints are inflated.",
-                {"events": dup, "share": dup / max(n_events, 1)},
+                f"{exact:,} repeated prepared event rows are identical across all retained columns, including event IDs and values.",
+                {
+                    "events": exact,
+                    "share": exact / max(n_events, 1),
+                    "policy": IDENTICAL_ROW_POLICY,
+                    "cases": exact_cases,
+                    "casesShare": exact_cases / max(n_cases, 1),
+                    "eventShare": exact / max(n_events, 1),
+                    "columns": list(log.events.columns),
+                },
+            )
+        )
+    if collisions:
+        items.append(
+            ReadinessItem(
+                "event_key_collisions",
+                ReadinessLevel.WARN,
+                f"{collisions:,} events repeat a case/activity/timestamp key; {exact:,} are identical prepared rows. "
+                "The remaining collisions may be distinct receipts or other events; do not collapse them on this key alone.",
+                {
+                    "events": collisions,
+                    "identicalEvents": exact,
+                    "distinctRowCollisions": collisions - exact,
+                    "cases": collision_cases,
+                    "casesShare": collision_cases / max(n_cases, 1),
+                    "eventShare": collisions / max(n_events, 1),
+                    "share": collisions / max(n_events, 1),
+                },
             )
         )
     tied_share = float(v["tied_events_share"])
@@ -949,15 +1131,16 @@ def readiness_report(
             share = n_c / max(n_cases, 1)
             handling = {
                 "keep": "",
-                "censor": " Open lags are censored at the window end (decision taken).",
-                "exclude": " Open cases were excluded from this case table (decision taken).",
+                "censor": " Observation window set; each rule retains its missing-event policy (decision taken).",
+                "exclude": " Cases meeting the legacy recent-unclosed diagnostic were excluded (decision taken).",
             }[mapping.open_cases]
             items.append(
                 ReadinessItem(
                     "right_censored",
                     ReadinessLevel.WARN if share >= 0.05 else ReadinessLevel.INFO,
-                    f"{n_c:,} {noun} ({share:.1%}) are still open {when}: they lack a closure activity and were "
-                    f"active within {window} of the window end; late {closure_label} cannot be judged for them.{handling}",
+                    f"{n_c:,} {noun} ({share:.1%}) meet the legacy recent-unclosed diagnostic {when}: no configured "
+                    f"closure is observed and they were active within {window} of the window end. "
+                    f"Not flagged does not mean closed; check closure applicability below.{handling}",
                     {
                         "cases": n_c,
                         "share": share,
@@ -984,6 +1167,21 @@ def readiness_report(
                     {"casesActiveLate": active, "window": window, "windowEnd": end},
                 )
             )
+    closure_info = closure_diagnostics(log, mapping, end)
+    items.append(
+        ReadinessItem(
+            "closure_applicability",
+            ReadinessLevel.INFO,
+            f"Configured closure applies to {closure_info['applicableCases']:,} {noun}; "
+            f"{closure_info['notApplicableCases']:,} are not applicable and "
+            f"{closure_info['unknownApplicabilityCases']:,} have unknown applicability. "
+            f"{closure_info['recentUnclosedCases']:,} of {closure_info['recentUnclosedEvaluableCases']:,} applicable "
+            f"cases with dated evidence meet the recent-unclosed diagnostic; "
+            f"{closure_info['timestampUnknownCases']:,} applicable cases have no dated event. "
+            "Observed closure does not prove business completion; legacy filter membership is unchanged.",
+            closure_info,
+        )
+    )
     if FLOW_TYPE_ATTRIBUTE in log.cases.columns:
         counts = log.cases[FLOW_TYPE_ATTRIBUTE].value_counts(dropna=False)
         other = int(counts.get(mapping.flow_type_default, 0))
@@ -1055,7 +1253,12 @@ def readiness_report(
             # R3-O1: an item keeps its full option set after a decision; the one in force is marked, never removed
             decision = {
                 "kind": kind,
-                "label": spec["label"],
+                "label": (
+                    {
+                        "collapse_duplicates": "Remove identical prepared event rows",
+                        "open_cases": "Review recent-unclosed handling",
+                    }.get(kind, spec["label"])
+                ),
                 "params": spec["params"],
                 "options": dict(spec.get("options") or {}),
                 "note": spec.get("note"),

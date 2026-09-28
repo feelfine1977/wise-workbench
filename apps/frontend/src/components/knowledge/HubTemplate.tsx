@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { KIND_WORDS, measureWords, readableSources, roleWords } from "@/components/knowledge/words";
+import { SolutionCardDefinition } from "./SolutionCardDefinition";
 import { cn } from "@/lib/utils";
 
 function Block({ title, children, testId }: { title: string; children: ReactNode; testId?: string }) {
@@ -68,9 +69,18 @@ export function ActionList({ actions, className }: { actions: UsualAction[] | un
   );
 }
 
+function RelatedNode({ node, onOpen }: { node: HubNode; onOpen?: (nodeId: string) => void }) {
+  return <button type="button" className="rounded-full border border-border px-2 py-0.5 text-xs text-accent-text hover:bg-surface-sunken"
+    onClick={() => onOpen?.(node.id)} title={node.method_name ?? undefined} disabled={!onOpen}>
+    {node.plain_name ?? node.method_name ?? node.id}
+  </button>;
+}
+
 function RelatedList({ related, onOpen }: { related: HubRelated | undefined; onOpen?: (nodeId: string) => void }) {
   if (!related) return null;
   const groups: { label: string; nodes: HubNode[] }[] = [
+    { label: "process", nodes: Array.isArray(related.process) ? related.process : related.process ? [related.process] : [] },
+    { label: "solution-card templates", nodes: related.solution_cards ?? [] },
     { label: "stage", nodes: related.stage ? [related.stage] : [] },
     { label: "expectation areas", nodes: related.layers ?? [] },
     { label: "expectations", nodes: related.expectations ?? [] },
@@ -85,17 +95,11 @@ function RelatedList({ related, onOpen }: { related: HubRelated | undefined; onO
           <div key={g.label} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <dt className="text-xs uppercase tracking-wide text-text-subtle">{g.label}</dt>
             <dd className="flex min-w-0 flex-wrap gap-1.5">
-              {g.nodes.slice(0, 8).map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  className="rounded-full border border-border px-2 py-0.5 text-xs text-accent-text hover:bg-surface-sunken"
-                  onClick={() => onOpen?.(n.id)}
-                  title={n.method_name ?? undefined}
-                >
-                  {n.plain_name ?? n.method_name ?? n.id}
-                </button>
-              ))}
+              {g.nodes.slice(0, 8).map((n) => <RelatedNode key={n.id} node={n} onOpen={onOpen} />)}
+              {g.nodes.length > 8 && <details className="w-full">
+                <summary className="cursor-pointer text-xs text-accent-text">Show {g.nodes.length - 8} more {g.label}</summary>
+                <div className="mt-1 flex flex-wrap gap-1.5">{g.nodes.slice(8).map((n) => <RelatedNode key={n.id} node={n} onOpen={onOpen} />)}</div>
+              </details>}
             </dd>
           </div>
         ))}
@@ -192,6 +196,9 @@ export function HubTemplate({ projectId, page, onOpen, compact, className }: Hub
         {node.missed_label && <p className="text-sm text-text-muted">When it is missed, we call it: {node.missed_label}.</p>}
       </header>
 
+      {node.solution_card && <SolutionCardDefinition card={node.solution_card} />}
+      {node.kind === "solution_card" && !node.solution_card && <p className="text-sm text-text-muted">This solution-card definition is unavailable.</p>}
+
       {g.expectation && (
         <Block title="What is expected" testId="hub-expectation">
           <p className="reading text-sm text-text">{g.expectation}</p>
@@ -256,7 +263,7 @@ export function HubTemplate({ projectId, page, onOpen, compact, className }: Hub
           </p>
         </Block>
       ) : null}
-      <Overlay projectId={projectId} kind={entryKind} entryId={entryId} overlay={page.overlay} />
+      {node.kind !== "solution_card" && node.kind !== "process" && <Overlay projectId={projectId} kind={entryKind} entryId={entryId} overlay={page.overlay} />}
       {/* a source the reader can go to, never a file of this repository: the page printed
           "packages/process-knowledge/PACK_DESIGN.md; failure_modes.yaml (p2p)" under every expectation (P1-13) */}
       {!compact && readableSources(g.sources).length ? <p className="text-xs text-text-subtle">Sources: {readableSources(g.sources).join("; ")}</p> : null}

@@ -1,3 +1,4 @@
+import { summarizeReadiness } from "@/app/shell/readiness";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -182,8 +183,7 @@ export default function DatasetPage() {
   const readyCaseTable = caseTable.data;
   const tab: DatasetTab = readyCaseTable || search.tab === "understand" || search.tab === "overview" ? search.tab : "mapping";
   const setTab = (t: DatasetTab) => void navigate({ to: ".", search: (s) => ({ ...s, tab: t }) });
-  const warns = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "warn").length;
-  const fails = (readyCaseTable?.readiness?.items ?? []).filter((i) => i.level === "fail").length;
+  const readinessSummary = summarizeReadiness(readyCaseTable?.readiness);
 
   if (differentDataset) return <Card><CardTitle>This project has a fixed dataset</CardTitle><p className="mt-2 text-sm">Continue with {ctx.projectDataset?.name ?? "the selected project dataset"}. To analyse a different dataset, start a new project.</p><div className="mt-3 flex gap-3"><Button onClick={() => void navigate({ to: "/p/$projectId/data/$datasetId", params: { projectId: ctx.projectId, datasetId: ctx.datasetBinding!.datasetId! }, search: { tab: "overview" } })}>Open project dataset</Button><Button variant="outline" onClick={() => void navigate({ to: "/projects" })}>Projects</Button></div></Card>;
 
@@ -337,7 +337,7 @@ export default function DatasetPage() {
           {readyCaseTable ? (
             <>
               <strong className="tnum text-text">{fmtInt(readyCaseTable.cases)}</strong> cases from {fmtInt(readyCaseTable.events ?? dataset.data?.events)} events
-              {warns ? `; ${warns} caveat${warns === 1 ? "" : "s"} travel with every result until you decide about them` : "; no caveat"}.
+              ; {readinessSummary.label}. Review these findings before interpreting results.
             </>
           ) : (
             <>
@@ -365,7 +365,7 @@ export default function DatasetPage() {
           <TabsList aria-label="Data sections">
             <TabsTrigger value="understand">Process guide</TabsTrigger>
             <TabsTrigger value="mapping">Column mapping</TabsTrigger>
-            <TabsTrigger value="readiness" disabled={!readyCaseTable}>Data caveats{warns ? ` (${warns})` : ""}</TabsTrigger>
+            <TabsTrigger value="readiness" disabled={!readyCaseTable}>Data caveats{readyCaseTable ? ` (${readinessSummary.label})` : ""}</TabsTrigger>
             <TabsTrigger value="overview">Explore data</TabsTrigger>
             <TabsTrigger value="flows" disabled={!readyCaseTable}>Flow types</TabsTrigger>
           </TabsList>
@@ -379,8 +379,7 @@ export default function DatasetPage() {
           <TabsContent value="overview">{selectedTableId && caseTable.isPending ? null : selectedTableId && caseTable.isError ? <ErrorBlock error={caseTable.error} retry={() => void caseTable.refetch()} /> : <DataExploration projectId={ctx.projectId} datasetId={datasetId} caseTableId={readyCaseTable?.id} pageMode={search.explore} onPageChange={(explore) => void navigate({ to: ".", search: (s) => ({ ...s, explore }) })} />}</TabsContent>
           {readyCaseTable && <TabsContent value="readiness" className="flex flex-col gap-4">
             <p className="text-sm text-text-muted" title={`case table ${readyCaseTable.id}${readyCaseTable.mappingId ? ` · mapping ${readyCaseTable.mappingId}` : ""}`}>
-              Data readiness: {fails ? `${fails} blocking issue${fails === 1 ? "" : "s"}, ` : ""}
-              {warns} caveat{warns === 1 ? "" : "s"} travel with every result until you decide about them.
+              Data readiness: {readinessSummary.label}. Review these findings and their preparation decisions.
             </p>
             <ReadinessDecisions readiness={readyCaseTable.readiness} projectId={ctx.projectId} caseTableId={readyCaseTable.id} onRebuilt={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />
           </TabsContent>}

@@ -233,15 +233,45 @@ class NormRelevanceConstraint(BaseModel):
         description="Distinct in-scope cases with ANY referenced rule activity; null for no activity references or unavailable scope",
     )
     missingActivities: list[str] = Field(
-        description="Referenced raw activity labels with zero occurrences in the whole mapped table"
+        description="Referenced raw activity labels with zero occurrences in the evidence population"
     )
     issues: list[str]
+
+
+class NormEvidenceScope(BaseModel):
+    kind: Literal["all_cases", "saved_selection"] = "all_cases"
+    selectionId: str | None = None
+    selectionName: str | None = None
+    membershipChecksum: str | None = None
+
+
+class NormPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    caseTableId: str
+    selectionId: str | None = None
+    constraint: dict[str, Any]
+    scale: Literal["linear", "log"] = "linear"
+
+
+class NormPreviewCounts(BaseModel):
+    populationCases: int = Field(ge=0)
+    applicableCases: int = Field(ge=0)
+    evaluatedCases: int = Field(ge=0)
+    unknownCases: int = Field(ge=0)
+    violatingCases: int = Field(ge=0)
+    violationShare: float | None = None
+    meanPenalty: float | None = None
+    observedCases: int | None = Field(
+        default=None, description="Finite native signals; null when no native signal is supported"
+    )
+    missingSignalCases: int | None = None
 
 
 class NormRelevance(BaseModel):
     normVersionId: str
     caseTableId: str
-    cases: int = Field(ge=0, description="Total cases in the explicit mapped table")
+    scope: NormEvidenceScope = Field(default_factory=NormEvidenceScope)
+    cases: int = Field(ge=0, description="Total cases in the explicit evidence population")
     constraints: list[NormRelevanceConstraint]
 
 

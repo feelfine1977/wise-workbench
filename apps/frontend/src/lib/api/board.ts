@@ -6,6 +6,7 @@ import { canonicalParam, type FilterPreview } from "./exploration";
 import { notServed } from "./compatibility";
 import { queryOptions } from "@tanstack/react-query";
 import { http } from "./transport";
+import { definition, label } from "@/lib/vocabulary";
 const enc = encodeURIComponent;
 const IMMUTABLE = 1000 * 60 * 30;
 
@@ -138,7 +139,7 @@ export interface KpiParams {
   sliceKey?: string;
   minCases?: number;
   filter?: Filter;
-  /** Share of items still open, from the case table's readiness, for the fallback's fourth tile. */
+  /** Legacy recent-unclosed share from the case table's readiness, for the fallback's fourth tile. */
   openShare?: number | null;
   caseNoun?: string;
 }
@@ -180,7 +181,7 @@ async function kpisDerived(projectId: string, runId: string, params: KpiParams):
       { id: "items", label: noun[0]?.toUpperCase() + noun.slice(1), value: cases, format: "count", unit: noun, text: `${cases} ${noun} in this selection.` },
       { id: "share_below_expectation", label: "Below expectation", value: mean === null ? null : 1 - mean, format: "share", text: "The average shortfall against the expectations of this perspective; this backend serves it for the whole run." },
       { id: "priority_at_stake", label: "Priority at stake", value: priority, format: "index", unit: "priority", text: `Priority carried by the ${groups} groups the chips keep, small groups discounted.` },
-      { id: "open_share", label: "Still open", value: openShare, format: "share", text: openShare === null ? "Open cases cannot be told apart on this backend." : "The share of items still open at the end of the data, from the readiness report." },
+      { id: "open_share", label: label("censoring"), value: openShare, format: "share", text: openShare === null ? "The recent-unclosed diagnostic is unavailable on this backend." : `The case-table readiness share; it is not recomputed for the current selection. ${definition("censoring")}` },
     ],
   };
 }

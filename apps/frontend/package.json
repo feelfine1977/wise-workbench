@@ -22,7 +22,9 @@
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "e2e": "playwright test",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "dev:demo": "npm run tokens && vite --mode demo",
+    "build:demo": "npm run tokens && tsc -b && vite build --mode demo --outDir dist-demo"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

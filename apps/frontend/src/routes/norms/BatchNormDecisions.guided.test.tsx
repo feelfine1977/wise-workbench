@@ -105,3 +105,17 @@ it("retains real optional notes without calibration and rejects stale, empty, in
   expect(() => thresholdDraftRequest(document, "v1", [{ ...proposal, evidence: { ...proposal.evidence!, data: { ...proposal.evidence!.data, stats: { n: 0, nCases: 10 } } } }], "ct")).toThrow(/No finite measurements/);
   expect(() => thresholdDraftRequest(document, "v1", [{ ...proposal, rule: { ...proposal.rule!, key: "other" } }], "ct")).toThrow(/no longer matches/);
 });
+
+
+it("retains the selected evidence scope for unsigned threshold drafts and rejects a changed or missing scope", () => {
+  const proposal = row();
+  const scope = { kind: "saved_selection" as const, selectionId: "cohort-a", selectionName: "Late invoices", membershipChecksum: "members-a" };
+  proposal.evidence = { ...proposal.evidence!, data: { ...proposal.evidence!.data, scope } };
+  const body = thresholdDraftRequest(document, "v1", [proposal], "ct", "cohort-a");
+  expect(body.note).toContain(JSON.stringify(scope));
+  expect(body).not.toHaveProperty("calibration");
+  expect(body.norm.metadata).toEqual(document.metadata);
+  expect(() => thresholdDraftRequest(document, "v1", [proposal], "ct", "cohort-b")).toThrow(/different or unknown population/);
+  expect(() => thresholdDraftRequest(document, "v1", [proposal], "ct")).toThrow(/different or unknown population/);
+  expect(() => thresholdDraftRequest(document, "v1", [row()], "ct", "cohort-a")).toThrow(/different or unknown population/);
+});

@@ -22,7 +22,7 @@ it("starts with compact Guided settings, synchronizes editors, and restores the 
   expect(skip).toBeChecked();
   await user.click(skip);
   expect(screen.getByTestId("consumer")).toHaveTextContent("guided:false");
-  expect(JSON.parse(localStorage.getItem(NORM_AUTHORING_PREFERENCES_KEY)!)).toEqual({ mode: "guided", skipReasonOwner: false });
+  expect(JSON.parse(localStorage.getItem(NORM_AUTHORING_PREFERENCES_KEY)!)).toEqual({ mode: "guided", skipReasonOwner: false, advancedControls: false });
   await expectNoSeriousA11yViolations(dialog);
   await user.click(screen.getByRole("button", { name: "Done" }));
   expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
@@ -55,4 +55,30 @@ it.each(["broken json", '{"mode":"unknown","skipReasonOwner":"false"}', "null"])
     window.dispatchEvent(new StorageEvent("storage", { key: NORM_AUTHORING_PREFERENCES_KEY }));
   });
   expect(screen.getByTestId("consumer")).toHaveTextContent("expert:false");
+});
+
+
+it("keeps advanced controls opt-in in Guided and always available in Expert", async () => {
+  const user = userEvent.setup();
+  function AdvancedConsumer() {
+    const { showAdvancedControls } = useNormAuthoringPreferences();
+    return showAdvancedControls ? <p>Advanced controls enabled</p> : <p>Simple controls</p>;
+  }
+  const view = render(<><NormAuthoringSettings /><AdvancedConsumer /></>);
+  expect(screen.getByText("Simple controls")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  const advanced = screen.getByRole("checkbox", { name: "Show advanced rule and list controls" });
+  expect(advanced).not.toBeChecked();
+  await user.click(advanced);
+  await user.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("Advanced controls enabled")).toBeVisible();
+  view.unmount(); render(<><NormAuthoringSettings /><AdvancedConsumer /></>);
+  expect(screen.getByText("Advanced controls enabled")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("checkbox", { name: "Show advanced rule and list controls" }));
+  await user.selectOptions(screen.getByLabelText("Authoring mode"), "expert");
+  expect(screen.getByRole("checkbox", { name: "Show advanced rule and list controls" })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Show advanced rule and list controls" })).toBeChecked();
+  await user.selectOptions(screen.getByLabelText("Authoring mode"), "guided");
+  expect(screen.getByRole("checkbox", { name: "Show advanced rule and list controls" })).not.toBeChecked();
 });

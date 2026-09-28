@@ -2,11 +2,13 @@ import { Link } from "@tanstack/react-router";
 import type { WorkbenchContext } from "../context";
 import { viewColor } from "@/lib/viewColors";
 import { useViewSelection } from "./viewSelection";
+import { useNormScope } from "./normScope";
 import { cn } from "@/lib/utils";
 
 /** Labelled bookmarks: view colours identify a business lens, never good/bad performance. */
 export function ViewBookmarks({ ctx }: { ctx: WorkbenchContext }) {
   const selection = useViewSelection(ctx);
+  const normScope = useNormScope(ctx);
   if (!selection) return null;
   const norm = ctx.norm;
   const { names } = selection;
@@ -20,6 +22,6 @@ export function ViewBookmarks({ ctx }: { ctx: WorkbenchContext }) {
       </button>)}
     </div>
     <span className="text-xs text-text-muted">{selection.kind === "structure" ? "Define what matters in each view" : "Weights determine the score and priorities"}</span>
-    {norm && <Link className="ml-auto text-xs text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: norm.id }} search={{ caseTable: ctx.caseTable?.id, tab: "structure", view: ctx.view }}>Layers in each view</Link>}
+    {norm && (normScope.blockedReason ? <span className="ml-auto text-xs text-text-subtle" aria-disabled="true" tabIndex={0} title={normScope.blockedReason}>Layers in each view</span> : <Link className="ml-auto text-xs text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: norm.id }} search={{ caseTable: normScope.caseTableId, selection: normScope.selection, tab: "structure", view: ctx.view }}>Layers in each view</Link>)}
   </section>;
 }

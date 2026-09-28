@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { EDAMultiSelection } from "@/lib/api/eda";
+import type { EDAMultiSelection, EDANumericFacet, EDAJointPredicate } from "@/lib/api/eda";
 
 export interface PeriodSelection {
   key: string;
@@ -16,12 +16,15 @@ export interface SpanSelection {
   max?: number;
   missing?: boolean;
 }
+export interface ContextChoice { key: string; label: string; value?: string }
 export interface FacetSelection {
   field: string;
-  choices: { key: string; label: string }[];
+  choices: ContextChoice[];
 }
 export interface AnalysisDraft {
   facets?: FacetSelection[];
+  numericFacets?: EDANumericFacet[];
+  jointAny?: EDAJointPredicate[];
   eventRanges?: SpanSelection[];
   attribute?: string;
   categories: { key: string; label: string; field: string }[];
@@ -41,11 +44,14 @@ export const analysisKey = (
   caseTableId: string,
 ) => JSON.stringify([projectId, datasetId, caseTableId]);
 export const draftSelection = (draft: AnalysisDraft): EDAMultiSelection => ({
+  ...(draft.numericFacets?.length ? { numericFacets: draft.numericFacets } : {}),
+  ...(draft.jointAny?.length ? { jointAny: draft.jointAny } : {}),
   ...(draft.facets?.length
     ? {
         facets: draft.facets
           .filter((f) => f.choices.length)
-          .map((f) => ({ field: f.field, keys: f.choices.map((c) => c.key) })),
+          .map((f) => ({ field: f.field, keys: f.choices.filter((c) => c.value === undefined).map((c) => c.key),
+            ...(f.choices.some((c) => c.value !== undefined) ? { values: f.choices.flatMap((c) => c.value === undefined ? [] : [c.value]) } : {}) })),
       }
     : {}),
   ...(draft.eventRanges?.some((r) => !r.missing)
@@ -82,9 +88,11 @@ export function draftFromSelection(
 ): AnalysisDraft {
   return {
     attribute,
+    numericFacets: selection.numericFacets,
+    jointAny: selection.jointAny,
     facets: selection.facets?.map((f) => ({
       field: f.field,
-      choices: f.keys.map((key) => ({
+      choices: [...f.keys.map((key) => ({
         key,
         label:
           key === "missing"
@@ -92,7 +100,7 @@ export function draftFromSelection(
             : key === "other"
               ? "Other categories"
               : key,
-      })),
+      })), ...(f.values ?? []).map((value) => ({ key: `value:${value}`, label: value, value }))],
     })),
     eventRanges: [
       ...(selection.eventRanges ?? []).map((r, i) => ({
@@ -136,6 +144,7 @@ export function draftFromSelection(
 function criteria(draft: AnalysisDraft) {
   const selection = draftSelection(draft);
   const groups = new Map<string, string[]>();
+  const exactValues = (selection.facets ?? []).filter((f) => f.values?.length).map((f) => ({ field: f.field, values: [...f.values!].sort() })).sort((a, b) => a.field.localeCompare(b.field));
   for (const facet of selection.facets ?? [])
     groups.set(facet.field, [...facet.keys].sort());
   if (selection.categoryKeys?.length && draft.attribute) {
@@ -150,6 +159,7 @@ function criteria(draft: AnalysisDraft) {
   const { categoryKeys: _categories, facets: _facets, ...rest } = selection;
   return JSON.stringify({
     ...rest,
+    ...(exactValues.length ? { exactValues } : {}),
     facets: [...groups]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([field, keys]) => ({ field, keys })),

@@ -12,7 +12,7 @@ npm test
 npm run build:live
 ```
 
-Run these in `apps/frontend`. `npm run dev` uses mock fixtures by default. Use `VITE_API_URL=http://127.0.0.1:8000 npm run dev` for a live backend. `npm run build:live` disables mocks and builds the same-origin SPA for the backend. `npm run generate` regenerates API types; both the schema and generated types are checked in CI.
+Run these in `apps/frontend`. `npm run dev` connects to the local backend (port 8000 by default); set `VITE_API_URL` to use another port. `npm run build` produces a live same-origin SPA by default, as does `npm run build:live`. Fixture data requires `npm run dev:demo`, `npm run build:demo`, or explicit `VITE_USE_MOCKS=1`. The demo build is written to `dist-demo`, leaving the backend-served `dist` untouched. Live startup removes only this application’s mock service worker and reloads once when necessary before querying the backend. `npm run generate` regenerates API types; both the schema and generated types are checked in CI.
 
 `npm run e2e` builds into `dist-e2e` and serves port 4173, leaving the served `dist` alone. Install Chromium with `npx playwright install chromium`. Tests without `E2E_API_URL` use public fixture responses; live tests require an explicitly supplied backend and workspace.
 

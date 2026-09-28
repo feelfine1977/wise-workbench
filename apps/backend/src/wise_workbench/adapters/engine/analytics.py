@@ -20,7 +20,7 @@ import json
 import time
 import warnings
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -157,7 +157,7 @@ def gate_report(
     document = _document_column(log, mapping)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return wa.readiness(
+        report = wa.readiness(
             log,
             norm,
             result=result,
@@ -172,6 +172,13 @@ def gate_report(
             items=items,
             closure_label=closure_label,
         )
+    from .logs import closure_diagnostics
+
+    summary = {**report.summary, "closure_diagnostics": closure_diagnostics(log, mapping, report.window_end)}
+    table = report.table.copy()
+    if "right_censoring" in table.index:
+        table.loc["right_censoring", "metric"] = "legacy recent-unclosed share (all cases)"
+    return replace(report, summary=summary, table=table)
 
 
 def _document_column(log: wise.EventLog, mapping: ColumnMapping) -> str | None:
@@ -769,8 +776,18 @@ def caveat_texts(
                 "id": kind,
                 "share": float(share),
                 "status": status,
-                "text": quality.caveat_text(
-                    kind, float(share), items=items, window_end=window_end, closure_label=closure_label
+                "text": (
+                    f"{share:.0%} of {items} meet the recent-unclosed diagnostic"
+                    + (f" at {window_end.date()}" if window_end is not None else "")
+                    + ": no configured closure observed and activity within the configured trailing window. "
+                    "Check applicability; not flagged does not mean closed."
+                    if kind == "censoring"
+                    else f"{share:.0%} of {items} contain repeated case/activity/timestamp keys; "
+                    "this does not establish identical events."
+                    if kind == "duplicates"
+                    else quality.caveat_text(
+                        kind, float(share), items=items, window_end=window_end, closure_label=closure_label
+                    )
                 ),
                 "window_end": str(window_end.date()) if window_end is not None else None,
             }

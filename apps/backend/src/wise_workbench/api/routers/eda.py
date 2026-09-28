@@ -29,6 +29,16 @@ def get_case_table_eda(
 
 
 @router.post(
+    "/case-tables/{caseTableId}/eda/query",
+    operation_id="queryCaseTableEDA",
+    response_model=EDAResponse,
+    description="Read-only bounded explorer query. Exact values and typed decimal-string ranges share immutable save membership. jointAny ORs context conjunctions; hierarchyFields declares three ordered levels. Event evidence is opt-in.",
+)
+def query_case_table_eda(projectId: str, caseTableId: str, body: EDARequest, c: ContainerDep) -> EDAResponse:
+    return EDAResponse(**explore_eda(c, projectId, caseTableId, body))
+
+
+@router.post(
     "/case-tables/{caseTableId}/selections",
     operation_id="createCaseTableSelection",
     response_model=SavedSelection,

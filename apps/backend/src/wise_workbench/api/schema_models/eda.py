@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer, model_validator
@@ -42,7 +43,63 @@ class EDAFacetSelection(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     field: str = Field(min_length=1, max_length=256)
-    keys: list[Annotated[str, Field(min_length=1, max_length=32)]] = Field(min_length=1, max_length=22)
+    keys: list[Annotated[str, Field(min_length=1, max_length=32)]] = Field(default_factory=list, max_length=22)
+    values: list[Annotated[str, Field(min_length=1, max_length=4096)]] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def nonempty(self) -> EDAFacetSelection:
+        if not self.keys and not self.values:
+            raise ValueError("A context predicate needs keys or exact values")
+        return self
+
+    @model_serializer(mode="wrap")
+    def serialize_facet(self, serializer: SerializerFunctionWrapHandler):
+        data = serializer(self)
+        if not self.values:
+            data.pop("values", None)
+        return data
+
+
+DecimalBound = Annotated[str, Field(max_length=80, pattern=r"^-?(?:0|[1-9]\d*)(?:\.\d+)?$")]
+
+
+class EDANumericRange(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    min: DecimalBound | None = None
+    max: DecimalBound | None = None
+
+    @model_validator(mode="after")
+    def valid_range(self) -> EDANumericRange:
+        bounds = [Decimal(v) for v in (self.min, self.max) if v is not None]
+        if not bounds or (len(bounds) == 2 and bounds[0] >= bounds[1]):
+            raise ValueError("Use a lower-inclusive / upper-exclusive decimal interval")
+        if any(len(v.as_tuple().digits) > 38 or int(v.as_tuple().exponent) < -38 for v in bounds):
+            raise ValueError("Numeric bounds support at most 38 digits and decimal places")
+        return self
+
+
+class EDANumericFacet(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    field: str = Field(min_length=1, max_length=256)
+    ranges: list[EDANumericRange] = Field(default_factory=list, max_length=12)
+    missing: bool = False
+
+    @model_validator(mode="after")
+    def nonempty(self) -> EDANumericFacet:
+        if not self.ranges and not self.missing:
+            raise ValueError("Select numeric ranges or missing values")
+        return self
+
+
+class EDAJointPredicate(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    facets: list[EDAFacetSelection] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def unique_fields(self) -> EDAJointPredicate:
+        if len({f.field for f in self.facets}) != len(self.facets):
+            raise ValueError("A joint branch needs distinct context fields")
+        return self
 
 
 class EDAEventRange(BaseModel):
@@ -66,6 +123,8 @@ class EDASelection(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     facets: list[EDAFacetSelection] | None = Field(default=None, min_length=1, max_length=16)
+    numericFacets: list[EDANumericFacet] | None = Field(default=None, min_length=1, max_length=16)
+    jointAny: list[EDAJointPredicate] | None = Field(default=None, min_length=1, max_length=24)
     eventRanges: list[EDAEventRange] | None = Field(default=None, min_length=1, max_length=11)
     eventMissing: bool = False
     categoryKeys: list[str] | None = Field(default=None, min_length=1, max_length=22)
@@ -80,7 +139,7 @@ class EDASelection(BaseModel):
         data = serializer(self)
         if not self.eventMissing:
             data.pop("eventMissing", None)
-        for name in ("facets", "eventRanges"):
+        for name in ("facets", "eventRanges", "numericFacets", "jointAny"):
             if getattr(self, name) is None:
                 data.pop(name, None)
         return data
@@ -90,6 +149,9 @@ class EDASelection(BaseModel):
         fields = [facet.field for facet in self.facets or []]
         if len(fields) != len(set(fields)):
             raise ValueError("Facet fields must be unique")
+        numeric_fields = [facet.field for facet in self.numericFacets or []]
+        if len(numeric_fields) != len(set(numeric_fields)):
+            raise ValueError("Numeric fields must be unique")
         return self
 
 
@@ -100,11 +162,24 @@ class EDARequest(BaseModel):
     attribute: str | None = Field(default=None, max_length=256)
     insight: bool = False
     compareAttribute: str | None = Field(default=None, min_length=1, max_length=256)
+    hierarchyFields: list[Annotated[str, Field(min_length=1, max_length=256)]] | None = Field(
+        default=None, min_length=3, max_length=3
+    )
+    valueField: str | None = Field(default=None, min_length=1, max_length=256)
+    valueSearch: str = Field(default="", max_length=256)
+    valuePage: int = Field(default=1, ge=1, le=100_000)
+    eventInsight: bool = False
+    activitySearch: str = Field(default="", max_length=256)
+    activityPage: int = Field(default=1, ge=1, le=100_000)
+    endpointStart: str | None = Field(default=None, min_length=1, max_length=4096)
+    endpointEnd: str | None = Field(default=None, min_length=1, max_length=4096)
+    traceCaseId: str | None = Field(default=None, min_length=1, max_length=4096)
+    tracePage: int = Field(default=1, ge=1, le=10_000_000)
     filter: str | None = Field(default=None, max_length=8192)
     selection: str | None = Field(
         default=None,
         min_length=2,
-        max_length=32768,
+        max_length=131072,
         description="JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected.",
     )
     categoryMode: Literal["missing", "other"] | None = None
@@ -117,6 +192,14 @@ class EDARequest(BaseModel):
 
     @model_validator(mode="after")
     def valid_range(self) -> EDARequest:
+        if self.hierarchyFields and len(set(self.hierarchyFields)) != 3:
+            raise ValueError("Declare three distinct ordered hierarchy fields")
+        if (self.endpointStart is None) != (self.endpointEnd is None):
+            raise ValueError("Choose both endpoint activities")
+        if self.endpointStart is not None and self.endpointStart == self.endpointEnd:
+            raise ValueError("Endpoint activities must differ")
+        if (self.endpointStart or self.traceCaseId) and not self.eventInsight:
+            raise ValueError("Event evidence must be enabled")
         if self.spanMin is not None and self.spanMax is not None and self.spanMin >= self.spanMax:
             raise ValueError("spanMin must be below the exclusive spanMax")
         if self.spanMissing and (self.spanMin is not None or self.spanMax is not None):
@@ -241,6 +324,91 @@ class EDAInsights(BaseModel):
     concentration: list[EDAConcentration]
 
 
+class EDAValue(EDACount):
+    value: str
+    selectable: bool
+
+
+class EDAValuePage(BaseModel):
+    field: str
+    query: str
+    page: int
+    pageSize: int
+    totalValues: int
+    rows: list[EDAValue]
+
+
+class EDAHierarchyCell(EDACount):
+    keys: list[str]
+    labels: list[str]
+
+
+class EDAHierarchy(BaseModel):
+    fields: list[str]
+    cells: list[EDAHierarchyCell]
+
+
+class EDAActivityRow(BaseModel):
+    activity: str | None
+    occurrences: int
+    cases: int
+    repeatedCases: int
+    zeroCases: int
+    presenceRate: float | None
+    repetitionRate: float | None
+
+
+class EDAEndpointCoverage(BaseModel):
+    startActivity: str
+    endActivity: str
+    eligibleCases: int
+    pairedCases: int
+    startOnlyCases: int
+    endOnlyCases: int
+    neitherCases: int
+    undatedEndpointCases: int
+    reversedCases: int
+    ambiguousCases: int
+    medianDays: float | None
+    p90Days: float | None
+    rule: str
+
+
+class EDATraceEvent(BaseModel):
+    position: int
+    activity: str | None
+    timestamp: str | None
+    lifecycle: str | None
+    resource: str | None
+    timestampTied: bool
+
+
+class EDATrace(BaseModel):
+    caseId: str
+    page: int
+    pageSize: int
+    total: int
+    undatedEvents: int
+    events: list[EDATraceEvent]
+    endpointStatus: str | None
+    endpointDays: float | None
+
+
+class EDAEventEvidence(BaseModel):
+    eligibleCases: int
+    recordedEvents: int
+    casesWithoutEvents: int
+    missingActivityEvents: int
+    undatedEvents: int
+    activityPage: int
+    activityPageSize: int
+    totalActivities: int
+    activities: list[EDAActivityRow]
+    endpoints: EDAEndpointCoverage | None
+    trace: EDATrace | None
+    notes: list[str]
+
+
 class EDAResponse(BaseModel):
     datasetId: str
     caseTableId: str
@@ -256,3 +424,6 @@ class EDAResponse(BaseModel):
     details: EDADetails
     notes: list[str]
     insights: EDAInsights | None = None
+    values: EDAValuePage | None = None
+    hierarchy: EDAHierarchy | None = None
+    eventEvidence: EDAEventEvidence | None = None

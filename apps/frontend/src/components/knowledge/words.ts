@@ -12,6 +12,8 @@ export const measureWords = (kind: string | null | undefined): string | undefine
 
 /** The kind of a hub node in the reader's words; `expectation`, `layer`, `failure_mode` are not. */
 export const KIND_WORDS: Record<string, string> = {
+  process: "process",
+  solution_card: "solution-card template",
   stage: "stage of the process",
   layer: "expectation area",
   expectation: "expectation",

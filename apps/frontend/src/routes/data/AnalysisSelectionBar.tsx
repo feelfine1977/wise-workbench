@@ -5,6 +5,7 @@ import { Button, Input } from "@/components/ui";
 import { ErrorBlock } from "@/components/states";
 import { analysisSelectionsQuery, useSaveAnalysisSelection } from "@/lib/api/analysisSelections";
 import { analysisKey, draftFromSelection, draftSelection, emptyAnalysisDraft, useAnalysisSelection } from "@/lib/stores/analysisSelection";
+import { numericLabel, jointLabel } from "./insights/selectionHelpers";
 import { fmtInt } from "@/lib/format";
 
 export function AnalysisSelectionBar({ projectId, datasetId, caseTableId, selectedCases, canRun = true }: { projectId: string; datasetId: string; caseTableId: string; selectedCases?: number; canRun?: boolean }) {
@@ -37,6 +38,8 @@ export function AnalysisSelectionBar({ projectId, datasetId, caseTableId, select
     {hasSelection && <div aria-label="Filter criteria" className="flex flex-wrap gap-2 text-xs text-text-muted">
       {draft.categories.length > 0 && <span className="rounded border border-border px-2 py-1">{draft.attribute ?? "Category"}: {draft.categories.every((r) => !/^v\d+$/.test(r.label)) ? draft.categories.map((r) => r.label).join(" or ") : `${draft.categories.length} selected categories`}</span>}
       {draft.facets?.map((f) => <span key={f.field} className="rounded border border-border px-2 py-1">{f.field}: {f.choices.some((c) => /^v\d+$/.test(c.label)) ? `${f.choices.length} selected categories` : f.choices.map((c) => c.label).join(" or ")}</span>)}
+      {draft.numericFacets?.map((f) => <span key={`numeric:${f.field}`} className="rounded border border-border px-2 py-1">{numericLabel(f)}</span>)}
+      {draft.jointAny?.map((branch, i) => <span key={`joint:${i}`} className="rounded border border-border px-2 py-1">OR path {i + 1}: {jointLabel(branch)}</span>)}
       {draft.eventRanges?.map((r) => <span key={r.key} className="rounded border border-border px-2 py-1">Recorded events: {r.label}</span>)}
       {draft.periods.map((r) => <span key={r.key} className="rounded border border-border px-2 py-1">First recorded: {r.label}</span>)}
       {draft.spans.map((r) => <span key={r.key} className="rounded border border-border px-2 py-1">Recorded span: {r.label}</span>)}

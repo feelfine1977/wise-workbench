@@ -59,6 +59,8 @@ from .logs import (
     censored_flags,
     flow_type_column,
     flow_type_counts,
+    norm_interpretation_label,
+    norm_interpretation_warnings,
     preview_decision,
     readiness_report,
     resolve_window_end,
@@ -217,6 +219,9 @@ class EngineAdapter:
         self._flow_types: LRUCache[dict[str, Any]] = LRUCache(8)
         self._uncalibrated: LRUCache[list[dict[str, Any]]] = LRUCache(16)
         self._board: LRUCache[dict[str, Any]] = LRUCache(128)
+        # Small summaries only; never retain a selected event frame for each card.
+        self._driver_evidence_cache: LRUCache[dict[str, Any]] = LRUCache(32)
+        self._driver_evidence_lock = threading.Lock()
         self._censored_flags: LRUCache[pd.Series] = LRUCache(max(cache_size, 2))
         self._guidance: dict[tuple[str | None, str, str, str], GuidanceRef] = {}
         self._lock = threading.RLock()
@@ -421,6 +426,35 @@ class EngineAdapter:
     def _norm_inspector(self, case_table_dir: Path, mapping: ColumnMapping) -> NormInspector:
         return NormInspector(lambda: self._load_log(case_table_dir, mapping), mapping)
 
+    @staticmethod
+    def _canonical_sublog(log: wise.EventLog, mapping: ColumnMapping, mask: pd.Series) -> wise.EventLog:
+        """Whole-case restriction preserves canonical values over colliding source columns."""
+        selected = sublog(log, mapping, mask)
+        if selected is not log:
+            for attr in log.cases.columns:
+                if attr not in ("n_events", "first_ts", "last_ts", "exposure"):
+                    selected.add_case_attribute(attr, log.cases[attr].reindex(selected.case_ids))
+        return selected
+
+    def _norm_preview_log(
+        self, case_table_dir: Path, mapping: ColumnMapping, selection_id: str | None = None
+    ) -> wise.EventLog:
+        from wise_workbench.adapters.storage.selections import read_selection
+
+        path = case_table_dir / "events.parquet"
+        if not path.is_file():
+            raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
+        log = build_log(read_frame(path), mapping, typed=True)
+        apply_prepared_attributes(log, mapping)
+        apply_flow_typing(log, mapping)
+        apply_mapping_recipes(log, mapping)
+        if selection_id is not None:
+            _, members = read_selection(case_table_dir, mapping, selection_id)
+            mask = scope_mask(log, {"selection_id": selection_id}, member_ids=members)
+            assert mask is not None
+            log = self._canonical_sublog(log, mapping, mask)
+        return log
+
     def norm_signals(
         self,
         case_table_dir: Path,
@@ -429,33 +463,33 @@ class EngineAdapter:
         constraint_id: str,
         *,
         scale: str = "linear",
+        selection_id: str | None = None,
     ) -> dict[str, Any]:
-        def load_preview_log() -> wise.EventLog:
-            # A selected norm may redefine derived attributes. Rebuild from the
-            # mapped artefact without reading or modifying a cached run/log.
-            path = case_table_dir / "events.parquet"
-            if not path.exists():
-                raise NotFoundError(
-                    f"case table artefacts missing under {case_table_dir}", code="case_table.artefacts_missing"
-                )
-            log = build_log(read_frame(path), mapping, typed=True)
-            apply_mapping_recipes(log, mapping)
-            return log
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).signals(
+            document, constraint_id, scale=scale
+        )
 
-        return NormInspector(load_preview_log, mapping).signals(document, constraint_id, scale=scale)
+    def norm_relevance(
+        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any], *, selection_id: str | None = None
+    ) -> dict[str, Any]:
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).relevance(
+            document
+        )
 
-    def norm_relevance(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]:
-        def load_relevance_log() -> wise.EventLog:
-            # Read the exact prepared table, without deriving onto the shared
-            # cached log or inheriting attributes from another norm version.
-            path = case_table_dir / "events.parquet"
-            if not path.is_file():
-                raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
-            log = build_log(read_frame(path), mapping, typed=True)
-            apply_mapping_recipes(log, mapping)
-            return log
-
-        return NormInspector(load_relevance_log, mapping).relevance(document)
+    def norm_preview(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        document: dict[str, Any],
+        constraint_id: str,
+        proposed: dict[str, Any],
+        *,
+        scale: str = "linear",
+        selection_id: str | None = None,
+    ) -> dict[str, Any]:
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).preview(
+            document, constraint_id, proposed, scale=scale
+        )
 
     # ------------------------------------------------------------------ norm builder (R3-O6)
     def inventory(
@@ -539,7 +573,9 @@ class EngineAdapter:
         log = self._scenario_log(case_table_dir, mapping, run.params.scope, run.params.transforms)
         native = [*mapping.all_case_attributes, *(r["name"] for r in document.get("derived_attributes", []))]
         log.cases = enrich_grouping_fields(log.cases, native)
-        norm_warnings = [str(w) for w in norm.check(log)]
+        norm_warnings = list(
+            dict.fromkeys([str(w) for w in norm.check(log)] + norm_interpretation_warnings(log, document))
+        )
         window_end = self.case_table_window_end(case_table_dir) or jsonable(resolve_window_end(log))
         views = list(run.params.views) or norm.view_names
         for v in views:
@@ -697,7 +733,7 @@ class EngineAdapter:
                 return hit
             mask = scope_mask(log, scope, member_ids=members)
             assert mask is not None
-            return self._sublogs.put(key, sublog(log, mapping, mask))
+            return self._sublogs.put(key, self._canonical_sublog(log, mapping, mask))
 
     @staticmethod
     def _grouping_native(ctx: RunContext) -> list[str]:
@@ -1015,10 +1051,18 @@ class EngineAdapter:
             return None
 
     def _guidance_for(self, ctx: RunContext, kind: str, entry_id: str) -> GuidanceRef:
-        key = (ctx.process, kind, entry_id, str(ctx.document.get("name")))
+        key = (
+            ctx.process,
+            kind,
+            entry_id,
+            hashlib.sha256(json.dumps(ctx.document, sort_keys=True).encode()).hexdigest(),
+        )
         hit = self._guidance.get(key)
         if hit is None:
             hit = guidance_ref(ctx.process, kind, entry_id, document=ctx.document)
+            label = norm_interpretation_label(entry_id, ctx.document) if kind == "constraint" else None
+            if label is not None:
+                hit = replace(hit, plain_name=label)
             self._guidance[key] = hit
         return hit
 
@@ -1359,6 +1403,129 @@ class EngineAdapter:
                 "analytics_record_ids": extra.get("record_ids", {}),
             },
             **{k: v for k, v in extra.items() if k != "record_ids"},
+        }
+
+    def driver_evidence(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        constraint_id: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        from copy import deepcopy
+
+        from .driver_evidence import solution_card_metadata
+
+        if not (ctx.run_dir / "frame.parquet").is_file():
+            raise NotFoundError(
+                "The run's recorded case frame is unavailable", code="driver_evidence.frame_unavailable"
+            )
+        specification = next((spec for spec in ctx.document["constraints"] if spec["id"] == constraint_id), None)
+        if specification is None:
+            raise NotFoundError(
+                f"Constraint {constraint_id!r} is not part of the saved run", code="constraint.not_found"
+            )
+        event_path = ctx.case_table_dir / "events.parquet"
+        if not event_path.is_file():
+            raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
+        source_stat = event_path.stat()
+        cache_key = json.dumps(
+            {
+                "run": run.id,
+                "table": str(ctx.case_table_dir),
+                "mapping": ctx.mapping.id,
+                "eventsIdentity": (
+                    source_stat.st_ino,
+                    source_stat.st_size,
+                    source_stat.st_mtime_ns,
+                    source_stat.st_ctime_ns,
+                ),
+                "document": ctx.document,
+                "scope": ctx.scope,
+                "transforms": ctx.transforms,
+                "windowEnd": ctx.window_end,
+                "attributes": attributes,
+                "key": key,
+                "constraint": constraint_id,
+                "bands": bands,
+                "filter": filter_obj,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        # Several cards mount together. Share only small immutable summaries and
+        # limit large intermediate data frames to one evidence computation at a time.
+        with self._driver_evidence_lock:
+            cached = self._driver_evidence_cache.get(cache_key)
+            if cached is None:
+                cached = self._driver_evidence_cache.put(
+                    cache_key,
+                    self._compute_driver_evidence(
+                        run, ctx, attributes, key, constraint_id, bands=bands, filter_obj=filter_obj
+                    ),
+                )
+            result = deepcopy(cached)
+        result["solutionCard"] = solution_card_metadata(ctx.process, specification)
+        return result
+
+    def _compute_driver_evidence(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        constraint_id: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        from copy import copy
+
+        from .driver_evidence import temporal_evidence
+
+        norm = _norm_from(ctx.document)
+        try:
+            constraint = norm.get_constraint(constraint_id)
+        except wise.NormError as exc:
+            raise NotFoundError(str(exc), code="constraint.not_found") from exc
+        # A descriptive read must not fall back to reconstructing a missing score artefact.
+        if not (ctx.run_dir / "frame.parquet").is_file():
+            raise NotFoundError(
+                "The run's recorded case frame is unavailable", code="driver_evidence.frame_unavailable"
+            )
+        frame = self._get_frame(run, ctx)
+        grouped = apply_bands(frame, bands, reference=frame) if bands else frame
+        group = _slice_mask(grouped, effective_attributes(attributes, bands), key)
+        if not group.any():
+            raise NotFoundError("No group matches this key within the run", code="slice.not_found")
+        log = self._run_log(ctx)
+        mask = group.copy()
+        if filter_obj:
+            # Compute an open-case filter in memory; the standard cache helper can write a run artefact.
+            flags = None
+            if any(clause["kind"] == "open" for clause in filter_obj["and"]):
+                flags = censored_flags(log, ctx.mapping, window_end=ctx.window_end)
+            # Norm-derived attributes exist in the saved score frame even when a
+            # cold log has not been scored. Read them without re-scoring or mutating
+            # the shared log cache used by other runs.
+            filter_log = copy(log)
+            filter_log.cases = log.cases.copy()
+            for clause in filter_obj["and"]:
+                if clause["kind"] == "attribute" and clause["field"] in frame.columns:
+                    filter_log.cases[clause["field"]] = frame[clause["field"]].reindex(log.case_ids)
+            filtered, _ = filter_masks(filter_log, filter_obj, censored=flags)
+            mask &= filtered.reindex(frame.index, fill_value=False).astype(bool)
+        selected_ids = frame.index[mask]
+        return {
+            **temporal_evidence(log, selected_ids, constraint, ctx.mapping.header_events),
+            "constraintType": constraint.constraint.type,
+            "runCases": len(frame),
+            "groupCases": int(group.sum()),
+            "selectedCases": len(selected_ids),
         }
 
     def review_selection(
@@ -2147,9 +2314,9 @@ class EngineAdapter:
             if median_days is not None and np.isfinite(median_days):
                 headline += f", median {median_days:.0f} days from first to last event"
             if censored_share is not None:
-                headline += f"; {censored_share:.0%} still open at the end of the data ({end.date()})"
+                headline += f"; {censored_share:.0%} meet the recent-unclosed diagnostic ({end.date()}); not flagged does not mean closed"
             if replicated_share >= 0.05:
-                headline += f"; {replicated_share:.0%} carry copied postings"
+                headline += f"; {replicated_share:.0%} have more than two events per distinct timestamp (not proof of copied events)"
             types.append(
                 {
                     "name": str(value),

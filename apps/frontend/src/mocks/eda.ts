@@ -126,27 +126,43 @@ function selectionJSON(raw: string): unknown {
 /** One evaluator for GET and saved-cohort resolution, including nondisplayed facets. */
 function matchesSelection(raw: string | null, keys: string[], keyOf: (row: DemoCase) => string) {
   if (raw === null) return () => true;
-  if (raw.length < 2 || raw.length > 32768) throw new Error("Invalid selection length");
+  if (raw.length < 2 || raw.length > 131072) throw new Error("Invalid selection length");
   const selection = selectionJSON(raw);
   if (!selection || typeof selection !== "object" || Array.isArray(selection)) throw new Error("Invalid selection");
   const s = selection as Record<string, unknown>;
-  validKeys(s, ["facets", "eventRanges", "eventMissing", "categoryKeys", "timeRanges", "timeMissing", "spanRanges", "spanMissing"]);
+  validKeys(s, ["numericFacets", "jointAny", "facets", "eventRanges", "eventMissing", "categoryKeys", "timeRanges", "timeMissing", "spanRanges", "spanMissing"]);
   for (const field of ["timeMissing", "spanMissing", "eventMissing"]) if (s[field] !== undefined && typeof s[field] !== "boolean") throw new Error("Invalid missing flag");
-  for (const [field, limit] of [["facets", 16], ["eventRanges", 11], ["categoryKeys", 22], ["timeRanges", 121], ["spanRanges", 11]] as const) {
+  for (const [field, limit] of [["numericFacets", 16], ["jointAny", 24], ["facets", 16], ["eventRanges", 11], ["categoryKeys", 22], ["timeRanges", 121], ["spanRanges", 11]] as const) {
     if (s[field] != null && (!Array.isArray(s[field]) || !s[field].length || s[field].length > limit)) throw new Error("Invalid selection list");
   }
   const wanted = s.categoryKeys as string[] | null | undefined;
   if (wanted?.some((k) => typeof k !== "string" || !keys.includes(k))) throw new Error("Unknown category key");
-  const fields = new Set<string>();
-  const facets = ((s.facets ?? []) as unknown[]).map((value) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid facet");
-    const facet = value as Record<string, unknown>;
-    validKeys(facet, ["field", "keys"]);
-    if (typeof facet.field !== "string" || !facet.field.length || facet.field.length > 256 || fields.has(facet.field)) throw new Error("Invalid or duplicate facet field");
-    fields.add(facet.field);
-    if (!Array.isArray(facet.keys) || !facet.keys.length || facet.keys.length > 22 || facet.keys.some((key) => typeof key !== "string" || !key.length || key.length > 32)) throw new Error("Invalid facet keys");
-    return { field: facet.field, keys: facet.keys as string[] };
+  const readFacets = (list: unknown[]) => {
+    const fields = new Set<string>();
+    return list.map((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid facet");
+      const facet = value as Record<string, unknown>;
+      validKeys(facet, ["field", "keys", "values"]);
+      if (typeof facet.field !== "string" || !facet.field.length || facet.field.length > 256 || fields.has(facet.field)) throw new Error("Invalid or duplicate facet field");
+      fields.add(facet.field);
+      const keys = facet.keys ?? [], values = facet.values ?? [];
+      if (!Array.isArray(keys) || keys.length > 22 || keys.some((key) => typeof key !== "string" || !key.length || key.length > 32)) throw new Error("Invalid facet keys");
+      if (!Array.isArray(values) || values.length > 50 || values.some((value) => typeof value !== "string" || !value.length || [...value].length > 4096) || (!keys.length && !values.length)) throw new Error("Invalid exact values");
+      const field = attr(facet.field, 400), d = domain(field);
+      if (keys.some((key) => !d.categories.some((category) => category.key === key))) throw new EDAError("Unknown facet key", 400);
+      return (row: DemoCase) => keys.includes(d.keyOf(row)) || (categoryValue(row[field]) !== null && values.includes(categoryValue(row[field])));
+    });
+  };
+  const facetTests = readFacets((s.facets ?? []) as unknown[]);
+  const branches = ((s.jointAny ?? []) as unknown[]).map((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid joint branch");
+    const branch = value as Record<string, unknown>;
+    validKeys(branch, ["facets"]);
+    if (!Array.isArray(branch.facets) || !branch.facets.length || branch.facets.length > 3) throw new Error("A branch needs 1–3 distinct fields");
+    return readFacets(branch.facets);
   });
+  // This fixed demo contains two text context fields and no typed numeric attribute.
+  if (s.numericFacets != null) throw new Error("The demo has no typed numeric case attribute; use a prepared dataset for numeric attribute ranges.");
   const ranges = (field: "timeRanges" | "spanRanges") => ((s[field] ?? []) as unknown[]).map((range) => {
     if (!range || typeof range !== "object" || Array.isArray(range)) throw new Error("Invalid range");
     const r = range as Record<string, unknown>;
@@ -180,13 +196,9 @@ function matchesSelection(raw: string | null, keys: string[], keyOf: (row: DemoC
     if ((min === null && max === null) || (min !== null && max !== null && min >= max)) throw new Error("Invalid event range");
     return { min, max };
   });
-  const facetTests = facets.map((facet) => {
-    const d = domain(attr(facet.field, 400));
-    if (facet.keys.some((key) => !d.categories.some((category) => category.key === key))) throw new EDAError("Unknown facet key", 400);
-    return (row: DemoCase) => facet.keys.includes(d.keyOf(row));
-  });
   return (row: DemoCase) => (!wanted || wanted.includes(keyOf(row)))
     && facetTests.every((test) => test(row))
+    && (!branches.length || branches.some((tests) => tests.every((test) => test(row))))
     && (!(events.length || s.eventMissing) || (row.events === null ? s.eventMissing === true : events.some(({ min, max }) => (min === null || BigInt(row.events!) >= min) && (max === null || BigInt(row.events!) < max))))
     && (!(times.length || s.timeMissing) || (row.firstRecorded === null ? s.timeMissing === true : times.some((r) => utcStamp(row.firstRecorded!) >= r.lower && utcStamp(row.firstRecorded!) < r.upper)))
     && (!(spans.length || s.spanMissing) || (row.spanDays === null ? s.spanMissing === true : spans.some((r) => row.spanDays! >= r.lower && row.spanDays! < r.upper)));
@@ -305,3 +317,28 @@ export const edaHandlers = [http.get("*/api/v1/projects/:projectId/case-tables/:
   try { return HttpResponse.json(evaluateMockEda(query, datasetId, table.id)); }
   catch (error) { return bad(error instanceof EDAError ? error.status : 422, error instanceof Error ? error.message : "Invalid EDA selection"); }
 })];
+
+edaHandlers.push(http.post("*/api/v1/projects/:projectId/case-tables/:caseTableId/eda/query", async ({ request, params }) => {
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    validKeys(body, ["datasetId", "attribute", "insight", "compareAttribute", "filter", "selection", "categoryMode", "timeMissing", "spanMissing", "spanMin", "spanMax", "page", "pageSize", "valueField", "valueSearch", "valuePage", "hierarchyFields", "eventInsight", "activitySearch", "activityPage", "endpointStart", "endpointEnd", "traceCaseId", "tracePage"]);
+    const table = db.caseTables.find((row) => row.id === params.caseTableId);
+    if (!db.projects.some((row) => row.id === params.projectId) || !table || table.datasetId !== body.datasetId) return bad(404, "Case table not found for the selected dataset");
+    if (table.status !== "ready") return bad(422, "Case table is not ready");
+    if (body.eventInsight) return bad(422, "This illustrative case-only demo has no prepared event records. Activity, endpoint and trace evidence requires a prepared dataset; no events are inferred from case totals.");
+    if (body.hierarchyFields) return bad(422, "The illustrative demo has only two context attributes.");
+    const base = new URLSearchParams();
+    for (const [key, value] of Object.entries(body)) if (value !== undefined && !["valueField", "valueSearch", "valuePage"].includes(key)) base.set(key, String(value));
+    const result = evaluateMockEda(base, String(body.datasetId), table.id);
+    if (body.valueField !== undefined) {
+      const field = attr(body.valueField), search = String(body.valueSearch ?? ""), page = Number(body.valuePage ?? 1);
+      if (search.length > 256 || !Number.isInteger(page) || page < 1 || page > 100_000) throw new Error("Invalid value search");
+      const allSelected = evaluateMockEda(new URLSearchParams({ ...Object.fromEntries(base), page: "1", pageSize: "100" }), String(body.datasetId), table.id);
+      const ids = new Set(allSelected.details.rows.map((r) => r.caseId));
+      const values = [...new Set(edaCases.map((r) => categoryValue(r[field])))].filter((v): v is string => v !== null && v.toLowerCase().includes(search.toLowerCase()));
+      const rows = values.map((value) => ({ value, selectable: [...value].length <= 4096, ...counts(edaCases.filter((r) => ids.has(r.caseId)), (r) => categoryValue(r[field]) === value) })).sort((a, b) => b.total - a.total || compare(a.value, b.value));
+      result.values = { field, query: search, page, pageSize: 40, totalValues: rows.length, rows: rows.slice((page - 1) * 40, page * 40) };
+    }
+    return HttpResponse.json(result);
+  } catch (error) { return bad(error instanceof EDAError ? error.status : 422, error instanceof Error ? error.message : "Invalid explorer query"); }
+}));

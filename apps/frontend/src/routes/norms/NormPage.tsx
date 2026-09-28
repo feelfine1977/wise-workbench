@@ -2,11 +2,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { useVocabulary } from "@/components/Term";
-import { returnTarget, useNavStore } from "@/lib/stores/nav";
+import { isAnalysisNormLens, returnTarget, useNavStore } from "@/lib/stores/nav";
 import { useWorkbench } from "@/app/context";
 import { normRoute } from "@/app/router";
-import { DistributionLens } from "@/components/DistributionLens";
+import { NormCalibrationChart } from "./NormCalibrationChart";
+import { analysisSelectionsQuery } from "@/lib/api/analysisSelections";
 import { BackControl } from "@/components/guide/BackControl";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
 import { normQuery, normsQuery, normCalibrationQuery, normSignalQuery, useCreateNormVersion, type NormVersionCreate } from "@/lib/api/norms";
 import { normRefusal } from "./normErrors";
-import { flowTypesQuery } from "@/lib/api/runs";
+import { flowTypesQuery, flowTypeOf, selectionIdOf } from "@/lib/api/runs";
 import { runManifestQuery } from "@/lib/api/runs";
 import { inventoryQuery } from "@/lib/api/norms";
 import { CalibrationAction, CalibrationNotice } from "./CalibrationNotice";
@@ -69,7 +69,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
   structureStep: "layers" | "views"; setStructureStep: (step: "layers" | "views") => void;
   visibility: NormVisibility; setVisibility: (visibility: NormVisibility) => void;
 }) {
-  const { allowDraftWithoutDecision } = useNormAuthoringPreferences();
+  const { allowDraftWithoutDecision, showAdvancedControls } = useNormAuthoringPreferences();
   const ctx = useWorkbench();
   const { normVersionId } = normRoute.useParams();
   const search = normRoute.useSearch();
@@ -80,9 +80,9 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
   const calibration = useQuery(normCalibrationQuery(ctx.projectId, normVersionId));
   const json = norm.data?.norm as NormDocument | undefined;
   const constraints = useMemo(() => json?.constraints ?? [], [json]);
-  const runId = ctx.runs.find((r) => r.status === "done" && r.normVersionId === normVersionId && r.caseTableId === ctx.caseTable?.id)?.id;
+  const runId = ctx.runs.find((r) => r.status === "done" && r.normVersionId === normVersionId && r.caseTableId === ctx.caseTable?.id && selectionIdOf(r) === search.selection && !flowTypeOf(r))?.id;
   const selected = constraints.find((c) => c.id === search.constraint) ?? constraints[0];
-  const dist = useQuery({ ...normSignalQuery(ctx.projectId, normVersionId, ctx.caseTable?.id ?? "", selected?.id ?? ""), enabled: !!ctx.caseTable && !!selected && !!thresholdOf(selected) });
+  const dist = useQuery({ ...normSignalQuery(ctx.projectId, normVersionId, ctx.caseTable?.id ?? "", selected?.id ?? "", search.selection), enabled: !!ctx.caseTable && !!selected && !!thresholdOf(selected) });
   const [pending, setPending] = useState<{ threshold: number; width: number }>();
   const [fields, setFields] = useState<CommitFields>({ rationale: "", owner: "" });
   const [signing, setSigning] = useState(false);
@@ -102,7 +102,9 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
     calibrationPane.current?.scrollIntoView({ block: "nearest" });
   }, [pane, selected?.id]);
   const inventory = useQuery({ ...inventoryQuery(ctx.projectId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
-  const relevance = useQuery({ ...normRelevanceQuery(ctx.projectId, normVersionId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
+  const relevance = useQuery({ ...normRelevanceQuery(ctx.projectId, normVersionId, ctx.caseTable?.id ?? "", search.selection), enabled: !!ctx.caseTable });
+  const cohorts = useQuery({ ...analysisSelectionsQuery(ctx.projectId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
+  const evidenceName = search.selection ? cohorts.data?.find(cohort => cohort.id === search.selection)?.name ?? "Saved selection" : "All prepared cases";
   const flowTypes = useQuery({ ...flowTypesQuery(ctx.projectId, ctx.caseTable?.id ?? ""), enabled: !!ctx.caseTable });
   const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId ?? ""), enabled: !!runId });
   const uncalibrated = useMemo(() => new Map((manifest.data?.uncalibrated ?? []).map((u) => [u.id, u])), [manifest.data]);
@@ -110,13 +112,12 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
   const plainOf = (c: Constraint) => c.plain_name ?? c.description?.replace(/\.$/, "") ?? uncalibrated.get(c.id)?.plain_name ?? c.id;
   /** Run warnings can concern threshold calibration or measurement coverage. */
   const flagged = constraints.filter((c) => uncalibrated.has(c.id)).length;
-  const { vocabulary } = useVocabulary();
   // opened from a reason screen, the lens is a sub-screen of Why: the stepper keeps Why current with this line under it
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const visited = useNavStore((s) => s.visited);
   const lastSlice = useNavStore((s) => s.lastSlice);
   const setSubline = useNavStore((s) => s.setSubline);
-  const fromWhy = /\/slices\//.test(returnTarget(visited, pathname)?.pathname ?? "");
+  const fromWhy = isAnalysisNormLens(pathname, returnTarget(visited, pathname)?.pathname, search);
   const lensName = selected ? plainOf(selected) : undefined;
   useEffect(() => {
     if (fromWhy && lastSlice) setSubline(`${lastSlice.label} · lens of “${lensName ?? selected?.id ?? "an expectation"}”`);
@@ -138,7 +139,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
     create.reset();
     void navigate({ to: ".", search: (s) => ({ ...s, tab: "constraints", constraint: id }) });
   };
-  const exactRelevance = relevance.data?.normVersionId === normVersionId && relevance.data?.caseTableId === ctx.caseTable?.id ? relevance.data : undefined;
+  const exactRelevance = relevance.data?.normVersionId === normVersionId && relevance.data?.caseTableId === ctx.caseTable?.id && (relevance.data?.scope?.selectionId ?? undefined) === search.selection ? relevance.data : undefined;
   const showOverview = () => {
     const currentId = edited?.id ?? selected?.id;
     if (currentId && search.constraint) localEdits.current.set(`${normVersionId}:${currentId}`, { edited, pending, exclusion, fields, pane });
@@ -265,7 +266,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                   {nv.author ? <span className="text-xs text-text-subtle">{nv.status === "draft" ? "author" : "signed by"} {nv.author}</span> : null}
                   <span>
                     {constraints.length} constraints · {json?.layers?.length ?? 0} layers · {json?.views?.length ?? 0} views
-                    {flagged > 0 ? <span className="ml-2 text-warning">· {fmtInt(flagged)} constraints to review on this log</span> : null}
+                    {flagged > 0 ? <span className="ml-2 text-warning">· {fmtInt(flagged)} constraints with log or calibration warnings</span> : null}
                   </span>
                 </p>
                 {signing && <SignVersion projectId={ctx.projectId} key={nv.id} version={nv} onDone={finishReview} />}
@@ -280,6 +281,17 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
             <HowToRead id="norm">
               Begin with the purpose and evidence. Define expectations (constraints), group them into layers, then weight them in views. Review records the reason and owner behind required decisions. Every saved change creates a new draft; existing results keep their original Process norm.
             </HowToRead>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+              <label className="flex min-w-0 flex-wrap items-center gap-2 text-sm">Evidence population
+                <select aria-label="Evidence population" className="max-w-full rounded-lg border border-border bg-surface px-3 py-2" value={search.selection ?? ""} disabled={!ctx.caseTable} onChange={event => void navigate({ to: ".", search: previous => ({ ...previous, selection: event.target.value || undefined }) })}>
+                  <option value="">All prepared cases</option>
+                  {search.selection && !cohorts.data?.some(cohort => cohort.id === search.selection) && <option value={search.selection}>Saved selection · verifying…</option>}
+                  {(cohorts.data ?? []).map(cohort => <option key={cohort.id} value={cohort.id}>{cohort.name} · {fmtInt(cohort.cases)} cases</option>)}
+                </select>
+              </label>
+              <span className="text-xs text-text-muted">{exactRelevance ? `${fmtInt(exactRelevance.cases)} cases · ` : ""}Coverage and calibration use this population. Rules stay shared.</span>
+              {cohorts.isError && <p role="status" className="text-xs text-warning">Saved populations could not be loaded. Selected evidence will not fall back to all cases.</p>}
+            </div>
             <NormAuthoringSettings disabled={create.isPending}>{json && <NormDisplayControls document={json} visibility={visibility} relevance={exactRelevance} loading={relevance.isFetching} onRetry={() => { void relevance.refetch(); }} onChange={changeDisplay} />}</NormAuthoringSettings>
             <Tabs value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
               <TabsList aria-label="Norm sections">
@@ -289,11 +301,11 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                 <TabsTrigger value="map">Norm map</TabsTrigger>
                 <TabsTrigger value="review">Review</TabsTrigger>
                 <TabsTrigger value="history">Version notes</TabsTrigger>
-                <TabsTrigger value="json">JSON</TabsTrigger>
+                {(showAdvancedControls || search.tab === "json") && <TabsTrigger value="json">JSON</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="guide" forceMount hidden={search.tab !== "guide"}>
-                {json && <NormGuide key={normVersionId} projectId={ctx.projectId} versionId={normVersionId} document={json} process={ctx.project?.process ?? undefined} datasetName={ctx.dataset?.name} caseTableId={ctx.caseTable?.id} caseNoun={caseNoun} onTab={setTab} onConstraint={selectConstraint} onSaved={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { ...search, tab: "guide" } })} />}
+                {json && <NormGuide key={normVersionId} projectId={ctx.projectId} versionId={normVersionId} document={json} process={ctx.project?.process ?? undefined} datasetName={ctx.dataset?.name} caseTableId={ctx.caseTable?.id} caseNoun={caseNoun} coverageWarnings={exactRelevance?.constraints.filter(item => item.issues.length > 0 || item.missingActivities.length > 0).length} onTab={setTab} onConstraint={selectConstraint} onSaved={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { ...search, tab: "guide" } })} />}
                 {json && <NormVersionComparison key={`compare:${normVersionId}`} projectId={ctx.projectId} parentId={nv.parentId} document={json} onConstraint={selectConstraint} />}
               </TabsContent>
               <TabsContent value="map">
@@ -304,7 +316,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                 {displayControls}
                 <div className={search.constraint ? "grid items-start gap-4 xl:grid-cols-[minmax(260px,310px)_minmax(0,1fr)]" : "space-y-4"}>
                   <Card className={search.constraint ? "max-h-[76vh] overflow-y-auto" : ""}>
-                    {json && <ConstraintNavigator key={normVersionId} document={json} template={<GuidedProcessTemplate projectId={ctx.projectId} caseTableId={ctx.caseTable?.id} datasetName={ctx.dataset?.name} onCreated={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { caseTable: ctx.caseTable?.id, tab: "constraints" } })} />} visibility={visibility} onHideLayer={hideLayer} onHideConstraint={hideConstraint} relevance={exactRelevance} evidenceState={!ctx.caseTable ? "no-table" : relevance.isError ? "error" : relevance.isPending ? "loading" : "ready"} datasetName={ctx.dataset?.name} selected={edited ?? selected} overview={!search.constraint} missing={calibration.data?.missingRationale ?? []} warnings={uncalibrated} onSelect={selectConstraint} onOverview={showOverview}>
+                    {json && <ConstraintNavigator key={normVersionId} document={json} template={<GuidedProcessTemplate projectId={ctx.projectId} caseTableId={ctx.caseTable?.id} datasetName={ctx.dataset?.name} onCreated={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { caseTable: ctx.caseTable?.id, selection: search.selection, tab: "constraints" } })} />} visibility={visibility} onHideLayer={hideLayer} onHideConstraint={hideConstraint} relevance={exactRelevance} evidenceState={!ctx.caseTable ? "no-table" : relevance.isError ? "error" : relevance.isPending ? "loading" : "ready"} datasetName={ctx.dataset?.name} selected={edited ?? selected} overview={!search.constraint} missing={calibration.data?.missingRationale ?? []} warnings={uncalibrated} onSelect={selectConstraint} onOverview={showOverview}>
                       <NewConstraintButton
                         layers={json?.layers ?? []}
                         onCreate={(c) => {
@@ -366,8 +378,8 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
 
                         {pane === "lens" && (
                           <section ref={calibrationPane} tabIndex={-1} aria-label="Calibration and measurement">
-                            <p className="mb-2 text-xs text-text-muted">Evidence for saved norm version {nv.version} on preparation {ctx.caseTable?.id ?? "not selected"}. Existing run results are unchanged.</p>
-                            {edited && JSON.stringify(edited) !== JSON.stringify(selected) && <p role="status" className="mb-3 rounded border border-warning/50 bg-warning-subtle p-2 text-sm">Unsaved rule changes are not evaluated here. Save the proposed rule as a new version before reading its measurement.</p>}
+                            <p className="mb-2 text-xs text-text-muted">Evidence: {evidenceName} · saved norm version {nv.version}. Previewing a target does not change an assessment or approve the norm.</p>
+                            {edited && JSON.stringify(edited) !== JSON.stringify(selected) && <p role="status" className="mb-3 rounded border border-warning/50 bg-warning-subtle p-2 text-sm">This threshold preview uses the saved activity and applicability definitions. Save other rule edits as a new version to calibrate those definitions.</p>}
                             {edited && edited.id !== selected?.id && <p className="mb-3 text-sm">This new constraint has no saved measurement yet.</p>}
                             {!ctx.caseTable && <p className="text-sm text-text-muted">Select a mapped case table to inspect this version’s thresholds.</p>}
                             {selected && <CalibrationNotice warning={uncalibrated.get(selected.id)} numeric={!!thresholdOf(selected)}
@@ -376,17 +388,11 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                             {selected && thresholdOf(selected) && ctx.caseTable && dist.isPending && <><p role="status" className="text-sm text-text-muted">Loading calibration distribution…</p><LoadingBlock rows={5} /></>}
                             {selected && thresholdOf(selected) && dist.isError && <ErrorBlock error={dist.error} retry={() => void dist.refetch()} />}
                             {selected && (!edited || edited.id === selected.id) && dist.data && thresholdOf(selected) && (
-                              <DistributionLens
-                                key={`${normVersionId}:${ctx.caseTable?.id}:${selected.id}`}
-                                distribution={dist.data}
-                                constraintId={selected.id}
-                                title={plainOf(selected)}
-                                direction={(selected.params.direction as "high" | "low" | undefined) ?? "high"}
-                                onCommit={(next) => { setAttempted(false); setPending(next); }}
-                                mode={vocabulary}
-                                sliders="always"
-                                noun={caseNoun}
-                                groupName={`all ${caseNoun}`}
+                              <NormCalibrationChart
+                                key={`${normVersionId}:${ctx.caseTable?.id}:${selected.id}:${search.selection ?? "all"}`}
+                                projectId={ctx.projectId} versionId={normVersionId} caseTableId={ctx.caseTable!.id} selectionId={search.selection}
+                                distribution={dist.data} constraint={selected} title={plainOf(selected)} populationName={evidenceName}
+                                onCommit={next => { setAttempted(false); setPending(next); }}
                               />
                             )}
                           </section>
@@ -394,7 +400,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
 
                         {pane === "rule" && (edited || selected) && ctx.caseTable && (
                           <>
-                            <RuleEditor projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={(edited ?? selected)!} caseNoun={caseNoun} onChange={setEdited} nameInvalid={attempted && !((edited ?? selected)!.plain_name ?? (edited ?? selected)!.description ?? (edited ?? selected)!.id).trim()} />
+                            <RuleEditor key={selected?.id} projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={(edited ?? selected)!} caseNoun={caseNoun} onChange={setEdited} nameInvalid={attempted && !((edited ?? selected)!.plain_name ?? (edited ?? selected)!.description ?? (edited ?? selected)!.id).trim()} />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
                               <CommitFieldsForm value={fields} onChange={setFields} attempted={attempted} optional={allowDraftWithoutDecision} />
                               {saveError}
@@ -455,7 +461,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
               </TabsContent>
 
               <TabsContent value="review" forceMount hidden={search.tab !== "review"}>
-                {json && <BatchNormDecisions key={normVersionId} projectId={ctx.projectId} versionId={normVersionId} document={json} caseTableId={ctx.caseTable?.id} onConstraint={selectConstraint} onSaved={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { ...search, tab: "review" } })} />}
+                {json && <BatchNormDecisions key={normVersionId} projectId={ctx.projectId} versionId={normVersionId} document={json} caseTableId={ctx.caseTable?.id} selectionId={search.selection} onConstraint={selectConstraint} onSaved={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { ...search, tab: "review" } })} />}
                 <Card className="mt-4">
                   <CardTitle>Review readiness</CardTitle>
                   {calibration.isPending && <LoadingBlock rows={2} />}

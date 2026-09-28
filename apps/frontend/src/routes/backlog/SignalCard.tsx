@@ -157,7 +157,7 @@ export function SignalCard({ row: raw, maxPI, view, layerNames, caseNoun, label:
             <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(2, share * 100)}%` }} />
           </span>
           <span className="tnum whitespace-nowrap" data-testid="card-strip">
-            {plain ? "priority" : t("stable_PI")} {fmtNum(row.stable_PI, 0)}
+            {plain ? "priority" : t("stable_PI")} {row.stable_PI > 0 && row.stable_PI < .01 ? "<0.01" : fmtNum(row.stable_PI, row.stable_PI > 0 && row.stable_PI < 1 ? 2 : 0)}
             {" · "}
             <span data-stability={row.stability ?? "unknown"} title={row.stability_reason ?? undefined}>
               {plain ? `confidence ${confidence}` : `stability ${(row.stability ?? "unknown").replace("_", " ")}`}

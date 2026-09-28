@@ -3,8 +3,7 @@
  * norm in the browser instead of editing JSON.
  *
  * - the **rule editor** per constraint type, with pickers bound to this case table's own activities and
- *   attribute values and their counts (`GET …/norms/inventory`), so a rule can never name an activity the
- *   log does not have;
+ *   attribute values and their counts (`GET …/norms/inventory`), retaining saved labels absent from the catalogue;
  * - the **applicability editor**: which flow types the expectation is meant for, an attribute restriction,
  *   or *not applicable to this log* with a note when an expectation is outside scope or cannot be judged;
  * - the **commit dialog**, with optional draft notes in Guided mode and required rationale in Expert mode.
@@ -12,7 +11,7 @@
  * Nothing here writes JSON the reader has to look at: every change is described in one sentence and saved
  * as the next version with its note.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ActivityInventory, AttributeInventory, Inventory } from "@/lib/api/norms";
 import { inventoryQuery } from "@/lib/api/norms";
@@ -24,6 +23,7 @@ import { Field } from "@/components/ui/label";
 import { LoadingBlock } from "@/components/states";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useNormAuthoringPreferences } from "./useNormAuthoringPreferences";
 
 export interface Constraint {
   id: string;
@@ -49,7 +49,9 @@ export function thresholdOf(c: Constraint): { threshold: number; width: number; 
 /** The rule in one sentence, in the reader's words rather than as parameters. */
 export function ruleSentence(c: Constraint): string {
   const p = c.params;
-  const list = (v: unknown) => (Array.isArray(v) ? v.join(" or ") : String(v ?? ""));
+  const list = (v: unknown) => (Array.isArray(v) ? v.join(" or ") : String(v ?? "")) || "activity not set";
+  const value = (v: unknown) => v == null || (typeof v === "number" && !Number.isFinite(v)) ? "not set" : String(v);
+  const quantity = (v: unknown) => typeof v === "string" && v.trim() ? quantityWords(v) : "quantity not set";
   switch (c.type) {
     case "presence":
       return `${list(p.activity)} happens at least ${String(p.m ?? 1)} time${Number(p.m ?? 1) === 1 ? "" : "s"}`;
@@ -58,15 +60,15 @@ export function ruleSentence(c: Constraint): string {
     case "precedence":
       return `${list(p.a)} comes before ${list(p.b)}`;
     case "lag":
-      return `${list(p.b)} follows ${list(p.a)} within ${String(p.delta)} ${unitWord(String(p.unit ?? "D"))}, with ${String(p.width)} ${unitWord(String(p.unit ?? "D"))} of tolerance`;
+      return `${list(p.b)} follows ${list(p.a)} within ${value(p.delta)} ${unitWord(String(p.unit ?? "D"))}, with ${value(p.width)} ${unitWord(String(p.unit ?? "D"))} of tolerance`;
     case "singularity":
-      return `${list(p.activity)} happens at most ${String(p.k)} time${Number(p.k ?? 1) === 1 ? "" : "s"}, with a tolerance width of ${String(p.K)} occurrences`;
+      return `${list(p.activity)} happens at most ${value(p.k)} time${Number(p.k ?? 1) === 1 ? "" : "s"}, with a tolerance width of ${value(p.K)} occurrences`;
     case "metric":
-      return `${quantityWords(String(p.attribute))} stays ${p.direction === "low" ? "at or above" : "at or below"} ${String(p.threshold)}`;
+      return `${quantity(p.attribute)} stays ${p.direction === "low" ? "at or above" : "at or below"} ${value(p.threshold)}`;
     case "balance":
-      return `${quantityWords(String(p.attr_x))} and ${quantityWords(String(p.attr_y))} stay within ${String(p.tau)} of each other`;
+      return `${quantity(p.attr_x)} and ${quantity(p.attr_y)} stay within ${value(p.tau)} of each other`;
     default:
-      return c.description ?? c.type;
+      return `A generated summary is not available for the ${c.type} rule. Inspect its parameters in Settings → advanced controls.`;
   }
 }
 
@@ -113,59 +115,87 @@ export function applicabilitySentence(c: Constraint, caseNoun: string, exclusion
 
 // ---------------------------------------------------------------- the pickers, bound to the log
 
-function ActivityPicker({
-  label,
-  value,
-  activities,
-  onChange,
-  caseNoun,
-}: {
+const knownCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+const activityShare = (share: number | null | undefined, cases: number) => {
+  if (share == null || !Number.isFinite(share) || share < 0 || share > 1 || (share === 0 && cases > 0)) return "share unknown";
+  if (share > 0 && share < .01) return `<${fmtPct(.01, 0)}`;
+  if (share > .99 && share < 1) return `>${fmtPct(.99, 0)}`;
+  return fmtPct(share, 0);
+};
+
+function ActivityPicker({ label, value, activities, onChange, caseNoun, totalCases, catalogueAvailable = true }: {
   label: string;
   value: string[];
   activities: ActivityInventory[];
   onChange: (next: string[]) => void;
   caseNoun: string;
+  totalCases?: number;
+  catalogueAvailable?: boolean;
 }) {
+  const id = useId();
   const [q, setQ] = useState("");
-  const matching = useMemo(() => {
+  const [focusedLabel, setFocusedLabel] = useState<string>();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const options = useRef(new Map<string, HTMLButtonElement>());
+  const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return activities.filter((a) => !needle || a.label.toLowerCase().includes(needle)).slice(0, 60);
+    return activities.filter(a => !needle || a.label.toLowerCase().includes(needle));
   }, [activities, q]);
+  const matching = filtered.slice(0, 60);
+  const unlisted = catalogueAvailable ? value.filter(label => !activities.some(activity => activity.label === label)) : [];
+  const activeLabel = matching.some(a => a.label === focusedLabel) ? focusedLabel : matching.find(a => value.includes(a.label))?.label ?? matching[0]?.label;
+  const focusOption = (index: number) => {
+    const activity = matching[index];
+    if (!activity) return;
+    setFocusedLabel(activity.label);
+    const option = options.current.get(activity.label);
+    option?.focus();
+    option?.scrollIntoView?.({ block: "nearest" });
+  };
   return (
     <fieldset className="flex flex-col gap-1.5">
       <legend className="text-xs font-medium text-text-muted">{label}</legend>
       <div className="flex flex-wrap gap-1.5">
-        {value.map((v) => (
+        {value.map(v => (
           <span key={v} className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent-subtle px-2 py-0.5 text-xs text-accent-text">
             {v}
-            <button type="button" aria-label={`Remove ${v}`} className="rounded-full px-0.5 hover:bg-surface" onClick={() => onChange(value.filter((x) => x !== v))}>
-              ×
-            </button>
+            <button type="button" aria-label={`Remove ${v}`} className="rounded-full px-0.5 hover:bg-surface" onClick={() => { onChange(value.filter(x => x !== v)); searchRef.current?.focus(); }}>×</button>
           </span>
         ))}
         {value.length === 0 && <span className="text-xs text-text-subtle">nothing chosen yet</span>}
       </div>
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search the ${fmtInt(activities.length)} activities of this log`} className="h-8" aria-label={`${label}: search the activities of this log`} />
-      <ul className="max-h-40 overflow-y-auto rounded border border-border" role="listbox" aria-multiselectable aria-label={`${label}: the activities of this log`}>
-        {matching.map((a) => (
+      {unlisted.length > 0 && <p className="text-xs text-warning">Not found in this prepared table’s activity catalogue: {unlisted.join(", ")}. These entries remain in the rule; review the activity names or data mapping.</p>}
+      {!catalogueAvailable && <p className="text-xs text-text-muted">Activity catalogue unavailable. Existing selections are kept.</p>}
+      <Input ref={searchRef} value={q} onChange={event => { setQ(event.target.value); setFocusedLabel(undefined); }} onKeyDown={event => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); focusOption(event.key === "ArrowDown" ? 0 : matching.length - 1); }
+      }} placeholder={`Search the ${fmtInt(activities.length)} activities of this log`} className="h-8" aria-label={`${label}: search the activities of this log`} aria-controls={`${id}-options`} />
+      <p id={`${id}-scope`} className="text-xs text-text-muted">Counts are {caseNoun} containing each activity. Total: {knownCount(totalCases) ? `${fmtInt(totalCases)} ${caseNoun}` : "unknown"}.</p>
+      <p id={`${id}-keys`} className="text-xs text-text-muted">Arrow keys, Home and End move focus. Enter or Space toggles selection. Tab leaves the list.</p>
+      <ul id={`${id}-options`} className="max-h-40 overflow-y-auto rounded border border-border" role="listbox" aria-multiselectable="true" aria-label={`${label}: the activities of this log`} aria-describedby={`${id}-scope ${id}-keys`} tabIndex={matching.length ? undefined : 0}>
+        {matching.map((a, index) => (
           <li key={a.label} role="presentation">
             <button
+              ref={element => { if (element) options.current.set(a.label, element); else options.current.delete(a.label); }}
               type="button"
               role="option"
+              tabIndex={a.label === activeLabel ? 0 : -1}
               aria-selected={value.includes(a.label)}
-              className={cn("flex w-full items-baseline gap-2 px-2 py-1 text-left text-xs hover:bg-surface-sunken", value.includes(a.label) && "bg-selection")}
-              onClick={() => onChange(value.includes(a.label) ? value.filter((x) => x !== a.label) : [...value, a.label])}
+              title={`${a.label}: ${knownCount(a.cases) ? String(a.cases) : "unknown"} / ${knownCount(totalCases) ? String(totalCases) : "unknown total"} ${caseNoun}; reported share: ${a.share == null ? "unknown" : String(a.share)} (fraction of cases)`}
+              className={cn("flex w-full items-baseline gap-2 px-2 py-1 text-left text-xs hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent", value.includes(a.label) && "bg-selection")}
+              onFocus={() => setFocusedLabel(a.label)}
+              onKeyDown={event => {
+                const destination = event.key === "ArrowDown" ? Math.min(index + 1, matching.length - 1) : event.key === "ArrowUp" ? Math.max(index - 1, 0) : event.key === "Home" ? 0 : event.key === "End" ? matching.length - 1 : undefined;
+                if (destination !== undefined) { event.preventDefault(); focusOption(destination); }
+              }}
+              onClick={() => onChange(value.includes(a.label) ? value.filter(x => x !== a.label) : [...value, a.label])}
             >
               <span className="min-w-0 flex-1 truncate">{a.label}</span>
-              <span className="tnum shrink-0 text-text-subtle">
-                {fmtInt(a.cases)} {caseNoun}
-                {a.share !== null && a.share !== undefined ? ` · ${fmtPct(a.share, 0)}` : ""}
-              </span>
+              <span className="tnum shrink-0 text-text-subtle">{knownCount(a.cases) ? `${fmtInt(a.cases)} ${caseNoun}` : "count unknown"} · {activityShare(a.share, a.cases)}</span>
             </button>
           </li>
         ))}
-        {matching.length === 0 && <li className="px-2 py-1 text-xs text-text-subtle">No activity of this log carries that word.</li>}
       </ul>
+      <p role="status" className="text-xs text-text-muted">{!matching.length ? "No activity of this log carries that word." : filtered.length > 60 ? `Showing the first 60 of ${fmtInt(filtered.length)} matching activities. Refine the search to find more.` : `${fmtInt(matching.length)} matching activities`}</p>
     </fieldset>
   );
 }
@@ -177,6 +207,7 @@ function AttributePicker({ value, attributes, onChange }: { value: string; attri
       <legend className="text-xs font-medium text-text-muted">Which value of the item</legend>
       <select className="h-control rounded border border-border bg-surface px-2 text-sm" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Which value of the item">
         <option value="">choose one</option>
+        {value && !chosen && <option value={value}>{quantityWords(value)} — not in the available catalogue</option>}
         {attributes.map((a) => (
           <option key={a.name} value={a.name}>
             {a.name.replace(/^case /, "")} — {fmtInt(a.distinct)} different values
@@ -204,6 +235,29 @@ export interface RuleEditorProps {
 }
 
 /** The parameters of one expectation, with every activity and attribute picked from the log itself. */
+function RuleActivities({ constraint, activities, data, noun, onChange }: {
+  constraint: Constraint; activities: ActivityInventory[]; data: Inventory | undefined; noun: string;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const { showAdvancedControls } = useNormAuthoringPreferences();
+  const list = (value: unknown): string[] => Array.isArray(value) ? value.map(String) : value == null || value === "" ? [] : [String(value)];
+  const paired = constraint.type === "precedence" || constraint.type === "lag";
+  const fields = paired ? [{ key: "a", label: "First this" }, { key: "b", label: "Then this" }] : [{ key: "activity", label: "Which activity" }];
+  const [editing, setEditing] = useState(() => fields.some(field => list(constraint.params[field.key]).length === 0));
+  const open = showAdvancedControls || editing;
+  const catalogue = new Set(activities.map(activity => activity.label));
+  const missing = [...new Set(fields.flatMap(field => list(constraint.params[field.key])).filter(label => !catalogue.has(label)))];
+  const id = useId();
+  return <section aria-label="Rule activities" className="space-y-3">
+    {!open && missing.length > 0 && <p className="text-sm text-warning">{Array.isArray(data?.activities) ? "Not found in this prepared table’s activity catalogue" : "Activity catalogue unavailable; selected activities cannot be checked"}: {missing.join(", ")}. The saved rule is unchanged.</p>}
+    {!showAdvancedControls && <Button type="button" variant="outline" size="sm" aria-expanded={open} aria-controls={id} onClick={() => setEditing(value => !value)}>{open ? "Hide activity choices" : "Edit activities"}</Button>}
+    {open && <div id={id} className="space-y-3">
+      <p className="text-xs text-text-subtle">Activity counts cover all prepared cases in this table. They are not filtered to the current evidence population.</p>
+      {fields.map(field => <ActivityPicker key={field.key} label={field.label} value={list(constraint.params[field.key])} activities={activities} totalCases={data?.cases} catalogueAvailable={Array.isArray(data?.activities)} caseNoun={noun} onChange={next => onChange({ [field.key]: next })} />)}
+    </div>}
+  </section>;
+}
+
 export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onChange, nameInvalid = false }: RuleEditorProps) {
   const inventory = useQuery(inventoryQuery(projectId, caseTableId));
   const data = inventory.data as Inventory | undefined;
@@ -213,16 +267,20 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
   const noun = data?.caseNoun ?? caseNoun;
   const p = constraint.params;
   const set = (patch: Record<string, unknown>) => onChange({ ...constraint, params: { ...constraint.params, ...patch } });
-  const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v === undefined || v === null || v === "" ? [] : [String(v)]);
 
-  if (inventory.isPending) return <LoadingBlock rows={4} />;
+  const summary = <section aria-label="Rule from current settings" className="space-y-1 border-l-2 border-accent pl-3">
+    <h3 className="text-xs font-semibold text-text-muted">Rule from current settings</h3>
+    <p className="reading text-sm" data-testid="rule-sentence">{ruleSentence(constraint)}</p>
+    <p className="text-xs text-text-muted">Generated from the current parameters. The constraint name is a separate label and is kept when targets change.</p>
+  </section>;
+  if (inventory.isPending) return <>{summary}<LoadingBlock rows={4} /></>;
   if (inventory.isError) {
     return (
-      <p className="reading text-sm text-text-muted" data-testid="inventory-unavailable">
+      <div className="space-y-3">{summary}<p className="reading text-sm text-text-muted" data-testid="inventory-unavailable">
         {notServed(inventory.error)
           ? "This backend does not list the log's activities and attributes, so the rule cannot be edited with pickers here. The rule is shown as it stands."
           : "The log's activities could not be read just now; the rule is shown as it stands."}
-      </p>
+      </p><Button type="button" size="sm" variant="outline" onClick={() => void inventory.refetch()}>Retry activities and attributes</Button></div>
     );
   }
 
@@ -232,12 +290,8 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
         <Input id="rule-name" required aria-required="true" value={constraint.plain_name ?? constraint.description ?? constraint.id} onChange={e => { const next = { ...constraint, description: e.target.value }; delete next.plain_name; onChange(next); }} aria-invalid={nameInvalid || undefined} aria-describedby={nameInvalid ? "rule-name-error" : undefined} className={nameInvalid ? "border-danger ring-1 ring-danger" : undefined} />
         {nameInvalid && <p id="rule-name-error" className="text-xs text-danger">Enter a name for this constraint.</p>}
       </Field>
-      <p className="text-xs text-text-subtle">
-        Every activity and value below is one this log actually has, with how many {noun} carry it: {fmtInt(activities.length)} activities, {fmtInt(attributes.length)} values.
-      </p>
-      {(constraint.type === "presence" || constraint.type === "exclusion" || constraint.type === "singularity") && (
-        <ActivityPicker label="Which activity" value={asList(p.activity)} activities={activities} caseNoun={noun} onChange={(next) => set({ activity: next })} />
-      )}
+      {summary}
+      {["presence", "exclusion", "singularity", "precedence", "lag"].includes(constraint.type) && <RuleActivities key={`activities:${constraint.id}`} constraint={constraint} activities={activities} data={data} noun={noun} onChange={set} />}
       {constraint.type === "presence" && <Field label="Minimum occurrences" htmlFor="rule-minimum"><Input id="rule-minimum" className="w-24" type="number" min="1" step="1" value={String(p.m ?? 1)} onChange={e => set({ m: Number(e.target.value) })} /></Field>}
       {constraint.type === "singularity" && <div className="flex flex-wrap gap-3">
         <Field label="Maximum expected occurrences" htmlFor="rule-k"><Input id="rule-k" className="w-24" type="number" min="0" step="1" value={String(p.k ?? 1)} onChange={e => set({ k: Number(e.target.value) })} /></Field>
@@ -249,12 +303,6 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
         <div className="flex flex-wrap gap-3"><Field label="Allowed relative difference" htmlFor="rule-tau"><Input id="rule-tau" className="w-24" type="number" min="0" step="any" value={String(p.tau ?? 0)} onChange={e => set({ tau: Number(e.target.value) })} /></Field><Field label="Tolerance width (relative difference)" htmlFor="rule-balance-width"><Input id="rule-balance-width" className="w-24" type="number" min="0.001" step="any" value={String(p.width ?? 1)} onChange={e => set({ width: Number(e.target.value) })} /></Field></div>
         <p className="text-xs text-text-muted">Quantities must use comparable units and the same object level. Derived attribute names can be entered here.</p>
       </div>}
-      {(constraint.type === "precedence" || constraint.type === "lag") && (
-        <>
-          <ActivityPicker label="First this" value={asList(p.a)} activities={activities} caseNoun={noun} onChange={(next) => set({ a: next })} />
-          <ActivityPicker label="Then this" value={asList(p.b)} activities={activities} caseNoun={noun} onChange={(next) => set({ b: next })} />
-        </>
-      )}
       {constraint.type === "lag" && (
         <div className="flex flex-wrap gap-3">
           <Field label="within" htmlFor="rule-delta">
@@ -292,9 +340,7 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
         </>
       )}
       <AdvancedRuleParameters key={constraint.id} params={p} onApply={params => onChange({ ...constraint, params })} />
-      <p className="reading rounded-md border border-border bg-surface-sunken p-2 text-sm" data-testid="rule-sentence">
-        {ruleSentence(constraint)}
-      </p>
+
     </div>
   );
 }
@@ -313,9 +359,11 @@ export interface ApplicabilityEditorProps {
 }
 
 function AdvancedRuleParameters({ params, onApply, applicability = false }: { params: Record<string, unknown>; onApply: (params: Record<string, unknown>) => void; applicability?: boolean }) {
+  const { showAdvancedControls } = useNormAuthoringPreferences();
   const [text, setText] = useState(JSON.stringify(params, null, 2));
   const [error, setError] = useState("");
   useEffect(() => { setText(JSON.stringify(params, null, 2)); setError(""); }, [params]);
+  if (!showAdvancedControls) return <p className="text-xs text-text-muted">Complete {applicability ? "applicability" : "rule"} parameters are available through Settings → Show advanced rule and list controls.</p>;
   return <details className="rounded border border-border p-3 text-sm"><summary className="cursor-pointer font-medium">{applicability ? "Advanced applicability clause" : "Advanced rule parameters"}</summary>
     <p className="my-2 text-xs text-text-muted">{applicability ? "Edit the complete applicability expression, including rare attribute values and compound conditions." : "Edit pairing, missing-event handling and other supported parameters."} Applying updates this form; save a new version to persist it. The backend validates semantics when saving.</p>
     <Field label={applicability ? "Applicability (JSON object)" : "Rule parameters (JSON object)"} htmlFor="rule-advanced"><Textarea id="rule-advanced" className="min-h-40 font-mono text-xs" value={text} onChange={e => { setText(e.target.value); setError(""); }} aria-invalid={!!error || undefined} /></Field>

@@ -24,6 +24,10 @@ templates:
       for BPIC 2019 only. Two activity labels of the norm do not occur in the
       CSV ('Vendor creates credit memo', 'Change Payment Terms' vs the log's
       'Change payment term'); Norm.check(log) reports them.
+      The reference remains unchanged. These are evidence-coverage warnings, not
+      satisfied business expectations. The merged invoice endpoint and the fixed
+      30-day clearing target do not measure posting-only compliance or contractual
+      lateness. Use an explicitly derived version for changed endpoint or label rules.
   - id: p2p_bpic19_v1_1
     file: p2p_bpic19_v1_1.json
     name: WISE BPIC'19 norm draft v1.1 (split invoice-before-goods)

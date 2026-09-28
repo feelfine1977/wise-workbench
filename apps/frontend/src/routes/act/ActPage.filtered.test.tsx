@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { beforeEach, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/node";
 import { gatesQuery, type Gates } from "@/lib/api/review";
 import { renderApp } from "@/test/utils";
+
+beforeEach(() => server.use(http.get("*/api/v1/projects/:projectId/runs/:runId/driver-evidence", () => HttpResponse.json({ detail: "Event evidence unavailable in this fixture." }, { status: 404 }))));
 
 const T = { timeout: 8000 };
 const slicing = "case Company+case Spend area text";

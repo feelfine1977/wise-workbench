@@ -77,7 +77,7 @@ export function workbenchRunDestination(projectId: string, nextRunId: string, ta
   return {
     to: "/p/$projectId/runs/$runId/backlog" as const,
     params,
-    search: { ...pickSearch(search, /\/backlog\/?$/.test(pathname) ? ["gamma", "minCases", "sort", "tab", "pageSize"] : []), ...context },
+    search: { minCases: typeof search.minCases === "number" ? search.minCases : target.minCases ?? undefined, ...pickSearch(search, /\/backlog\/?$/.test(pathname) ? ["gamma", "minCases", "sort", "tab", "pageSize"] : []), ...context },
   };
 }
 

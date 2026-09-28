@@ -1,10 +1,13 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, expect, it } from "vitest";
 import { server } from "@/mocks/node";
 import { db } from "@/mocks/db";
-import { renderApp } from "@/test/utils";
+import { renderApp, makeTestQueryClient } from "@/test/utils";
+import { App } from "@/app/providers";
+import { useJobStore } from "@/lib/stores/jobs";
+import { createMemoryHistory } from "@tanstack/react-router";
 import type { GroupingSuggestionsRequest, GroupingSuggestionsResponse } from "@/lib/api/groupingSuggestions";
 
 function discovery(body: GroupingSuggestionsRequest, label = "Suggested region") : GroupingSuggestionsResponse {
@@ -137,4 +140,67 @@ it("removes stale suggestion evidence immediately when the selected views change
   await screen.findByRole("button", { name: "Add grouping Changed context" });
   expect(requested[0]!.views).not.toEqual(requested[1]!.views);
   expect(requested[1]!.views).toContain("General");
+});
+
+
+it("opens new-run navigation on an already mounted list and can reopen after cancellation", async () => {
+  const history = createMemoryHistory({ initialEntries: ["/p/p2p2018/runs"] });
+  render(<App queryClient={makeTestQueryClient()} history={history} />);
+  await screen.findByRole("heading", { name: "All runs" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await act(async () => { history.push("/p/p2p2018/runs?new=true&caseTable=ct_1"); });
+  const dialog = await screen.findByRole("dialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(history.location.search).not.toContain("new=true");
+  await act(async () => { history.push("/p/p2p2018/runs?new=true&caseTable=ct_1"); });
+  expect(await screen.findByRole("dialog")).toBeVisible();
+});
+
+it("shows the starting state and a failed request without closing the form or inventing a run", async () => {
+  let reject!: () => void;
+  server.use(http.post("*/api/v1/projects/p2p2018/runs", async () => {
+    await new Promise<void>(resolve => { reject = resolve; });
+    return HttpResponse.json({ title: "Run could not start", detail: "Fixture scoring is unavailable", status: 503, code: "run.unavailable" }, { status: 503 });
+  }));
+  renderApp("/p/p2p2018/runs?new=true");
+  const dialog = await screen.findByRole("dialog");
+  const start = within(dialog).getByRole("button", { name: "Start run" });
+  await waitFor(() => expect(start).toBeEnabled());
+  await userEvent.click(start);
+  expect(await within(dialog).findByRole("button", { name: "Starting run…" })).toBeDisabled();
+  await waitFor(() => expect(reject).toBeDefined());
+  reject();
+  expect(await within(dialog).findByText("The workbench could not answer just now.")).toBeVisible();
+  await userEvent.click(within(dialog).getByText("what the server said"));
+  expect(within(dialog).getByText("Fixture scoring is unavailable")).toBeVisible();
+  expect(within(dialog).getByRole("button", { name: "Start run" })).toBeEnabled();
+  expect(dialog).toBeVisible();
+});
+
+
+it.each(["done", "running", "queued"] as const)("opens the returned %s assessment and preserves its job status", async status => {
+  const run = db.runs[0]!;
+  const jobId = `returned-${status}`;
+  server.use(
+    http.post("*/api/v1/projects/p2p2018/runs", () => HttpResponse.json({ ...run, status, jobId })),
+    http.get(`*/api/v1/projects/p2p2018/runs/${run.id}`, () => HttpResponse.json({ ...run, status, jobId })),
+    http.get(`*/api/v1/jobs/${jobId}`, () => HttpResponse.json({ id: jobId, kind: "score_run", status, progress: status === "done" ? 1 : 0, attempts: 1, cancelRequested: false, createdAt: run.createdAt, updatedAt: run.createdAt })),
+  );
+  const history = createMemoryHistory({ initialEntries: ["/p/p2p2018/runs?new=true"] });
+  render(<App queryClient={makeTestQueryClient()} history={history} />);
+  const dialog = await screen.findByRole("dialog");
+  const start = within(dialog).getByRole("button", { name: "Start run" });
+  await waitFor(() => expect(start).toBeEnabled());
+  await userEvent.click(start);
+  await waitFor(() => expect(history.location.pathname).toBe(`/p/p2p2018/runs/${run.id}`));
+  expect(history.location.search).toContain("tab=monitor");
+  expect(useJobStore.getState().jobs.find(job => job.id === jobId)?.lastStatus).toBe(status);
+  if (status === "done") {
+    expect(await screen.findByText("Opened existing completed assessment: inputs unchanged.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open the ranked list" })).toHaveAttribute("href", expect.stringContaining(`/runs/${run.id}/backlog`));
+  } else {
+    expect(await screen.findByText("Progress", { selector: "h3" })).toBeVisible();
+    expect(screen.queryByText("Opened existing completed assessment: inputs unchanged.")).not.toBeInTheDocument();
+  }
 });

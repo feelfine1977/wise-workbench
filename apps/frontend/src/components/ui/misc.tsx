@@ -19,8 +19,8 @@ Separator.displayName = "Separator";
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("surface card-pad shadow-1", className)} {...props} />;
 }
-export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("mb-3 text-base font-semibold text-text", className)} {...props} />;
+export function CardTitle({ as: Heading = "h3", className, ...props }: React.HTMLAttributes<HTMLHeadingElement> & { as?: "h2" | "h3" | "h4" }) {
+  return <Heading className={cn("mb-3 text-base font-semibold text-text", className)} {...props} />;
 }
 
 export function Progress({ value, className, label }: { value: number; className?: string; label?: string }) {

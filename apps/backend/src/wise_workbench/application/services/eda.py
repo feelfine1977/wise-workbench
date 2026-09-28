@@ -1,4 +1,4 @@
-"""Read-only linked EDA over prepared cases.parquet, without loading or rescoring events.
+"""Read-only linked EDA over prepared cases, with opt-in prepared event evidence.
 
 DuckDB performs projection, selection, aggregation and pagination on the server. The
 same selected flag feeds every view. Domains are anchored to the whole case table,
@@ -30,10 +30,12 @@ from .eda_insights import (
     _text,
     aggregate_insights,
     choose_comparison,
+    hierarchy_counts,
     parse_selection,
     prepare_domains,
     selection_extensions,
     validate_field,
+    value_page,
 )
 
 if TYPE_CHECKING:
@@ -58,6 +60,7 @@ def _selection(
     selection: EDASelection,
     domains: dict[str, CategoryDomain],
     mapping: ColumnMapping,
+    schema: pa.Schema,
 ) -> tuple[str, list[Any]]:
     predicates: list[str] = []
     values: list[Any] = []
@@ -153,7 +156,7 @@ def _selection(
             span_choices.append("(" + " AND ".join(bounds) + ")")
         if span_choices:
             predicates.append(" OR ".join(span_choices))
-    extra_predicates, extra_values = selection_extensions(selection, domains)
+    extra_predicates, extra_values = selection_extensions(selection, domains, attributes, schema, mapping)
     predicates.extend(extra_predicates)
     values.extend(extra_values)
     return " AND ".join(f"({p})" for p in predicates) or "TRUE", values
@@ -185,8 +188,14 @@ def aggregate_eda(
     ]
     attributes = available[:MAX_ATTRIBUTES]
     selection = parse_selection(request.selection)
-    for facet in selection.facets or []:
-        validate_field(facet.field, available)
+    selected_facets = [*(selection.facets or []), *(f for branch in selection.jointAny or [] for f in branch.facets)]
+    for field in [
+        *(facet.field for facet in selected_facets),
+        *(facet.field for facet in selection.numericFacets or []),
+    ]:
+        validate_field(field, available)
+    for field in [*(request.hierarchyFields or []), *([request.valueField] if request.valueField else [])]:
+        validate_field(field, available)
     if request.compareAttribute is not None:
         validate_field(request.compareAttribute, available)
     attribute = request.attribute
@@ -195,7 +204,13 @@ def aggregate_eda(
     if attribute is None:
         attribute = "flow_type" if "flow_type" in attributes else next(iter(attributes), None)
     # The picker/profile cap never silently drops an explicitly referenced field.
-    referenced = [facet.field for facet in selection.facets or []]
+    referenced = [
+        *(facet.field for facet in selected_facets),
+        *(facet.field for facet in selection.numericFacets or []),
+    ]
+    referenced.extend(request.hierarchyFields or [])
+    if request.valueField:
+        referenced.append(request.valueField)
     referenced.extend(name for name in (attribute, request.compareAttribute) if name is not None)
     referenced.extend(
         clause["field"]
@@ -205,7 +220,7 @@ def aggregate_eda(
     aliases = {name: f"a{i}" for i, name in enumerate(dict.fromkeys([*attributes, *referenced]))}
     projections = [f"{_quote(name)} AS {alias}" for name, alias in aliases.items()]
     with duckdb.connect(":memory:", config={"threads": 2}) as con:
-        # No workspace caches, temporary files or event-table reads are needed.
+        # Aggregation never writes workspace artifacts; event reads are explicitly opt-in.
         con.execute("SET TimeZone='UTC'")
         con.execute("SET temp_directory=''")
         con.read_parquet(str(path)).create_view("source")
@@ -220,10 +235,13 @@ def aggregate_eda(
         if request.insight and not members_only and comparison is None:
             comparison = choose_comparison(con, {name: aliases[name] for name in attributes}, attribute, mapping)
         fields = [name for name in (attribute, comparison if request.insight else None) if name is not None]
-        fields.extend(facet.field for facet in selection.facets or [])
+        fields.extend(facet.field for facet in selected_facets)
+        fields.extend(request.hierarchyFields or [])
+        if request.valueField:
+            fields.append(request.valueField)
         domains = prepare_domains(con, aliases, fields, attribute, mapping)
         category_keys = {row["category_key"] for row in _rows(con, "SELECT DISTINCT category_key FROM categorized")}
-        predicate, values = _selection(request, aliases, category_keys, selection, domains, mapping)
+        predicate, values = _selection(request, aliases, category_keys, selection, domains, mapping, schema)
         # Materialize only case-level data once, keeping all chart queries consistent.
         con.execute(
             f"CREATE TEMP TABLE marked AS SELECT *, coalesce({predicate}, FALSE) AS selected FROM categorized", values
@@ -381,7 +399,18 @@ def aggregate_eda(
         for row in details:
             row["firstRecorded"] = _iso(row.pop("first_recorded"))
             row["lastRecorded"] = _iso(row.pop("last_recorded"))
+        from .eda_events import event_evidence
+
         return {
+            "values": value_page(
+                con, domains[request.valueField], request.valueField, request.valueSearch, request.valuePage
+            )
+            if request.valueField
+            else None,
+            "hierarchy": hierarchy_counts(con, request.hierarchyFields, domains) if request.hierarchyFields else None,
+            "eventEvidence": event_evidence(con, path.parent / "events.parquet", mapping, request)
+            if request.eventInsight
+            else None,
             "datasetId": request.datasetId,
             "attribute": attribute,
             "attributes": attributes,
@@ -469,5 +498,14 @@ def explore_eda(c: Container, project_id: str, table_id: str, request: EDAReques
         raise NotFoundError("The prepared case table is missing", code="case_table.artefacts_missing")
     mapping = c.mappings.get_mapping(table.mapping_id)
     stamp = path.stat()
-    key = (str(path.resolve()), table.mapping_id, stamp.st_mtime_ns, stamp.st_size, request.model_dump_json())
+    events_path = path.parent / "events.parquet"
+    event_stamp = events_path.stat() if request.eventInsight and events_path.is_file() else None
+    key = (
+        str(path.resolve()),
+        table.mapping_id,
+        stamp.st_mtime_ns,
+        stamp.st_size,
+        (event_stamp.st_mtime_ns, event_stamp.st_size) if event_stamp else None,
+        request.model_dump_json(),
+    )
     return _ANSWERS.get_or_compute(key, lambda: {"caseTableId": table_id, **aggregate_eda(path, mapping, request)})

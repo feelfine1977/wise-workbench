@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { StakeholderMatrix } from "./StakeholderMatrix";
+import { LayerPriorityRadar } from "./LayerPriorityRadar";
 import { viewColor } from "@/lib/viewColors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,10 @@ export function StructureEditor({ projectId, versionId, document, step, selected
   }, [selectedView, document]);
   const dormantLayers = useRef(new Map<string, NormView>());
   const [editingView, setEditingView] = useState(false);
+  const [focusedLayer, setFocusedLayer] = useState<string>();
+  const [matrixFocus, setMatrixFocus] = useState<{ layer: string; revision: number }>();
+  const [expandedDetail, setExpandedDetail] = useState<string>();
+  const detailsRef = useRef<HTMLDivElement>(null);
   const [newLayer, setNewLayer] = useState("");
   const [newView, setNewView] = useState("");
   const [saving, setSaving] = useState(false);
@@ -80,13 +85,18 @@ export function StructureEditor({ projectId, versionId, document, step, selected
       onSuccess: result => { setSaving(false); onSaved(result.id); },
     });
   };
-  const matrix = <StakeholderMatrix document={draft} onChange={setDraft} onConstraint={onConstraint} onEdit={(name, layer) => {
+  const matrix = <StakeholderMatrix document={draft} focusedLayer={focusedLayer} focusRequest={matrixFocus} onChange={setDraft} onConstraint={onConstraint} onEdit={(name, layer, constraint) => {
     const index = views.findIndex(v => v.name === name);
-    setViewIndex(index); setEditingView(true); onStep("views");
+    setViewIndex(index); setEditingView(true); setFocusedLayer(layer); setExpandedDetail(constraint ? layer : undefined); onStep("views");
     if (document.views?.some(v => v.name === name)) onView(name);
-    requestAnimationFrame(() => window.document.getElementById(`view-weight-${layer}`)?.focus());
+    requestAnimationFrame(() => {
+      const target = constraint && views[index]?.constraint_weights != null && name !== benchmark
+        ? window.document.getElementById(`view-weight-${constraint}`)
+        : window.document.getElementById(`view-weight-${layer}`);
+      (name === benchmark ? detailsRef.current : target ?? window.document.getElementById(`view-layer-${layer}`) ?? detailsRef.current)?.focus();
+    });
   }} />;
-  return <section aria-label="Layer and view editor" hidden={step === "constraints"} className="space-y-4">
+  return <section aria-label="Layer and view editor" hidden={step === "constraints"} className="norm-priorities space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-text-muted">{step === "layers" ? "Group constraints by business purpose. Each constraint belongs to one layer." : "Choose the layers that matter to each view and set their relative weights."}</p>
       <div className="flex gap-2">
@@ -132,6 +142,10 @@ export function StructureEditor({ projectId, versionId, document, step, selected
     </div>}
     {step === "views" && <div className="space-y-4">
       {matrix}
+      <LayerPriorityRadar document={draft} onLayer={id => {
+        setFocusedLayer(id);
+        setMatrixFocus(current => ({ layer: id, revision: (current?.revision ?? 0) + 1 }));
+      }} />
       <Button size="sm" variant="outline" aria-expanded={editingView} onClick={() => setEditingView(!editingView)}>{editingView ? "Close view details" : "Edit one view"}</Button>
       <div className="rounded border border-border bg-surface p-3">
         <ul className="flex flex-wrap gap-2" aria-label="View weight bookmarks">{views.map((v, index) => <li key={index}><button type="button" className={`w-full rounded p-2 text-left text-sm ${viewIndex === index ? "bg-selection" : "hover:bg-surface-sunken"}`} aria-pressed={viewIndex === index} style={{ borderBottom: `3px solid ${viewColor(v.name)}` }} onClick={() => { setEditingView(true); setViewIndex(index); const savedName = document.views?.[index]?.name; if (savedName) onView(savedName); }}>{v.name || "Unnamed view"}<span className="block text-xs text-text-muted">{v.name === benchmark ? "Equal-layer benchmark" : v.constraint_weights != null ? "Direct constraint weights" : `${Object.values(v.layer_weights ?? {}).filter(w => w > 0).length} weighted layers`}</span></button></li>)}</ul>
@@ -152,23 +166,24 @@ export function StructureEditor({ projectId, versionId, document, step, selected
           </form>
         </details>
       </div>
-      <Card className="min-w-0" hidden={!editingView}>
+      <div ref={detailsRef} tabIndex={-1} aria-label="View priority details" role="region" className="priority-view-details" hidden={!editingView}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-base font-semibold">{view?.name || "View"} · priority details</h3><Button size="sm" variant="ghost" onClick={() => setEditingView(false)}>Close details</Button></div>
         {view ? <>
           {isBenchmark ? <div role="note" className="rounded border border-border bg-surface-sunken p-3 text-sm"><h3 className="font-semibold">General benchmark</h3><p className="mt-1">Includes every constraint used by any view. Each participating layer has equal total weight; its included constraints share that weight equally. This reference updates automatically.</p></div> : <Field label="View name" htmlFor="view-name"><Input id="view-name" value={view.name} onChange={e => updateView({ name: e.target.value })} /></Field>}
           <p className="my-3 text-xs text-text-muted">{isBenchmark ? "Read-only reference. Edit the stakeholder views to change the union." : "Include or exclude a layer or individual constraint in this view. Shared definitions and other views stay unchanged."}</p>
           {!isBenchmark && view.constraint_weights != null && <p className="mb-3 text-xs text-text-muted">This view weights constraints directly. Layer totals below sum those weights.</p>}
-          <ul className="space-y-3">{layers.map(l => {
+          <ul className="priority-detail-list">{layers.map(l => {
             const members = constraints.filter(c => c.layer === l.id);
             const weights = rawViewWeights(draft, view);
             const count = members.filter(c => (weights[c.id] ?? 0) > 0).length;
             const total = layerTotal(draft, view, l.id);
-            return <li key={l.id} className="rounded border border-border p-3">
+            return <li key={l.id} data-focused={focusedLayer === l.id}>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm"><input type="checkbox" aria-label={`Include layer ${l.name} in ${view.name}`} checked={count > 0} disabled={isBenchmark || !members.length} onChange={e => includeLayer(l.id, e.target.checked)} /><span>{l.name}<span className="block text-xs text-text-muted">{count} / {members.length} constraints included</span></span></label>
+                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm"><input id={`view-layer-${l.id}`} type="checkbox" aria-label={`Include layer ${l.name} in ${view.name}`} checked={count > 0} disabled={isBenchmark || !members.length} onChange={e => includeLayer(l.id, e.target.checked)} /><span>{l.name}<span className="block text-xs text-text-muted">{count} / {members.length} constraints included</span></span></label>
                 {isBenchmark ? <span className="text-sm">Layer weight: {total > 0 ? "1 (equal)" : "0 (unused)"}</span> : <Field label="Layer importance" htmlFor={`view-weight-${l.id}`}><Input id={`view-weight-${l.id}`} aria-label={`View weight: ${l.name}`} className="w-24" type="number" min="0" step="any" value={Number.isNaN(total) ? "" : total} aria-invalid={!validWeight(total) || undefined} onChange={e => { const changed = setViewLayerWeight(draft, view, l.id, inputWeight(e.target.value)); setDraft({ ...draft, views: views.map((v, i) => i === viewIndex ? changed : v) }); }} /></Field>}
                 {!count && <span className="text-xs text-text-muted">Not weighted</span>}
               </div>
-              <details className="mt-2 text-sm"><summary className="cursor-pointer">Choose constraints in {l.name}</summary><ul className="mt-2 space-y-2">{members.map(c => <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
+              <details className="mt-2 text-sm" open={expandedDetail === l.id} onToggle={event => { if (event.currentTarget.open) setExpandedDetail(l.id); else setExpandedDetail(current => current === l.id ? undefined : current); }}><summary className="cursor-pointer">Choose constraints in {l.name}</summary><ul className="mt-2 space-y-2">{members.map(c => <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
                 <label className="flex min-w-0 flex-1 items-center gap-2"><input type="checkbox" aria-label={`Include ${constraintName(c)} in ${view.name}`} checked={(weights[c.id] ?? 0) > 0} disabled={isBenchmark} onChange={e => { const changed = setViewConstraintIncluded(draft, view, c.id, e.target.checked); setDraft({ ...draft, views: views.map((v, i) => i === viewIndex ? changed : v) }); }} />{constraintName(c)}</label>
                 <Button variant="ghost" size="sm" onClick={() => onConstraint(c.id)}>Inspect rule</Button>
                 {!isBenchmark && view.constraint_weights != null && weightInput(`view-weight-${c.id}`, `View weight: ${constraintName(c)}`, weights[c.id] ?? 0)}
@@ -176,7 +191,7 @@ export function StructureEditor({ projectId, versionId, document, step, selected
             </li>;
           })}</ul>
         </> : <p className="text-sm text-text-muted">Add a view, then choose its layer weights.</p>}
-      </Card>
+      </div>
     </div>}
     {step === "layers" && <details className="rounded border border-border bg-surface p-3"><summary className="cursor-pointer text-sm font-medium">Structure matrix</summary>{matrix}</details>}
     <Dialog open={saving} onOpenChange={open => !create.isPending && setSaving(open)}><DialogContent hideClose={create.isPending}>

@@ -26,7 +26,7 @@ const original: NormDocument = {
   },
 };
 
-function setup(options: { document?: NormDocument; failSave?: boolean; failCalibration?: boolean; failInventory?: boolean; caseTableId?: string | null } = {}) {
+function setup(options: { document?: NormDocument; failSave?: boolean; failCalibration?: boolean; failInventory?: boolean; caseTableId?: string | null; coverageWarnings?: number | null; calibration?: Record<string, unknown> } = {}) {
   const bodies: NormVersionCreate[] = [];
   const versionReads: string[] = [];
   const inventoryReads: string[] = [];
@@ -37,7 +37,7 @@ function setup(options: { document?: NormDocument; failSave?: boolean; failCalib
     http.get("*/projects/:project/norms/:version/calibration", ({ params }) => {
       calibrationReads.push(`${params.project}:${params.version}`);
       if (failCalibration) { failCalibration = false; return HttpResponse.json({ title: "Unavailable" }, { status: 503 }); }
-      return HttpResponse.json({ normVersionId: params.version, status: "draft", canLeaveDraft: false, missingRationale: Array.from({ length: 12 }, (_, index) => `c${index}`), thresholds: [{ constraint_id: "c0", rationale: "Previously entered reason", owner: null }] });
+      return HttpResponse.json(options.calibration ?? { normVersionId: params.version, status: "draft", canLeaveDraft: false, missingRationale: Array.from({ length: 12 }, (_, index) => `c${index}`), thresholds: [{ constraint_id: "c0", rationale: "Previously entered reason", owner: null }] });
     }),
     http.get("*/projects/:project/norms/inventory", ({ request }) => {
       const table = new URL(request.url).searchParams.get("caseTableId") ?? ""; inventoryReads.push(table);
@@ -54,7 +54,7 @@ function setup(options: { document?: NormDocument; failSave?: boolean; failCalib
       return HttpResponse.json({ id: "nv_child", norm: body.norm, parentId: body.parentId, status: "draft", version: 3 }, { status: 201 });
     }),
   );
-  let props: NormGuideProps = { projectId: "p", versionId: "nv_original", document: options.document ?? structuredClone(original), process: "o2c", datasetName: "Selected order log", caseTableId: options.caseTableId === null ? undefined : options.caseTableId ?? "ct_orders", caseNoun: "order items", onTab, onConstraint, onSaved };
+  let props: NormGuideProps = { projectId: "p", versionId: "nv_original", document: options.document ?? structuredClone(original), process: "o2c", datasetName: "Selected order log", caseTableId: options.caseTableId === null ? undefined : options.caseTableId ?? "ct_orders", caseNoun: "order items", coverageWarnings: options.coverageWarnings, onTab, onConstraint, onSaved };
   const client = makeTestQueryClient();
   const ui = (hidden = false) => <QueryClientProvider client={client}><main hidden={hidden}><NormGuide {...props} /></main></QueryClientProvider>;
   const view = render(ui());
@@ -206,4 +206,53 @@ it("shows bounded sourced P2P/O2C examples without changing the brief or data an
   expect(screen.getByText(/Record proposals, objections and the accountable owner/)).toBeVisible();
   await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Norm authoring guide" }));
   expect(api.bodies).toEqual([]); expect(api.versionReads).toEqual([]); expect(api.inventoryReads).toEqual([]);
+});
+
+it("separates nine coverage warnings, zero missing calibration decisions, and an unsigned draft", async () => {
+  const api = setup({ coverageWarnings: 9, calibration: { normVersionId: "nv_original", status: "draft", missingRationale: [], canLeaveDraft: true } });
+  const user = userEvent.setup();
+  expect(await screen.findByText(/0 constraints are reported as needing calibration rationale/)).toBeVisible();
+  const coverage = screen.getByRole("group", { name: "Coverage and applicability review" });
+  expect(coverage).toHaveTextContent("9 constraints have coverage or applicability warnings on this log.");
+  const signoff = screen.getByRole("group", { name: "Version sign-off" });
+  expect(signoff).toHaveTextContent("Saved version status: draft. This draft has not been signed off.");
+  expect(signoff).toHaveTextContent("Sign-off still requires an explicit review action.");
+  await user.click(within(coverage).getByRole("button", { name: "Inspect coverage and applicability" }));
+  expect(api.onTab).toHaveBeenLastCalledWith("constraints");
+  await user.click(screen.getByRole("button", { name: "Review calibration decisions" }));
+  expect(api.onTab).toHaveBeenLastCalledWith("review");
+  expect(api.bodies).toEqual([]);
+  await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Norm authoring guide" }));
+});
+
+it("keeps omitted review counts and unknown coverage distinct from an explicit zero", async () => {
+  const api = setup({ coverageWarnings: null, calibration: { normVersionId: "nv_original", status: "draft" } });
+  expect(await screen.findByText(/Missing calibration rationale count is unknown/)).toBeVisible();
+  expect(screen.getByText("Coverage/applicability warning count is unknown.")).toBeVisible();
+  expect(screen.getByText("Sign-off eligibility is unknown.")).toBeVisible();
+  expect(screen.queryByText(/\b0 constraints/)).not.toBeInTheDocument();
+  for (const count of [undefined, -1, NaN, 1.5]) {
+    api.rerenderGuide({ coverageWarnings: count });
+    expect(screen.getByText("Coverage/applicability warning count is unknown.")).toBeVisible();
+  }
+  api.rerenderGuide({ coverageWarnings: 0 });
+  expect(screen.getByText("0 constraints have coverage or applicability warnings on this log.")).toBeVisible();
+  expect(screen.getByText(/Missing calibration rationale count is unknown/)).toBeVisible();
+});
+
+it("does not claim zero requirements while loading or after failure and keeps coverage independent", async () => {
+  const api = setup({ failCalibration: true, coverageWarnings: 9 });
+  expect(screen.getByText("Checking saved calibration requirements…")).toBeVisible();
+  expect(screen.queryByText(/0 constraints are reported/)).not.toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent("Review requirements could not be checked");
+  expect(screen.getByRole("group", { name: "Coverage and applicability review" })).toHaveTextContent("9 constraints");
+  expect(screen.getByRole("group", { name: "Version sign-off" })).toHaveTextContent("Saved version review status is unknown.");
+  expect(api.bodies).toEqual([]);
+});
+
+it("ignores calibration counts returned for a different version", async () => {
+  setup({ calibration: { normVersionId: "wrong_version", status: "approved", missingRationale: [], canLeaveDraft: true } });
+  expect(await screen.findByText(/Missing calibration rationale count is unknown/)).toBeVisible();
+  expect(screen.queryByText(/Saved version status: approved/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/0 constraints are reported/)).not.toBeInTheDocument();
 });

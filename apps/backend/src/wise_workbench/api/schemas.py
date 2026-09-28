@@ -28,6 +28,9 @@ from .schema_models.norms import NormCalibration as NormCalibration
 from .schema_models.norms import NormCheck as NormCheck
 from .schema_models.norms import NormCheckConstraint as NormCheckConstraint
 from .schema_models.norms import NormCheckRequest as NormCheckRequest
+from .schema_models.norms import NormEvidenceScope as NormEvidenceScope
+from .schema_models.norms import NormPreviewCounts as NormPreviewCounts
+from .schema_models.norms import NormPreviewRequest as NormPreviewRequest
 from .schema_models.norms import NormRelevance as NormRelevance
 from .schema_models.norms import NormRelevanceConstraint as NormRelevanceConstraint
 from .schema_models.norms import NormStatusUpdate as NormStatusUpdate
@@ -808,6 +811,22 @@ class NormSignalDistribution(Distribution):
     normVersionId: str
     caseTableId: str
     constraintId: str
+    scope: NormEvidenceScope = Field(default_factory=NormEvidenceScope)
+
+
+class NormRulePreview(BaseModel):
+    counts: NormPreviewCounts
+    distribution: Distribution | None = None
+    note: str | None = None
+
+
+class NormConstraintPreview(BaseModel):
+    normVersionId: str
+    caseTableId: str
+    constraintId: str
+    scope: NormEvidenceScope
+    saved: NormRulePreview
+    proposed: NormRulePreview
 
 
 class FlowNode(BaseModel):

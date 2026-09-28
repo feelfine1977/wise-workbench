@@ -28,7 +28,9 @@ datasets:
       cases: 251734
       activities: 42
       vendors: 1975
-      timestamp_range: 1948-01-26 to 2020-09-04 (outliers; bulk 2018 to early 2019)
+      # Full CSV/imported/prepared event range rechecked 2026-09-28 with day-first parsing.
+      # The analysis/censoring cutoff is separate; source timestamps carry no timezone.
+      timestamp_range: 1948-01-26 23:59:00 to 2020-04-09 23:59:00 (outliers; bulk 2018 to early 2019)
       item_category_events: {3-way match invoice before GR: 1234708, 3-way match invoice after GR: 319233, consignment: 36084, 2-way match: 5898}
       spend_areas: 20
       companies: 4 (one holds 99.6% of events)

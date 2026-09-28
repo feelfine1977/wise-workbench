@@ -21,7 +21,7 @@ describe("journey evidence and availability", () => {
 
   it.each(["warn", "fail"] as const)("keeps %s readiness visible even with assessment results", (status) => {
     const input = { ...base, caseTable: { ...table, readiness: { status, items: [{ id: "coverage", level: status, message: "Check event coverage." }] } } };
-    expect(stage("data", input)).toMatchObject({ state: "gated", description: "Review 1 data caveat on the readiness page before interpreting results.", screen: "data" });
+    expect(stage("data", input)).toMatchObject({ state: "gated", description: `${status === "fail" ? "1 blocking issue · 0 warnings" : "0 blocking issues · 1 warning"}. Review data checks before interpreting results.`, screen: "data" });
     expect(stage("run", input).state).toBe("available");
   });
 

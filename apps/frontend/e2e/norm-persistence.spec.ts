@@ -30,7 +30,7 @@ test("selected norm values and names survive reload; missing fields are focused 
   await page.goto(`/p/${PROJECT}/norms/${draft.id}?tab=constraints&constraint=${encodeURIComponent(constraint!.id)}&caseTable=${encodeURIComponent(CASE_TABLE!)}`);
   // This journey exercises required rationale fields; Guided drafts deliberately make them optional.
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Authoring mode", { exact: true }).selectOption("expert");
+  await page.getByRole("combobox", { name: "Authoring mode", exact: true }).selectOption("expert");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
   const dialog = page.getByTestId("sign-norm");
@@ -70,14 +70,23 @@ test("selected norm values and names survive reload; missing fields are focused 
   await page.getByRole("button", { name: "the numbers", exact: true }).click();
   await expect(page.getByLabel(/Target \(/)).toHaveValue("12");
   await expect(page.getByLabel(/Tolerance width \(/)).toHaveValue("20");
-  await expect(page.getByTestId("lens-sentences")).toContainText("25%");
-  await expect(page.getByTestId("lens-sentences")).not.toContainText("About");
-  await expect(page.getByRole("img", { name: /expected 12.00 days/ })).toBeVisible();
+  const calibration = page.getByRole("region", { name: "Threshold calibration", exact: true });
+  await expect(calibration.getByRole("heading", { name: "Exact preview · saved → proposed", exact: true })).toBeVisible();
+  // The new lens distinguishes four native measurements from all five evaluated cases.
+  // One missing measurement is penalized by this rule: 1/4 above target is not the 2/5 violation share.
+  await expect(calibration).toContainText("4 finite measurements / 5 applicable cases");
+  await expect(calibration.locator("dl > div").filter({ hasText: "Violating / evaluated cases" }).getByRole("definition")).toHaveText("2 / 5 → 2 / 5");
+  await expect(calibration.locator("dl > div").filter({ hasText: "Violation share" }).getByRole("definition")).toHaveText(/40\.0\s?% → 40\.0\s?%/);
+  await expect(calibration).toContainText("1 missing native measurements");
+  await expect(calibration).not.toContainText("About");
+  await expect(calibration.getByText("Saved rule: Record Invoice Receipt follows Record Goods Receipt within 12 days, with 20 days of tolerance", { exact: true })).toBeVisible();
+  await expect(calibration.getByRole("img", { name: /Distribution in days;/ })).toBeVisible();
   const preview = await request.get(`${base}/${created.id}/signals/${constraint!.id}?caseTableId=${CASE_TABLE}`);
   expect(preview.ok()).toBe(true);
   const previewBody = await preview.json();
   expect(previewBody.normVersionId).toBe(created.id);
   expect(previewBody.threshold).toBe(12);
+  expect(previewBody.stats.n).toBe(4);
   expect(previewBody.stats.shareBeyondThreshold).toBe(0.25);
   expect(previewBody.saturation).toBe(32);
   await page.screenshot({ path: testInfo.outputPath("calibration.png"), fullPage: true });

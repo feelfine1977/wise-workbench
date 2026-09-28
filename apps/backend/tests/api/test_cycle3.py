@@ -510,7 +510,26 @@ def test_guidance_and_hub_serve_the_pack(world: dict[str, Any]) -> None:
     hub = c.get(f"/api/v1/projects/{pid}/knowledge/hub").json()
     assert hub["pack"] == "p2p" and hub["case_noun"] and len(hub["nodes"]) > 100 and hub["edges"]
     kinds = {n["kind"] for n in hub["nodes"]}
-    assert {"stage", "layer", "expectation", "failure_mode", "reason", "action", "kpi"} <= kinds
+    assert {
+        "process",
+        "solution_card",
+        "stage",
+        "layer",
+        "expectation",
+        "failure_mode",
+        "reason",
+        "action",
+        "kpi",
+    } <= kinds
+    recipe_id = "solution_card:p2p:release-to-clearing"
+    recipe = c.get(f"/api/v1/projects/{pid}/knowledge/hub/{recipe_id}")
+    assert recipe.status_code == 200
+    recipe_page = recipe.json()
+    assert recipe_page["node"]["solution_card"]["hubNode"] == recipe_id
+    assert recipe_page["related"]["process"]["id"] == "process:p2p"
+    assert recipe_page["related"]["expectations"] and recipe_page["related"]["failure_modes"]
+    process_page = c.get(f"/api/v1/projects/{pid}/knowledge/hub/process:p2p").json()
+    assert recipe_id in {n["id"] for n in process_page["related"]["solution_cards"]}
     layer = next(n for n in hub["nodes"] if n["kind"] == "layer")
     page = c.get(f"/api/v1/projects/{pid}/knowledge/hub/{layer['id']}").json()
     assert page["node"]["id"] == layer["id"] and page["guidance"]["plain_name"]

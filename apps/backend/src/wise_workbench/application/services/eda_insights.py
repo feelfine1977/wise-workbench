@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import duckdb
@@ -82,6 +83,7 @@ class CategoryDomain:
     column: str
     table: str
     categories: list[dict[str, Any]]
+    expression: str
 
     @property
     def keys(self) -> set[str]:
@@ -118,7 +120,7 @@ def prepare_domains(
                 {"key": "missing", "value": None, "label": "Unknown / missing", "kind": "missing"},
             ]
         )
-        domains[field] = CategoryDomain(column, table, categories)
+        domains[field] = CategoryDomain(column, table, categories, expression)
         projections.append(
             f"CASE WHEN ({expression}) IS NULL THEN 'missing' ELSE coalesce(t{i}.key, 'other') END AS {column}"
         )
@@ -138,25 +140,79 @@ def prepare_domains(
     return domains
 
 
-def selection_extensions(selection: EDASelection, domains: dict[str, CategoryDomain]) -> tuple[list[str], list[Any]]:
+def selection_extensions(
+    selection: EDASelection,
+    domains: dict[str, CategoryDomain],
+    aliases: dict[str, str],
+    schema: pa.Schema,
+    mapping: ColumnMapping,
+) -> tuple[list[str], list[Any]]:
     predicates: list[str] = []
     values: list[Any] = []
-    for facet in selection.facets or []:
+
+    def facet_predicate(facet):
         domain = domains[facet.field]
         if not set(facet.keys) <= domain.keys:
             raise DomainError(f"Select category keys returned for EDA facet {facet.field!r}.", code="eda.facet_key")
-        predicates.append(f"{domain.column} IN (" + ",".join("?" for _ in facet.keys) + ")")
-        values.extend(facet.keys)
-    choices: list[str] = ["events IS NULL"] if selection.eventMissing else []
-    for interval in selection.eventRanges or []:
-        bounds: list[str] = []
-        for value, operator in ((interval.min, ">="), (interval.max, "<")):
-            if value is not None:
-                bounds.append(f"events {operator} ?")
-                values.append(value)
-        choices.append("(" + " AND ".join(bounds) + ")")
-    if choices:
+        terms = []
+        if facet.keys:
+            terms.append(f"{domain.column} IN (" + ",".join("?" for _ in facet.keys) + ")")
+            values.extend(facet.keys)
+        if facet.values:
+            terms.append(f"({domain.expression}) IN (" + ",".join("?" for _ in facet.values) + ")")
+            values.extend(facet.values)
+        return "(" + " OR ".join(terms) + ")"
+
+    for facet in selection.facets or []:
+        predicates.append(facet_predicate(facet))
+    if selection.jointAny:
+        predicates.append(
+            " OR ".join(
+                "(" + " AND ".join(facet_predicate(f) for f in branch.facets) + ")" for branch in selection.jointAny
+            )
+        )
+    for numeric_facet in selection.numericFacets or []:
+        dtype = schema.field(numeric_facet.field).type
+        if not (pa.types.is_integer(dtype) or pa.types.is_floating(dtype) or pa.types.is_decimal(dtype)):
+            raise ValidationError(
+                f"{numeric_facet.field!r} is not a typed numeric case attribute", code="eda.numeric_type"
+            )
+        column = aliases[numeric_facet.field]
+        normalized = _category_expr(column, mapping)
+        known = f"(({normalized}) IS NOT NULL AND isfinite({column}))"
+        choices = [f"NOT {known}"] if numeric_facet.missing else []
+        for interval in numeric_facet.ranges:
+            bounds = []
+            for value, operator in ((interval.min, ">="), (interval.max, "<")):
+                if value is not None:
+                    decimal = Decimal(value)
+                    if not pa.types.is_floating(dtype):
+                        # Never let DuckDB silently reduce scale when finding a common decimal type.
+                        scale = dtype.scale if pa.types.is_decimal(dtype) else 0
+                        digits = (
+                            dtype.precision - scale
+                            if pa.types.is_decimal(dtype)
+                            else (20 if pa.types.is_unsigned_integer(dtype) else 19)
+                        )
+                        if max(digits, decimal.adjusted() + 1) + max(scale, -int(decimal.as_tuple().exponent)) > 38:
+                            raise ValidationError(
+                                "Numeric bound exceeds exact comparison precision for this field",
+                                code="eda.numeric_precision",
+                            )
+                    bounds.append(f"{column} {operator} ?")
+                    values.append(float(decimal) if pa.types.is_floating(dtype) else decimal)
+            choices.append("(" + known + " AND " + " AND ".join(bounds) + ")")
         predicates.append(" OR ".join(choices))
+    event_choices: list[str] = ["events IS NULL"] if selection.eventMissing else []
+    for event_interval in selection.eventRanges or []:
+        event_bounds: list[str] = []
+        for event_value, operator in ((event_interval.min, ">="), (event_interval.max, "<")):
+            if event_value is not None:
+                event_bounds.append(f"events {operator} ?")
+                values.append(event_value)
+        event_choices.append("(" + " AND ".join(event_bounds) + ")")
+    if event_choices:
+        predicates.append(" OR ".join(event_choices))
     return predicates, values
 
 
@@ -369,4 +425,46 @@ def aggregate_insights(
         "density": density,
         "eventBins": event_bins,
         "concentration": concentration,
+    }
+
+
+def value_page(con, domain: CategoryDomain, field: str, query: str, page: int) -> dict[str, Any]:
+    """Search the full normalized domain; the top-20 partition never changes."""
+    expr = domain.expression
+    condition = f"({expr}) IS NOT NULL AND contains(lower({expr}), lower(?))"
+    total = con.execute(f"SELECT count(DISTINCT ({expr})) FROM marked WHERE {condition}", [query]).fetchone()[0]
+    rows = _rows(
+        con,
+        f"""SELECT {expr} AS value, count(*) AS total,
+        count(*) FILTER (WHERE selected) AS selected, length({expr}) <= 4096 AS selectable
+        FROM marked WHERE {condition} GROUP BY value ORDER BY total DESC, value LIMIT 40 OFFSET ?""",
+        [query, (page - 1) * 40],
+    )
+    # Oversized values remain discoverable but cannot be submitted as predicates.
+    for row in rows:
+        if not row["selectable"]:
+            row["value"] = row["value"][:4096] + "…"
+    return {"field": field, "query": query, "page": page, "pageSize": 40, "totalValues": total, "rows": rows}
+
+
+def hierarchy_counts(con, fields: list[str], domains: dict[str, CategoryDomain]) -> dict[str, Any]:
+    columns = [domains[field].column for field in fields]
+    labels = [{row["key"]: row["label"] for row in domains[field].categories} for field in fields]
+    rows = _rows(
+        con,
+        f"""SELECT {",".join(columns)}, count(*) AS total,
+        count(*) FILTER (WHERE selected) AS selected FROM marked GROUP BY {",".join(columns)}
+        ORDER BY {",".join(columns)}""",
+    )
+    return {
+        "fields": fields,
+        "cells": [
+            {
+                "keys": [row[column] for column in columns],
+                "labels": [lookup[row[column]] for lookup, column in zip(labels, columns)],
+                "total": row["total"],
+                "selected": row["selected"],
+            }
+            for row in rows
+        ],
     }

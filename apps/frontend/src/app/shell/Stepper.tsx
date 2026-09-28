@@ -1,24 +1,26 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { MoreHorizontal } from "lucide-react";
+import { useNormScope } from "./normScope";
+import { ExistingAssessments } from "./ExistingAssessments";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { returnTarget, useNavStore } from "@/lib/stores/nav";
+import { isAnalysisNormLens, returnTarget, useNavStore } from "@/lib/stores/nav";
 import { cn } from "@/lib/utils";
 import type { WorkbenchContext } from "../context";
 import { selectionParam } from "../search";
-import { computeStages, type JourneyScreen, type StageInfo } from "./journey";
+import { computeStages, mainJourney, type JourneyScreen, type StageInfo } from "./journey";
 
 // Keep the existing analysis-step identities for the ribbon and keyboard navigation.
 export type StepId = "goal" | "data" | "norm" | "run" | "signals" | "flow" | "why" | "act";
 
-export function currentStep(pathname: string, origin?: string): StepId | undefined {
+export function currentStep(pathname: string, origin?: string, search: { tab?: unknown; constraint?: unknown } = {}): StepId | undefined {
   if (/\/act$/.test(pathname)) return "act";
   if (/\/slices\//.test(pathname)) return "why";
   if (/\/(flow|board)$/.test(pathname)) return "flow";
   if (/\/(backlog|investigate)$/.test(pathname)) return "signals";
   if (/\/(notebook|knowledge)(\/|$)/.test(pathname)) return origin ? currentStep(origin) : undefined;
-  if (/\/norms\/[^/]+$/.test(pathname) && origin && /\/slices\//.test(origin)) return "why";
+  if (isAnalysisNormLens(pathname, origin, search)) return "why";
   if (/\/runs/.test(pathname)) return "run";
   if (/\/norms/.test(pathname)) return "norm";
   if (/\/data/.test(pathname)) return "data";
@@ -28,8 +30,9 @@ export function currentStep(pathname: string, origin?: string): StepId | undefin
 
 export function useCurrentStep(_ctx: WorkbenchContext): StepId | undefined {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
   const visited = useNavStore((s) => s.visited);
-  return currentStep(pathname, returnTarget(visited, pathname)?.pathname);
+  return currentStep(pathname, returnTarget(visited, pathname)?.pathname, search);
 }
 
 /** Preserve the exact group selection when moving from evidence to recommendations. */
@@ -51,9 +54,20 @@ export function sliceMatchesContext(href: string, ctx: Pick<WorkbenchContext, "p
   }
 }
 
+/** A new assessment may inherit only a saved cohort verified against this preparation. */
+function RunSetupLink({ctx, className, children, onNavigate}: {ctx: WorkbenchContext; className?: string; children: React.ReactNode; onNavigate?: () => void}) {
+  const scope = useNormScope(ctx);
+  if (scope.defining && scope.blockedReason) return <span className={cn(className, "cursor-default text-text-subtle")} aria-disabled="true" tabIndex={0} title={scope.blockedReason}>{children}</span>;
+  return <Link to="/p/$projectId/runs" params={{projectId:ctx.projectId}} search={scope.defining ? {new:true,caseTable:scope.caseTableId,selection:scope.selection} : {}} className={className} onClick={onNavigate}>{children}</Link>;
+}
+
 function StageLink({ screen, ctx, className, children, onNavigate }: { screen?: JourneyScreen; ctx: WorkbenchContext; className?: string; children: React.ReactNode; onNavigate?: () => void }) {
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const filter = useRouterState({ select: (s) => selectionParam((s.location.search as Record<string, unknown>).filter) });
+  const browsingMinimum = useRouterState({ select: (s) => (s.location.search as Record<string, unknown>).minCases });
+  const minCases = typeof browsingMinimum === "number" ? browsingMinimum : ctx.run?.minCases ?? undefined;
+  const normScope = useNormScope(ctx);
   const remembered = useNavStore((s) => s.lastSlice);
   const lastSlice = remembered && sliceMatchesContext(remembered.href, ctx) ? remembered : undefined;
   const pid = ctx.projectId;
@@ -61,6 +75,7 @@ function StageLink({ screen, ctx, className, children, onNavigate }: { screen?: 
   // An unbound project needs an explicit preview; array order is not a dataset choice.
   const datasetId = ctx.datasetBinding?.datasetId ?? ctx.dataset?.id;
   const caseTableId = ctx.caseTable?.datasetId === datasetId ? ctx.caseTable?.id : undefined;
+
   const runId = ctx.run?.status === "done" ? ctx.run.id : undefined;
   const common = { className, onClick: onNavigate };
   const search = { slicing: ctx.slicing, view: ctx.view, filter };
@@ -73,9 +88,11 @@ function StageLink({ screen, ctx, className, children, onNavigate }: { screen?: 
         : <Link to="/p/$projectId/data" params={{ projectId: pid }} {...common}>{children}</Link>;
     case "norms":
     case "weights":
-      return ctx.norm ? <Link to="/p/$projectId/norms/$normVersionId" params={{ projectId: pid, normVersionId: ctx.norm.id }} search={{ caseTable: caseTableId, tab: screen === "weights" ? "structure" : "guide" }} {...common}>{children}</Link>
+      if (normScope.blockedReason) return <span className={cn(className, "cursor-default text-text-subtle")} aria-disabled="true" tabIndex={0} title={normScope.blockedReason}>{children}</span>;
+      return ctx.norm ? <Link to="/p/$projectId/norms/$normVersionId" params={{ projectId: pid, normVersionId: ctx.norm.id }} search={{ caseTable: caseTableId, selection: normScope.selection, tab: screen === "weights" ? "structure" : "guide" }} {...common}>{children}</Link>
         : <Link to="/p/$projectId/norms" params={{ projectId: pid }} {...common}>{children}</Link>;
     case "runs":
+      if (/\/norms\/[^/]+$/.test(pathname)) return <RunSetupLink ctx={ctx} className={className} onNavigate={onNavigate}>{children}</RunSetupLink>;
       return ctx.run ? <Link to="/p/$projectId/runs/$runId" params={{ projectId: pid, runId: ctx.run.id }} search={{ tab: "monitor" }} {...common}>{children}</Link>
         : <Link to="/p/$projectId/runs" params={{ projectId: pid }} {...common}>{children}</Link>;
     case "investigate":
@@ -88,10 +105,10 @@ function StageLink({ screen, ctx, className, children, onNavigate }: { screen?: 
     case "act":
       if (lastSlice) return <button type="button" className={className} onClick={() => { router.history.push(screen === "act" ? actHref(lastSlice.href) : lastSlice.href); onNavigate?.(); }} title={`${screen === "act" ? "What can we do about" : "Evidence for"} ${lastSlice.label}?`}>{children}</button>;
       // The prerequisite is named beside this link; the ranked list is where a group is chosen.
-      if (runId) return <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: pid, runId }} search={search} title="Choose a group to inspect evidence and propose an action" {...common}>{children}</Link>;
+      if (runId) return <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: pid, runId }} search={{ ...search, minCases }} title="Choose a group to inspect evidence and propose an action" {...common}>{children}</Link>;
       break;
     case "signals":
-      if (runId) return <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: pid, runId }} search={search} {...common}>{children}</Link>;
+      if (runId) return <Link to="/p/$projectId/runs/$runId/backlog" params={{ projectId: pid, runId }} search={{ ...search, minCases }} {...common}>{children}</Link>;
       break;
   }
   return <span className={cn(className, "cursor-default text-text-subtle")} aria-disabled="true">{children}</span>;
@@ -107,7 +124,7 @@ function AllStages({ ctx, stages }: { ctx: WorkbenchContext; stages: StageInfo[]
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-1 text-text-muted" aria-label="All stages of your journey"><MoreHorizontal aria-hidden />All stages</Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="max-h-[75vh] w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto">
+      <PopoverContent aria-label="All stages of your journey" align="end" className="max-h-[75vh] w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto">
         <p className="font-semibold">Your journey</p>
         <p className="mb-3 mt-1 text-xs text-text-muted">Open any available stage. Availability does not mean the work is completed.</p>
         <ol className="flex flex-col gap-3" aria-label="All stages">
@@ -133,6 +150,8 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
   const current = useCurrentStep(ctx);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tab = useRouterState({ select: (s) => String((s.location.search as Record<string, unknown>).tab ?? "") });
+  const remembered = useNavStore((s) => s.lastSlice);
+  const hasGroup = !!remembered && sliceMatchesContext(remembered.href, ctx);
   const subline = useNavStore((s) => s.subline);
   const stages = computeStages(ctx);
   const stage = (id: string) => stages.find((s) => s.id === id)!;
@@ -153,15 +172,16 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
     <div className="flex flex-wrap items-center gap-2">
       <ol className="flex min-w-0 flex-1 flex-wrap gap-1 py-2" aria-label="Main steps">
         {links.map((item, index) => <li key={item.id} data-step={item.id} data-step-index={index + 1} data-step-state={item.status.state} aria-current={phase === item.id ? "step" : undefined} title={item.status.description}>
-          {item.id === "run" ? <Link to="/p/$projectId/runs" params={{ projectId: pid }} className={cn(subClass(phase === item.id), "gap-2", phase === item.id && "text-base ring-1 ring-accent/40")}><span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{item.label}</span></Link>
+          {item.id === "run" ? <RunSetupLink ctx={ctx} className={cn(subClass(phase === item.id), "gap-2", phase === item.id && "text-base ring-1 ring-accent/40")}><span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span></RunSetupLink>
             : <StageLink screen={item.screen} ctx={ctx} className={cn(subClass(phase === item.id), "gap-2", phase === item.id && "text-base ring-1 ring-accent/40")}>
-              <span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{item.label}</span>
+              <span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span>
             </StageLink>}
           {phase === item.id && subline && <span className="block max-w-[30rem] truncate px-3 text-xs text-text-muted" data-testid="step-subline" title={subline}>{subline}</span>}
         </li>)}
       </ol>
       <AllStages ctx={ctx} stages={stages} />
     </div>
+    {phase === "data" && <ExistingAssessments ctx={ctx} />}
     {phase && phase !== "data" && phase !== "norm" && <div className="flex min-w-0 flex-wrap items-center gap-1 border-t border-border/60 py-1" role="group" aria-label="Substeps">
       {phase === "goal" && <>
         <Link to="/projects" className={subClass()}>All projects / new project</Link>
@@ -177,7 +197,7 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
         <StageLink screen="investigate" ctx={ctx} className={subClass(/\/investigate$/.test(pathname))}>Process questions</StageLink>
         <StageLink screen="signals" ctx={ctx} className={subClass(/\/backlog$/.test(pathname))}>Ranked groups</StageLink>
         <StageLink screen="flow" ctx={ctx} className={subClass(current === "flow" || tab === "flow")}>Flow</StageLink>
-        <StageLink screen="why" ctx={ctx} className={subClass(current === "why")}>Group evidence</StageLink>
+        <StageLink screen="why" ctx={ctx} className={subClass(current === "why")}>{hasGroup ? "Group evidence" : "Choose a group for evidence"}</StageLink>
       </>}
       {phase === "act" && <>
         <StageLink screen="why" ctx={ctx} className={subClass()}>Check the evidence</StageLink>

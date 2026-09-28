@@ -3,8 +3,8 @@ import { useSyncExternalStore } from "react";
 export type NormAuthoringMode = "guided" | "expert";
 export const NORM_AUTHORING_PREFERENCES_KEY = "wise-norm-authoring-preferences";
 const changeEvent = "wise-norm-authoring-preferences-changed";
-interface Preferences { mode: NormAuthoringMode; skipReasonOwner: boolean }
-const defaults: Preferences = { mode: "guided", skipReasonOwner: true };
+interface Preferences { mode: NormAuthoringMode; skipReasonOwner: boolean; advancedControls: boolean }
+const defaults: Preferences = { mode: "guided", skipReasonOwner: true, advancedControls: false };
 // If browser storage is unavailable, the setting still works for this session.
 let fallback: { previous: string | null; value: string } | undefined;
 
@@ -24,6 +24,7 @@ function read(value: string | null): Preferences {
     return {
       mode: preferences.mode === "expert" ? "expert" : "guided",
       skipReasonOwner: typeof preferences.skipReasonOwner === "boolean" ? preferences.skipReasonOwner : true,
+      advancedControls: preferences.advancedControls === true,
     };
   } catch { return defaults; }
 }
@@ -44,12 +45,14 @@ function subscribe(notify: () => void) {
 }
 const setMode = (mode: NormAuthoringMode) => update({ mode });
 const setSkipReasonOwner = (skipReasonOwner: boolean) => update({ skipReasonOwner });
+const setAdvancedControls = (advancedControls: boolean) => update({ advancedControls });
 
 /** Shared by all norm editors. Expert requirements do not depend on the Guided preference. */
 export function useNormAuthoringPreferences() {
   const preferences = read(useSyncExternalStore(subscribe, snapshot, () => null));
   return {
-    ...preferences, setMode, setSkipReasonOwner,
+    ...preferences, setMode, setSkipReasonOwner, setAdvancedControls,
+    showAdvancedControls: preferences.mode === "expert" || preferences.advancedControls,
     allowDraftWithoutDecision: preferences.mode === "guided" && preferences.skipReasonOwner,
   };
 }

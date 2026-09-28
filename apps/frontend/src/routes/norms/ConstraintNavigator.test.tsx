@@ -5,6 +5,7 @@ import { expect, it } from "vitest";
 import { expectNoSeriousA11yViolations } from "@/test/utils";
 import { NormAuthoringSettings } from "./NormAuthoringSettings";
 import { ConstraintNavigator } from "./ConstraintNavigator";
+import type { NormRelevance } from "@/lib/api/normRelevance";
 import type { NormDocument } from "./normAuthoring";
 const doc: NormDocument = {
   name: "Process reliability", metadata: { authoring: { goal: "Deliver the customer promise" } },
@@ -94,6 +95,7 @@ it("guided mode folds low-coverage rules away, search and expert mode recover th
 });
 
 it("keeps the open branch order stable when coverage changes until explicitly reordered", async () => {
+  localStorage.setItem("wise-norm-authoring-preferences", JSON.stringify({ mode: "guided", advancedControls: true }));
   const user = userEvent.setup();
   const document: NormDocument = {
     layers: [{ id: "completion", name: "Completion" }],
@@ -112,4 +114,129 @@ it("keeps the open branch order stable when coverage changes until explicitly re
   expect(names()).toEqual(["Invoice", "Receipt"]);
   await user.click(screen.getByRole("button", { name: "Reorder by relevance" }));
   expect(names()).toEqual(["Receipt", "Invoice"]);
+});
+
+
+it("identifies the coverage population for a named selection, an unnamed selection and all prepared cases", () => {
+  const relevance: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: 20,
+    scope: { kind: "saved_selection", selectionName: "Late invoices" },
+    constraints: [{ id: "t0", casesInScope: 10, observedCases: 10, missingActivities: [], issues: [] }],
+  };
+  const props = { document: doc, selected: doc.constraints![0], overview: false, missing: [], warnings: new Map(), onSelect: () => {}, onOverview: () => {} };
+  const { rerender } = render(<ConstraintNavigator {...props} relevance={relevance} />);
+  expect(screen.getByText(/Coverage population:/)).toHaveTextContent("Selected cases (Late invoices) · 20 cases");
+  expect(screen.getByText(/Applicable:/)).toHaveTextContent("10 / 20 cases (50%)");
+  expect(screen.queryByText(/all cases in the prepared dataset/i)).not.toBeInTheDocument();
+  rerender(<ConstraintNavigator {...props} relevance={{ ...relevance, scope: { kind: "saved_selection" } }} />);
+  expect(screen.getByText(/Coverage population:/)).toHaveTextContent("Selected cases (saved selection)");
+  rerender(<ConstraintNavigator {...props} relevance={{ ...relevance, scope: undefined, cases: 100 }} />);
+  expect(screen.getByText(/Coverage population:/)).toHaveTextContent("All cases in the prepared dataset · 100 cases");
+  expect(screen.getByText(/Applicable:/)).toHaveTextContent("10 / 100 cases (10%)");
+});
+
+
+it.each([
+  [1, 1_000_000, "<0.1%"],
+  [35, 251_734, "<0.1%"],
+  [961, 251_734, "0.4%"],
+  [1, 1_000, "0.1%"],
+  [249, 1_000, "24.9%"],
+  [0, 1_000, "0%"],
+  [1_000, 1_000, "100%"],
+  [99_999, 100_000, ">99.9%"],
+] as const)("shows %i of %i applicable cases as %s without losing rare positive evidence", (applicable, total, percentage) => {
+  const relevance: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: total,
+    scope: { kind: "saved_selection", selectionName: "Review population" },
+    constraints: [{ id: "t0", casesInScope: applicable, observedCases: applicable, missingActivities: [], issues: [] }],
+  };
+  render(<ConstraintNavigator document={doc} selected={doc.constraints![0]} overview={false} missing={[]} warnings={new Map()} onSelect={() => {}} onOverview={() => {}} relevance={relevance} />);
+  expect(screen.getByText(/Applicable:/)).toHaveTextContent(`Applicable: ${applicable.toLocaleString()} / ${total.toLocaleString()} cases (${percentage})`);
+});
+
+it("does not invent a percentage for an empty population or unknown applicability", () => {
+  const relevance: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: 0,
+    constraints: [{ id: "t0", casesInScope: 0, observedCases: 0, missingActivities: [], issues: [] }],
+  };
+  const props = { document: doc, selected: doc.constraints![0], overview: false, missing: [], warnings: new Map(), onSelect: () => {}, onOverview: () => {} };
+  const { rerender } = render(<ConstraintNavigator {...props} relevance={relevance} />);
+  expect(screen.getByText(/Applicable:/).textContent).toBe("Applicable: 0 / 0 cases");
+  rerender(<ConstraintNavigator {...props} relevance={{ ...relevance, cases: 100, constraints: [{ ...relevance.constraints[0]!, casesInScope: null }] }} />);
+  expect(screen.queryByText(/Applicable:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/\(0%\)/)).not.toBeInTheDocument();
+});
+
+
+it("prioritizes evidence arriving after load, separates unknowns, and keeps deferred decisions discoverable", async () => {
+  const user = userEvent.setup();
+  const document: NormDocument = { layers: [{ id: "flow", name: "Flow" }], constraints: [
+    { id: "missing", layer: "flow", type: "presence", description: "Payment", params: { activity: "Pay" } },
+    { id: "unknown", layer: "flow", type: "presence", description: "Scope unknown", params: { activity: "Check" } },
+    { id: "available", layer: "flow", type: "lag", description: "Received within 30 days", params: { a: ["Order"], b: ["Receive"], delta: 12, width: 5, unit: "D" } },
+    { id: "zero", layer: "flow", type: "presence", description: "Returns", params: { activity: "Return" } },
+    { id: "not-returned", layer: "flow", type: "metric", description: "Value check", params: { attribute: "amount", threshold: 10 } },
+  ] };
+  const before = structuredClone(document);
+  const props = { document, selected: document.constraints![2], overview: false, missing: ["missing"], warnings: new Map(), onSelect: () => {}, onOverview: () => {} };
+  const { rerender } = render(<ConstraintNavigator {...props} evidenceState="loading" />);
+  const relevance: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: 100, scope: { kind: "saved_selection", selectionName: "Late invoices" }, constraints: [
+    { id: "missing", casesInScope: 100, observedCases: 0, missingActivities: ["Pay"], issues: [] },
+    { id: "unknown", casesInScope: null, observedCases: 0, missingActivities: ["Check"], issues: ["Scope column unavailable"] },
+    { id: "available", casesInScope: 20, observedCases: 20, missingActivities: [], issues: [] },
+    { id: "zero", casesInScope: 0, observedCases: 0, missingActivities: [], issues: [] },
+  ] };
+  rerender(<ConstraintNavigator {...props} relevance={relevance} evidenceState="ready" />);
+  const applicable = screen.getByRole("region", { name: "Applicable constraints" });
+  const unknown = screen.getByRole("region", { name: "Evidence to check" });
+  expect(within(applicable).getByRole("button", { name: "Received within 30 days" })).toHaveAccessibleDescription("Rule: Receive follows Order within 12 days, with 5 days of tolerance");
+  expect(within(unknown).getByRole("button", { name: "Scope unknown" })).toHaveTextContent("Applicability unknown");
+  expect(unknown).toHaveTextContent("Scope column unavailable");
+  expect(unknown).toHaveTextContent("No evidence was returned for this constraint");
+  expect(screen.getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual(["Applicable constraints", "Evidence to check"]);
+  expect(screen.queryByRole("button", { name: /^Payment/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Returns" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: /Needs review only/ }));
+  expect(screen.getByRole("button", { name: /^Payment/ })).toBeVisible();
+  expect(screen.getByText(/Not observed in the chosen population: Pay/)).toBeVisible();
+  await user.click(screen.getByRole("checkbox", { name: /Needs review only/ }));
+  await user.type(screen.getByLabelText("Find a constraint"), "within 12 days");
+  expect(screen.getByRole("button", { name: "Received within 30 days" })).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent("1 matches across all layers");
+  expect(document).toEqual(before);
+  await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Constraint hierarchy" }));
+});
+
+it("keeps selected low-evidence rules visible and moves advanced list controls behind Settings", async () => {
+  const user = userEvent.setup();
+  const props = { document: doc, selected: doc.constraints![0], overview: false, missing: [], warnings: new Map(), onSelect: () => {}, onOverview: () => {}, onHideConstraint: () => {}, onHideLayer: () => {} };
+  const relevance: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: 10, constraints: [{ id: "t0", casesInScope: 0, observedCases: 0, missingActivities: [], issues: [] }] };
+  render(<><NormAuthoringSettings /><ConstraintNavigator {...props} relevance={relevance} /></>);
+  expect(screen.getByRole("button", { name: "Timing expectation 0" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText(/This selected rule stays visible/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Reorder by relevance" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^Hide constraint/ })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("checkbox", { name: "Show advanced rule and list controls" }));
+  await user.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByRole("button", { name: "Reorder by relevance" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Hide constraint Timing expectation 0 from picture" })).toBeVisible();
+});
+
+
+it("withholds stale coverage during a slow check or failed request without opening layers", () => {
+  const props = { document: doc, overview: true, missing: [], warnings: new Map(), onSelect: () => {}, onOverview: () => {} };
+  const oldEvidence: NormRelevance = { normVersionId: "v", caseTableId: "t", cases: 251734, scope: { kind: "saved_selection", selectionName: "Previous population" }, constraints: [
+    { id: "t0", casesInScope: 0, observedCases: 0, missingActivities: [], issues: [] },
+  ] };
+  const { rerender } = render(<ConstraintNavigator {...props} relevance={oldEvidence} evidenceState="loading" />);
+  expect(screen.getByRole("note")).toHaveTextContent("Checking applicability and activity coverage for the chosen population");
+  expect(screen.queryByText(/Previous population/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/0 applicable cases/)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Explore Timeliness" })).toHaveAttribute("aria-expanded", "false");
+  rerender(<ConstraintNavigator {...props} relevance={oldEvidence} evidenceState="error" />);
+  expect(screen.getByRole("note")).toHaveTextContent("Coverage could not be checked");
+  expect(screen.queryByText(/Previous population/)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Explore Timeliness" })).toHaveAttribute("aria-expanded", "false");
+  rerender(<ConstraintNavigator {...props} relevance={oldEvidence} evidenceState="ready" />);
+  expect(screen.getByText(/Coverage population:/)).toHaveTextContent("Previous population");
+  expect(screen.getByRole("button", { name: "Explore Timeliness" })).toHaveAttribute("aria-expanded", "false");
 });

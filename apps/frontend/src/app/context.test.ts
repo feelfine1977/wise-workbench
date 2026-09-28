@@ -70,13 +70,18 @@ describe("run scope and grouping navigation", () => {
   it.each(["flow", "board", "backlog", "investigate"])("stays on %s while clearing old group/filter selection", (page) => {
     const next = workbenchRunDestination("p", target.id, target, source, `/p/p/runs/consignment/${page}`, { view: "Automation", slicing: inline, group: "old", within: "old", filter: "old", pins: ["old"], row: "old", q: "old", page: 4 });
     expect(next.to).toBe(`/p/$projectId/runs/$runId/${page}`);
-    expect(next.search).toEqual({ view: "Automation", slicing: inline });
+    expect(next.search).toEqual({ view: "Automation", slicing: inline, ...(page === "backlog" ? { minCases: target.minCases ?? undefined } : {}) });
   });
 
   it("does not reuse a group key in another scope, retaining a flow question as a whole-flow page", () => {
     expect(workbenchRunDestination("p", target.id, target, source, "/p/p/runs/consignment/slices/%5Bvendor%5D", { tab: "why" }).to).toBe("/p/$projectId/runs/$runId/backlog");
     expect(workbenchRunDestination("p", target.id, target, source, "/p/p/runs/consignment/slices/%5Bvendor%5D", { tab: "flow" }).to).toBe("/p/$projectId/runs/$runId/flow");
     expect(workbenchRunDestination("p", target.id, { ...target, status: "running" }, source, "/p/p/runs/consignment/flow", {}).to).toBe("/p/$projectId/runs/$runId");
+  });
+
+  it.each([undefined, 20])("run switching uses the destination minimum unless browsing supplied %s", (minCases) => {
+    const next = workbenchRunDestination("p", target.id, {...target, minCases:1}, source, "/p/p/runs/consignment/backlog", {minCases});
+    expect(next.search).toMatchObject({minCases: minCases ?? 1});
   });
 
   it("regroups without discarding case filters, perspective, or scoring controls", () => {

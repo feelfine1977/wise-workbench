@@ -3,12 +3,13 @@ import type { Constraint } from "./Builder";
 
 export function constraintPriority(evidence?: ConstraintRelevance) {
   if (!evidence) return { tier: 1, deferred: false, label: "Coverage not checked" };
+  if (evidence.casesInScope == null || !Number.isFinite(evidence.casesInScope) || evidence.casesInScope < 0) return { tier: 1, deferred: false, label: "Applicability unknown" };
   if (evidence.casesInScope === 0) return { tier: 4, deferred: true, label: "0 applicable cases" };
-  if (evidence.observedCases === 0) return { tier: 3, deferred: true, label: "0% observed activity coverage" };
-  if (evidence.missingActivities.length) return { tier: 2, deferred: true, label: "Some activities not observed" };
-  if (evidence.casesInScope == null || evidence.issues.length) return { tier: 1, deferred: false, label: "Check data or scope" };
-  if (evidence.observedCases == null) return { tier: 1, deferred: false, label: "Applicable · check measurement" };
-  return { tier: 0, deferred: false, label: "Activities observed" };
+  if (evidence.issues.length) return { tier: 1, deferred: false, label: "Data issues to review" };
+  if (evidence.observedCases === 0) return { tier: 3, deferred: true, label: "No referenced activities observed" };
+  if (evidence.missingActivities.length) return { tier: 2, deferred: true, label: "Some referenced activities not observed" };
+  if (evidence.observedCases == null || !Number.isFinite(evidence.observedCases) || evidence.observedCases < 0) return { tier: 1, deferred: false, label: "Activity coverage unavailable" };
+  return { tier: 0, deferred: false, label: "Applicable · at least one referenced activity observed" };
 }
 
 /** Stable within an evidence tier; view weights never change a rule's applicability. */

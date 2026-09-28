@@ -28,6 +28,14 @@ describe("vocabulary: the plain-language layer", () => {
     expect(secondary("nope")).toBeUndefined();
   });
 
+  it("explains WISE’s legacy diagnostic without redefining general censoring", () => {
+    expect(label("censoring")).toBe("recent-unclosed diagnostic");
+    expect(label("censoring", "method")).toBe("WISE recent-unclosed flag (legacy)");
+    expect(definition("censoring")).toContain("all assessed cases, regardless of closure applicability");
+    expect(definition("censoring")).toContain("Not flagged does not mean closed");
+    expect(definition("censoring")).toContain("does not define censoring in general");
+  });
+
   it("maps the method's hotspot types onto the kinds of problem and back", () => {
     expect(kindOf({ hotspot_type: "severity" })).toBe("acute");
     expect(kindOf({ hotspot_type: "mechanism" })).toBe("systematic");

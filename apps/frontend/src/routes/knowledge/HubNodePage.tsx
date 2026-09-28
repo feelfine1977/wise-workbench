@@ -11,6 +11,7 @@ import { notServed } from "@/lib/api/compatibility";
 import { HubTemplate } from "@/components/knowledge/HubTemplate";
 import { EmptyState, ErrorBlock, LoadingBlock } from "@/components/states";
 import { Card } from "@/components/ui/misc";
+import { BackControl } from "@/components/guide/BackControl";
 
 export default function HubNodePage() {
   const ctx = useWorkbench();
@@ -20,9 +21,13 @@ export default function HubNodePage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <h1 className="sr-only">Knowledge hub</h1>
+      <div className="flex flex-wrap items-center gap-4">
+      <BackControl fallback={{ href: `/p/${ctx.projectId}/knowledge`, label: "Knowledge hub" }} />
       <Link to="/p/$projectId/knowledge" params={{ projectId: ctx.projectId }} className="text-sm text-accent-text underline" data-testid="back-to-hub">
-        ← Knowledge hub
+        Browse knowledge hub
       </Link>
+      </div>
       {page.isPending && <LoadingBlock rows={8} />}
       {page.isError &&
         (notServed(page.error) ? (

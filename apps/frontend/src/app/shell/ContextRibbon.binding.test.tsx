@@ -28,6 +28,7 @@ it("shows a fixed label and stable dataset links on a later step", async () => {
 });
 it("labels historical data honestly and returns to the fixed dataset without a foreign mapping", async () => {
   otherDataset(); await bindProjectDataset("p2p2018", "o2c");
+  db.runs.find(r => r.id === "run_41")!.scope = {selection_id:"foreign-cohort"};
   renderApp("/p/p2p2018/runs/run_41/backlog");
   const alert = await screen.findByTestId("dataset-binding-conflict");
   expect(alert).toHaveTextContent("historical assessment uses BPI_Challenge_2019.csv");
@@ -37,6 +38,7 @@ it("labels historical data honestly and returns to the fixed dataset without a f
   const dataLink = within(path).getByRole("link", { name: "Understand data" });
   expect(dataLink.getAttribute("href")).toContain("/data/o2c"); expect(dataLink.getAttribute("href")).not.toContain("caseTable=");
   expect(within(path).getByRole("link", { name: "Process norm" }).getAttribute("href")).not.toContain("caseTable=");
+  expect(within(path).getByRole("link", { name: "Process norm" }).getAttribute("href")).not.toContain("selection=");
 });
 it("identifies the saved cohort by metadata and uses the selected assessment count", async () => {
   const run = db.runs.find((r) => r.id === "run_41")!;

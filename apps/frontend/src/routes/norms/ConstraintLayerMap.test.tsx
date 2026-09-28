@@ -181,3 +181,48 @@ describe("ConstraintLayerMap", () => {
     expect(screen.getByText("No configured relationships to show.")).toBeVisible();
   });
 });
+
+it("identifies the managed union benchmark, uses inspect actions, and keeps short labels with exact weights", async () => {
+  const source: NormDocument = {
+    ...norm,
+    constraints: [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: `c${i}`, layer: "time", type: "presence", description: `Timing ${i}`, params: {}, weight: 1 })),
+      { id: "q", layer: "quality", type: "presence", description: "Quality check", params: {}, weight: 1 },
+    ],
+    views: [{ name: "Finance", constraint_weights: { c0: 1, c1: 1, c2: 1 } }, { name: "Operations", constraint_weights: { q: 4 } }],
+  };
+  const { withGeneralBenchmark, rawViewWeights, layerTotal } = await import("./viewMembership");
+  const document = withGeneralBenchmark(source); const before = structuredClone(document);
+  const benchmark = document.views!.at(-1)!;
+  expect(rawViewWeights(document, benchmark)).toEqual({ c0: 1 / 3, c1: 1 / 3, c2: 1 / 3, c3: 0, q: 1 });
+  expect(layerTotal(document, benchmark, "time")).toBeCloseTo(1);
+  expect(layerTotal(document, benchmark, "quality")).toBe(1);
+  const { onStructure } = setup(document); const user = userEvent.setup();
+  expect(screen.getByRole("button", { name: "Show General weights" })).toHaveTextContent("Equal-layer union benchmark");
+  expect(screen.queryByRole("button", { name: /^Edit General/ })).not.toBeInTheDocument();
+  const weight = screen.getByRole("button", { name: "Inspect benchmark General: Timing 0" });
+  expect(weight).toHaveTextContent("General · Benchmark weight: 0.3333");
+  expect(weight).toHaveAttribute("title", String(1 / 3));
+  expect(screen.getByRole("note")).toHaveTextContent("Each participating layer has equal total weight, shared equally by its included constraints");
+  await user.click(weight); expect(onStructure).toHaveBeenLastCalledWith("views", "General");
+  await user.click(screen.getByRole("button", { name: "Show General weights" }));
+  await user.click(screen.getByRole("button", { name: "Inspect benchmark" }));
+  expect(onStructure).toHaveBeenLastCalledWith("views", "General");
+  await user.click(screen.getByRole("button", { name: "Table" }));
+  const table = screen.getByRole("table");
+  expect(within(table).queryByText("Direct constraint weight")).not.toBeInTheDocument();
+  expect(within(table).getAllByText("Benchmark constraint weight")).toHaveLength(5);
+  expect(within(table).getAllByText("0.3333")[0]).toHaveAttribute("title", String(1 / 3));
+  expect(document).toEqual(before);
+  await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Constraint, layer and view map" }));
+});
+
+it("keeps a stakeholder merely named General editable and preserves tiny positive weight precision", async () => {
+  const tiny = .0000000123456789;
+  setup({ ...norm, views: [{ name: "General", constraint_weights: { pay: tiny } }] });
+  expect(screen.getByRole("button", { name: "Show General weights" })).toHaveTextContent("Direct constraint weights");
+  const weight = screen.getByRole("button", { name: "Edit General weight for Pay on time" });
+  expect(weight).toHaveTextContent("1.235e-8");
+  expect(weight).toHaveAttribute("title", String(tiny));
+  expect(screen.queryByRole("button", { name: /Inspect benchmark/ })).not.toBeInTheDocument();
+});

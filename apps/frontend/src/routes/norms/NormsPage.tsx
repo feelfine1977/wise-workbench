@@ -32,7 +32,7 @@ export default function NormsPage() {
         </p>
       </header>
       <Card className="flex flex-wrap items-center justify-between gap-4">
-        <div><h2 className="font-semibold">Choose your starting point</h2><p className="mt-1 max-w-prose text-sm text-text-muted">New process: start small. Existing expertise: open a version to edit its rules. Reassessment: open the previous norm and record what changed in its guided overview.</p></div>
+        <div><h2 className="font-semibold">Choose your starting point</h2><p className="mt-1 max-w-prose text-sm text-text-muted">New process: choose Start small to record your first expectation. Existing expertise: open a version to edit its rules. Reassessment: open the previous norm and record what changed in its guided overview.</p></div>
         <div className="flex flex-wrap gap-2">
           {ctx.norm && <Link className="rounded border border-border px-3 py-2 text-sm font-medium text-accent-text" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: ctx.norm.id }} search={{ caseTable: ctx.caseTable?.id, tab: "guide" }}>Open guided overview</Link>}
           <StartNormDialog projectId={ctx.projectId} caseTableId={ctx.caseTable?.id} datasetName={ctx.dataset?.name} onCreated={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { caseTable: ctx.caseTable?.id, tab: "guide" } })} />

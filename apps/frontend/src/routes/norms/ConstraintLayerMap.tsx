@@ -1,4 +1,5 @@
 import { NormHierarchyChart } from "./NormHierarchyChart";
+import { generalBenchmarkName } from "./viewMembership";
 import { allNormItems, constraintVisible, type NormVisibility } from "./normVisibility";
 import type { NormRelevance } from "@/lib/api/normRelevance";
 import { useId, useMemo, useState } from "react";
@@ -19,16 +20,23 @@ export interface ConstraintLayerMapProps {
 }
 
 type Group = { id: string; name: string; known: boolean; constraints: Constraint[] };
-type Relation = { kind: string; name: string; layer: string; layerId: string; constraint?: string; view?: string; weight: string };
+type Relation = { kind: string; name: string; layer: string; layerId: string; constraint?: string; view?: string; weight: string; exactWeight?: string };
 const PAGE_SIZE = 12;
 const TABLE_SIZE = 24;
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const hasDirectWeights = (view: NormView) => view.constraint_weights != null;
-const displayWeight = (value: number) => !validWeight(value) ? "Invalid weight" : value === 0 ? "0 · Not weighted" : String(value);
+const displayWeight = (value: number) => {
+  if (!validWeight(value)) return "Invalid weight";
+  if (value === 0) return "0 · Not weighted";
+  const shortened = value.toPrecision(4);
+  return Number.isFinite(Number(shortened)) ? String(Number(shortened)) : shortened;
+};
 function configuredWeight(weights: Record<string, number> | undefined, id: string): string {
   if (weights == null) return "Not configured";
   return Object.hasOwn(weights, id) ? displayWeight(weights[id]!) : "0 · Not weighted (not set)";
 }
+const exactWeight = (value: number | undefined) => value === undefined ? undefined : String(value);
+const benchmarkPolicy = "Includes the union of constraints used by stakeholder views. Each participating layer has equal total weight, shared equally by its included constraints. This benchmark is read only.";
 const withinWeight = (constraint: Constraint) => constraint.weight == null ? "1 (default)" : displayWeight(constraint.weight);
 
 function Pagination({ page, total, size, label, onPage }: {
@@ -58,6 +66,8 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
   const [pages, setPages] = useState(new Map<string, number>());
   const [tablePage, setTablePage] = useState(0);
   const views = document.views ?? [];
+  const benchmark = generalBenchmarkName(document);
+  const isBenchmark = (view: NormView) => view.name === benchmark;
   const activeView = selectedView === null ? undefined : views[selectedView];
   const visibleViews = activeView ? [activeView] : views;
   const search = query.trim().toLocaleLowerCase();
@@ -96,10 +106,10 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
   const highlightedLayer = filteredGroups.find(group => group.id === selectedLayer);
   const directViews = visibleViews.filter(hasDirectWeights);
   const rows: Relation[] = filteredGroups.flatMap(group => [
-    ...visibleViews.filter(view => !hasDirectWeights(view)).map(view => ({ kind: "Layer weight", name: group.name, layer: group.name, layerId: group.id, view: view.name, weight: configuredWeight(view.layer_weights, group.id) })),
+    ...visibleViews.filter(view => !hasDirectWeights(view)).map(view => ({ kind: isBenchmark(view) ? "Benchmark layer weight" : "Layer weight", name: group.name, layer: group.name, layerId: group.id, view: view.name, weight: configuredWeight(view.layer_weights, group.id), exactWeight: exactWeight(view.layer_weights?.[group.id]) })),
     ...group.matches.flatMap(constraint => [
-      { kind: "Weight within layer", name: constraintName(constraint), layer: group.name, layerId: group.id, constraint: constraint.id, weight: withinWeight(constraint) },
-      ...directViews.map(view => ({ kind: "Direct constraint weight", name: constraintName(constraint), layer: group.name, layerId: group.id, constraint: constraint.id, view: view.name, weight: configuredWeight(view.constraint_weights, constraint.id) })),
+      { kind: "Weight within layer", name: constraintName(constraint), layer: group.name, layerId: group.id, constraint: constraint.id, weight: withinWeight(constraint), exactWeight: exactWeight(constraint.weight ?? 1) },
+      ...directViews.map(view => ({ kind: isBenchmark(view) ? "Benchmark constraint weight" : "Direct constraint weight", name: constraintName(constraint), layer: group.name, layerId: group.id, constraint: constraint.id, view: view.name, weight: configuredWeight(view.constraint_weights, constraint.id), exactWeight: exactWeight(view.constraint_weights?.[constraint.id]) })),
     ]),
   ]);
   const page = Math.min(tablePage, Math.max(0, Math.ceil(rows.length / TABLE_SIZE) - 1));
@@ -152,9 +162,9 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
               </div>
               <ul aria-label={`View relationships for ${group.name}`} className="mt-3 flex flex-wrap gap-2">
                 {visibleViews.map((view, index) => <li key={`${view.name}-${index}`} className="max-w-full">
-                  <button type="button" className={`min-h-7 max-w-full rounded border border-border bg-surface px-2 py-1 text-left text-xs ${focus}`} style={{ borderLeft: `3px solid ${viewColor(view.name)}` }} aria-label={hasDirectWeights(view) ? `Edit ${view.name} direct constraint weights in ${group.name}` : `Edit ${view.name} weights for layer ${group.name}`} onClick={() => onStructure("views", view.name)}>
+                  <button type="button" className={`min-h-7 max-w-full rounded border border-border bg-surface px-2 py-1 text-left text-xs ${focus}`} style={{ borderLeft: `3px solid ${viewColor(view.name)}` }} title={isBenchmark(view) ? benchmarkPolicy : exactWeight(view.layer_weights?.[group.id])} aria-label={isBenchmark(view) ? `Inspect benchmark ${view.name} for layer ${group.name}` : hasDirectWeights(view) ? `Edit ${view.name} direct constraint weights in ${group.name}` : `Edit ${view.name} weights for layer ${group.name}`} onClick={() => onStructure("views", view.name)}>
                     <span className="break-words font-medium">{view.name}</span>
-                    <span className="ml-2">{hasDirectWeights(view) ? "Direct constraint weights below" : `Layer weight: ${configuredWeight(view.layer_weights, group.id)}`}</span>
+                    <span className="ml-2">{isBenchmark(view) ? "Equal-layer union benchmark" : hasDirectWeights(view) ? "Direct constraint weights below" : `Layer weight: ${configuredWeight(view.layer_weights, group.id)}`}</span>
                   </button>
                   {!hasDirectWeights(view) && validWeight(view.layer_weights?.[group.id] ?? 0) && (view.layer_weights?.[group.id] ?? 0) > 0 && !group.constraints.some(c => validWeight(c.weight ?? 1) && (c.weight ?? 1) > 0) && <span className="mt-1 block text-xs text-text-muted">No weighted constraints in this layer.</span>}
                 </li>)}
@@ -165,9 +175,9 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
                     {group.matches.slice(groupPage * PAGE_SIZE, (groupPage + 1) * PAGE_SIZE).map(constraint => <li key={constraint.id} className="min-w-0 rounded border border-border bg-surface p-2">
                       <button className={`group min-h-7 w-full text-left text-sm text-accent-text underline ${focus}`} type="button" onClick={() => onConstraint(constraint.id)} aria-label={`Open constraint ${constraintName(constraint)}`}><span className="line-clamp-2 break-words group-focus-visible:line-clamp-none" title={constraintName(constraint)}>{constraintName(constraint)}</span></button>
                       {onHideConstraint && <Button size="sm" variant="ghost" aria-label={`Hide constraint ${constraintName(constraint)} from picture`} onClick={() => onHideConstraint(constraint.id)}>Hide</Button>}
-                      <p className="mt-1 text-xs text-text-muted">Weight within layer: {withinWeight(constraint)}</p>
-                      {directViews.length > 0 && <ul aria-label={`Direct view weights for ${constraintName(constraint)}`} className="mt-1 flex flex-wrap gap-2">
-                        {directViews.map((view, index) => <li key={`${view.name}-${index}`}><button type="button" className={`min-h-7 break-words rounded border border-border px-2 text-left text-xs ${focus}`} aria-label={`Edit ${view.name} weight for ${constraintName(constraint)}`} onClick={() => onStructure("views", view.name)}>{view.name} · Direct weight: {configuredWeight(view.constraint_weights, constraint.id)}</button></li>)}
+                      <p className="mt-1 text-xs text-text-muted" title={exactWeight(constraint.weight ?? 1)}>Weight within layer: {withinWeight(constraint)}</p>
+                      {directViews.length > 0 && <ul aria-label={`Constraint weights by view for ${constraintName(constraint)}`} className="mt-1 flex flex-wrap gap-2">
+                        {directViews.map((view, index) => <li key={`${view.name}-${index}`}><button type="button" className={`min-h-7 break-words rounded border border-border px-2 text-left text-xs ${focus}`} title={exactWeight(view.constraint_weights?.[constraint.id])} aria-label={isBenchmark(view) ? `Inspect benchmark ${view.name}: ${constraintName(constraint)}` : `Edit ${view.name} weight for ${constraintName(constraint)}`} onClick={() => onStructure("views", view.name)}>{view.name} · {isBenchmark(view) ? "Benchmark weight" : "Direct weight"}: {configuredWeight(view.constraint_weights, constraint.id)}</button></li>)}
                       </ul>}
                     </li>)}
                   </ul>
@@ -186,8 +196,8 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
               <tbody>{rows.slice(page * TABLE_SIZE, (page + 1) * TABLE_SIZE).map((row, index) => <tr key={`${page}-${index}`} className={`border-t border-border ${highlightedLayer?.id === row.layerId ? "bg-selection" : ""}`}>
                 <td className="p-2 align-top">{row.kind}</td>
                 <th scope="row" className="max-w-xs p-2 align-top font-normal"><button type="button" className={`min-h-7 break-words text-left text-accent-text underline ${focus}`} onClick={() => row.constraint !== undefined ? onConstraint(row.constraint) : onStructure("layers")}>{row.name}</button>{row.constraint !== undefined && <span className="block text-xs text-text-muted">Layer: {row.layer}</span>}</th>
-                <td className="p-2 align-top">{row.view !== undefined ? <button type="button" className={`min-h-7 text-left text-accent-text underline ${focus}`} onClick={() => onStructure("views", row.view)}>{row.view}</button> : "Shared within layer"}</td>
-                <td className="p-2 align-top">{row.weight}</td>
+                <td className="p-2 align-top">{row.view !== undefined ? <button type="button" className={`min-h-7 text-left text-accent-text underline ${focus}`} aria-label={row.view === benchmark ? `Inspect benchmark ${row.view}` : undefined} onClick={() => onStructure("views", row.view)}>{row.view}</button> : "Shared within layer"}</td>
+                <td className="p-2 align-top" title={row.exactWeight}>{row.weight}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -203,11 +213,12 @@ export function ConstraintLayerMap({ document, onConstraint, onStructure, visibi
         <ul className="space-y-2">{views.map((view, index) => <li key={`${view.name}-${index}`}>
           <button type="button" className={`min-h-10 w-full rounded border border-border p-2 text-left text-sm ${focus} ${activeView === view ? "bg-selection" : "hover:bg-surface-sunken"}`} style={{ borderLeft: `3px solid ${viewColor(view.name)}` }} aria-label={`Show ${view.name || "Unnamed view"} weights`} aria-pressed={activeView === view} onClick={() => changeView(index)}>
             <span className="block break-words font-medium">{view.name || "Unnamed view"}</span>
-            <span className="block text-xs text-text-muted">{hasDirectWeights(view) ? "Direct constraint weights" : view.layer_weights == null ? "Weights not configured" : "Layer weights"}</span>
+            <span className="block text-xs text-text-muted">{isBenchmark(view) ? "Equal-layer union benchmark" : hasDirectWeights(view) ? "Direct constraint weights" : view.layer_weights == null ? "Weights not configured" : "Layer weights"}</span>
           </button>
         </li>)}</ul>
         {!views.length && <p className="text-sm text-text-muted">No views configured.</p>}
-        <Button className={`mt-3 w-full ${focus}`} size="sm" variant="outline" onClick={() => activeView ? onStructure("views", activeView.name) : onStructure("views")}>Edit view weights</Button>
+        <Button className={`mt-3 w-full ${focus}`} size="sm" variant="outline" onClick={() => activeView ? onStructure("views", activeView.name) : onStructure("views")}>{activeView && isBenchmark(activeView) ? "Inspect benchmark" : "Edit view weights"}</Button>
+        {benchmark && (!activeView || isBenchmark(activeView)) && <p role="note" className="mt-3 text-xs text-text-muted">{benchmarkPolicy}</p>}
         {notes.length > 0 && <details className="mt-3 border-t border-border pt-2 text-xs"><summary className={`min-h-7 cursor-pointer ${focus}`}>Configuration notes ({notes.length})</summary><ul className="max-h-64 list-disc space-y-2 overflow-auto break-words py-2 pl-4">{notes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>}
       </aside>
     </div>

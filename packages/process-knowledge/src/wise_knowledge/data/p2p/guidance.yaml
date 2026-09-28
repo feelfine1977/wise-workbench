@@ -15,6 +15,15 @@ sources:
   - failure_modes.yaml of this pack (candidate causes, remedies, evidence to check, measured shares)
   - BPI Challenge 2019 winner reports (HPI, Rhine-Waal, Melbourne, RWTH, DFKI)
   - SAP MM and FI-AP documentation (GR-based invoice verification, tolerance keys, payment blocks, release strategy)
+notes: >
+  Interpretation advisory: historical plain names such as "Paid within terms" describe
+  an elapsed-time proxy unless the rule actually uses contractual due dates. Current
+  assessment displays should name the rule's invoice endpoints and pairing policy.
+  Vendor invoice creation and invoice receipt are distinct evidence; the preserved
+  reference norm's merged invoice rules must not be presented as posting-only tests.
+  Missing labels are coverage warnings, not proof of compliance or automatic waivers.
+  Consignment has no invoice obligation at purchase-order item level; recent-unclosed
+  diagnostics require an explicit applicability denominator.
 defaults:
   stakeholders: "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note."
   sources: [packages/process-knowledge/PACK_DESIGN.md, failure_modes.yaml (p2p), BPI Challenge 2019 reports]
@@ -1002,34 +1011,34 @@ constraints:
   - id: c_l3_df2_rpb_to_clear_days
     templates: [p2p_bpic19, p2p_bpic19_v1_1]
     aliases: {p2p_baseline: b_time_release_to_clear}
-    plain_name: {en: "Paid soon after the release", de: "Bald nach der Freigabe bezahlt"}
-    missed_label: {en: "released but paid late", de: "freigegeben, aber spät bezahlt"}
+    plain_name: {en: "Cleared soon after release", de: "Zeitnah nach der Freigabe ausgeglichen"}
+    missed_label: {en: "clearing later than the elapsed-time target", de: "Ausgleich später als das Laufzeitziel"}
     expectation: Once the block is released, the invoice is cleared within days (5 days, tolerance to 25 in the paper's norm).
-    meaning_when_missed: The invoice was released for payment but waited for a payment run or a second hold.
-    why_it_matters: Late payment after the control has passed is pure waiting; it costs discounts and goodwill.
+    meaning_when_missed: Recorded clearing occurred later than the norm’s elapsed-time target after release, or is still unobserved. The timestamps do not establish a payment run, a second hold or contractual lateness.
+    why_it_matters: This interval identifies cases to investigate. Planned waiting until the due date can be appropriate; discount loss, cash effects and supplier impact require payment terms and linked financial evidence.
     how_detected: A time rule from the block release to the clearing on invoice-first items; the baseline applies it to every item with a release and scores open ones by age.
     usual_reasons:
-      - text: "Payment runs on fixed dates"
+      - text: "A fixed payment schedule may contribute to the observed calendar pattern"
         where: log
-        check: "lag distribution from release to clearing; weekday and day-of-month pattern"
-      - text: "The invoice was not yet due under the payment terms when released"
-        where: log
-        check: "release-to-clearing lag against the vendor's terms; early releases wait for the due date"
-      - text: "A second block or a cash hold after the release"
+        check: "inspect measured release-to-clearing durations and calendar counts, then confirm the schedule with accounts payable; clustering alone is not proof"
+      - text: "The invoice may not yet have been due when released"
+        where: outside
+        check: "obtain a mapped invoice payment due date and calculate due date minus release date; positive lead time may be planned waiting"
+      - text: "A second block or a cash hold may have followed release"
         where: outside
         check: "ask accounts payable for holds after release"
     usual_actions:
-      - text: "Payment-run cadence reviewed against the terms of the largest vendors"
+      - text: "Review a confirmed payment schedule against agreed invoice due dates before changing its cadence"
         countermeasure: review
         owner_role: accounts_payable
         effect_area: timeliness_ageing
-      - text: "Score days beyond the due date rather than days after the release"
+      - text: "If reliable due dates are mapped, assess a separate due-date measure before proposing a new norm version"
         countermeasure: measurement
         owner_role: finance_controlling
         effect_area: timeliness_ageing
     what_to_check_first:
-      - Day-of-month pattern of clearings
-      - Whether the release came long before the due date
+      - Count clearing event records and distinct items by day of month; distinguish records from unique bank payments
+      - Check release-to-due lead time only with a mapped invoice payment due date; otherwise keep it unavailable
     examples:
       - kind: violating
         text: "Block released on the 3rd, invoice cleared on the 31st."

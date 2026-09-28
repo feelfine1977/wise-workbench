@@ -149,6 +149,7 @@ const query: Record<string, string> = {
   "/projects/{projectId}/decisions": "?caseTableId=ct_1",
   "/projects/{projectId}/runs/{runId}/gates": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/gates/{gateId}": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
+  "/projects/{projectId}/runs/{runId}/driver-evidence": `?constraintId=c_l3_invoice_to_clear_days&slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/runs/{runId}/what-can-we-do": `?slicing=${encodeURIComponent("case Vendor")}&key=${encodeURIComponent('["vendorID_0136"]')}&view=Finance`,
   "/projects/{projectId}/norms/{normVersionId}/relevance": "?caseTableId=ct_1",
   "/projects/{projectId}/norms/templates": "?caseTableId=ct_1",
@@ -159,6 +160,7 @@ const query: Record<string, string> = {
   "/projects/{projectId}/runs/{runId}/kpis": `?view=Automation&grouping=${encodeURIComponent("case Company+case Spend area text")}`,
 };
 const bodies: Record<string, unknown> = {
+  "post /projects/{projectId}/case-tables/{caseTableId}/eda/query": { datasetId: "ds_1", insight: true, valueField: "vendor", valueSearch: "Vendor" },
   "post /projects/{projectId}/case-tables/{caseTableId}/grouping-suggestions": { normVersionId: "nv_1", views: ["Finance"], minCases: 20 },
   "post /projects/{projectId}/case-tables/{caseTableId}/selections": { name: "Contract-only synthetic selection", datasetId: "ds_1", selection: {} },
   "post /projects": { name: "New project", process: "p2p" },
@@ -240,6 +242,15 @@ describe("OpenAPI contract vs MSW mocks", () => {
             source: { mappingId: "m1", mappingChecksum: "synthetic", casesChecksum: "synthetic", eventsChecksum: "synthetic" } },
         };
         server.use(http.post("*/projects/:projectId/case-tables/:caseTableId/grouping-suggestions", () => HttpResponse.json(fixture)));
+      }
+      if (path.endsWith("/preview/{constraintId}")) {
+        // Explicit synthetic contract response only. Demo mode cannot evaluate real draft effects.
+        const counts = { populationCases: 0, applicableCases: 0, evaluatedCases: 0, unknownCases: 0, violatingCases: 0, violationShare: null, meanPenalty: null };
+        const fixture: components["schemas"]["NormConstraintPreview"] = {
+          normVersionId: "nv_7", caseTableId: "ct_1", constraintId: "c_l3_invoice_to_clear_days", scope: { kind: "all_cases" },
+          saved: { counts, note: "Contract-only empty fixture" }, proposed: { counts, note: "Contract-only empty fixture" },
+        };
+        server.use(http.post("*/projects/:projectId/norms/:normVersionId/preview/:constraintId", () => HttpResponse.json(fixture)));
       }
       if (needsSnapshot(path)) await createSnapshot();
       if (needsReviewItem(path)) await createReviewItems(path);
@@ -521,5 +532,64 @@ describe("EDA insight contract", () => {
     expect((await get({ selection: '{"eventRanges":[{"min":0,"max":9223372036854775807}]}' })).summary.cases.selected).toBe(6);
     for (const selection of ['{"eventRanges":[{"max":9223372036854775808}]}', '{"eventRanges":[{"min":-9223372036854775809}]}']) expect((await request({ selection })).status).toBe(422);
     for (const params of [{ insight: "maybe" }, { compareAttribute: "" }, { unsupported: "true" }]) expect((await request(params)).status).toBe(422);
+  });
+});
+
+describe("driver evidence demo contract", () => {
+  type Evidence = components["schemas"]["DriverEvidence"];
+  const endpoint = `${base}/projects/p2p2018/runs/run_41/driver-evidence`;
+  const defaults = { constraintId: "c_l3_invoice_to_clear_days", slicing: "case Vendor", key: '["vendorID_0136"]', view: "Finance" };
+  const request = (query: Record<string, string | undefined> = {}, url = endpoint) => fetch(`${url}?${new URLSearchParams({ ...defaults, ...Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string] => entry[1] !== undefined)) })}`);
+  async function measured(query: Record<string, string> = {}) {
+    const response = await request(query);
+    expect(response.status).toBe(200);
+    const body = await response.json() as Evidence;
+    const errors: string[] = [];
+    validate(body, { $ref: "#/components/schemas/DriverEvidence" }, "$", errors);
+    expect(errors).toEqual([]);
+    return body;
+  }
+  it("derives a labelled synthetic population and numerical evidence from actual example events", async () => {
+    const answer = await measured();
+    expect(answer.source).toMatchObject({ projectId: "p2p2018", runId: "run_41", caseTableId: "ct_1", datasetId: "ds_1", normVersionId: "nv_7", contentHash: "synthetic-six-case-event-fixture-v1" });
+    expect(answer.scope).toMatchObject({ runCases: 6, groupCases: 3, selectedCases: 3, selectedEvents: 5, filter: null, filtered: false, key: ["vendorID_0136"], caseNoun: "synthetic example cases" });
+    expect(answer.solutionCard!.intent).toContain("not measurements of BPIC");
+    expect(answer.duration).toMatchObject({ pairedCases: 2, median: 16.5, p90: 23.3, partitions: { orderedCases: 2, missingEndOnlyCases: 1 } });
+    expect(answer.endDayOfMonth!.buckets).toHaveLength(31);
+    expect(answer.endDayOfMonth!.buckets.filter(b => b.eventCount)).toMatchObject([{ day: 26, eventCount: 1, caseCount: 1 }, { day: 28, eventCount: 1, caseCount: 1 }]);
+    expect(Object.values(answer.duration!.partitions).reduce((a, b) => a + b, 0)).toBe(answer.scope.selectedCases);
+  });
+  it("intersects supported filters with the exact group and keeps an empty population unavailable", async () => {
+    const all = await measured();
+    const filter = { and: [{ kind: "open", value: true }] };
+    const open = await measured({ filter: JSON.stringify(filter) });
+    expect(open.scope).toMatchObject({ filter, filtered: true, selectedCases: 1, selectedEvents: 1, groupCases: 3, runCases: 6 });
+    expect(open.scope.fingerprint).not.toBe(all.scope.fingerprint);
+    expect(open.duration).toMatchObject({ status: "unavailable", pairedCases: 0, median: null, p90: null });
+    expect(open.endDayOfMonth).toMatchObject({ eventCount: 0, topDay: null });
+    const empty = await measured({ filter: '{"kind":"attribute","field":"case Vendor","eq":"vendorID_0137"}' });
+    expect(empty.scope).toMatchObject({ filter: { and: [{ kind: "attribute", field: "case Vendor", eq: "vendorID_0137" }] }, selectedCases: 0, selectedEvents: 0 });
+    expect(empty.status).toBe("unavailable");
+    expect(empty.duration!.median).toBeNull();
+    expect(empty.endDayOfMonth!.firstTimestamp).toBeNull();
+  });
+  it.each([
+    { filter: "" }, { filter: "{" }, { filter: '{"and":[{"kind":"unknown"}]}' },
+    { filter: '{"and":[{"kind":"open","value":true,"ignored":true}]}' },
+    { filter: '{"and":[{"kind":"attribute","field":"unknown","eq":"x"}]}' },
+    { slicing: "not_registered" }, { key: '["unknown-vendor"]' }, { key: '["vendorID_0136","extra"]' },
+    { view: "not_registered" }, { constraintId: "another-constraint" }, { within: "another-group" }, { bands: "[]" },
+  ])("explicitly refuses unsupported or malformed selection %j", async query => {
+    const response = await request(query);
+    expect(response.status).toBe(422);
+    expect(response.headers.get("content-type")).toContain("application/problem+json");
+    expect(await response.json()).not.toHaveProperty("scope");
+  });
+  it("does not serve another project, run or saved cohort under the requested identity", async () => {
+    expect((await request({}, endpoint.replace("p2p2018", "o2c"))).status).toBe(404);
+    expect((await request({}, endpoint.replace("run_41", "unknown"))).status).toBe(404);
+    expect((await request({}, endpoint.replace("run_41", "run_38"))).status).toBe(422);
+    db.runs.find(r => r.id === "run_41")!.scope = { flow_type: "DF2", attribute: "flow_type" };
+    expect((await request()).status).toBe(422);
   });
 });

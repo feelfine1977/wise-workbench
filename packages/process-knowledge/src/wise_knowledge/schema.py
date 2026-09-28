@@ -23,7 +23,7 @@ from referencing import Registry, Resource
 
 from .paths import GUIDANCE_FILE, INTERVENTIONS_FILE, PACK_FILES, knowledge_root, pack_dir, preset_files, schema_dir
 
-SCHEMA_KINDS = (*PACK_FILES, "templates", GUIDANCE_FILE, INTERVENTIONS_FILE, "presets", "datasets")
+SCHEMA_KINDS = (*PACK_FILES, "templates", GUIDANCE_FILE, INTERVENTIONS_FILE, "presets", "datasets", "solution_cards")
 GUIDANCE_BLOCKS = (
     "plain_name",
     "expectation",

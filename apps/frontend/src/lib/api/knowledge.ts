@@ -1,6 +1,7 @@
 /** Feature API: knowledge. Generated DTOs remain the wire contract. */
 
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { SolutionCard } from "./solutionCards";
 import { http } from "./transport";
 import type { components } from "@wise/api-schema";
 type S = components["schemas"];
@@ -66,6 +67,7 @@ export interface GuidanceText {
 
 /** The node block of a hub page: the plain name is the title, the method name the subtitle. */
 export interface HubNodeFull extends HubNode {
+  solution_card?: SolutionCard | null;
   template?: string | null;
   constraint_id?: string | null;
   constraint_type?: string | null;
@@ -76,6 +78,8 @@ export interface HubNodeFull extends HubNode {
 }
 
 export interface HubRelated {
+  process?: HubNode | HubNode[] | null;
+  solution_cards?: HubNode[];
   stage?: HubNode | null;
   expectations?: HubNode[];
   failure_modes?: HubNode[];

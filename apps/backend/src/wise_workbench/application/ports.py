@@ -136,7 +136,7 @@ class Engine(Protocol):
     ) -> dict[str, Any]: ...
     def check_norm(self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]) -> dict[str, Any]: ...
     def norm_relevance(
-        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any]
+        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any], *, selection_id: str | None = None
     ) -> dict[str, Any]: ...
     def norm_signals(
         self,
@@ -146,6 +146,18 @@ class Engine(Protocol):
         constraint_id: str,
         *,
         scale: str = "linear",
+        selection_id: str | None = None,
+    ) -> dict[str, Any]: ...
+    def norm_preview(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        document: dict[str, Any],
+        constraint_id: str,
+        proposed: dict[str, Any],
+        *,
+        scale: str = "linear",
+        selection_id: str | None = None,
     ) -> dict[str, Any]: ...
     def score_run(
         self,
@@ -164,6 +176,17 @@ class Engine(Protocol):
     ) -> Any: ...
     def slice_detail(
         self, run: Run, ctx: RunContext, attributes: list[str], key: list[Any], view: str | None, drilldown: str | None
+    ) -> dict[str, Any]: ...
+    def driver_evidence(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        constraint_id: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any] | None,
     ) -> dict[str, Any]: ...
     def review_selection(
         self,

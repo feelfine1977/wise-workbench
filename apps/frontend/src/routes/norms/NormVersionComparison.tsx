@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NormThresholdChanges } from "./NormThresholdChanges";
 import { useQuery } from "@tanstack/react-query";
 import { normQuery } from "@/lib/api/norms";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export function NormVersionComparison({ projectId, parentId, document, onConstra
         <p>Compared with parent version {parent.data!.version}: {delta.rows.length} changed constraints. Layer/view settings {delta.structure ? "changed" : "unchanged"}. Working brief {delta.brief ? "changed" : "unchanged"}.</p>
         {delta.derivation && <p className="text-warning">Derived data definitions changed. Recheck measurement meaning and any dependent thresholds.</p>}
         <p className="text-xs text-text-muted">This compares saved definitions. It does not measure data drift or performance changes. A reused decision does not establish that new data has been checked.</p>
+        <NormThresholdChanges before={parent.data!.norm as NormDocument} after={document} onConstraint={onConstraint} />
         {delta.rows.length ? <ul className="max-h-72 space-y-2 overflow-y-auto">{delta.rows.map(row => <li key={row.id} className="border-b border-border pb-2"><div>{row.removed ? row.name : <button type="button" className="text-left text-accent-text underline" onClick={() => onConstraint(row.id)}>{row.name}</button>}</div><p className="text-xs text-text-muted">{row.kinds.join(" · ")}</p></li>)}</ul> : <p>No constraint definition changed.</p>}
       </>}
     </div>}

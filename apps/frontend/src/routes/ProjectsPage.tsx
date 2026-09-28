@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api, unwrap } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
+import { mainJourney } from "@/app/shell/journey";
 import { projectsQuery } from "@/lib/queries";
 
 export default function ProjectsPage() {
@@ -32,7 +33,7 @@ export default function ProjectsPage() {
       <Button onClick={() => { create.reset(); setOpen(true); }}>New project</Button>
     </header>
     <ol className="my-6 grid gap-3 sm:grid-cols-3" aria-label="How a project works">
-      {[['Understand', 'Choose a dataset and explore what happens.'], ['Define', 'Build constraints, then organise layers and views.'], ['Improve', 'Run WISE, test explanations and record an action.']].map(([title, text], index) => <li key={title} className="rounded-lg border border-border bg-surface p-4"><span className="text-sm font-semibold text-accent-text">{index + 1}. {title}</span><p className="mt-1 text-sm text-text-muted">{text}</p></li>)}
+      {mainJourney.map(({label: title, description: text}, index) => <li key={title} className="rounded-lg border border-border bg-surface p-4"><span className="text-sm font-semibold text-accent-text">{index + 1}. {title}</span><p className="mt-1 text-sm text-text-muted">{text}</p></li>)}
     </ol>
     <h2 className="text-lg font-semibold">Continue a project</h2>
     <QueryState query={projects}>{(list) => list.length ? <ul className="mt-3 grid gap-3 sm:grid-cols-2">{list.map((p) => <li key={p.id} className="surface p-5">

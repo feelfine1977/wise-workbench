@@ -20,3 +20,6 @@ workspace*/
 .coverage
 .coverage.*
 htmlcov/
+
+# Explicit frontend fixture build output
+apps/frontend/dist-demo/

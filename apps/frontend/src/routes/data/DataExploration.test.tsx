@@ -290,6 +290,10 @@ it("keeps query footprint while a new cohort is pending", async () => {
       screen.getByRole("region", { name: "Exploration results" }),
     ).toHaveStyle({ minHeight: "1400px" });
     expect(screen.queryByText("6 of 6 cases selected")).not.toBeInTheDocument();
+    const population = screen.getByRole("region", {name:"Selected population summary"});
+    expect(population).toHaveAttribute("aria-busy", "true");
+    expect(within(population).getByText("Updating selected-population summary…")).toBeVisible();
+    expect(population.querySelector(".eda-metrics")).not.toBeVisible();
     await waitFor(() => expect(finish).toBeDefined());
     await act(async () =>
       finish(HttpResponse.json({ detail: "Unavailable" }, { status: 503 })),
@@ -434,3 +438,70 @@ it.each([2, 6])(
     }
   },
 );
+
+it("keeps exact searched values in explicit joint paths across linked refreshes", async () => {
+  setup("context");
+  await count(6);
+  await userEvent.click(chart("flow_type").getByRole("button", { name: /^DF1:/ }));
+  await count(2);
+  await userEvent.click(screen.getByRole("button", { name: "Find any vendor value" }));
+  await userEvent.click(await screen.findByRole("button", { name: /^Vendor A 2 \/ 2$/ }));
+  await count(2);
+  await userEvent.click(screen.getByRole("button", { name: "Keep field filters as one OR path" }));
+  await count(2);
+  expect(draftSelection(useAnalysisSelection.getState().entries[key]!.draft).jointAny?.[0]?.facets).toEqual([
+    { field: "flow_type", keys: [], values: ["DF1"] }, { field: "vendor", keys: [], values: ["Vendor A"] },
+  ]);
+  expect(screen.getByRole("button", { name: "Find any vendor value" })).toHaveAttribute("aria-expanded", "true");
+  await userEvent.click(chart("flow_type").getByRole("button", { name: /^DF2:/ }));
+  await count(0);
+  await userEvent.click(await screen.findByRole("button", { name: /^Vendor B 0 \/ 2$/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Keep field filters as one OR path" }));
+  await count(4);
+  expect(draftSelection(useAnalysisSelection.getState().entries[key]!.draft).jointAny).toHaveLength(2);
+});
+
+
+it("puts scoped population evidence before filter controls with introductory guidance closed", async () => {
+  const {container} = setup();
+  await count(6);
+  const population = screen.getByRole("region", {name:"Selected population summary"});
+  const toolbar = container.querySelector('[aria-label="Shared analysis selection"]')!;
+  expect(population.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(population).toHaveTextContent("SELECTED CASES");
+  expect(population).toHaveTextContent("of prepared cases");
+  expect(population).toHaveTextContent("Within selected cases");
+  expect(population).not.toHaveTextContent(/delay|late|savings|business impact/i);
+  expect(population).toHaveAttribute("aria-busy", "false");
+  const help = screen.getByText("How to explore").closest("details")!;
+  expect(help).not.toHaveAttribute("open");
+  await userEvent.click(screen.getByText("How to explore"));
+  expect(help).toHaveAttribute("open");
+  expect(within(help).getByText(/different fields intersect/)).toBeVisible();
+  expect(within(screen.getByRole("navigation", {name:"Exploration pages"})).getAllByRole("button")).toHaveLength(4);
+});
+
+it("keeps a multi-value selection across compact page buttons operated by keyboard", async () => {
+  setup();
+  await count(6);
+  const nav = within(screen.getByRole("navigation", {name:"Exploration pages"}));
+  nav.getByRole("button", {name:"Context & concentration"}).focus();
+  await userEvent.keyboard("{Enter}");
+  await userEvent.click(chart("flow_type").getByRole("button", {name:/^DF1:/}));
+  await userEvent.click(chart("flow_type").getByRole("button", {name:/^DF2:/}));
+  await count(4);
+  const selection = draftSelection(useAnalysisSelection.getState().entries[key]!.draft);
+  nav.getByRole("button", {name:"Time & variation"}).focus();
+  await userEvent.keyboard("{Enter}");
+  expect(nav.getByRole("button", {name:"Time & variation"})).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("region", {name:"Selected population summary"})).toHaveTextContent("67%");
+  nav.getByRole("button", {name:"Case evidence"}).focus();
+  await userEvent.keyboard("{Enter}");
+  expect(nav.getByRole("button", {name:"Case evidence"})).toHaveAttribute("aria-current", "page");
+  expect(draftSelection(useAnalysisSelection.getState().entries[key]!.draft)).toEqual(selection);
+  const evidence = screen.getByRole("region", {name:"Selected case details"});
+  expect(within(evidence).getByText("demo-001")).toBeVisible();
+  expect(within(evidence).getAllByRole("button", {name:/Inspect event trace for/})).toHaveLength(4);
+  expect(within(evidence).queryByText("demo-004")).not.toBeInTheDocument();
+  expect(within(evidence).queryByText("demo-005")).not.toBeInTheDocument();
+});

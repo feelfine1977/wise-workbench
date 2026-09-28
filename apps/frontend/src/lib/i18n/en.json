@@ -130,7 +130,7 @@
     "noRuns": "No run yet",
     "noRunsReason": "A run scores the case table against a norm version. Create one to see a backlog.",
     "noNorms": "No norm yet",
-    "noNormsReason": "A norm holds the expectations in layers and views. Import the reference norm of the process template.",
+    "noNormsReason": "Use Start small above to record one expectation. You can then add constraints, organise layers and views, and review a saved version.",
     "noRows": "No groups match",
     "noRowsReason": "Relax a filter or lower the minimum number of cases.",
     "noConfidence": "Confidence in the rank has not been computed for this run",

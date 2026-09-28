@@ -3,6 +3,7 @@
 | Guide | Purpose |
 |---|---|
 | [Start here](START_HERE.md) | Install and follow the basic analysis workflow |
+| [Windows setup](windows-setup.md) | PowerShell install, core profiles, local startup and restart |
 | [User guide](USER_GUIDE.md) | Use data exploration, process norms, runs and investigation |
 | [Deployment](DEPLOY.md) | Local setup, workspace storage and packaging |
 | [Compatibility](COMPATIBILITY.md) | Dependency profiles and release checks |

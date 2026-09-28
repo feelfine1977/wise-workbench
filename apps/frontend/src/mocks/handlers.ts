@@ -1,3 +1,4 @@
+import { driverEvidenceHandlers } from "./driver-evidence";
 import { selectionHandlers } from "./selections";
 import { projectBindingHandlers } from "./projectBinding";
 import { edaHandlers } from "./eda";
@@ -161,6 +162,7 @@ const snapshotDto = ({ image: _i, ...s }: MockSnapshot): Snapshot => s;
 const isBlob = (v: unknown): v is Blob => !!v && typeof v === "object" && typeof (v as Blob).arrayBuffer === "function";
 
 export const handlers = [
+  ...driverEvidenceHandlers,
   ...projectBindingHandlers,
   ...selectionHandlers,
   ...datasetCatalogueHandlers,
@@ -339,6 +341,7 @@ export const handlers = [
     return HttpResponse.json(created, { status: 201 });
   }),
   // Raw synthetic values stay fixed; thresholds come from the selected saved norm version.
+  http.post(`${API}/projects/:projectId/norms/:normVersionId/preview/:constraintId`, () => HttpResponse.json({ title: "Exact preview requires the live engine", status: 503 }, { status: 503 })),
   http.get(`${API}/projects/:projectId/norms/:normVersionId/signals/:constraintId`, ({ params, request }) => {
     const caseTableId = new URL(request.url).searchParams.get("caseTableId");
     if (!caseTableId) return problem(422, "Select data", "A mapped case table is required.", "norm.case_table");

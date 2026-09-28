@@ -8,7 +8,7 @@ export type Density = "comfortable" | "compact";
  * How much of the workbench a reader is shown (R3-10). *Analyst* is everything; *guided* is the one path a
  * person who does not do this every day can walk — the dashboard, the ranked list, the reason screen and
  * *What can we do?* — with the explanations on, the method's controls out of the way, and every number
- * inside a sentence. The order-desk employee scored 67 % on the analyst screens in cycle 3.
+ * inside a sentence. This is a presentation preference, not a measure of user expertise.
  */
 export type Mode = "analyst" | "guided";
 

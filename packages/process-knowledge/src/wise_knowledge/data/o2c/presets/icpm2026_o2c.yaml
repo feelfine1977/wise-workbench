@@ -52,7 +52,7 @@ mapping:
   flow_typing:
     - name: returns
       rule: {kind: attribute, field: Returns Item, in: [X]}
-      note: 20 return items in the extract; excluded from the delivery-performance expectations by the template's applicability rules
+      note: Full Sales_Eventlog.csv audit on 2026-09-28 found 10 distinct return items flagged X across 16 event rows; excluded from delivery-performance expectations by the template's applicability rules
     - name: rejected
       rule:
         and:

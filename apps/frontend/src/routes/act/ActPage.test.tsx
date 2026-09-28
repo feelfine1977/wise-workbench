@@ -1,6 +1,6 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/node";
 import type { ReviewItem } from "@/lib/api/review";
@@ -8,6 +8,8 @@ import type { Filter } from "@/lib/api/filter-types";
 import { buildBacklog } from "@/mocks/fixtures/backlog";
 import { verifiedBacklog } from "@/mocks/fixtures/verified";
 import { expectNoSeriousA11yViolations, renderApp } from "@/test/utils";
+
+beforeEach(() => server.use(http.get("*/api/v1/projects/:projectId/runs/:runId/driver-evidence", () => HttpResponse.json({ detail: "Event evidence unavailable in this fixture." }, { status: 404 }))));
 
 const T = { timeout: 8000 };
 const SLICING_ID = "case Company+case Spend area text";

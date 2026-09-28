@@ -19,6 +19,8 @@ export interface NormGuideProps {
   datasetName?: string;
   caseTableId?: string;
   caseNoun?: string;
+  /** Count for this norm and displayed case-table scope; omitted/null means unknown. */
+  coverageWarnings?: number | null;
   onTab: (tab: "constraints" | "structure" | "review" | "map") => void;
   onConstraint: (id: string) => void;
   onSaved: (id: string) => void;
@@ -43,7 +45,7 @@ export function NormGuide(props: NormGuideProps) {
   return <GuideContent key={`${props.projectId}:${props.versionId}`} {...props} />;
 }
 
-function GuideContent({ projectId, versionId, document, process, datasetName, caseTableId, caseNoun, onTab, onConstraint, onSaved }: NormGuideProps) {
+function GuideContent({ projectId, versionId, document, process, datasetName, caseTableId, caseNoun, coverageWarnings, onTab, onConstraint, onSaved }: NormGuideProps) {
   const id = useId();
   const [brief, setBrief] = useState(() => readAuthoringBrief(document));
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -64,7 +66,10 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
   const current = useQuery({ ...normQuery(projectId, versionId), enabled: brief.situation === "reassess", retry: false });
   const parentId = current.data?.id === versionId ? current.data.parentId : undefined;
   const parent = useQuery({ ...normQuery(projectId, parentId ?? ""), enabled: brief.situation === "reassess" && !!parentId, retry: false });
-  const missing = calibration.data?.missingRationale ?? [];
+  const checkingReview = calibration.isPending || calibration.isFetching;
+  const review = !checkingReview && !calibration.isError && calibration.data?.normVersionId === versionId ? calibration.data : undefined;
+  const missing = Array.isArray(review?.missingRationale) ? review.missingRationale : undefined;
+  const coverageCount = typeof coverageWarnings === "number" && Number.isInteger(coverageWarnings) && coverageWarnings >= 0 ? coverageWarnings : undefined;
   const dataUrl = `/p/${encodeURIComponent(projectId)}/data${caseTableId ? `?caseTable=${encodeURIComponent(caseTableId)}` : ""}`;
   const change = (patch: Partial<AuthoringBrief>) => { setBrief(previous => ({ ...previous, ...patch })); create.reset(); };
   const save = () => {
@@ -77,10 +82,10 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
   };
 
   return <section aria-label="Norm authoring guide" className="space-y-4">
-    <Card>
+    <Card className="border-t-2 border-t-accent">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
         <div>
-          <CardTitle>Purpose and context</CardTitle>
+          <CardTitle as="h2">Purpose and context</CardTitle>
           <p className="max-w-prose text-sm">Define what should happen in the process and why it matters. Begin where useful; every editor remains available.</p>
           <p className="mt-2 max-w-prose text-sm text-text-muted">{situations[brief.situation]}</p>
           {brief.situation === "new" && <a href={dataUrl} className={`${linkClass} mt-2 inline-block`}>Explore process data first</a>}
@@ -96,9 +101,10 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
       <dl className="mt-4 grid gap-3 rounded border border-border bg-surface-sunken p-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
         <div><dt className="text-text-muted">Process</dt><dd className="mt-1 break-words font-medium">{profile?.name ?? process ?? "Not specified"}</dd></div>
         <div><dt className="text-text-muted">Dataset</dt><dd className="mt-1 break-words font-medium">{datasetName ?? "Not supplied"}</dd></div>
-        <div><dt className="text-text-muted">Case table · case notion</dt><dd className="mt-1 break-words font-medium">{caseTableId ?? "No mapped table selected"} · {caseNoun ?? "Confirm what one case represents"}</dd></div>
-        <div><dt className="text-text-muted">Norm version</dt><dd className="mt-1 break-words font-medium">{document.name ?? "Process norm"} · {versionId}</dd></div>
+        <div><dt className="text-text-muted">One case represents</dt><dd className="mt-1 break-words font-medium">{caseTableId ? caseNoun ?? "Confirm the case unit" : "No mapped table selected"}</dd></div>
+        <div><dt className="text-text-muted">Norm version</dt><dd className="mt-1 break-words font-medium">{document.name ?? "Process norm"}</dd></div>
       </dl>
+      <details className="mt-2"><summary className={summaryClass}>Preparation and version identifiers</summary><p className="mt-1 break-all text-xs text-text-muted">Prepared table: {caseTableId ?? "None"} · Norm version: {versionId}</p></details>
 
       {brief.situation === "reassess" && <div className="mt-3 rounded border border-border p-3 text-sm" aria-label="Reassessment context">
         {current.isPending && <p role="status">Loading this version’s parent context…</p>}
@@ -133,7 +139,7 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
 
     <div className="grid items-start gap-4 lg:grid-cols-2">
       <Card>
-        <CardTitle>Expectations</CardTitle>
+        <CardTitle as="h2" className="flex items-center gap-2"><span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-accent-subtle text-sm text-accent-text">1</span>Expectations</CardTitle>
         <p className="text-sm text-text-muted">Describe what should happen, to which cases, and who can explain the business reason. {constraints.length ? `${fmtInt(constraints.length)} constraints are already defined.` : "No constraints are defined yet."}</p>
         <Button variant="outline" size="sm" className="mt-3" onClick={() => onTab("constraints")}>Open constraints</Button>
         {layers.length > 0 && <details className="mt-3 border-t border-border pt-2" onToggle={event => setLayerOpen(event.currentTarget.open)}>
@@ -154,7 +160,7 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
       </Card>
 
       <Card>
-        <CardTitle>Data you can observe</CardTitle>
+        <CardTitle as="h2" className="flex items-center gap-2"><span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-accent-subtle text-sm text-accent-text">2</span>Data you can observe</CardTitle>
         <p className="text-sm text-text-muted">Check event meanings, timestamps and links between records. An absent event may reflect missing coverage or a different process path; absence alone does not establish a violation.</p>
         <details className="mt-3" onToggle={event => setInventoryOpen(event.currentTarget.open)}>
           <summary className={summaryClass}>Inspect the selected data inventory</summary>
@@ -170,26 +176,41 @@ function GuideContent({ projectId, versionId, document, process, datasetName, ca
       </Card>
 
       <Card>
-        <CardTitle>Layers and views</CardTitle>
+        <CardTitle as="h2" className="flex items-center gap-2"><span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-accent-subtle text-sm text-accent-text">3</span>Layers and views</CardTitle>
         <p className="text-sm text-text-muted">Group constraints by business purpose, then weight those layers for each view. Views change importance; the project, data and individual constraint truth stay the same.</p>
         <p className="mt-2 text-xs text-text-muted">{layers.length} layers · {document.views?.length ?? 0} views. Existing direct constraint weights remain in their original form.</p>
         <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => onTab("structure")}>Edit layers and views</Button><Button size="sm" variant="ghost" onClick={() => onTab("map")}>Open norm map</Button></div>
       </Card>
 
       <Card>
-        <CardTitle>Review and revisit</CardTitle>
-        {calibration.isPending || calibration.isFetching ? <p role="status" className="text-sm text-text-muted">Checking saved review requirements…</p> : calibration.isError ? <p role="alert" className="text-sm">Review requirements could not be checked. <Button variant="ghost" size="sm" onClick={() => void calibration.refetch()}>Retry review requirements</Button></p> : calibration.data && <>
-          <p className="text-sm text-text-muted">{missing.length ? `${missing.length} constraints need a reason, an owner or confirmation of a changed decision.` : calibration.data.canLeaveDraft === false ? "Review requirements are unresolved. Open Review for details." : "No required calibration decisions are reported. The evidence and full norm still need review."}</p>
-          {missing.length > 0 && <details className="mt-2"><summary className={summaryClass}>Required decisions{missing.length > 5 ? ` · first 5 of ${missing.length}` : ""}</summary><ul className="mt-2 space-y-2" aria-label="Decision shortlist">{missing.slice(0, 5).map(constraintId => {
-            const constraint = constraints.find(item => item.id === constraintId);
-            const row = calibration.data?.thresholds?.find(item => item.constraint_id === constraintId);
-            const needs = [!row?.rationale?.trim() && "reason", !row?.owner?.trim() && "owner"].filter(Boolean).join(" and ") || "confirmation";
-            const name = constraint ? constraintName(constraint) : constraintId;
-            return <li key={constraintId}><button type="button" className="w-full text-left text-sm text-accent-text underline" title={name} onClick={() => onConstraint(constraintId)}><span className="line-clamp-2 break-words">{name}</span></button><p className="text-xs text-text-muted">Needs {needs}</p></li>;
-          })}</ul></details>}
-        </>}
-        <Button size="sm" variant="outline" className="mt-3" onClick={() => onTab("review")}>Open review</Button>
-        <p className="mt-2 text-xs text-text-muted">Review records explicit decisions. Saving a brief never signs a version.</p>
+        <CardTitle as="h2" className="flex items-center gap-2"><span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-accent-subtle text-sm text-accent-text">4</span>Review and revisit</CardTitle>
+        <div role="group" aria-label="Coverage and applicability review" className="space-y-2">
+          <h3 className="text-sm font-medium">Coverage and applicability</h3>
+          <p className="text-sm text-text-muted">{coverageCount === undefined ? "Coverage/applicability warning count is unknown." : `${fmtInt(coverageCount)} ${coverageCount === 1 ? "constraint has" : "constraints have"} coverage or applicability warnings on this log.`}</p>
+          <Button size="sm" variant="ghost" onClick={() => onTab("constraints")}>Inspect coverage and applicability</Button>
+        </div>
+        <div role="group" aria-label="Calibration decision review" className="mt-3 space-y-2 border-t border-border pt-3">
+          <h3 className="text-sm font-medium">Calibration decisions</h3>
+          {checkingReview ? <p role="status" className="text-sm text-text-muted">Checking saved calibration requirements…</p> : calibration.isError ? <p role="alert" className="text-sm">Review requirements could not be checked. <Button variant="ghost" size="sm" onClick={() => void calibration.refetch()}>Retry review requirements</Button></p> : <>
+            <p className="text-sm text-text-muted">{missing === undefined ? "Missing calibration rationale count is unknown; it was not supplied for this version." : missing.length ? `${missing.length} constraints need a reason, an owner or confirmation of a changed decision.` : "0 constraints are reported as needing calibration rationale. Coverage warnings and sign-off are separate."}</p>
+            {review?.canLeaveDraft === false && <p className="text-xs text-text-muted">Review requirements are unresolved. Open Review for details.</p>}
+            {missing && missing.length > 0 && <details className="mt-2"><summary className={summaryClass}>Required decisions{missing.length > 5 ? ` · first 5 of ${missing.length}` : ""}</summary><ul className="mt-2 space-y-2" aria-label="Decision shortlist">{missing.slice(0, 5).map(constraintId => {
+              const constraint = constraints.find(item => item.id === constraintId);
+              const row = review?.thresholds?.find(item => item.constraint_id === constraintId);
+              const needs = [!row?.rationale?.trim() && "reason", !row?.owner?.trim() && "owner"].filter(Boolean).join(" and ") || "confirmation";
+              const name = constraint ? constraintName(constraint) : constraintId;
+              return <li key={constraintId}><button type="button" className="w-full text-left text-sm text-accent-text underline" title={name} onClick={() => onConstraint(constraintId)}><span className="line-clamp-2 break-words">{name}</span></button><p className="text-xs text-text-muted">Needs {needs}</p></li>;
+            })}</ul></details>}
+          </>}
+          <Button size="sm" variant="ghost" onClick={() => onTab("review")}>Review calibration decisions</Button>
+        </div>
+        <div role="group" aria-label="Version sign-off" className="mt-3 space-y-2 border-t border-border pt-3">
+          <h3 className="text-sm font-medium">Version sign-off</h3>
+          <p className="text-sm text-text-muted">{review?.status ? `Saved version status: ${review.status}.` : "Saved version review status is unknown."}{review?.status === "draft" ? " This draft has not been signed off." : ""}</p>
+          {review?.status === "draft" && <p className="text-xs text-text-muted">{review.canLeaveDraft === true ? "Saved requirements report no calibration blocker to leaving draft. Sign-off still requires an explicit review action." : review.canLeaveDraft === false ? "Required decisions must be resolved before sign-off." : "Sign-off eligibility is unknown."}</p>}
+          <Button size="sm" variant="outline" onClick={() => onTab("review")}>Open review</Button>
+          <p className="text-xs text-text-muted">Review records explicit decisions. Saving a brief never signs a version.</p>
+        </div>
       </Card>
     </div>
 

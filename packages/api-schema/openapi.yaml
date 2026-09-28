@@ -933,6 +933,110 @@ paths:
             maxLength: 256
           - type: 'null'
           title: Compareattribute
+      - name: hierarchyFields
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+              minLength: 1
+              maxLength: 256
+            minItems: 3
+            maxItems: 3
+          - type: 'null'
+          title: Hierarchyfields
+      - name: valueField
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 256
+          - type: 'null'
+          title: Valuefield
+      - name: valueSearch
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 256
+          default: ''
+          title: Valuesearch
+      - name: valuePage
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100000
+          minimum: 1
+          default: 1
+          title: Valuepage
+      - name: eventInsight
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Eventinsight
+      - name: activitySearch
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 256
+          default: ''
+          title: Activitysearch
+      - name: activityPage
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100000
+          minimum: 1
+          default: 1
+          title: Activitypage
+      - name: endpointStart
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 4096
+          - type: 'null'
+          title: Endpointstart
+      - name: endpointEnd
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 4096
+          - type: 'null'
+          title: Endpointend
+      - name: traceCaseId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 4096
+          - type: 'null'
+          title: Tracecaseid
+      - name: tracePage
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 10000000
+          minimum: 1
+          default: 1
+          title: Tracepage
       - name: filter
         in: query
         required: false
@@ -949,7 +1053,7 @@ paths:
           anyOf:
           - type: string
             minLength: 2
-            maxLength: 32768
+            maxLength: 131072
           - type: 'null'
           description: 'JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected.'
           title: Selection
@@ -1015,6 +1119,45 @@ paths:
           minimum: 1
           default: 25
           title: Pagesize
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EDAResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/case-tables/{caseTableId}/eda/query:
+    post:
+      tags:
+      - data exploration
+      summary: Query Case Table Eda
+      description: Read-only bounded explorer query. Exact values and typed decimal-string ranges share immutable save membership. jointAny ORs context conjunctions; hierarchyFields declares three ordered levels. Event evidence is opt-in.
+      operationId: queryCaseTableEDA
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: caseTableId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Casetableid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EDARequest'
       responses:
         '200':
           description: Successful Response
@@ -1235,6 +1378,16 @@ paths:
           default: linear
           title: Scale
         description: bin scale of the histogram
+      - name: selectionId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Explicit saved whole-case evidence cohort
+          title: Selectionid
+        description: Explicit saved whole-case evidence cohort
       responses:
         '200':
           description: Successful Response
@@ -1282,6 +1435,16 @@ paths:
           description: the exact mapped case table to inspect
           title: Casetableid
         description: the exact mapped case table to inspect
+      - name: selectionId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Explicit saved whole-case evidence cohort
+          title: Selectionid
+        description: Explicit saved whole-case evidence cohort
       responses:
         '200':
           description: Successful Response
@@ -1295,6 +1458,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
           description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Unprocessable Content
+  /projects/{projectId}/norms/{normVersionId}/preview/{constraintId}:
+    post:
+      tags:
+      - norms
+      summary: Preview Norm Constraint
+      description: Read-only exact evaluation of a proposed rule against its saved version on an explicit evidence cohort. Creates no norm, run, approval or validation metadata. Native signal coverage is separate from evaluation under the rule's missing-data policy.
+      operationId: previewNormConstraint
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: normVersionId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Normversionid
+      - name: constraintId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Constraintid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormPreviewRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormConstraintPreview'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          description: Conflict
         '422':
           content:
             application/json:
@@ -2863,6 +3083,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FlowTypeComparison'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{projectId}/runs/{runId}/driver-evidence:
+    get:
+      tags:
+      - runs
+      summary: Get Driver Evidence
+      description: Read-only activity coverage and temporal endpoints for the exact run, group and optional case filter. Counts include all selected cases, not a rule-applicability subset; view is context only. Recorded event rows and unique-endpoint durations do not reproduce scoring, prove payment batches or infer overdue/cost/causality.
+      operationId: getDriverEvidence
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Projectid
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runid
+      - name: constraintId
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Constraintid
+      - name: slicing
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Slicing
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: view
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+      - name: filter
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+          title: Filter
+        description: 'URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability'
+      - name: bands
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+          title: Bands
+        description: 'JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}]'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverEvidence'
         '422':
           description: Validation Error
           content:
@@ -7381,6 +7680,615 @@ components:
       - x
       - label
       title: DistributionMarker
+    DriverActivityCoverage:
+      properties:
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+        observedLabels:
+          items:
+            type: string
+          type: array
+          title: Observedlabels
+        mappedHeaderLabels:
+          items:
+            type: string
+          type: array
+          title: Mappedheaderlabels
+        eventCount:
+          type: integer
+          minimum: 0.0
+          title: Eventcount
+        caseCount:
+          type: integer
+          minimum: 0.0
+          title: Casecount
+        missingTimestampEvents:
+          type: integer
+          minimum: 0.0
+          title: Missingtimestampevents
+        selectedCases:
+          type: integer
+          minimum: 0.0
+          title: Selectedcases
+        casesWithActivity:
+          type: integer
+          minimum: 0.0
+          title: Caseswithactivity
+        casesWithoutActivity:
+          type: integer
+          minimum: 0.0
+          title: Caseswithoutactivity
+        singleOccurrenceCases:
+          type: integer
+          minimum: 0.0
+          title: Singleoccurrencecases
+        repeatedOccurrenceCases:
+          type: integer
+          minimum: 0.0
+          title: Repeatedoccurrencecases
+      additionalProperties: false
+      type: object
+      required:
+      - labels
+      - observedLabels
+      - mappedHeaderLabels
+      - eventCount
+      - caseCount
+      - missingTimestampEvents
+      - selectedCases
+      - casesWithActivity
+      - casesWithoutActivity
+      - singleOccurrenceCases
+      - repeatedOccurrenceCases
+      title: DriverActivityCoverage
+    DriverDayBucket:
+      properties:
+        day:
+          type: integer
+          maximum: 31.0
+          minimum: 1.0
+          title: Day
+        eventCount:
+          type: integer
+          minimum: 0.0
+          title: Eventcount
+        caseCount:
+          type: integer
+          minimum: 0.0
+          title: Casecount
+        monthsPresent:
+          type: integer
+          minimum: 0.0
+          title: Monthspresent
+      additionalProperties: false
+      type: object
+      required:
+      - day
+      - eventCount
+      - caseCount
+      - monthsPresent
+      title: DriverDayBucket
+    DriverDueDateEvidence:
+      properties:
+        status:
+          type: string
+          const: unavailable
+          title: Status
+          default: unavailable
+        reason:
+          type: string
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - reason
+      title: DriverDueDateEvidence
+    DriverDurationEvidence:
+      properties:
+        status:
+          type: string
+          enum:
+          - available
+          - unavailable
+          title: Status
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        pairing:
+          type: string
+          const: unique_endpoints
+          title: Pairing
+          default: unique_endpoints
+        unit:
+          type: string
+          const: days
+          title: Unit
+          default: days
+        pairedCases:
+          type: integer
+          minimum: 0.0
+          title: Pairedcases
+          description: Ordered plus tied unique endpoints; denominator of median and p90
+        median:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Median
+        p90:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: P90
+        partitions:
+          $ref: '#/components/schemas/DriverEndpointPartitions'
+        ordering:
+          $ref: '#/components/schemas/DriverEndpointOrdering'
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - reason
+      - pairedCases
+      - median
+      - p90
+      - partitions
+      - ordering
+      title: DriverDurationEvidence
+    DriverEndDayOfMonth:
+      properties:
+        buckets:
+          items:
+            $ref: '#/components/schemas/DriverDayBucket'
+          type: array
+          maxItems: 31
+          minItems: 31
+          title: Buckets
+        eventCount:
+          type: integer
+          minimum: 0.0
+          title: Eventcount
+          description: All recorded end-event rows, including missing timestamps
+        caseCount:
+          type: integer
+          minimum: 0.0
+          title: Casecount
+          description: Distinct selected items with any end-event row
+        datedEventCount:
+          type: integer
+          minimum: 0.0
+          title: Datedeventcount
+        datedCaseCount:
+          type: integer
+          minimum: 0.0
+          title: Datedcasecount
+        missingTimestampEvents:
+          type: integer
+          minimum: 0.0
+          title: Missingtimestampevents
+        firstTimestamp:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Firsttimestamp
+        lastTimestamp:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lasttimestamp
+        representedMonths:
+          type: integer
+          minimum: 0.0
+          title: Representedmonths
+        topDay:
+          anyOf:
+          - $ref: '#/components/schemas/DriverDayBucket'
+          - type: 'null'
+        timezone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timezone
+          description: Null means timestamps have no established timezone
+        calendarExposureAdjusted:
+          type: boolean
+          const: false
+          title: Calendarexposureadjusted
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - buckets
+      - eventCount
+      - caseCount
+      - datedEventCount
+      - datedCaseCount
+      - missingTimestampEvents
+      - firstTimestamp
+      - lastTimestamp
+      - representedMonths
+      - topDay
+      - timezone
+      title: DriverEndDayOfMonth
+    DriverEndpoint:
+      properties:
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+        observedLabels:
+          items:
+            type: string
+          type: array
+          title: Observedlabels
+        mappedHeaderLabels:
+          items:
+            type: string
+          type: array
+          title: Mappedheaderlabels
+        eventCount:
+          type: integer
+          minimum: 0.0
+          title: Eventcount
+        caseCount:
+          type: integer
+          minimum: 0.0
+          title: Casecount
+        missingTimestampEvents:
+          type: integer
+          minimum: 0.0
+          title: Missingtimestampevents
+      additionalProperties: false
+      type: object
+      required:
+      - labels
+      - observedLabels
+      - mappedHeaderLabels
+      - eventCount
+      - caseCount
+      - missingTimestampEvents
+      title: DriverEndpoint
+    DriverEndpointOrdering:
+      properties:
+        casesWithKnownEndpointTimes:
+          type: integer
+          minimum: 0.0
+          title: Caseswithknownendpointtimes
+          description: At least one dated start and end, including repeats
+        firstEndBeforeFirstStartCases:
+          type: integer
+          minimum: 0.0
+          title: Firstendbeforefirststartcases
+        allDatedEndsBeforeFirstStartCases:
+          type: integer
+          minimum: 0.0
+          title: Alldatedendsbeforefirststartcases
+      additionalProperties: false
+      type: object
+      required:
+      - casesWithKnownEndpointTimes
+      - firstEndBeforeFirstStartCases
+      - allDatedEndsBeforeFirstStartCases
+      title: DriverEndpointOrdering
+    DriverEndpointPartitions:
+      properties:
+        neitherEndpointCases:
+          type: integer
+          minimum: 0.0
+          title: Neitherendpointcases
+        missingStartOnlyCases:
+          type: integer
+          minimum: 0.0
+          title: Missingstartonlycases
+        missingEndOnlyCases:
+          type: integer
+          minimum: 0.0
+          title: Missingendonlycases
+        repeatedEndpointCases:
+          type: integer
+          minimum: 0.0
+          title: Repeatedendpointcases
+          description: Both endpoints present, with more than one start or end row
+        missingTimestampCases:
+          type: integer
+          minimum: 0.0
+          title: Missingtimestampcases
+          description: Exactly one row of each endpoint, at least one undated
+        reversedCases:
+          type: integer
+          minimum: 0.0
+          title: Reversedcases
+          description: Exactly one dated row of each endpoint; end before start
+        tiedCases:
+          type: integer
+          minimum: 0.0
+          title: Tiedcases
+          description: Exactly one dated row of each endpoint; equal timestamps
+        orderedCases:
+          type: integer
+          minimum: 0.0
+          title: Orderedcases
+          description: Exactly one dated row of each endpoint; end after start
+      additionalProperties: false
+      type: object
+      required:
+      - neitherEndpointCases
+      - missingStartOnlyCases
+      - missingEndOnlyCases
+      - repeatedEndpointCases
+      - missingTimestampCases
+      - reversedCases
+      - tiedCases
+      - orderedCases
+      title: DriverEndpointPartitions
+    DriverEndpoints:
+      properties:
+        start:
+          $ref: '#/components/schemas/DriverEndpoint'
+        end:
+          $ref: '#/components/schemas/DriverEndpoint'
+      additionalProperties: false
+      type: object
+      required:
+      - start
+      - end
+      title: DriverEndpoints
+    DriverEvidence:
+      properties:
+        constraintId:
+          type: string
+          title: Constraintid
+        constraintType:
+          type: string
+          title: Constrainttype
+        status:
+          type: string
+          enum:
+          - available
+          - unavailable
+          title: Status
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        source:
+          $ref: '#/components/schemas/DriverEvidenceSource'
+        scope:
+          $ref: '#/components/schemas/DriverEvidenceScope'
+        solutionCard:
+          anyOf:
+          - $ref: '#/components/schemas/SolutionCard'
+          - type: 'null'
+        activityCoverage:
+          anyOf:
+          - $ref: '#/components/schemas/DriverActivityCoverage'
+          - type: 'null'
+        endpoints:
+          anyOf:
+          - $ref: '#/components/schemas/DriverEndpoints'
+          - type: 'null'
+        endDayOfMonth:
+          anyOf:
+          - $ref: '#/components/schemas/DriverEndDayOfMonth'
+          - type: 'null'
+        duration:
+          anyOf:
+          - $ref: '#/components/schemas/DriverDurationEvidence'
+          - type: 'null'
+        dueDate:
+          $ref: '#/components/schemas/DriverDueDateEvidence'
+        caveats:
+          items:
+            type: string
+          type: array
+          title: Caveats
+      additionalProperties: false
+      type: object
+      required:
+      - constraintId
+      - constraintType
+      - status
+      - reason
+      - source
+      - scope
+      - solutionCard
+      - activityCoverage
+      - endpoints
+      - endDayOfMonth
+      - duration
+      - dueDate
+      - caveats
+      title: DriverEvidence
+    DriverEvidenceScope:
+      properties:
+        fingerprint:
+          type: string
+          title: Fingerprint
+        slicing:
+          type: string
+          title: Slicing
+        attributes:
+          items:
+            type: string
+          type: array
+          title: Attributes
+        bands:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Bands
+        key:
+          items: {}
+          type: array
+          title: Key
+        view:
+          type: string
+          title: View
+        filter:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Filter
+        filtered:
+          type: boolean
+          title: Filtered
+        caseNoun:
+          type: string
+          title: Casenoun
+        fullCaseTableCases:
+          type: integer
+          minimum: 0.0
+          title: Fullcasetablecases
+        runCases:
+          type: integer
+          minimum: 0.0
+          title: Runcases
+        groupCases:
+          type: integer
+          minimum: 0.0
+          title: Groupcases
+        selectedCases:
+          type: integer
+          minimum: 0.0
+          title: Selectedcases
+        selectedEvents:
+          type: integer
+          minimum: 0.0
+          title: Selectedevents
+        population:
+          type: string
+          const: selected_cases
+          title: Population
+          default: selected_cases
+        ruleApplicabilityApplied:
+          type: boolean
+          const: false
+          title: Ruleapplicabilityapplied
+          default: false
+        viewAffectsMeasurements:
+          type: boolean
+          const: false
+          title: Viewaffectsmeasurements
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - fingerprint
+      - slicing
+      - attributes
+      - bands
+      - key
+      - view
+      - filter
+      - filtered
+      - caseNoun
+      - fullCaseTableCases
+      - runCases
+      - groupCases
+      - selectedCases
+      - selectedEvents
+      title: DriverEvidenceScope
+    DriverEvidenceSource:
+      properties:
+        projectId:
+          type: string
+          title: Projectid
+        runId:
+          type: string
+          title: Runid
+        caseTableId:
+          type: string
+          title: Casetableid
+        datasetId:
+          type: string
+          title: Datasetid
+        normVersionId:
+          type: string
+          title: Normversionid
+        normFingerprint:
+          type: string
+          title: Normfingerprint
+        contentHash:
+          type: string
+          title: Contenthash
+        selectionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionid
+        runScope:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Runscope
+        transformCount:
+          type: integer
+          minimum: 0.0
+          title: Transformcount
+      additionalProperties: false
+      type: object
+      required:
+      - projectId
+      - runId
+      - caseTableId
+      - datasetId
+      - normVersionId
+      - normFingerprint
+      - contentHash
+      - selectionId
+      - runScope
+      - transformCount
+      title: DriverEvidenceSource
+    EDAActivityRow:
+      properties:
+        activity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Activity
+        occurrences:
+          type: integer
+          title: Occurrences
+        cases:
+          type: integer
+          title: Cases
+        repeatedCases:
+          type: integer
+          title: Repeatedcases
+        zeroCases:
+          type: integer
+          title: Zerocases
+        presenceRate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Presencerate
+        repetitionRate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Repetitionrate
+      type: object
+      required:
+      - activity
+      - occurrences
+      - cases
+      - repeatedCases
+      - zeroCases
+      - presenceRate
+      - repetitionRate
+      title: EDAActivityRow
     EDACategory:
       properties:
         selected:
@@ -7526,6 +8434,67 @@ components:
       - pageSize
       - total
       title: EDADetails
+    EDAEndpointCoverage:
+      properties:
+        startActivity:
+          type: string
+          title: Startactivity
+        endActivity:
+          type: string
+          title: Endactivity
+        eligibleCases:
+          type: integer
+          title: Eligiblecases
+        pairedCases:
+          type: integer
+          title: Pairedcases
+        startOnlyCases:
+          type: integer
+          title: Startonlycases
+        endOnlyCases:
+          type: integer
+          title: Endonlycases
+        neitherCases:
+          type: integer
+          title: Neithercases
+        undatedEndpointCases:
+          type: integer
+          title: Undatedendpointcases
+        reversedCases:
+          type: integer
+          title: Reversedcases
+        ambiguousCases:
+          type: integer
+          title: Ambiguouscases
+        medianDays:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mediandays
+        p90Days:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: P90Days
+        rule:
+          type: string
+          title: Rule
+      type: object
+      required:
+      - startActivity
+      - endActivity
+      - eligibleCases
+      - pairedCases
+      - startOnlyCases
+      - endOnlyCases
+      - neitherCases
+      - undatedEndpointCases
+      - reversedCases
+      - ambiguousCases
+      - medianDays
+      - p90Days
+      - rule
+      title: EDAEndpointCoverage
     EDAEventBin:
       properties:
         selected:
@@ -7563,6 +8532,65 @@ components:
       - max
       - missing
       title: EDAEventBin
+    EDAEventEvidence:
+      properties:
+        eligibleCases:
+          type: integer
+          title: Eligiblecases
+        recordedEvents:
+          type: integer
+          title: Recordedevents
+        casesWithoutEvents:
+          type: integer
+          title: Caseswithoutevents
+        missingActivityEvents:
+          type: integer
+          title: Missingactivityevents
+        undatedEvents:
+          type: integer
+          title: Undatedevents
+        activityPage:
+          type: integer
+          title: Activitypage
+        activityPageSize:
+          type: integer
+          title: Activitypagesize
+        totalActivities:
+          type: integer
+          title: Totalactivities
+        activities:
+          items:
+            $ref: '#/components/schemas/EDAActivityRow'
+          type: array
+          title: Activities
+        endpoints:
+          anyOf:
+          - $ref: '#/components/schemas/EDAEndpointCoverage'
+          - type: 'null'
+        trace:
+          anyOf:
+          - $ref: '#/components/schemas/EDATrace'
+          - type: 'null'
+        notes:
+          items:
+            type: string
+          type: array
+          title: Notes
+      type: object
+      required:
+      - eligibleCases
+      - recordedEvents
+      - casesWithoutEvents
+      - missingActivityEvents
+      - undatedEvents
+      - activityPage
+      - activityPageSize
+      - totalActivities
+      - activities
+      - endpoints
+      - trace
+      - notes
+      title: EDAEventEvidence
     EDAEventRange:
       properties:
         min:
@@ -7611,13 +8639,19 @@ components:
             minLength: 1
           type: array
           maxItems: 22
-          minItems: 1
           title: Keys
+        values:
+          items:
+            type: string
+            maxLength: 4096
+            minLength: 1
+          type: array
+          maxItems: 50
+          title: Values
       additionalProperties: false
       type: object
       required:
       - field
-      - keys
       title: EDAFacetSelection
     EDAFieldProfile:
       properties:
@@ -7655,6 +8689,48 @@ components:
       - missing
       - numeric
       title: EDAFieldProfile
+    EDAHierarchy:
+      properties:
+        fields:
+          items:
+            type: string
+          type: array
+          title: Fields
+        cells:
+          items:
+            $ref: '#/components/schemas/EDAHierarchyCell'
+          type: array
+          title: Cells
+      type: object
+      required:
+      - fields
+      - cells
+      title: EDAHierarchy
+    EDAHierarchyCell:
+      properties:
+        selected:
+          type: integer
+          title: Selected
+        total:
+          type: integer
+          title: Total
+        keys:
+          items:
+            type: string
+          type: array
+          title: Keys
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+      type: object
+      required:
+      - selected
+      - total
+      - keys
+      - labels
+      title: EDAHierarchyCell
     EDAInsights:
       properties:
         compareAttribute:
@@ -7723,6 +8799,61 @@ components:
       - leftKey
       - rightKey
       title: EDAJointCell
+    EDAJointPredicate:
+      properties:
+        facets:
+          items:
+            $ref: '#/components/schemas/EDAFacetSelection'
+          type: array
+          maxItems: 3
+          minItems: 1
+          title: Facets
+      additionalProperties: false
+      type: object
+      required:
+      - facets
+      title: EDAJointPredicate
+    EDANumericFacet:
+      properties:
+        field:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Field
+        ranges:
+          items:
+            $ref: '#/components/schemas/EDANumericRange'
+          type: array
+          maxItems: 12
+          title: Ranges
+        missing:
+          type: boolean
+          title: Missing
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - field
+      title: EDANumericFacet
+    EDANumericRange:
+      properties:
+        min:
+          anyOf:
+          - type: string
+            maxLength: 80
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          - type: 'null'
+          title: Min
+        max:
+          anyOf:
+          - type: string
+            maxLength: 80
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          - type: 'null'
+          title: Max
+      additionalProperties: false
+      type: object
+      title: EDANumericRange
     EDANumericStats:
       properties:
         min:
@@ -7785,6 +8916,160 @@ components:
       - from
       - to
       title: EDAPeriod
+    EDARequest:
+      properties:
+        datasetId:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Datasetid
+        attribute:
+          anyOf:
+          - type: string
+            maxLength: 256
+          - type: 'null'
+          title: Attribute
+        insight:
+          type: boolean
+          title: Insight
+          default: false
+        compareAttribute:
+          anyOf:
+          - type: string
+            maxLength: 256
+            minLength: 1
+          - type: 'null'
+          title: Compareattribute
+        hierarchyFields:
+          anyOf:
+          - items:
+              type: string
+              maxLength: 256
+              minLength: 1
+            type: array
+            maxItems: 3
+            minItems: 3
+          - type: 'null'
+          title: Hierarchyfields
+        valueField:
+          anyOf:
+          - type: string
+            maxLength: 256
+            minLength: 1
+          - type: 'null'
+          title: Valuefield
+        valueSearch:
+          type: string
+          maxLength: 256
+          title: Valuesearch
+          default: ''
+        valuePage:
+          type: integer
+          maximum: 100000.0
+          minimum: 1.0
+          title: Valuepage
+          default: 1
+        eventInsight:
+          type: boolean
+          title: Eventinsight
+          default: false
+        activitySearch:
+          type: string
+          maxLength: 256
+          title: Activitysearch
+          default: ''
+        activityPage:
+          type: integer
+          maximum: 100000.0
+          minimum: 1.0
+          title: Activitypage
+          default: 1
+        endpointStart:
+          anyOf:
+          - type: string
+            maxLength: 4096
+            minLength: 1
+          - type: 'null'
+          title: Endpointstart
+        endpointEnd:
+          anyOf:
+          - type: string
+            maxLength: 4096
+            minLength: 1
+          - type: 'null'
+          title: Endpointend
+        traceCaseId:
+          anyOf:
+          - type: string
+            maxLength: 4096
+            minLength: 1
+          - type: 'null'
+          title: Tracecaseid
+        tracePage:
+          type: integer
+          maximum: 10000000.0
+          minimum: 1.0
+          title: Tracepage
+          default: 1
+        filter:
+          anyOf:
+          - type: string
+            maxLength: 8192
+          - type: 'null'
+          title: Filter
+        selection:
+          anyOf:
+          - type: string
+            maxLength: 131072
+            minLength: 2
+          - type: 'null'
+          title: Selection
+          description: 'JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected.'
+        categoryMode:
+          anyOf:
+          - type: string
+            enum:
+            - missing
+            - other
+          - type: 'null'
+          title: Categorymode
+        timeMissing:
+          type: boolean
+          title: Timemissing
+          default: false
+        spanMissing:
+          type: boolean
+          title: Spanmissing
+          default: false
+        spanMin:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Spanmin
+        spanMax:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Spanmax
+        page:
+          type: integer
+          maximum: 10000000.0
+          minimum: 1.0
+          title: Page
+          default: 1
+        pageSize:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Pagesize
+          default: 25
+      additionalProperties: false
+      type: object
+      required:
+      - datasetId
+      title: EDARequest
     EDAResponse:
       properties:
         datasetId:
@@ -7839,6 +9124,18 @@ components:
         insights:
           anyOf:
           - $ref: '#/components/schemas/EDAInsights'
+          - type: 'null'
+        values:
+          anyOf:
+          - $ref: '#/components/schemas/EDAValuePage'
+          - type: 'null'
+        hierarchy:
+          anyOf:
+          - $ref: '#/components/schemas/EDAHierarchy'
+          - type: 'null'
+        eventEvidence:
+          anyOf:
+          - $ref: '#/components/schemas/EDAEventEvidence'
           - type: 'null'
       type: object
       required:
@@ -7906,6 +9203,24 @@ components:
             minItems: 1
           - type: 'null'
           title: Facets
+        numericFacets:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/EDANumericFacet'
+            type: array
+            maxItems: 16
+            minItems: 1
+          - type: 'null'
+          title: Numericfacets
+        jointAny:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/EDAJointPredicate'
+            type: array
+            maxItems: 24
+            minItems: 1
+          - type: 'null'
+          title: Jointany
         eventRanges:
           anyOf:
           - items:
@@ -8078,6 +9393,138 @@ components:
       additionalProperties: false
       type: object
       title: EDATimeRange
+    EDATrace:
+      properties:
+        caseId:
+          type: string
+          title: Caseid
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        total:
+          type: integer
+          title: Total
+        undatedEvents:
+          type: integer
+          title: Undatedevents
+        events:
+          items:
+            $ref: '#/components/schemas/EDATraceEvent'
+          type: array
+          title: Events
+        endpointStatus:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Endpointstatus
+        endpointDays:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Endpointdays
+      type: object
+      required:
+      - caseId
+      - page
+      - pageSize
+      - total
+      - undatedEvents
+      - events
+      - endpointStatus
+      - endpointDays
+      title: EDATrace
+    EDATraceEvent:
+      properties:
+        position:
+          type: integer
+          title: Position
+        activity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Activity
+        timestamp:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timestamp
+        lifecycle:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lifecycle
+        resource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource
+        timestampTied:
+          type: boolean
+          title: Timestamptied
+      type: object
+      required:
+      - position
+      - activity
+      - timestamp
+      - lifecycle
+      - resource
+      - timestampTied
+      title: EDATraceEvent
+    EDAValue:
+      properties:
+        selected:
+          type: integer
+          title: Selected
+        total:
+          type: integer
+          title: Total
+        value:
+          type: string
+          title: Value
+        selectable:
+          type: boolean
+          title: Selectable
+      type: object
+      required:
+      - selected
+      - total
+      - value
+      - selectable
+      title: EDAValue
+    EDAValuePage:
+      properties:
+        field:
+          type: string
+          title: Field
+        query:
+          type: string
+          title: Query
+        page:
+          type: integer
+          title: Page
+        pageSize:
+          type: integer
+          title: Pagesize
+        totalValues:
+          type: integer
+          title: Totalvalues
+        rows:
+          items:
+            $ref: '#/components/schemas/EDAValue'
+          type: array
+          title: Rows
+      type: object
+      required:
+      - field
+      - query
+      - page
+      - pageSize
+      - totalValues
+      - rows
+      title: EDAValuePage
     FacetValue:
       properties:
         value:
@@ -10139,6 +11586,136 @@ components:
       required:
       - caseTableId
       title: NormCheckRequest
+    NormConstraintPreview:
+      properties:
+        normVersionId:
+          type: string
+          title: Normversionid
+        caseTableId:
+          type: string
+          title: Casetableid
+        constraintId:
+          type: string
+          title: Constraintid
+        scope:
+          $ref: '#/components/schemas/NormEvidenceScope'
+        saved:
+          $ref: '#/components/schemas/NormRulePreview'
+        proposed:
+          $ref: '#/components/schemas/NormRulePreview'
+      type: object
+      required:
+      - normVersionId
+      - caseTableId
+      - constraintId
+      - scope
+      - saved
+      - proposed
+      title: NormConstraintPreview
+    NormEvidenceScope:
+      properties:
+        kind:
+          type: string
+          enum:
+          - all_cases
+          - saved_selection
+          title: Kind
+          default: all_cases
+        selectionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionid
+        selectionName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionname
+        membershipChecksum:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Membershipchecksum
+      type: object
+      title: NormEvidenceScope
+    NormPreviewCounts:
+      properties:
+        populationCases:
+          type: integer
+          minimum: 0.0
+          title: Populationcases
+        applicableCases:
+          type: integer
+          minimum: 0.0
+          title: Applicablecases
+        evaluatedCases:
+          type: integer
+          minimum: 0.0
+          title: Evaluatedcases
+        unknownCases:
+          type: integer
+          minimum: 0.0
+          title: Unknowncases
+        violatingCases:
+          type: integer
+          minimum: 0.0
+          title: Violatingcases
+        violationShare:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Violationshare
+        meanPenalty:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Meanpenalty
+        observedCases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Observedcases
+          description: Finite native signals; null when no native signal is supported
+        missingSignalCases:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Missingsignalcases
+      type: object
+      required:
+      - populationCases
+      - applicableCases
+      - evaluatedCases
+      - unknownCases
+      - violatingCases
+      title: NormPreviewCounts
+    NormPreviewRequest:
+      properties:
+        caseTableId:
+          type: string
+          title: Casetableid
+        selectionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Selectionid
+        constraint:
+          additionalProperties: true
+          type: object
+          title: Constraint
+        scale:
+          type: string
+          enum:
+          - linear
+          - log
+          title: Scale
+          default: linear
+      additionalProperties: false
+      type: object
+      required:
+      - caseTableId
+      - constraint
+      title: NormPreviewRequest
     NormRelevance:
       properties:
         normVersionId:
@@ -10147,11 +11724,13 @@ components:
         caseTableId:
           type: string
           title: Casetableid
+        scope:
+          $ref: '#/components/schemas/NormEvidenceScope'
         cases:
           type: integer
           minimum: 0.0
           title: Cases
-          description: Total cases in the explicit mapped table
+          description: Total cases in the explicit evidence population
         constraints:
           items:
             $ref: '#/components/schemas/NormRelevanceConstraint'
@@ -10188,7 +11767,7 @@ components:
             type: string
           type: array
           title: Missingactivities
-          description: Referenced raw activity labels with zero occurrences in the whole mapped table
+          description: Referenced raw activity labels with zero occurrences in the evidence population
         issues:
           items:
             type: string
@@ -10203,6 +11782,23 @@ components:
       - issues
       title: NormRelevanceConstraint
       description: Descriptive applicability and activity presence; neither violations nor compliance.
+    NormRulePreview:
+      properties:
+        counts:
+          $ref: '#/components/schemas/NormPreviewCounts'
+        distribution:
+          anyOf:
+          - $ref: '#/components/schemas/Distribution'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - counts
+      title: NormRulePreview
     NormSignalDistribution:
       properties:
         unit:
@@ -10320,6 +11916,8 @@ components:
         caseTableId:
           type: string
           title: Casetableid
+        scope:
+          $ref: '#/components/schemas/NormEvidenceScope'
       type: object
       required:
       - constraintId
@@ -10492,7 +12090,7 @@ components:
             type: string
           type: array
           title: Missingactivities
-          description: Referenced raw activity labels with zero occurrences in the whole mapped table
+          description: Referenced raw activity labels with zero occurrences in the evidence population
         issues:
           items:
             type: string
@@ -12228,6 +13826,101 @@ components:
           title: Author
       type: object
       title: SnapshotUpdate
+    SolutionCard:
+      properties:
+        id:
+          type: string
+          title: Id
+        version:
+          type: integer
+          minimum: 1.0
+          title: Version
+        title:
+          type: string
+          title: Title
+        intent:
+          type: string
+          title: Intent
+        hubNode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hubnode
+        process:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Process
+        blocks:
+          items:
+            $ref: '#/components/schemas/SolutionCardBlock'
+          type: array
+          title: Blocks
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - version
+      - title
+      - intent
+      - hubNode
+      - process
+      - blocks
+      title: SolutionCard
+    SolutionCardBlock:
+      properties:
+        id:
+          type: string
+          title: Id
+        kind:
+          type: string
+          enum:
+          - activity_coverage
+          - endpoint_duration
+          - end_day_of_month
+          - due_date_lead
+          title: Kind
+        title:
+          type: string
+          title: Title
+        question:
+          type: string
+          title: Question
+        requires:
+          items:
+            type: string
+          type: array
+          title: Requires
+        calculation:
+          type: string
+          title: Calculation
+        presentation:
+          type: string
+          enum:
+          - coverage
+          - summary
+          - day_bars
+          - availability
+          title: Presentation
+        missingData:
+          type: string
+          title: Missingdata
+        interpretation:
+          type: string
+          title: Interpretation
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - kind
+      - title
+      - question
+      - requires
+      - calculation
+      - presentation
+      - missingData
+      - interpretation
+      title: SolutionCardBlock
     Table:
       properties:
         columns:

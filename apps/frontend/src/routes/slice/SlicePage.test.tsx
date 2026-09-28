@@ -32,6 +32,11 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     const counts = await screen.findByTestId("gate-selection-counts", {}, T);
     expect(counts).toHaveTextContent("Selected purchase order items: 1 of 2 in the whole group. Checks use this exact selection.");
     expect(screen.getByTestId("trust-scope-note")).toHaveTextContent("Caveats and diagnostic numbers describe the whole group");
+    await userEvent.click(screen.getByText("The four numbers"));
+    expect(screen.getByText("shortfall kept after removing recent-unclosed flagged cases")).toBeVisible();
+    expect(screen.getByText("shortfall per case among cases not flagged recent-unclosed")).toBeVisible();
+    expect(screen.getByText(/WISE’s legacy flag: no configured closure observed/)).toHaveTextContent("Not flagged does not mean closed");
+
     expect(requests).toEqual([filter]);
     expect(screen.getByTestId("gate-selected-trust")).toHaveAttribute("data-gate-status", "passed");
     expect(screen.getByTestId("hypothesis-selection-notice")).toHaveTextContent("Hypotheses use whole-group checks");
@@ -115,18 +120,18 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     // the company every group shares is dropped from the name; the kind and the confidence sit once at the right
     await screen.findByRole("heading", { level: 1, name: /^Packaging\b/ }, T);
     const sentence = screen.getByTestId("why-sentence");
-    expect(sentence).toHaveTextContent(/^109,199 purchase order items · 0\.9 % below expectation · invoices cleared late in 97\s?% of them; the shortfall is 93\s?% this one expectation\.$/);
+    expect(sentence).toHaveTextContent(/^Whole group: 109,199 purchase order items · 0\.9 % below expectation · invoices cleared late in 97\s?% of them; the shortfall is 93\s?% this one expectation\.$/);
     // the card and the Why screen print one bracket, and it is the difference of the two numbers (R3-04)
-    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
+    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Whole-group comparison: Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
     expect(screen.getAllByText(/confidence high/).length).toBe(1);
-    // the compact strip: priority, rank, average met with everyone, one caveat
+    // the compact strip: priority, rank, weighted WISE score with everyone, one caveat
     const strip = screen.getByTestId("why-strip");
-    expect(strip).toHaveTextContent(/priority946/);
-    // one run, one population: the rank counts the groups the ranked list ranks, not a second population
-    // the row was scored under (R3-09)
-    expect(strip).toHaveTextContent(/rank1 of 23/);
-    expect(strip).toHaveTextContent(/average met84\s?% \(everyone 84\s?%\)/);
-    expect(within(strip).getByRole("list", { name: "Data caveats for this group" })).toHaveTextContent(/14\s?%.*still open/);
+    expect(strip).toHaveTextContent(/priority · whole group946/);
+    // A direct Why URL uses the saved run minimum (1); links from a list preserve its explicit minimum.
+    expect(strip).toHaveTextContent(/rank · whole group1 of 30/);
+    expect(strip).toHaveTextContent("Groups with at least 1 purchase order items");
+    expect(strip).toHaveTextContent(/Mean WISE score \(0–100\) · whole group83\.6 \(everyone 84\.4\)/);
+    expect(within(strip).getByRole("list", { name: "Data caveats for this group" })).toHaveTextContent(/14\s?%.*recent-unclosed diagnostic/);
     // six one-word tabs, Why first and selected
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Why", "Compared", "Flow", "Cases", "Data trust", "Gain"]);

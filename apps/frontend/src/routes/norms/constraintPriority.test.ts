@@ -24,7 +24,24 @@ describe("guided evidence ordering", () => {
   });
   it("keeps absence rules available for manual inspection when their referenced event is not observed", () => {
     const noPay = row("no-pay", { observedCases: 0, missingActivities: ["Pay"] });
-    expect(constraintPriority(noPay).label).toBe("0% observed activity coverage");
+    expect(constraintPriority(noPay).label).toBe("No referenced activities observed");
     expect(noPay).not.toHaveProperty("passed");
   });
+});
+
+
+it("keeps unknown applicability separate even when activity observations are zero or missing", () => {
+  const unknown = row("unknown", { casesInScope: null, observedCases: 0, missingActivities: ["Pay"] });
+  expect(constraintPriority(unknown)).toEqual({ tier: 1, deferred: false, label: "Applicability unknown" });
+  expect(constraintPriority(row("failed", { observedCases: 0, issues: ["Could not read activity scope"] }))).toEqual({ tier: 1, deferred: false, label: "Data issues to review" });
+  expect(constraintPriority(row("attribute", { observedCases: null })).label).toBe("Activity coverage unavailable");
+  expect(unknown).toEqual(row("unknown", { casesInScope: null, observedCases: 0, missingActivities: ["Pay"] }));
+});
+
+
+it("never treats an OR activity count covering every case as complete measurement evidence", () => {
+  const partial = row("lag", { casesInScope: 100, observedCases: 100, missingActivities: ["Pay"] });
+  expect(constraintPriority(partial)).toEqual({ tier: 2, deferred: true, label: "Some referenced activities not observed" });
+  expect(partial.observedCases).toBe(100);
+  expect(partial.missingActivities).toEqual(["Pay"]);
 });

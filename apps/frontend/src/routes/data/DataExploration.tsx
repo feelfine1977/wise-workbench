@@ -24,6 +24,7 @@ import {
   type EDAPeriod,
   type EDASpan,
   type EDACategory,
+  type EDAJointPredicate,
 } from "@/lib/api/eda";
 import { fmtDays, fmtInt, fmtShare } from "@/lib/format";
 import type { ExplorationPage } from "@/app/search";
@@ -36,11 +37,15 @@ import {
   type AnalysisDraft,
   type PeriodSelection,
   type SpanSelection,
+  type ContextChoice,
 } from "@/lib/stores/analysisSelection";
 import { LinkedBars, LinkedDensity } from "./insights/LinkedCharts";
 import { ConcentrationPlot } from "./insights/ConcentrationPlot";
 import { ContextGraph } from "./insights/ContextGraph";
 import { DataAtlas } from "./insights/DataAtlas";
+import { ExactValues, NumericRangeControl, ContextHierarchy } from "./insights/ExplorationControls";
+import { numericLabel, jointLabel, contextPath } from "./insights/selectionHelpers";
+import { EventEvidence } from "./insights/EventEvidence";
 import "./insights/exploration.css";
 
 export interface DataExplorationProps {
@@ -151,6 +156,8 @@ function Exploration({
   };
   const [compareAttribute, setCompareAttribute] = useState<string>();
   const [page, setPage] = useState(1);
+  const [pairUnion, setPairUnion] = useState(false);
+  const [traceCaseId, setTraceCaseId] = useState<string>();
   const [editor, setEditor] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [error, setError] = useState("");
@@ -158,21 +165,25 @@ function Exploration({
   const [undo, setUndo] = useState<AnalysisDraft>();
   const selection = draftSelection(draft);
   const hasSelection = Object.keys(selection).length > 0;
+  const selectionJSON = hasSelection ? JSON.stringify(selection) : undefined;
+  const explorerScope = { projectId, datasetId, caseTableId, attribute: draft.attribute, selection: selectionJSON };
+  useEffect(() => { setTraceCaseId(undefined); }, [selectionJSON]);
   const query = useQuery(
-    edaQuery(projectId, caseTableId, {
+    { ...edaQuery(projectId, caseTableId, {
       datasetId,
       attribute: draft.attribute,
       compareAttribute,
       insight: true,
       page,
       selection: hasSelection ? JSON.stringify(selection) : undefined,
-    }),
+    }), placeholderData: (previous) => previous },
   );
   const data = query.isError ? undefined : query.data;
+  const isCurrent = Boolean(data) && !query.isPlaceholderData;
   const insights = data?.insights;
   // Display labels may be absent in a saved recipe; resolve them without changing membership.
   useEffect(() => {
-    if (!insights) return;
+    if (!insights || !isCurrent) return;
     const current = useAnalysisSelection.getState().entries[key]?.draft;
     if (!current?.facets?.length) return;
     const facets = current.facets.map((f) => ({
@@ -187,11 +198,11 @@ function Exploration({
     }));
     if (JSON.stringify(facets) !== JSON.stringify(current.facets))
       useAnalysisSelection.getState().update(key, { ...current, facets });
-  }, [insights, key]);
+  }, [insights, key, isCurrent]);
   const results = useRef<HTMLDivElement>(null);
   const focusAfterLoad = useRef<{ chart: string; key: string } | null>(null);
   useLayoutEffect(() => {
-    if (!data || !focusAfterLoad.current) return;
+    if (!data || !isCurrent || !focusAfterLoad.current) return;
     const target = focusAfterLoad.current;
     focusAfterLoad.current = null;
     if (document.activeElement !== document.body) return;
@@ -204,17 +215,17 @@ function Exploration({
         el.closest("svg")?.getAttribute("aria-label") === target.chart,
     );
     match?.focus({ preventScroll: true });
-  }, [data]);
+  }, [data, isCurrent]);
   const [height, setHeight] = useState(0);
   useLayoutEffect(() => {
-    if (!data || !results.current) return;
+    if (!data || !isCurrent || !results.current) return;
     const el = results.current;
     const measure = () => setHeight(el.getBoundingClientRect().height);
     measure();
     const obs = new ResizeObserver(measure);
     obs.observe(el);
     return () => obs.disconnect();
-  }, [data, mode]);
+  }, [data, mode, isCurrent]);
   const update = (changes: Partial<AnalysisDraft>) => {
     const current =
       useAnalysisSelection.getState().entries[key]?.draft ?? emptyAnalysisDraft;
@@ -253,7 +264,7 @@ function Exploration({
       ?.choices.map((c) => c.key) ?? []),
     ...(draft.attribute === field ? draft.categories.map((c) => c.key) : []),
   ];
-  const setFacet = (field: string, choices: { key: string; label: string }[]) =>
+  const setFacet = (field: string, choices: ContextChoice[]) =>
     update({
       categories: [],
       facets: [
@@ -269,10 +280,25 @@ function Exploration({
         label: row.label,
       }),
     );
+  const toggleJoint = (branch: EDAJointPredicate) => {
+    const previous = draft.jointAny ?? [];
+    const encoded = JSON.stringify(branch);
+    const exists = previous.some((b) => JSON.stringify(b) === encoded);
+    if (!exists && previous.length >= 24) { setError("A context union supports up to 24 paths. Remove a path first."); return; }
+    const fields = branch.facets.map((f) => f.field);
+    update({
+      ...(exists ? {} : { categories: [], facets: facets().filter((f) => !fields.includes(f.field)) }),
+      jointAny: exists ? previous.filter((b) => JSON.stringify(b) !== encoded) : [...previous, branch],
+    });
+  };
   const pair = (leftKey: string, rightKey: string) => {
     const left = data?.attribute;
     const right = insights?.compareAttribute;
     if (!left || !right) return;
+    if (pairUnion || draft.jointAny?.length) {
+      toggleJoint(contextPath([left, right], [leftKey, rightKey], [insights?.facets.find((f) => f.field === left)?.categories.find((r) => r.key === leftKey)?.label ?? leftKey, insights?.facets.find((f) => f.field === right)?.categories.find((r) => r.key === rightKey)?.label ?? rightKey]));
+      return;
+    }
     const label = (f: string, k: string) =>
       insights?.facets
         .find((x) => x.field === f)
@@ -408,45 +434,84 @@ function Exploration({
     <section className="eda-workspace" aria-label="Explore dataset">
       <header className="eda-heading">
         <div>
-          <p className="eda-eyebrow">UNDERSTAND / EXPLORE</p>
-          <h2>Make sense of your event log.</h2>
-          <p>
-            Start with the structure. Follow a pattern. Keep the evidence
-            connected.
-          </p>
+          <h2>Explore your event log</h2>
+          <p>{pages.find((p) => p.key === mode)?.question}</p>
         </div>
-        <span className="eda-pill">Live data · no norm needed</span>
+        <details className="eda-explore-help">
+          <summary>How to explore</summary>
+          <div>
+            <p>Start with the structure, follow a pattern, then inspect its records. No Process norm is needed.</p>
+            <ul>{pages.map((p) => <li key={p.key}><strong>{p.name}:</strong> {p.question}</li>)}</ul>
+            <p>One selection follows all four pages. Values within a field combine; different fields intersect.</p>
+          </div>
+        </details>
       </header>
       <nav className="eda-pages" aria-label="Exploration pages">
-        {pages.map((p, i) => (
+        {pages.map((p) => (
           <button
             key={p.key}
+            type="button"
+            title={p.question}
             aria-current={mode === p.key ? "page" : undefined}
             className={mode === p.key ? "active" : ""}
             onClick={() => changePage(p.key)}
           >
-            <span className="eda-page-index">0{i + 1}</span>
-            <p.icon size={18} aria-hidden />
-            <span>
-              <strong>{p.name}</strong>
-              <small>{p.question}</small>
-            </span>
+            <p.icon size={16} aria-hidden />
+            <strong>{p.name}</strong>
           </button>
         ))}
       </nav>
+      <section aria-label="Selected population summary" aria-busy={!isCurrent && !query.isError}>
+        {data && <div hidden={!isCurrent}>
+            <div className="eda-metrics">
+              <div>
+                <small>SELECTED CASES</small>
+                <strong>{fmtInt(n)}</strong>
+                <span>
+                  {total ? fmtShare(n / total) : "—"} of prepared cases
+                </span>
+              </div>
+              <div>
+                <small>RECORDED EVENTS</small>
+                <strong>
+                  {n > 0 && unknownEvents === n
+                    ? "Unknown"
+                    : fmtInt(data.summary.events.selected)}
+                </strong>
+                <span>
+                  {unknownEvents
+                    ? `Known-count sum · ${fmtInt(unknownEvents)} cases have unknown event counts`
+                    : "Within selected cases"}
+                </span>
+              </div>
+              <div>
+                <small>MEDIAN RECORDED SPAN</small>
+                <strong>{days(data.summary.medianSpanDays)}</strong>
+                <span>{fmtInt(data.summary.knownSpanCases)} known spans</span>
+              </div>
+              <div>
+                <small>90TH PERCENTILE SPAN</small>
+                <strong>{days(data.summary.p90SpanDays)}</strong>
+                <span>
+                  {fmtInt(data.summary.unknownSpanCases)} unknown spans
+                </span>
+              </div>
+            </div>
+        </div>}
+        {!isCurrent && <p role="status" className="text-sm text-text-muted">{query.isError ? "Population summary unavailable for this selection." : "Updating selected-population summary…"}</p>}
+      </section>
       <div className="eda-scope" aria-label="Shared analysis selection">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <strong role="status" aria-live="polite">
-              {data
+              {isCurrent
                 ? `${fmtInt(n)} of ${fmtInt(total)} cases selected`
                 : query.isError
                   ? "Selection could not be evaluated"
                   : "Updating selection…"}
             </strong>
             <p className="text-xs text-text-muted">
-              One selection across all four pages. Values within a field
-              combine; different fields intersect.
+              All charts use this selection. Change pages without losing filters.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -518,6 +583,8 @@ function Exploration({
                 () => setFacet(f.field, []),
               ),
             )}
+            {draft.numericFacets?.map((f) => chip(`numeric:${f.field}`, numericLabel(f), () => update({ numericFacets: draft.numericFacets?.filter((v) => v.field !== f.field) })))}
+            {draft.jointAny?.map((b, i) => chip(`joint:${i}`, `OR path ${i + 1}: ${jointLabel(b)}`, () => update({ jointAny: draft.jointAny?.filter((_, index) => index !== i) })))}
             {draft.periods.map((r) =>
               chip(`time:${r.key}`, `First recorded: ${r.label}`, () =>
                 update({
@@ -659,7 +726,7 @@ function Exploration({
               projectId={projectId}
               datasetId={datasetId}
               caseTableId={caseTableId}
-              selectedCases={data?.summary.cases.selected ?? 0}
+              selectedCases={isCurrent ? data?.summary.cases.selected : 0}
             />
           </div>
         )}
@@ -669,9 +736,9 @@ function Exploration({
         aria-label="Exploration results"
         role="region"
         aria-busy={query.isPending || query.isFetching}
-        style={{ minHeight: !data && height ? height : undefined }}
+        style={{ minHeight: !isCurrent && height ? height : undefined }}
       >
-        {query.isPending && (
+        {(query.isPending || query.isPlaceholderData) && (
           <>
             <p role="status">
               Updating all charts and case details for this selection…
@@ -683,41 +750,7 @@ function Exploration({
           <ErrorBlock error={query.error} retry={() => void query.refetch()} />
         )}
         {data && (
-          <>
-            <div className="eda-metrics">
-              <div>
-                <small>SELECTED CASES</small>
-                <strong>{fmtInt(n)}</strong>
-                <span>
-                  {total ? fmtShare(n / total) : "—"} of prepared cases
-                </span>
-              </div>
-              <div>
-                <small>RECORDED EVENTS</small>
-                <strong>
-                  {n > 0 && unknownEvents === n
-                    ? "Unknown"
-                    : fmtInt(data.summary.events.selected)}
-                </strong>
-                <span>
-                  {unknownEvents
-                    ? `Known-count sum · ${fmtInt(unknownEvents)} cases have unknown event counts`
-                    : "Within selected cases"}
-                </span>
-              </div>
-              <div>
-                <small>MEDIAN RECORDED SPAN</small>
-                <strong>{days(data.summary.medianSpanDays)}</strong>
-                <span>{fmtInt(data.summary.knownSpanCases)} known spans</span>
-              </div>
-              <div>
-                <small>90TH PERCENTILE SPAN</small>
-                <strong>{days(data.summary.p90SpanDays)}</strong>
-                <span>
-                  {fmtInt(data.summary.unknownSpanCases)} unknown spans
-                </span>
-              </div>
-            </div>
+          <div hidden={!isCurrent}>
             {n === 0 && (
               <div className="eda-empty">
                 <strong>No cases match this selection</strong>
@@ -940,6 +973,8 @@ function Exploration({
                           if (r) selectCategory(f.field, r);
                         }}
                       />
+                      <ExactValues scope={explorerScope} field={f.field} choices={facets().find((v) => v.field === f.field)?.choices ?? []} onChange={(choices) => setFacet(f.field, choices)} />
+                      {insights?.fields.find((v) => v.name === f.field)?.numeric && <NumericRangeControl field={f.field} dataType={insights.fields.find((v) => v.name === f.field)!.dataType} current={draft.numericFacets?.find((v) => v.field === f.field)} onChange={(next) => update({ numericFacets: [...(draft.numericFacets ?? []).filter((v) => v.field !== f.field), ...(next ? [next] : [])] })} />}
                     </Cell>
                   ))}
                 </div>
@@ -950,6 +985,8 @@ function Exploration({
                       title="How are contexts connected?"
                       intro="Follow the same cases across two attributes. This is membership, not a sequence of process activities."
                     >
+                      <label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={pairUnion || Boolean(draft.jointAny?.length)} onChange={(e) => setPairUnion(e.target.checked)} disabled={Boolean(draft.jointAny?.length)} /> Combine exact pairs with OR</label>
+                      <p className="eda-note">{pairUnion || draft.jointAny?.length ? "Each selected connection is one complete pair. Different pairs join with OR, retaining unrelated filters. Remove OR-path chips to clear the union." : "Select one exact pair, or enable OR to retain several separate pairs without introducing cross-combinations."}</p>
                       <div className="overflow-x-auto">
                         <ContextGraph
                           left={insights.facets[0]!.categories}
@@ -962,6 +999,12 @@ function Exploration({
                       </div>
                     </Cell>
                   )}
+                <div className="eda-cell">
+                  <h3>Keep separate combinations together</h3>
+                  <p className="eda-caption">Move one to three active context field filters into a single OR path. This also supports exact values found through search. Add another combination to expand the union; numeric and date restrictions still apply.</p>
+                  <Button variant="outline" disabled={facets().length < 1 || facets().length > 3 || (draft.jointAny?.length ?? 0) >= 24} onClick={() => toggleJoint({ facets: facets().map((f) => ({ field: f.field, keys: f.choices.filter((c) => c.value === undefined && (c.key === "other" || c.key === "missing")).map((c) => c.key), ...(f.choices.some((c) => c.value !== undefined || (c.key !== "other" && c.key !== "missing")) ? { values: f.choices.flatMap((c) => c.value !== undefined ? [c.value] : c.key === "other" || c.key === "missing" ? [] : [c.label]) } : {}) })) })}>Keep field filters as one OR path</Button>
+                </div>
+                <ContextHierarchy scope={explorerScope} attributes={data.attributes} branches={draft.jointAny ?? []} onToggle={toggleJoint} />
                 {insights && (
                   <Cell
                     title="Where are the longer recorded spans concentrated?"
@@ -1066,7 +1109,7 @@ function Exploration({
                     <tbody>
                       {data.details.rows.map((r) => (
                         <tr key={r.caseId}>
-                          <Td className="font-mono text-xs">{r.caseId}</Td>
+                          <Td className="font-mono text-xs"><button className="text-accent-text underline" aria-label={`Inspect event trace for ${r.caseId}`} onClick={() => setTraceCaseId(r.caseId)}>{r.caseId}</button></Td>
                           <Td>{r.category ?? "Unknown"}</Td>
                           <Td numeric>
                             {r.events === null ? "Unknown" : fmtInt(r.events)}
@@ -1130,6 +1173,7 @@ function Exploration({
                 </div>
               </Cell>
             )}
+            {(mode === "evidence" || mode === "time") && <EventEvidence scope={explorerScope} traceCaseId={traceCaseId} onCloseTrace={() => setTraceCaseId(undefined)} />}
             {!insights && (
               <p className="eda-note">
                 Detailed profiles are unavailable for this response. Time,
@@ -1167,7 +1211,7 @@ function Exploration({
                 ))}
               </ul>
             </details>
-          </>
+          </div>
         )}
       </div>
     </section>

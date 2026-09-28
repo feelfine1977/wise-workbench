@@ -3,6 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { expectNoSeriousA11yViolations, renderApp } from "@/test/utils";
 import { currentStep } from "./Stepper";
+import { http, HttpResponse } from "msw";
+import { db } from "@/mocks/db";
+import { server } from "@/mocks/node";
+import { bindProjectDataset } from "@/lib/api/projectBinding";
+import { useNavStore } from "@/lib/stores/nav";
 import { parseSearch } from "../search";
 
 const T = { timeout: 8000 };
@@ -21,10 +26,24 @@ describe("the analysis path (R2-O6)", () => {
   });
 
   it("maps sub-screens onto the step they were opened from", () => {
-    expect(currentStep("/p/x/norms/nv_7", "/p/x/runs/run_41/slices/k")).toBe("why");
+    expect(currentStep("/p/x/norms/nv_7", "/p/x/runs/run_41/slices/k", { tab: "constraints", constraint: "payment" })).toBe("why");
     expect(currentStep("/p/x/norms/nv_7", "/p/x/runs/run_41/backlog")).toBe("norm");
     expect(currentStep("/p/x/notebook", "/p/x/runs/run_41/slices/k")).toBe("why");
     expect(currentStep("/p/x/notebook")).toBeUndefined();
+  });
+
+  it("uses the norm page for guided and structural work even with a remembered group or constraint", () => {
+    const norm = "/p/x/norms/nv_7";
+    const why = "/p/x/runs/run_41/slices/k";
+    for (const origin of [why, `${why}/act`]) {
+      for (const tab of ["guide", "structure", "map", "review", "history", "json"]) {
+        expect(currentStep(norm, origin, { tab, constraint: "payment" })).toBe("norm");
+      }
+      expect(currentStep(norm, origin, { tab: "constraints" })).toBe("norm");
+      expect(currentStep(norm, origin)).toBe("norm");
+    }
+    expect(currentStep(norm, `${why}/act`, { tab: "constraints", constraint: "payment" })).toBe("norm");
+    expect(currentStep(norm, why, { constraint: "payment" })).toBe("why");
   });
 
   it("preserves an explicit invalid filter when navigating to process questions and flow", async () => {
@@ -57,7 +76,7 @@ describe("the analysis path (R2-O6)", () => {
     await user.click(within(stepper).getByRole("button", { name: "All stages of your journey" }));
     const journey = await screen.findByRole("list", { name: "All stages" });
     const readiness = journey.querySelector('[data-stage="data"]') as HTMLElement;
-    expect(readiness).toHaveTextContent(/Review \d+ data caveats on the readiness page before interpreting results\./);
+    expect(readiness).toHaveTextContent(/\d+ blocking issues? · \d+ warnings?\. Review data checks before interpreting results\./);
     expect(readiness).not.toHaveTextContent(/578 events|180,913|93\.1%|outside the observation window|exact duplicates/);
     expect(within(journey).getAllByRole("listitem").map((item) => item.getAttribute("data-stage"))).toEqual(["goal", "data", "context", "norm", "weights", "run", "explore", "why", "act", "pilot", "follow_up"]);
     expect(journey).not.toHaveTextContent(/\bS\d+\b|increment|twelve stages|\bv\d+\b|gated/i);
@@ -97,6 +116,48 @@ describe("the analysis path (R2-O6)", () => {
     await user.click(screen.getByTestId("back-control"));
     await screen.findByRole("list", { name: "Signals" }, T);
     expect(screen.getByRole("list", { name: "Active filters" })).toHaveTextContent(/widespread/);
+  });
+
+  it("Act → Process norm selects Define without discarding the saved assessment or exact group return", async () => {
+    await bindProjectDataset("p2p2018", "ds_1");
+    const run = { ...db.runs.find(r => r.id === "run_41")!, scope: { selection_id: "recorded-cohort" } };
+    server.use(
+      http.get("*/api/v1/projects/p2p2018/runs", () => HttpResponse.json([run])),
+      http.get("*/api/v1/projects/p2p2018/runs/run_41", () => HttpResponse.json(run)),
+      http.get("*/api/v1/projects/p2p2018/case-tables/:caseTableId/selections", () => HttpResponse.json([
+        { id: "recorded-cohort", caseTableId: run.caseTableId, datasetId: "ds_1", name: "Recorded cohort", cases: 12, selection: null, createdAt: "2026-09-27" },
+      ])),
+    );
+    const groupPath = `/p/p2p2018/runs/run_41/slices/${encodeURIComponent('["companyID_0000", "Packaging"]')}`;
+    const query = `slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=1`;
+    const origin = `${groupPath}/act?${query}`;
+    useNavStore.getState().setLastSlice(`${groupPath}?${query}&tab=why`, "Packaging");
+    const user = userEvent.setup();
+    renderApp(origin);
+    await screen.findByTestId("act-reading", {}, T);
+    const stepper = screen.getByRole("navigation", { name: "Analysis path" });
+    expect(stepper.querySelector('[data-step="act"]')).toHaveAttribute("aria-current", "step");
+    const normLink = within(stepper).getByRole("link", { name: "Process norm" });
+    await waitFor(() => {
+      const url = new URL(normLink.getAttribute("href")!, "http://localhost");
+      expect(url.pathname).toBe(`/p/p2p2018/norms/${run.normVersionId}`);
+      expect(Object.fromEntries(url.searchParams)).toEqual({ caseTable: run.caseTableId, selection: "recorded-cohort", tab: "guide" });
+    }, T);
+    await user.click(normLink);
+    await screen.findByRole("region", { name: "Norm authoring guide" }, T);
+    expect(stepper.querySelector('[data-step="norm"]')).toHaveAttribute("aria-current", "step");
+    expect(stepper.querySelector('[data-step="analyse"]')).not.toHaveAttribute("aria-current");
+    expect(within(stepper).queryByRole("group", { name: "Substeps" })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(stepper).queryByTestId("step-subline")).not.toBeInTheDocument());
+    expect(useNavStore.getState().lastSlice).toEqual({ href: `${groupPath}?${query}&tab=why`, label: "Packaging" });
+    expect(screen.getByTestId("back-control")).toHaveTextContent("Back to Improve");
+    await user.click(screen.getByTestId("back-control"));
+    await screen.findByTestId("act-reading", {}, T);
+    expect(stepper.querySelector('[data-step="act"]')).toHaveAttribute("aria-current", "step");
+    const restored = new URL(useNavStore.getState().visited.at(-1)!.href, "http://localhost");
+    expect(decodeURIComponent(restored.pathname)).toBe(decodeURIComponent(`${groupPath}/act`));
+    expect(Object.fromEntries(restored.searchParams)).toEqual(Object.fromEntries(new URLSearchParams(query)));
+    expect(screen.getByTestId("ribbon-saved-selection")).toHaveTextContent("recorded-cohort");
   });
 
   it("a sub-screen's back control returns to the exact place the reader came from", async () => {

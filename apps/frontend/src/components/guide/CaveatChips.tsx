@@ -2,14 +2,16 @@ import type { Caveat } from "@/lib/api/analytics";
 import { fmtPct } from "@/lib/format";
 import { useHubStore } from "@/lib/stores/hub";
 import { cn } from "@/lib/utils";
+import { definition, label } from "@/lib/vocabulary";
 
-/** The four-word readings of the data caveats, by id. */
+/** The short readings of the data caveats, by id. */
 export const CAVEAT_SHORT: Record<string, string> = {
-  censoring: "still open at the end",
-  right_censored: "still open at the end",
+  censoring: label("censoring"),
+  right_censored: label("censoring"),
+  subgroup_censoring: label("censoring"),
   window_edge: "started near the window end",
-  replication: "copied postings",
-  header_event_replication: "copied postings",
+  replication: "timestamp concentration",
+  header_event_replication: "shared header timestamps",
   duplicates: "duplicated events",
   duplicate_events: "duplicated events",
   timestamp_outliers: "stamps outside the window",
@@ -37,7 +39,7 @@ export function caveatWords(caveat: Pick<Caveat, "id" | "subgroup">): string {
 /**
  * What a run-wide caveat says, in words (P1-3).
  *
- * The chip carries its own question — *what does “still open at the end” mean?* — in its accessible name, and
+ * The chip carries its own question — *what does “recent-unclosed diagnostic” mean?* — in its accessible name, and
  * the sentence in front of it is what the run says about the caveat. Where the server serves no sentence the
  * client wrote `String(id)` in its place, so a screen reader heard *“censoring What does … mean?”* and the
  * tooltip read the same. The share is the run's, not the page's.
@@ -50,7 +52,7 @@ export function runCaveatSentence(id: string, share: number | undefined, max: nu
 }
 
 /** The share below which a caveat is not worth a chip; duplicates need a full per cent (R2-06). */
-export const caveatFloor = (id: string) => (CAVEAT_SHORT[id] === "duplicated events" || CAVEAT_SHORT[id] === "copied postings" ? 0.01 : 0.005);
+export const caveatFloor = (id: string) => (["duplicates", "duplicate_events", "replication", "header_event_replication"].includes(id) ? 0.01 : 0.005);
 
 /**
  * Whether a page-wide caveat still deserves its own chip on this group (R2-06): a failing caveat always
@@ -68,7 +70,7 @@ export function chipHidden(caveat: Caveat, pageWide: Map<string, number | undefi
 }
 
 /**
- * Data caveats that touch a group, with their share: "14 % still open at the end". At most `max` chips;
+ * Data caveats that touch a group, with their share: "14 % recent-unclosed diagnostic". At most `max` chips;
  * `hide` carries the caveats a page states once in its header, with their page-wide share, so a group far
  * outside that range keeps its own chip.
  *
@@ -87,6 +89,14 @@ export function CaveatChips({ caveats, className, max = 3, hide, explain = true 
   return (
     <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label="Data caveats for this group">
       {list.map((c) => {
+        const explanation = ["censoring", "right_censored", "subgroup_censoring"].includes(c.id)
+          ? definition("censoring")
+          : c.id === "replication"
+            ? "Cases with more than two events per distinct timestamp. Timestamp concentration alone does not prove copied postings or identical events."
+            : c.id === "header_event_replication"
+              ? "Mapped header events can share activity and timestamp across cases; this alone does not prove copied postings."
+              : undefined;
+        const detail = explanation ? `${c.text} — ${explanation}` : c.text;
         const chip = cn(
           "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-left text-xs",
           c.status === "fail" ? "border-danger/40 bg-danger-subtle text-danger" : "border-warning/40 bg-warning-subtle text-warning",
@@ -104,8 +114,8 @@ export function CaveatChips({ caveats, className, max = 3, hide, explain = true 
               <button
                 type="button"
                 className={cn(chip, "cursor-help hover:border-accent hover:text-accent-text")}
-                title={`${c.text} — what does “${caveatShort(c.id)}” mean?`}
-                aria-label={`${c.text} What does “${caveatWords(c)}” mean?`}
+                title={`${detail} — what does “${caveatShort(c.id)}” mean?`}
+                aria-label={`${detail} What does “${caveatWords(c)}” mean?`}
                 data-testid="what-does-this-mean"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -116,7 +126,7 @@ export function CaveatChips({ caveats, className, max = 3, hide, explain = true 
                 {inside}
               </button>
             ) : (
-              <span className={chip} title={c.text}>
+              <span className={chip} title={detail}>
                 {inside}
               </span>
             )}

@@ -227,7 +227,7 @@ async function drawnOn(page: Page) {
 for (const size of LABEL_SIZES) {
   const at = `${size.width} × ${size.height}`;
 
-  test(`every text drawn on the map is at least 11 px at ${at} (R3-06, P1-4)`, async ({ page, request }) => {
+  test(`readable size keeps map text at least 11 px at ${at} (R3-06, P1-4)`, async ({ page, request }) => {
     const { projectId, runId, view } = await target(request);
     test.skip(!runId, "no finished run to read");
     await page.setViewportSize(size);
@@ -235,11 +235,16 @@ for (const size of LABEL_SIZES) {
     await expect(page.getByTestId("map-frame")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60_000 });
 
-    // every detail level the slider offers, from stages to all recorded activities and connections
-    for (const level of [1, 2, 3, 4]) {
-      await page.getByLabel("Detail of the map, from stages only to all activities and connections").fill(String(level));
+    // Inspect small, middle and full activity counts using the current exact-count control.
+    const count = page.getByRole("spinbutton", { name: "Number of activities" });
+    const maximum = Number(await count.getAttribute("max"));
+    for (const level of [...new Set([1, Math.ceil(maximum / 2), maximum])]) {
+      await count.fill(String(level));
+      await count.press("Enter");
       await expect(page.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60_000 });
       await page.waitForTimeout(2500);
+      await page.getByRole("button", { name: "Readable size", exact: true }).click();
+      await page.waitForTimeout(400);
       const { texts, overlaps, zoom, activities } = await drawnOn(page);
       expect(activities, `no activity is drawn at level ${level} at ${at}`).toBeGreaterThan(0);
       expect(texts.length, `no text is drawn at level ${level} at ${at}`).toBeGreaterThan(0);
@@ -251,7 +256,7 @@ for (const size of LABEL_SIZES) {
     }
   });
 
-  test(`the map is fitted to its drawing, with no empty band over 8 % at ${at} (P1-5)`, async ({ page, request }) => {
+  test(`the overview fits and centres the drawing without cropping at ${at} (P1-5)`, async ({ page, request }) => {
     const { projectId, runId, view } = await target(request);
     test.skip(!runId, "no finished run to read");
     await page.setViewportSize(size);
@@ -262,9 +267,14 @@ for (const size of LABEL_SIZES) {
     const { band, zoom } = await drawnOn(page);
     expect(band, "nothing is drawn on the map").not.toBeNull();
     const sides = band as { above: number; below: number; left: number; right: number };
+    // Aspect ratio is preserved: a long process fills one axis, with balanced space on the other.
+    // Requiring <8% on every side would force cropping or distortion of a wide process.
     for (const [side, value] of Object.entries(sides)) {
-      expect(value, `the band ${side} the drawing is ${value} % of the frame at ${at} (zoom ${zoom})`).toBeLessThanOrEqual(8.001);
+      expect(value, `${side} edge must not be cropped at ${at} (zoom ${zoom})`).toBeGreaterThanOrEqual(-0.5);
     }
+    expect(Math.min(sides.left + sides.right, sides.above + sides.below), "at least one axis uses the available frame").toBeLessThanOrEqual(16);
+    expect(Math.abs(sides.above - sides.below), "balanced vertical margins").toBeLessThanOrEqual(6);
+    expect(Math.abs(sides.left - sides.right), "balanced horizontal margins").toBeLessThanOrEqual(6);
   });
 }
 
@@ -385,21 +395,22 @@ test("the map separates recorded transitions from one named constraint", async (
   const map = page.getByTestId("map-frame");
   const evidence = page.getByTestId("flow-evidence");
   await expect(map.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60000 });
-  const toggle = evidence.getByRole("checkbox", { name: "WISE evidence", exact: true });
+  const toggle = page.getByRole("checkbox", { name: "WISE evidence", exact: true });
   await expect(toggle).not.toBeChecked();
-  await expect(evidence.getByRole("combobox", { name: "Constraint", exact: true })).toHaveCount(0);
+  await expect(evidence.getByRole("button", { name: "Choose constraints", exact: true })).toHaveCount(0);
   await expect(map.locator('[aria-label*="expectation shortfall"]')).toHaveCount(0);
   const nodePositions = () => map.locator(".react-flow__node-activity").evaluateAll((nodes) => nodes.map((n) => ({ id: n.getAttribute("data-id"), position: n.getAttribute("style") })));
   await page.waitForTimeout(1800);
   const before = await nodePositions();
   await toggle.check();
-  const chooser = evidence.getByRole("combobox", { name: "Constraint", exact: true });
+  const chooser = evidence.getByRole("button", { name: "Choose constraints", exact: true });
   await expect(chooser).toBeVisible();
-  await expect(evidence.getByTestId("evidence-count")).toContainText(/Showing [01] of/);
+  await expect(evidence.getByTestId("evidence-count")).toContainText(/Selected [01] of/);
   await evidence.getByRole("button", { name: "Meaning and coverage", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText(/evaluated|denominator|not reported/i);
   await page.keyboard.press("Escape");
   expect(await nodePositions()).toEqual(before);
+  await page.getByRole("button", { name: "Close display settings", exact: true }).click();
   // Hovering a node cannot refit the viewport, even with WISE annotations on.
   const viewport = map.locator(".react-flow__viewport");
   const transform = await viewport.getAttribute("style");

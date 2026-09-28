@@ -3,8 +3,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding-top: 12px;
+  gap: 12px;
+  padding-top: 0;
 }
 .eda-heading {
   display: flex;
@@ -13,14 +13,14 @@
   gap: 16px;
 }
 .eda-heading h2 {
-  font-size: clamp(24px, 3vw, 36px);
+  font-size: clamp(20px, 2vw, 24px);
   font-weight: 650;
   letter-spacing: -0.035em;
-  margin: 8px 0;
+  margin: 0 0 2px;
 }
 .eda-heading > div > p:last-child {
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 12px;
 }
 .eda-eyebrow {
   font-size: 10px;
@@ -47,7 +47,8 @@
   gap: 10px;
   align-items: center;
   text-align: left;
-  padding: 16px 12px;
+  padding: 8px 12px;
+  min-height: 44px;
   border-bottom: 2px solid transparent;
   border-radius: 8px 8px 0 0;
   background: var(--color-surface-sunken);
@@ -72,9 +73,9 @@
   font-variant-numeric: tabular-nums;
 }
 .eda-scope {
-  padding: 16px;
+  padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--color-surface);
   border-left: 3px solid #4263eb;
 }
@@ -100,25 +101,28 @@
 .eda-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
-  padding: 8px 0 28px;
+  gap: 12px;
 }
 .eda-metrics > div {
-  border-left: 2px solid #4263eb;
-  padding-left: 14px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid #4263eb;
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 .eda-metrics > div:nth-child(2) {
-  border-color: #0c8599;
+  border-left-color: #0c8599;
 }
 .eda-metrics > div:nth-child(3) {
-  border-color: #ae3ec9;
+  border-left-color: #ae3ec9;
 }
 .eda-metrics > div:nth-child(4) {
-  border-color: #d9480f;
+  border-left-color: #d9480f;
 }
 .eda-metrics small {
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 10px;
+  letter-spacing: 0.03em;
   opacity: 0.7;
   font-weight: 600;
 }
@@ -270,9 +274,6 @@
   outline-offset: 2px;
 }
 @media (max-width: 1000px) {
-  .eda-pages {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .eda-two {
     grid-template-columns: 1fr;
   }
@@ -282,6 +283,9 @@
   .eda-metrics strong {
     font-size: 22px;
   }
+}
+@media (max-width: 760px) {
+  .eda-pages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .eda-heading {
@@ -313,3 +317,26 @@
     max-width: 100%;
   }
 }
+
+.eda-exact-values { margin-top: 1rem; }
+.eda-value-option { display: flex; align-items: start; justify-content: space-between; gap: 1rem; width: 100%; padding: .6rem .75rem; text-align: left; font-size: .8rem; border: 1px solid var(--color-border); border-radius: .35rem; }
+.eda-value-option[aria-pressed="true"] { background: var(--color-info-subtle); color: var(--color-accent-text); border-color: currentColor; }
+.eda-value-option:disabled { opacity: .55; }
+.eda-value-option:focus-visible, .eda-hierarchy-level summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.eda-numeric-control { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: 1rem; }
+.eda-numeric-control summary, .eda-hierarchy-level summary { cursor: pointer; padding: .4rem 0; font-size: .85rem; }
+.eda-hierarchy-level { margin-top: .3rem; padding-left: 1rem; border-left: 1px solid var(--color-border); }
+.eda-hierarchy-level li { margin: .35rem 0; }
+.eda-scope .eda-chip { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.eda-icicle-leaf { cursor: pointer; }
+.eda-icicle-leaf:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.eda-pages button:focus-visible, .eda-explore-help summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.eda-explore-help { max-width: 42ch; font-size: 12px; color: var(--color-text-muted); }
+.eda-explore-help summary { cursor: pointer; padding: 8px 0; color: var(--color-accent-text); font-weight: 600; }
+.eda-explore-help > div { border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); padding: 12px; }
+.eda-explore-help p + p, .eda-explore-help ul { margin-top: 8px; }
+.eda-explore-help ul { display: grid; gap: 4px; }

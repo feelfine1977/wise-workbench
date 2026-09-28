@@ -43,20 +43,27 @@ export default function InvestigationPage() {
       {query.data?.questions.length === 0 && <EmptyState title="No question profiles are available for this run." reason="Explore the flow or select constraints appropriate to the available activities." />}
       {current && query.data && (
         <div className="grid items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <nav aria-label="Process questions" className="surface flex flex-col gap-1 p-2 lg:sticky lg:top-4 lg:max-h-[65vh] lg:overflow-y-auto">
+          <div className="surface min-w-0 space-y-2 p-3 lg:hidden">
+            <label htmlFor="question-profile" className="block text-sm font-medium">Choose a recorded pattern ({query.data.questions.length})</label>
+            <select id="question-profile" className="h-10 w-full min-w-0 rounded-md border border-border bg-surface px-2 text-sm" value={current.id} onChange={event => void navigate({to: ".", search: {...search, question: event.target.value}})}>
+              {query.data.questions.map(q => <option key={q.id} value={q.id}>{familyLabels[q.family]}: {q.title}{q.status === "unavailable" ? " · not measured" : ""}</option>)}
+            </select>
+          </div>
+          <p className="sr-only" role="status">Showing evidence: {current.title}</p>
+          <nav aria-label="Process questions" className="surface hidden flex-col gap-1 p-2 lg:sticky lg:top-4 lg:flex lg:max-h-[65vh] lg:overflow-y-auto">
             <p className="px-3 py-2 text-xs text-text-muted">{query.data.questions.length} {query.data.questions.length === 1 ? "profile" : "profiles"} shown. Use an activity above to inspect a specific pattern.</p>
             {query.data.questions.map(q => <button key={q.id} type="button" aria-current={q.id === current.id ? "page" : undefined} onClick={() => void navigate({to: ".", search: {...search, question:q.id}})} className={cn("rounded-md p-3 text-left text-sm", q.id === current.id ? "bg-accent-subtle font-semibold text-accent-text" : "text-text hover:bg-surface-sunken")}>
               <span className="mb-1 block text-xs font-normal text-text-muted">{familyLabels[q.family]}</span>{q.title}{q.status === "unavailable" && <span className="mt-1 block text-xs font-normal text-text-muted">Not measured in this selection</span>}
             </button>)}
           </nav>
-          <QuestionEvidence key={JSON.stringify([current.id,search.filter])} question={current} projectId={ctx.projectId} runId={runId} view={view} slicing={slicing} caseNoun={query.data.caseNoun} />
+          <QuestionEvidence key={JSON.stringify([current.id,search.filter])} question={current} projectId={ctx.projectId} runId={runId} view={view} slicing={slicing} minCases={ctx.run?.minCases ?? undefined} caseNoun={query.data.caseNoun} />
         </div>
       )}
     </div>
   );
 }
 
-export function QuestionEvidence({question:q, projectId, runId, view, slicing, caseNoun}: {question:InvestigationQuestion;projectId:string;runId:string;view?:string;slicing?:string;caseNoun:string}) {
+export function QuestionEvidence({question:q, projectId, runId, view, slicing, minCases, caseNoun}: {question:InvestigationQuestion;projectId:string;runId:string;view?:string;slicing?:string;minCases?:number;caseNoun:string}) {
   const [sample,setSample] = useState<string>();
   const plainOf = useRunConstraintNames(projectId, runId, sample !== undefined);
   const trace = useQuery({...traceQuery(projectId,runId,sample ?? ""),enabled:sample !== undefined});
@@ -82,7 +89,9 @@ export function QuestionEvidence({question:q, projectId, runId, view, slicing, c
     {q.status === "observed" && q.filter !== null && <section className="space-y-3"><h3 className="font-semibold">Inspect the affected {caseNoun}</h3><div className="flex flex-wrap gap-2">
       <ProcessVariants projectId={projectId} runId={runId} filter={filter} />
       <Button variant="outline" size="sm" asChild><Link to="/p/$projectId/runs/$runId/flow" params={{projectId,runId}} search={{view,slicing,filter,render:"map"}}>Open their process map</Link></Button>
-      <Button variant="outline" size="sm" asChild><Link to="/p/$projectId/runs/$runId/backlog" params={{projectId,runId}} search={{view,slicing,filter,sort:"-stable_PI"}}>Find the groups to investigate</Link></Button>
+      {typeof minCases === "number" && Number.isSafeInteger(minCases) && minCases >= 1
+        ? <Button variant="outline" size="sm" asChild><Link to="/p/$projectId/runs/$runId/backlog" params={{projectId,runId}} search={{view,slicing,filter,minCases,sort:"-stable_PI"}}>Find the groups to investigate</Link></Button>
+        : <Button variant="outline" size="sm" disabled title="The assessment's minimum group size is not available yet.">Find the groups to investigate</Button>}
     </div><div className="flex flex-wrap gap-2">{q.exampleCaseIds.map(id=><Button key={id} variant="ghost" size="sm" onClick={()=>setSample(id)}>Example item {id}</Button>)}</div></section>}
     {q.filter === null && <p role="status" className="text-sm text-text-muted">This relationship cannot yet be carried as an exact selection to the map or ranking. The measured results above remain available.</p>}
     {sample && <section aria-label="Example timeline" className="space-y-2"><h3 className="font-semibold">Example item {sample}</h3><Button variant="ghost" size="sm" onClick={()=>setSample(undefined)}>Close example</Button>{trace.isPending && <LoadingBlock rows={3}/>} {trace.isError && <ErrorBlock error={trace.error} retry={()=>void trace.refetch()}/>} {trace.data && <TraceTimeline trace={trace.data} plainOf={plainOf}/>}</section>}

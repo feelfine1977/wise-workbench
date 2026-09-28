@@ -48,7 +48,7 @@ it("preserves manual geometry through selection, evidence and count changes; Res
   const initial = structuredClone(shown().positions!);
   const point = { x: initial.nodes[id]!.x, y: initial.bounds.y - 200 };
   expect(shown().nodesDraggable).toBe(true);
-  expect(screen.getByRole("button", { name: "Reset layout" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Reset layout" })).not.toBeInTheDocument();
   act(() => shown().onNodeMove!(id, point));
   expect(shown().positions!.nodes[id]).toMatchObject(point);
   const moved = structuredClone(shown().positions!);
@@ -58,8 +58,8 @@ it("preserves manual geometry through selection, evidence and count changes; Res
   expect(shown().positions).toEqual(moved);
   count(10); count(9);
   expect(shown().positions).toEqual(moved);
-  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "400px" });
+  expect(screen.getByTestId("map-frame")).toHaveStyle({ minHeight: "0" });
   fireEvent.click(screen.getByRole("button", { name: "Reset layout" }));
   expect(shown().positions).toEqual(initial);
-  expect(screen.getByRole("button", { name: "Reset layout" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Reset layout" })).not.toBeInTheDocument();
 });

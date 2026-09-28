@@ -216,7 +216,7 @@ describe("one run, one population (R3-09)", () => {
       expect(chip.getAttribute("aria-label") ?? "").toMatch(/^On this run: /);
     }
     // the run's own maximum, on the groups it holds on
-    expect(screen.getByTestId("page-caveat-range")).toHaveTextContent(/still open at the end: \d+(\.\d+)?\s?% on average, up to \d+(\.\d+)?\s?% on \d+ of \d+ groups/);
+    expect(screen.getByTestId("page-caveat-range")).toHaveTextContent(/recent-unclosed diagnostic: \d+(\.\d+)?\s?% on average, up to \d+(\.\d+)?\s?% on \d+ of \d+ groups/);
     // and a caveat that touches six groups of twenty-three is not stated of nearly every group of the run
     expect(line).not.toHaveTextContent(/duplicated events/);
     expect(line).not.toHaveTextContent(/copied postings/);

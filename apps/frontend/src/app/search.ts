@@ -116,6 +116,8 @@ export function sliceTabOf(raw: unknown): SliceTab {
 export interface SliceSearch {
   slicing?: string;
   view?: string;
+  /** Minimum group size of the ranking that opened this group. */
+  minCases?: number;
   tab: SliceTab;
   case?: string;
   constraint?: string;
@@ -132,6 +134,7 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
   return {
     slicing: str(s.slicing),
     view: str(s.view),
+    minCases: Number.isSafeInteger(num(s.minCases)) && (num(s.minCases) ?? 0) >= 1 ? num(s.minCases) : undefined,
     tab: sliceTabOf(s.tab),
     case: str(s.case),
     constraint: str(s.constraint),
@@ -239,6 +242,8 @@ export const NORM_TABS = ["guide", "constraints", "structure", "map", "review", 
 export type NormTab = (typeof NORM_TABS)[number];
 export interface NormSearch {
   view?: string;
+  /** Explicit saved whole-case evidence population. */
+  selection?: string;
   /** Explicit mapped case table, including before the first run. */
   caseTable?: string;
   tab: NormTab;
@@ -246,7 +251,7 @@ export interface NormSearch {
 }
 export function validateNormSearch(input: Partial<NormSearch> & SearchSchemaInput): NormSearch {
   const s = input as Record<string, unknown>;
-  return { view: str(s.view), caseTable: str(s.caseTable), tab: oneOf(s.tab, NORM_TABS) ?? (str(s.constraint) ? "constraints" : "guide"), constraint: str(s.constraint) };
+  return { view: str(s.view), selection: str(s.selection), caseTable: str(s.caseTable), tab: oneOf(s.tab, NORM_TABS) ?? (str(s.constraint) ? "constraints" : "guide"), constraint: str(s.constraint) };
 }
 
 export const DATASET_TABS = ["understand", "readiness", "overview", "mapping", "flows"] as const;

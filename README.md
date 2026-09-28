@@ -8,6 +8,8 @@ It is a working local application: FastAPI/Python backend, React/TypeScript fron
 
 Use Python 3.12 or 3.13 and Node 24. No sibling repositories or private reference workspace are required.
 
+**Windows:** follow the [PowerShell setup and restart guide](docs/windows-setup.md), including the explicit checkpoint/core profile choices.
+
 ```bash
 git clone https://github.com/feelfine1977/wise-workbench.git
 cd wise-workbench
@@ -19,6 +21,8 @@ WISE_WORKSPACE="$HOME/WISE Demo" tools/start.sh
 `tools/install.sh` installs the classic method at its pinned release commit, the local analytics and knowledge packages, and the frontend's locked dependencies. The flow renderer is included as a versioned npm artifact; see [vendor provenance](vendor/README.md). The demo uses only the library's public five-case example and refuses an existing nonempty directory. It demonstrates the workflow, not a meaningful business ranking.
 
 If port 8000 is occupied, use `tools/start.sh --no-build --port 8002`. The syntax is `--port 8002` or `--port=8002`. The large-chunk message from Vite is a build warning, not a startup failure. Stop the foreground server with Ctrl-C.
+
+Frontend builds use the live backend by default: `npm run build` in `apps/frontend` writes the application to `dist`. Use `npm run build:demo` only for explicit fixture demonstrations; its output is isolated in `dist-demo`.
 
 ## What you can use
 

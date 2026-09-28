@@ -36,6 +36,9 @@ def fold_decision(mapping: ColumnMapping, kind: str, params: dict[str, Any], dec
     doc = mapping.to_dict()
     doc["decisions"] = [*doc.get("decisions", []), {"id": decision_id, "kind": kind, "params": dict(params)}]
     if kind == "collapse_duplicates":
+        previous = next((d for d in reversed(mapping.decisions) if d.get("kind") == kind and d.get("policy")), None)
+        inherited = bool(mapping.dedupe) and (previous is None or bool(previous.get("legacyKeyDedupeInherited")))
+        doc["decisions"][-1].update(policy="identical_prepared_rows_v1", legacyKeyDedupeInherited=inherited)
         doc["dedupe"] = True
     elif kind == "day_precision":
         doc["dayPrecisionActivities"] = sorted(set(doc.get("dayPrecisionActivities", [])) | set(params["activities"]))
@@ -55,12 +58,19 @@ def fold_decision(mapping: ColumnMapping, kind: str, params: dict[str, Any], dec
     return doc
 
 
+def _decision_label(kind: str) -> str:
+    return {
+        "collapse_duplicates": "Remove identical prepared event rows",
+        "open_cases": "Review recent-unclosed handling",
+    }.get(kind, DECISION_KINDS[kind]["label"])
+
+
 class DecisionService:
     def __init__(self, c: Container):
         self.c = c
 
     def kinds(self) -> list[dict[str, Any]]:
-        return [{"kind": k, **spec} for k, spec in DECISION_KINDS.items()]
+        return [{"kind": k, **spec, "label": _decision_label(k)} for k, spec in DECISION_KINDS.items()]
 
     def _table(self, project_id: str, case_table_id: str) -> tuple[CaseTable, ColumnMapping]:
         table = self.c.mappings.get_case_table(project_id, case_table_id)
@@ -126,7 +136,7 @@ class DecisionService:
             "kind": kind,
             "params": clean,
             "readinessItem": DECISION_KINDS[kind]["item"],
-            "label": DECISION_KINDS[kind]["label"],
+            "label": _decision_label(kind),
             "preview": preview.to_dict(),
             "caseTableId": table.id,
             "requestedCaseTableId": case_table_id,

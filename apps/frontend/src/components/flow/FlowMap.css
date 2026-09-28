@@ -1,0 +1,56 @@
+/* Only the full-page process instrument uses compact chrome. Embedded panels keep
+   their explanatory controls. The drawing owns the remaining, stable height. */
+.flow-workspace {
+  position: relative;
+  overflow: hidden;
+}
+.flow-workspace[data-full="1"] { position: fixed; }
+.flow-workspace > [data-testid="flow-bar"] {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  height: 44px;
+  min-height: 44px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
+  font-size: 0.75rem;
+  scrollbar-width: thin;
+}
+.flow-workspace > [data-testid="flow-bar"] > * { flex-shrink: 0; }
+.flow-workspace [data-testid="flow-bar"] [role="group"] { flex-wrap: nowrap; }
+.flow-workspace [data-testid="flow-bar"] [aria-label="Activities shown"] { width: 4rem; }
+.flow-workspace [data-testid="flow-bar"] [aria-label="Number of activities"] { width: 3rem; }
+.flow-workspace [data-testid="flow-bar"] [data-testid="incomplete-flow"] {
+  max-width: 5.5rem;
+  white-space: normal;
+  line-height: 1rem;
+}
+/* Keep rendering and exit controls reachable when a narrow screen needs toolbar scrolling. */
+.flow-workspace .flow-primary-actions {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--color-bg);
+  padding-left: 0.375rem;
+}
+.flow-display-panel {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+  width: min(42rem, calc(100% - 1.5rem));
+  max-height: calc(100% - 5rem);
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px #0002;
+}
+.flow-selection-panel {
+  left: 0.75rem;
+  right: 6rem;
+  bottom: 5rem;
+  max-height: 40%;
+  overflow: auto;
+}

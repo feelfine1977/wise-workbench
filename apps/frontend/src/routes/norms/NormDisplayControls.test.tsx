@@ -71,3 +71,26 @@ it("hides and restores layers and individual rules separately, without removing 
   expect(document.constraints).toHaveLength(3);
   expect(screen.getByLabelText("Norm display status")).toHaveTextContent("No display filters");
 });
+
+
+it("labels the selected population and uses its exact denominator for filtering", async () => {
+  const user = userEvent.setup();
+  const selected: NormRelevance = { ...relevance, cases: 100, scope: { kind: "saved_selection", selectionName: "Late invoices" },
+    constraints: relevance.constraints.map(row => ({ ...row, casesInScope: row.id === "c1" ? 80 : row.id === "c2" ? 79 : null })),
+  };
+  const props = { document, visibility: { ...allNormItems, minApplicability: 80 }, onChange: () => {} };
+  const { rerender } = render(<NormDisplayControls {...props} relevance={selected} />);
+  expect(screen.getByText("Selected cases (Late invoices) · 100 cases")).toBeVisible();
+  expect(screen.getByText("1 / 3 constraints match")).toBeVisible();
+  expect(screen.getByRole("spinbutton", { name: "Minimum applicability (% of coverage population)" })).toHaveValue(80);
+  await user.click(screen.getByText("About display filters"));
+  expect(screen.getByText(/Applicability =/)).toHaveTextContent("cases in the coverage population shown above");
+  expect(screen.queryByText(/all cases in this mapped dataset/i)).not.toBeInTheDocument();
+  rerender(<NormDisplayControls {...props} compact relevance={selected} />);
+  expect(screen.getByLabelText("Norm display status")).toHaveTextContent("Selected cases (Late invoices) · 100 cases");
+  rerender(<NormDisplayControls {...props} relevance={relevance} />);
+  expect(screen.getByText("All cases in the prepared dataset · 1,000 cases")).toBeVisible();
+  rerender(<NormDisplayControls {...props} />);
+  expect(screen.getByText("Coverage population is unknown until applicability is available.")).toBeVisible();
+  expect(screen.queryByText(/· 0 cases/)).not.toBeInTheDocument();
+});

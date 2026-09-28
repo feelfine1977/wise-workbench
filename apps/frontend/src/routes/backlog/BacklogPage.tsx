@@ -1,3 +1,4 @@
+import { PrioritySupport } from "@/components/improve/PrioritySupport";
 import { GroupingControl } from "@/components/GroupingControl";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +18,6 @@ import { Term, useVocabulary } from "@/components/Term";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/misc";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { parseFilter } from "@/lib/filter";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
@@ -36,22 +36,15 @@ import { SignalsList } from "./SignalsList";
 
 const Charts = lazy(() =>
   import("./BacklogCharts").then((m) => ({
-    default: ({ rows, activeKey, onSelect }: { rows: Parameters<typeof m.VolumeGapScatter>[0]["rows"]; activeKey?: string; onSelect: (k: string) => void }) => (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardTitle>
-            cases × shortfall <span className="font-normal text-text-subtle">(whiskers = the cautious bound; shape = kind of problem; size = priority)</span>
-          </CardTitle>
-          <m.VolumeGapScatter rows={rows} activeKey={activeKey} onSelect={onSelect} />
-        </Card>
-        <Card>
-          <CardTitle>how much of the priority the top groups carry</CardTitle>
-          <m.ConcentrationCurve rows={rows} />
-        </Card>
-      </div>
+    default: ({ rows }: { rows: Parameters<typeof m.ConcentrationCurve>[0]["rows"] }) => (
+      <Card>
+        <CardTitle>Concentration of priority among loaded groups</CardTitle>
+        <m.ConcentrationCurve rows={rows} />
+      </Card>
     ),
   })),
 );
+
 
 
 function parseWithin(raw: string | undefined): Within | undefined {
@@ -141,12 +134,12 @@ export default function BacklogPage() {
       const target = {
         to: "/p/$projectId/runs/$runId/slices/$sliceKey" as const,
         params: { projectId: ctx.projectId, runId, sliceKey: key },
-        search: { slicing, view, tab: "why" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter, within: search.within },
+        search: { slicing, view, minCases: search.minCases, tab: "why" as const, focus, pins: pins.length ? pins : undefined, filter: search.filter, within: search.within },
       };
       setLastSlice(router.buildLocation(target).href, label);
       void navigate(target);
     },
-    [navigate, router, ctx.projectId, runId, slicing, view, pins, rows, search.filter, search.within, setLastSlice],
+    [navigate, router, ctx.projectId, runId, slicing, view, pins, rows, search.filter, search.within, search.minCases, setLastSlice],
   );
   // Drill into a group (R2-O2): the finer slicing (the backend's default drill-down attribute) restricted to the group's cases.
   const drill = useCallback((key: string) => patch({ within: JSON.stringify({ slicing, key }), slicing: drillAttributeFor(slicing), page: 1, row: undefined }), [patch, slicing]);
@@ -215,26 +208,7 @@ export default function BacklogPage() {
     </footer>
   );
 
-  const switchers = (
-    <>
-      <span className="flex items-center gap-1 text-sm text-text-muted">
-        <Term id="view" primaryOnly />
-        <Select value={view ?? ""} onValueChange={(v) => ctx.setView(v)}>
-          <SelectTrigger compact aria-label={`Switch ${word("view")}`} className="w-auto min-w-[120px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(run.views ?? []).map((v) => (
-              <SelectItem key={v} value={v}>
-                {v}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </span>
-      <GroupingControl ctx={ctx} />
-    </>
-  );
+  const switchers = <GroupingControl ctx={ctx} />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -343,6 +317,7 @@ export default function BacklogPage() {
         {backlog.data && (
           <>
             <TabsContent value="signals" className="flex flex-col gap-4">
+              {rows.length > 0 && <PrioritySupport noun={caseNoun} rows={rows} total={total} scope={`This page · ${view ?? "current view"}${confident ? " · high-confidence only" : ""}`} activeKey={activeKey} onSelect={open} />}
               {pins.length > 0 && <ComparisonStrip projectId={ctx.projectId} runId={runId} slicing={slicing} view={view} pins={pins} rows={rows} layerNames={layerNames} onUnpin={togglePin} />}
               {rows.length === 0 ? (
                 noConfidenceComputed ? (
@@ -385,20 +360,18 @@ export default function BacklogPage() {
             </TabsContent>
             <TabsContent value="scatter" className="flex flex-col gap-3">
               {everything.isPending && <LoadingBlock rows={4} />}
-              {(everything.data || backlog.data) && (
-                <Suspense fallback={<LoadingBlock rows={4} />}>
-                  <Charts
-                    rows={allRows}
-                    activeKey={activeKey}
-                    onSelect={(key) => {
-                      setActiveKey(key);
-                      open(key);
-                    }}
-                  />
-                </Suspense>
+              {everything.isError && <ErrorBlock error={everything.error} retry={() => void everything.refetch()} />}
+              {everything.data && <PrioritySupport noun={caseNoun} rows={allRows} total={everything.data.total} scope={`Loaded groups · ${view ?? "current view"}${confident ? " · high-confidence only" : ""}`} activeKey={activeKey} onSelect={open} />}
+              {everything.data && (
+                <details className="rounded-lg border border-border p-3">
+                  <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">Explore priority concentration</summary>
+                  <Suspense fallback={<LoadingBlock rows={4} />}>
+                    <Charts rows={allRows} />
+                  </Suspense>
+                </details>
               )}
               <p className="text-xs text-text-muted">
-                {fmtInt(allRows.length)} of {fmtInt(everything.data?.total ?? total)} {plain ? "groups" : word("slice") + "s"} drawn with the current filters; click a point to open its reasons.
+                Charts describe only the loaded groups (up to 500), not necessarily the full ranked population. {fmtInt(allRows.length)} of {fmtInt(everything.data?.total ?? total)} {plain ? "groups" : word("slice") + "s"} drawn with the current filters; click a point to open its reasons.
               </p>
             </TabsContent>
           </>

@@ -1,3 +1,7 @@
+import { DriverEvidencePanel } from "./DriverEvidencePanel";
+import { SelectionScope } from "@/components/improve/SelectionScope";
+import { FilterChipsRow } from "@/components/guide/FilterChipsRow";
+import { parseFilter, serializeFilter } from "@/lib/filter";
 /**
  * *What can we do?* — the seventh step of the analysis path (R3-01, RG-4, RK-7).
  *
@@ -34,8 +38,9 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/misc";
 import { fmtDateTime, fmtInt, fmtNum, fmtPct } from "@/lib/format";
-import { backlogQuery } from "@/lib/api/exploration";
+import { backlogQuery, sliceQuery } from "@/lib/api/exploration";
 import { ApiError } from "@/lib/api";
+import { runsQuery } from "@/lib/queries";
 import { groupLabel, sharedKeyValues } from "@/lib/sentences";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +55,7 @@ function DriverCard({
   onTest,
   onPropose,
   form,
+  evidence,
 }: {
   driver: Driver;
   rank: number;
@@ -59,24 +65,26 @@ function DriverCard({
   onPropose: (driver: Driver, action: UsualAction) => void;
   /** The proposal form, when it was opened from one of this driver's actions: it belongs where it was asked for. */
   form?: React.ReactNode;
+  evidence: React.ReactNode;
 }) {
   const name = driver.plain_name ?? driver.constraint_id;
   return (
-    <Card data-testid="driver-card" data-constraint={driver.constraint_id}>
+    <Card id={`improve-driver-${encodeURIComponent(driver.constraint_id)}`} tabIndex={-1} data-testid="driver-card" data-constraint={driver.constraint_id}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <CardTitle className="mb-0 flex flex-wrap items-center gap-1.5 text-lg">
-          <span className="text-text-subtle">{rank}.</span>
+          <span className="text-xs text-text-subtle">Whole-group driver {rank} ·</span>
           {name}
           <WhatDoesThisMean nodeId={driver.hub_node} kind="constraint" entryId={driver.constraint_id} label={name} />
         </CardTitle>
         {typeof driver.headroom_points === "number" && Number.isFinite(driver.headroom_points) && (
           <Badge variant="outline" className="tnum shrink-0" data-testid="headroom">
-            {fmtNum(driver.headroom_points, 2)} score points of possible gain
+            {fmtNum(driver.headroom_points, 2)} score points of possible gain · whole group
           </Badge>
         )}
       </div>
       {typeof driver.headroom_points === "number" && Number.isFinite(driver.headroom_points) && (
         <div className="mt-2">
+          <p className="text-xs text-text-muted">Whole-group score scenario; no operational benefit is estimated.</p>
           <GainScenario name={name} meanScore={meanScore} points={driver.headroom_points} priorityPercent={driver.headroom_percent} />
         </div>
       )}
@@ -86,7 +94,6 @@ function DriverCard({
             This one expectation is <strong className="tnum">{fmtPct(Math.min(driver.share_of_shortfall, 9.99), 0)}</strong> of the shortfall of this group.{" "}
           </>
         ) : null}
-        {driver.meaning_when_missed}
       </p>
       {driver.comparison && (
         // one comparison, one bracket, on every screen it appears (R3-04): the server keeps the bracket in
@@ -95,7 +102,14 @@ function DriverCard({
           {driver.comparison.replace(/\.+$/, "")}.
         </p>
       )}
-      {driver.why_it_matters && <p className="reading mt-1 text-sm text-text-muted">{driver.why_it_matters}</p>}
+      {(driver.meaning_when_missed || driver.why_it_matters) && <details className="mt-3 rounded-lg border border-border bg-surface-sunken px-3 py-2" data-testid="driver-interpretation">
+        <summary className="cursor-pointer text-sm font-semibold text-accent-text">Candidate interpretation from process guidance</summary>
+        <p className="mt-1 text-xs text-text-muted">General context to investigate. It does not establish this group’s cause, contractual lateness or financial impact; the measured comparison and score scenario remain based on the saved run.</p>
+        {driver.meaning_when_missed && <p className="reading mt-2 text-sm text-text-muted">{driver.meaning_when_missed}</p>}
+        {driver.why_it_matters && <p className="reading mt-1 text-sm text-text-muted">{driver.why_it_matters}</p>}
+      </details>}
+
+      {evidence}
 
       {driver.what_to_check_first?.length ? (
         <section className="mt-4">
@@ -112,7 +126,7 @@ function DriverCard({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section>
-          <h4 className="text-sm font-semibold text-text">What usually causes it</h4>
+          <h4 className="text-sm font-semibold text-text">Possible explanations to test</h4>
           <p className="text-xs text-text-subtle">Candidates to check, not findings. {onTest ? "Mark one to test and it becomes a hypothesis with its gates." : "Hypothesis creation uses whole-group checks and is unavailable in this selection."}</p>
           <ul className="mt-2 flex flex-col gap-2.5 text-sm" data-testid="driver-reasons">
             {(driver.usual_reasons ?? []).map((r, i) => {
@@ -136,8 +150,8 @@ function DriverCard({
           </ul>
         </section>
         <section data-testid="driver-help">
-          <h4 className="text-sm font-semibold text-text">What usually helps</h4>
-          <p className="text-xs text-text-subtle">Each with the kind of countermeasure and the role that usually owns it.</p>
+          <h4 className="text-sm font-semibold text-text">Actions to consider</h4>
+          <p className="text-xs text-text-subtle">Candidates from process guidance; the event pattern alone does not establish which action will help.</p>
           <ul className="mt-2 flex flex-col gap-2.5 text-sm" data-testid="driver-actions">
             {(driver.usual_actions ?? []).map((a, i) => (
               <li key={`${a.text}-${i}`} className="flex flex-col gap-1">
@@ -330,12 +344,15 @@ function OpenFindings({ projectId, runId, slicing, sliceKey, noun }: { projectId
   const unavailable = notServed(actions.error) && notServed(hypotheses.error);
   return (
     <Card data-testid="open-findings">
-      <CardTitle>Open findings</CardTitle>
-      {unavailable && <p className="reading text-sm text-text-muted">This backend does not keep findings and actions yet, so nothing recorded here survives a restart.</p>}
-      {!unavailable && a.length === 0 && h.length === 0 && <p className="reading text-sm text-text-muted">Nothing is recorded on this group yet. Mark a reason to test or propose an action above.</p>}
+      <CardTitle as="h2">Open findings</CardTitle>
+      {(actions.isPending || hypotheses.isPending) && <p role="status" className="text-sm text-text-muted">Loading recorded findings and actions…</p>}
+      {unavailable && <p className="reading text-sm text-text-muted">Recorded findings and actions are unavailable from this backend.</p>}
+      {!unavailable && actions.isError && <ErrorBlock error={actions.error} retry={() => void actions.refetch()} />}
+      {!unavailable && hypotheses.isError && <ErrorBlock error={hypotheses.error} retry={() => void hypotheses.refetch()} />}
+      {actions.isSuccess && hypotheses.isSuccess && a.length === 0 && h.length === 0 && <p className="reading text-sm text-text-muted">Nothing is recorded on this group yet. Mark a reason to test or propose an action above.</p>}
       {h.length > 0 && (
         <>
-          <h4 className="mt-2 text-sm font-semibold text-text">To test</h4>
+          <h3 className="mt-2 text-sm font-semibold text-text">To test</h3>
           <ul className="mt-1 flex flex-col gap-1.5 text-sm">
             {h.map((x) => (
               <li key={x.id} className="reading">
@@ -347,7 +364,7 @@ function OpenFindings({ projectId, runId, slicing, sliceKey, noun }: { projectId
       )}
       {a.length > 0 && (
         <>
-          <h4 className="mt-3 text-sm font-semibold text-text">Actions</h4>
+          <h3 className="mt-3 text-sm font-semibold text-text">Actions</h3>
           <ul className="mt-1 flex flex-col gap-1.5 text-sm">
             {a.map((x) => (
               <li key={x.id} className="reading">
@@ -376,6 +393,7 @@ export default function ActPage() {
   const { runId, sliceKey } = actRoute.useParams();
   const search = actRoute.useSearch();
   const navigate = useNavigate();
+  const runs = useQuery(runsQuery(ctx.projectId));
   const run = ctx.runs.find((r) => r.id === runId) as RunC2 | undefined;
   const slicing = search.slicing ?? run?.slicings?.[0]?.id ?? "";
   const view = search.view ?? run?.views?.[0];
@@ -383,6 +401,7 @@ export default function ActPage() {
   const [draft, setDraft] = useState<{ title: string; countermeasure?: string | null; owner_role?: string | null; constraint?: string }>();
   const [toTest, setToTest] = useState<{ constraint?: string; statement?: string; nonce: number }>({ constraint: search.constraint, nonce: 0 });
 
+  const detail = useQuery({ ...sliceQuery(ctx.projectId, runId, sliceKey, slicing, view), enabled: !!run && !!slicing });
   const answer = useQuery({ ...whatCanWeDoQuery(ctx.projectId, runId, { slicing, sliceKey, view }), enabled: !!run && !!slicing });
   const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: run?.minCases ?? 1, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
@@ -391,6 +410,8 @@ export default function ActPage() {
   // a group ranked below the first page has no row here; its name is then read from the key, never printed raw
   const name = groupLabel(row ?? { key: sliceKey }, shared);
 
+  if (!run && runs.isPending) return <LoadingBlock rows={6} />;
+  if (!run && runs.isError) return <ErrorBlock error={runs.error} retry={() => void runs.refetch()} />;
   if (!run) {
     return <EmptyState title="This run does not exist in this workspace." reason={`No group can be opened for ${runId}.`} action={{ label: "Go to Runs", to: "/p/$projectId/runs", params: { projectId: ctx.projectId } }} />;
   }
@@ -412,6 +433,9 @@ export default function ActPage() {
           {name}
           <HowToReadToggle id="act" />
         </h1>
+        <SelectionScope projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} wholeGroupCases={detail.data?.row.n_cases ?? row?.n_cases} noun={noun}>
+          {selected && <FilterChipsRow filter={parseFilter(search.filter)} counts={false} noun={noun} onChange={(next) => void navigate({ to: ".", search: (s) => ({ ...s, filter: serializeFilter(next) }) })} />}
+        </SelectionScope>
         {selected && (
           <p role="status" className="reading text-sm text-warning" data-testid="act-selection-notice">
             Suggestions below describe the whole group.{" "}
@@ -421,12 +445,12 @@ export default function ActPage() {
         )}
         {data?.reading && (
           <p className="reading headline text-text" data-testid="act-reading">
-            {selected && <strong>Whole group: </strong>}
+            <strong>Whole group: </strong>
             {data.reading}
           </p>
         )}
         <HowToRead id="act">
-          The expectations behind this group's shortfall, worst first, each with what it would be worth to close it, what usually causes it — split into what the log can show and what has to be asked — and what usually helps,
+          The expectations behind this group's shortfall, worst first, each with score headroom under the saved norm, candidate reasons — split into what the log can show and what has to be asked — and what usually helps,
           with the kind of countermeasure and the role that owns it. {selected ? "Hypothesis creation is unavailable in this selection. " : <>Marking a reason <strong>to test</strong> writes a hypothesis; the checks below decide whether it may be recorded. </>}Proposing an action records it for the review.
         </HowToRead>
       </header>
@@ -451,6 +475,28 @@ export default function ActPage() {
         </Card>
       )}
 
+      {drivers.length > 0 && (
+        <Card>
+          <CardTitle as="h2">Choose a problem, then review an action</CardTitle>
+          <p className="reading text-sm text-text-muted">Start with its measurements and case examples. Usual reasons are candidates to investigate; proposals still need evidence and acceptance checks.</p>
+          <nav aria-label="Expectations with action guidance" className="mt-3 flex flex-wrap gap-2">
+            {drivers.map((driver) => <a key={driver.constraint_id} href={`#improve-driver-${encodeURIComponent(driver.constraint_id)}`}
+              className="rounded-full border border-border px-3 py-1.5 text-sm text-accent-text hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              aria-current={search.constraint === driver.constraint_id ? "true" : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                void navigate({ to: ".", search: (s) => ({ ...s, constraint: driver.constraint_id }), replace: true });
+                const card = document.getElementById(`improve-driver-${encodeURIComponent(driver.constraint_id)}`);
+                card?.focus({ preventScroll: true });
+                card?.scrollIntoView({ block: "start" });
+              }}>
+              {driver.plain_name ?? driver.constraint_id}
+            </a>)}
+          </nav>
+          <Link {...whyHref} search={{ ...whyHref.search, tab: "compared", constraint: search.constraint ?? drivers[0]?.constraint_id }} className="mt-3 inline-block text-sm text-accent-text underline">Inspect the measured comparison →</Link>
+        </Card>
+      )}
+
       {selected && drivers.length > 0 && <h2 className="text-lg font-semibold" data-testid="whole-group-suggestions">Suggestions for the whole group</h2>}
       {drivers.some((d) => typeof d.headroom_points === "number" && Number.isFinite(d.headroom_points)) && <GainExplanation view={view} wholeGroup={selected} />}
       {drivers.map((d, i) => (
@@ -460,6 +506,7 @@ export default function ActPage() {
           rank={i + 1}
           noun={noun}
           meanScore={gainMeanScore}
+          evidence={<DriverEvidencePanel projectId={ctx.projectId} runId={runId} groupName={name} params={{ constraintId: d.constraint_id, slicing, sliceKey, view, filter: search.filter }} within={search.within} />}
           onTest={selected ? undefined : (driver, reason) => {
             setToTest((t) => ({ constraint: driver.constraint_id, statement: reason.text, nonce: t.nonce + 1 }));
             void navigate({ to: ".", search: (s) => ({ ...s, constraint: driver.constraint_id }), replace: true });
@@ -486,8 +533,8 @@ export default function ActPage() {
       )}
 
       <Card data-testid="act-gates">
-        <CardTitle>{selected ? `Checks for the selected ${noun}` : "Before acting on this"}</CardTitle>
-        <GatesBlock projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} constraints={constraints} draft={toTest} />
+        <CardTitle as="h2">{selected ? `Checks for the selected ${noun}` : "Before acting on this"}</CardTitle>
+        <GatesBlock headingLevel="h3" projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} constraints={constraints} draft={toTest} />
       </Card>
 
       <OpenFindings projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} noun={noun} />

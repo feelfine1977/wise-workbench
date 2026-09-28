@@ -188,3 +188,18 @@ it("rejects duplicate names before benchmark normalization, including a renamed 
   expect(screen.getByRole("button", { name: "General benchmark Equal-layer benchmark" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByLabelText("View weight: Timing")).toBeEnabled();
 });
+
+it("opens a clicked expectation's detail and locates radar table layers without editing the draft", async () => {
+  setup({ step: "views" }); const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Expand matrix layer Timing" }));
+  await user.click(screen.getByRole("button", { name: "Edit Automation: Pay on time" }));
+  await waitFor(() => expect(screen.getByLabelText("View weight: Pay on time")).toHaveFocus());
+  expect(screen.getByLabelText("View name")).toHaveValue("Automation");
+  await user.click(screen.getByText("Compare layer priority profiles", { exact: false, selector: "summary" }));
+  await user.click(screen.getByRole("button", { name: "2. Quality" }));
+  expect(screen.getByRole("button", { name: "Expand matrix layer Quality" })).toHaveFocus();
+  expect(screen.getByRole("button", { name: "Save structure as new draft" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Inspect General: Timing" }));
+  await waitFor(() => expect(screen.getByRole("region", { name: "View priority details" })).toHaveFocus());
+  expect(screen.getByLabelText("Include layer Timing in General")).toBeDisabled();
+});

@@ -141,15 +141,17 @@ def test_cycle2_analytics_censoring_histogram_and_flow_types(pipeline: dict) -> 
     assert packaging["points_below"].startswith("0.9 points below the overall score of 84.4")
     # R3-04: the bracket is the difference of the two numbers the sentence prints (83 − 55), not the
     # analytics package's Hodges-Lehmann shift of 25 days, which keeps its own labelled column in the contrast
-    assert packaging["comparison"].startswith("Paid within terms: 83 days here against 55 elsewhere (+28 days)")
+    assert packaging["comparison"].startswith(
+        "Invoice evidence-to-clearing elapsed time: 83 days here against 55 elsewhere (+28 days)"
+    )
     assert bracket_is_difference(packaging["comparison"]) is True
     censoring = next(x for x in packaging["caveats"] if x["id"] == "censoring")
     assert censoring["share"] == pytest.approx(0.1437, abs=5e-4)
-    assert censoring["text"].startswith("14 % of purchase order items still open at the end of the data (2019-01-17)")
+    assert censoring["text"].startswith("14% of purchase order items meet the recent-unclosed diagnostic at 2019-01-17")
     real_estate = page["rows"][4]
     assert real_estate["keys"]["case Spend area text"] == "Real Estate"
     assert next(x for x in real_estate["caveats"] if x["id"] == "censoring")["text"].startswith(
-        "44 % of purchase order items still open at the end of the data (2019-01-17): late clearing cannot be judged"
+        "44% of purchase order items meet the recent-unclosed diagnostic at 2019-01-17"
     )
     key = json.dumps(["companyID_0000", "Packaging"])
     detail = c.runs.slice_detail(
@@ -158,7 +160,10 @@ def test_cycle2_analytics_censoring_histogram_and_flow_types(pipeline: dict) -> 
     assert detail["validation"]["censored_share"] == pytest.approx(censoring["share"], abs=1e-9)
     cols = detail["contrast"]["columns"]
     top = dict(zip(cols, detail["contrast"]["rows"][0]))
-    assert top["constraint"] == "c_l3_invoice_to_clear_days" and top["plain"] == "Paid within terms"
+    assert (
+        top["constraint"] == "c_l3_invoice_to_clear_days"
+        and top["plain"] == "Invoice evidence-to-clearing elapsed time"
+    )
     assert top["median_group"] == pytest.approx(83.4, abs=0.1) and top["median_elsewhere"] == pytest.approx(
         54.7, abs=0.1
     )

@@ -1,3 +1,7 @@
+import { SelectionScope } from "@/components/improve/SelectionScope";
+import { ScoreExplanation } from "@/components/improve/ScoreExplanation";
+import { MeasuredComparison } from "@/components/improve/MeasuredComparison";
+import { EvidenceSupport } from "@/components/improve/EvidenceSupport";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
@@ -11,6 +15,7 @@ import { flowFocusedQuery } from "@/lib/api/flow";
 import type { Filter } from "@/lib/api/filter-types";
 import type { RunWithScope as RunC2 } from "@/lib/api/runs";
 import { runManifestQuery } from "@/lib/api/runs";
+import { chartSelection, calibrationSearch, scoreOn100 } from "./sliceContext";
 import { whatCanWeDoQuery } from "@/lib/api/review";
 import { ReasonList } from "@/components/knowledge/HubTemplate";
 import { WhatDoesThisMean } from "@/components/knowledge/WhatDoesThisMean";
@@ -21,19 +26,20 @@ import { DistributionLens } from "@/components/DistributionLens";
 import { Metric, backlogExplain } from "@/components/explain";
 import { BackControl } from "@/components/guide/BackControl";
 import { CaveatChips } from "@/components/guide/CaveatChips";
+import { definition } from "@/lib/vocabulary";
 import { FilterChipsRow } from "@/components/guide/FilterChipsRow";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { NextStep } from "@/components/guide/NextStep";
-import { EmptyState, ErrorBlock, LoadingBlock, QueryState } from "@/components/states";
+import { EmptyState, ErrorBlock, LoadingBlock, QueryState, errorReading } from "@/components/states";
 import { Term, useVocabulary } from "@/components/Term";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Table, Td, Th } from "@/components/ui/misc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addClause, addedClauses, describeClause, filterHash, parseFilter, serializeFilter } from "@/lib/filter";
-import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
+import { addedClauses, describeClause, filterHash, parseFilter, serializeFilter } from "@/lib/filter";
+import { fmtInt, fmtNum, fmtPct, fmtSig } from "@/lib/format";
 import { backlogQuery, sliceQuery } from "@/lib/api/exploration";
 import { distributionQuery } from "@/lib/api/analytics";
 import { flowQuery } from "@/lib/api/flow";
@@ -51,7 +57,7 @@ const Charts = lazy(() => import("./charts"));
 const FlowMap = lazy(() => import("@/components/flow/FlowMap"));
 
 type Driver = { constraint: string; layer: string; type: string; mean_penalty: number; mean_violation?: number; share_violated: number; share_in_scope: number; share_evaluated?: number; description?: string; delta_gap: number; share_of_shortfall?: number };
-type Contrast = { constraint: string; plain?: string; description: string; layer?: string; type?: string; share_missed_group: number; share_missed_elsewhere: number; risk_difference: number; rd_lo?: number; rd_hi?: number; median_group?: number | null; median_elsewhere?: number | null; shift?: number | null; unit?: string | null; pattern?: string | null; share_of_shortfall?: number };
+type Contrast = { n_evaluated_group?: number | null; n_evaluated_elsewhere?: number | null; comparison?: string; constraint: string; plain?: string; description: string; layer?: string; type?: string; share_missed_group: number; share_missed_elsewhere: number; risk_difference: number; rd_lo?: number; rd_hi?: number; median_group?: number | null; median_elsewhere?: number | null; shift?: number | null; unit?: string | null; pattern?: string | null; share_of_shortfall?: number };
 type Comparison = { constraint: string; kind?: string; sentence?: string | null };
 type Headroom = { constraint: string; plain?: string; description?: string; layer?: string; gain_points?: number | null; gain_percent?: number | null; share_violated?: number | null };
 type Validation = { n_cases?: number; censored_share?: number; replicated_share?: number; retained?: number; stable_gap_kept?: number; reading?: string };
@@ -147,6 +153,10 @@ export default function SlicePage() {
   const view = search.view ?? run?.views?.[0];
   const plain = vocabulary === "plain";
   const filter = useMemo(() => parseFilter(search.filter), [search.filter]);
+  const charts = useMemo(() => chartSelection(search.filter, search.within, run?.slicings), [search.filter, search.within, run?.slicings]);
+  const chartFilter = charts.supported ? charts.filterText : undefined;
+  const selectedCharts = search.filter !== undefined || search.within !== undefined;
+  const fullMap = useMemo(() => charts.supported ? chartSelection(charts.filterText, JSON.stringify({ slicing, key: sliceKey }), run?.slicings) : charts, [charts, slicing, sliceKey, run?.slicings]);
   const setLastSlice = useNavStore((s) => s.setLastSlice);
   const [pendingAdd, setPendingAdd] = useState<{ key: string; text: string }>();
   const [paneOpen, setPaneOpen] = useState(false);
@@ -171,28 +181,24 @@ export default function SlicePage() {
     const thresholdTypes = new Set(["lag", "metric", "singularity", "balance"]);
     return drivers.filter((d) => thresholdTypes.has(d.type)).map((d) => d.constraint);
   }, [drivers]);
-  const constraint = search.constraint && lensConstraints.includes(search.constraint) ? search.constraint : lensConstraints[0];
-  const lensWanted = !!constraint && (search.tab === "compared" || search.tab === "why");
-  const dist = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? "", slicing, sliceKey, search.filter), enabled: lensWanted });
-  // the same expectation over the whole log: "everyone else" is the whole minus the group
-  const distAll = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? ""), enabled: lensWanted });
+  const constraint = search.constraint ?? lensConstraints[0] ?? drivers[0]?.constraint;
+  const lensWanted = !!constraint && lensConstraints.includes(constraint) && (search.tab === "compared" || search.tab === "why");
+  const dist = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? "", slicing, sliceKey, chartFilter), enabled: lensWanted && charts.supported });
+  // Compare against the same selected population, minus the current group.
+  const distAll = useQuery({ ...distributionQuery(ctx.projectId, runId, constraint ?? "", undefined, undefined, chartFilter), enabled: lensWanted && charts.supported });
   const selectedCase = search.case;
   const worst = slice.data?.worstCases ?? [];
   const trace = useQuery({ ...traceQuery(ctx.projectId, runId, selectedCase ?? ""), enabled: !!selectedCase && search.tab === "cases" });
   const mapWanted = !!run && (search.tab === "flow" || search.tab === "why");
-  const flowGlobal = useQuery({ ...flowQuery(ctx.projectId, runId, { filter: search.filter }), enabled: mapWanted });
-  const flowSlice = useQuery({ ...flowQuery(ctx.projectId, runId, { slicing, sliceKey, filter: search.filter }), enabled: mapWanted && !!slicing });
-  const focused = useQuery({ ...flowFocusedQuery(ctx.projectId, runId, { slicing, sliceKey, focus: search.activity ?? "", filter }), enabled: mapWanted && !!search.activity });
+  const flowGlobal = useQuery({ ...flowQuery(ctx.projectId, runId, { filter: chartFilter }), enabled: mapWanted && charts.supported });
+  const flowSlice = useQuery({ ...flowQuery(ctx.projectId, runId, { slicing, sliceKey, filter: chartFilter }), enabled: mapWanted && charts.supported && !!slicing });
+  const focused = useQuery({ ...flowFocusedQuery(ctx.projectId, runId, { slicing, sliceKey, focus: search.activity ?? "", filter: charts.supported ? charts.filter : undefined }), enabled: mapWanted && charts.supported && !!search.activity });
   const preview = useQuery({ ...filterPreviewQuery(ctx.projectId, runId, filter), enabled: !!run && !!filter });
-  // The first page of the list: it drops the part of the name every group shares, and it is where the rank's
-  // population comes from. One run, one population (R3-09): the list said "57 groups" and this screen said
-  // "1 of 69" for the same run, because the row's own `n_ranked` was computed under another `minCases`. The
-  // rank is stated against the list the reader came from, and the row's own count only when there is no list.
-  // the same request the ranked list makes, `minCases` included, or the two screens would count two
-  // populations and print two different totals for one run
-  const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
+  // Retain the opening list's threshold; direct links use the saved run's threshold.
+  // Never combine a rank from one response with another population's total.
+  const rankMinCases = search.minCases ?? run?.minCases ?? 1;
+  const page1 = useQuery({ ...backlogQuery(ctx.projectId, runId, { slicing, view, minCases: rankMinCases, sort: "-stable_PI", page: 1, pageSize: 10 }), enabled: !!run && !!slicing });
   const shared = useMemo(() => sharedKeyValues(page1.data?.rows ?? []), [page1.data]);
-  const ranked = page1.data?.total;
   // the run's uncalibrated expectations, so a driver that separates no group is flagged here too
   const manifest = useQuery({ ...runManifestQuery(ctx.projectId, runId), enabled: !!run });
   const uncalibrated = useMemo(() => new Map((manifest.data?.uncalibrated ?? []).map((u) => [u.id, u])), [manifest.data]);
@@ -243,7 +249,7 @@ export default function SlicePage() {
     return ctx.isLoading ? <LoadingBlock rows={8} /> : <EmptyState title="This run does not exist in this workspace." reason={`No group can be opened for ${runId}; the ribbon stays on the project's latest run.`} action={{ label: "Go to Runs", to: "/p/$projectId/runs", params: { projectId: ctx.projectId } }} />;
   }
 
-  const backHref = { href: `/p/${ctx.projectId}/runs/${runId}/backlog?slicing=${encodeURIComponent(slicing)}${view ? `&view=${encodeURIComponent(view)}` : ""}`, label: plain ? "Where is it worst?" : "Backlog" };
+  const backHref = { href: `/p/${ctx.projectId}/runs/${runId}/backlog?slicing=${encodeURIComponent(slicing)}&minCases=${rankMinCases}${view ? `&view=${encodeURIComponent(view)}` : ""}`, label: plain ? "Where is it worst?" : "Backlog" };
 
   // R3-12: the reason screen ends on one sentence with one way out when the address carries a filter this
   // run does not understand
@@ -255,7 +261,7 @@ export default function SlicePage() {
         action={
           filter
             ? { label: "Open this group without the filter", onClick: () => void navigate({ to: ".", search: (x) => ({ ...x, filter: undefined, fh: undefined }) }) }
-            : { label: "Back to the ranked list", to: "/p/$projectId/runs/$runId/backlog" as const, params: { projectId: ctx.projectId, runId }, search: { slicing, view } }
+            : { label: "Back to the ranked list", to: "/p/$projectId/runs/$runId/backlog" as const, params: { projectId: ctx.projectId, runId }, search: { slicing, view, minCases: rankMinCases } }
         }
       />
     );
@@ -266,6 +272,11 @@ export default function SlicePage() {
       {(detail: SliceDetail) => {
         const row = detail.row as BacklogRowC2 | undefined;
         if (!row) return <EmptyState title="Group not found" reason="The group is not part of this run and grouping." />;
+        const listed = !page1.isError ? page1.data?.rows.find(candidate => candidate.key === row.key) : undefined;
+        const validRank = (rank: unknown, total: unknown): rank is number => typeof rank === "number" && Number.isSafeInteger(rank) && rank > 0 && typeof total === "number" && Number.isSafeInteger(total) && total >= rank;
+        const listedRank = validRank(listed?.rank, page1.data?.total);
+        const savedRank = validRank(row.rank, row.n_ranked);
+        const rankText = listedRank ? `${listed!.rank} of ${fmtInt(page1.data!.total)}` : savedRank ? `${row.rank} of ${fmtInt(row.n_ranked)}` : "Unavailable";
         const c2 = detail as SliceDetailC2;
         const name = groupLabel(row, shared);
         const noun = plain ? (row.case_noun ?? "cases") : "cases";
@@ -294,14 +305,14 @@ export default function SlicePage() {
         const firstCaveat = (caveats ?? []).filter((c) => c.share === null || c.share === undefined || c.share > 0.005)[0];
         const mapProps = {
           graph: flowSlice.data,
-          baseline: flowGlobal.data,
+          baseline: flowGlobal.isSuccess ? flowGlobal.data : undefined,
           filter,
           preview: preview.data,
           onFilterChange: changeFilter,
           chips: false,
           focus: search.activity ?? null,
           onFocusChange: (a: string | undefined) => void navigate({ to: ".", search: (s) => ({ ...s, activity: a }) }),
-          paths: focused.data?.paths ?? undefined,
+          paths: focused.isSuccess ? focused.data?.paths ?? undefined : undefined,
           highlight: topDriverActivities,
           plainOf: (id: string) => plainOf(id),
           noun,
@@ -321,64 +332,54 @@ export default function SlicePage() {
             if (a.id === "worst-cases") void navigate({ to: ".", search: (s) => ({ ...s, tab: "cases" }) });
           },
         };
-        // §3.11: a group whose map cannot be drawn is told so in one sentence with one next step. The
-        // answer's status code and the server's own phrase never reach the screen.
-        const noMap = flowSlice.isError && flowSlice.error instanceof ApiError && flowSlice.error.status === 404;
+        const scopeUnavailable = !charts.supported && <p role="status" className="reading text-sm text-text-muted" data-testid="chart-scope-unavailable">{charts.reason} Charts are withheld; no broader population is substituted.</p>;
+        const noMap = flowSlice.isError && flowSlice.error instanceof ApiError && flowSlice.error.status === 404 && flowSlice.error.problem?.code === "slice.not_found";
         const mapBlock = (height: number, embedded: boolean) => (
           <>
-            {(flowSlice.isPending || flowGlobal.isPending) && <LoadingBlock rows={6} />}
-            {noMap && (
-              <div className="rounded-md border border-border bg-surface-sunken p-3 text-sm" data-testid="no-map">
-                <p className="reading text-text">No map can be drawn for {name}.</p>
-                <p className="reading mt-1 text-text-muted">The run has no event of these {noun} left after the current chips, so there is no path to draw.</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {filter?.and.length ? (
-                    <Button variant="outline" size="sm" onClick={() => changeFilter(undefined)}>
-                      Remove the chips
-                    </Button>
-                  ) : null}
-                  <Button variant="outline" size="sm" onClick={() => setTab("why")}>
-                    Read the reasons instead
-                  </Button>
-                </div>
-              </div>
-            )}
-            {/* R3-12: a filter the run does not understand ends this block on one sentence with one way out */}
-            {flowSlice.isError && !noMap && (
-              <ErrorBlock
-                error={flowSlice.error}
-                retry={() => void flowSlice.refetch()}
-                action={filter ? { label: "Open this group without the filter", onClick: () => changeFilter(undefined) } : undefined}
-              />
-            )}
-            {flowSlice.data && (
-              <Suspense fallback={<LoadingBlock rows={6} />}>
-                <FlowMap {...mapProps} graph={flowSlice.data} height={height} title={`Process map of ${name} with the expectations drawn on it`} />
-              </Suspense>
-            )}
-            {embedded && (
-              <button type="button" className="mt-2 self-end text-sm text-accent-text underline" onClick={() => setTab("flow")}>
-                Open the full map →
-              </button>
-            )}
+            {scopeUnavailable || <>
+              {flowSlice.isPending && <LoadingBlock rows={6} />}
+              {(noMap || (flowSlice.isSuccess && flowSlice.data.nodes.length === 0)) && (
+                <p role="status" className="reading text-sm text-text-muted" data-testid="no-map">{noMap ? "No cases match this group and chart selection." : "No recorded paths are available for this group and chart selection."}</p>
+              )}
+              {flowSlice.isError && !noMap && <ErrorBlock error={flowSlice.error} retry={() => void flowSlice.refetch()} action={search.filter !== undefined && errorReading(flowSlice.error).kind === "filter" ? { label: "Open this group without the filter", onClick: () => changeFilter(undefined) } : undefined} />}
+              {flowSlice.isSuccess && flowSlice.data.nodes.length > 0 && <>
+                {flowGlobal.isPending && <p role="status" className="text-xs text-text-muted">Loading the map comparison baseline…</p>}
+                {flowGlobal.isError && <div data-testid="map-baseline-unavailable"><p className="text-sm">Map comparison unavailable; only this group's paths are shown.</p><ErrorBlock error={flowGlobal.error} retry={() => void flowGlobal.refetch()} /></div>}
+                {search.activity && focused.isPending && <p role="status" className="text-xs text-text-muted">Loading selected activity paths…</p>}
+                {search.activity && focused.isError && <div><p className="text-sm">Selected activity paths are unavailable.</p><ErrorBlock error={focused.error} retry={() => void focused.refetch()} /></div>}
+                <Suspense fallback={<LoadingBlock rows={6} />}>
+                  <FlowMap {...mapProps} graph={flowSlice.data} height={height} title={`Process map of ${name} with the expectations drawn on it`} />
+                </Suspense>
+              </>}
+            </>}
+            {embedded && <button type="button" className="mt-2 self-end text-sm text-accent-text underline" onClick={() => setTab("flow")}>Open the full map →</button>}
           </>
         );
-        const lens = constraint && dist.data ? (
-          <DistributionLens
-            key={constraint}
-            distribution={dist.data}
-            rest={distAll.data}
-            constraintId={constraint}
-            mode={plain ? "plain" : "method"}
-            sliders="method"
-            title={lensTitle}
-            noun={noun}
-            groupName={filter ? `${name} (selected items)` : name}
-            unitLabel={plain ? unitLabel : undefined}
-            sentences={plain && !filter ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined, dist.data.binary ?? false) : undefined}
-            height={search.tab === "why" ? 240 : 320}
-          />
-        ) : null;
+        const lens = lensWanted && constraint ? <>
+          {scopeUnavailable || <>
+            {dist.isPending && <LoadingBlock rows={4} />}
+            {dist.isError && <ErrorBlock error={dist.error} retry={() => void dist.refetch()} />}
+            {dist.isSuccess && (dist.data.stats?.n === 0 ? <p role="status" className="text-sm">No recorded measurements are available for this expectation and chart selection.</p> : <>
+              {selectedCharts && <p className="mb-2 text-xs text-text-muted">Chart population: this group within the parent selection and active filters. Everyone else means the remainder of that same population.</p>}
+              {distAll.isPending && <p role="status" className="text-xs text-text-muted">Loading the distribution comparison baseline…</p>}
+              {distAll.isError && <div data-testid="distribution-baseline-unavailable"><p className="text-sm">Comparison unavailable; only this group's measurements are shown.</p><ErrorBlock error={distAll.error} retry={() => void distAll.refetch()} /></div>}
+              <DistributionLens
+                key={constraint}
+                distribution={dist.data}
+                rest={distAll.isSuccess ? distAll.data : undefined}
+                constraintId={constraint}
+                mode={plain ? "plain" : "method"}
+                sliders="method"
+                title={lensTitle}
+                noun={noun}
+                groupName={selectedCharts ? `${name} (selected items)` : name}
+                unitLabel={plain ? unitLabel : undefined}
+                sentences={plain && !selectedCharts && distAll.isSuccess ? lensSentences(topContrast, lensTitle, name, noun, dist.data.threshold, dist.data.unit ?? undefined, dist.data.binary ?? false) : undefined}
+                height={search.tab === "why" ? 240 : 320}
+              />
+            </>)}
+          </>}
+        </> : null;
         return (
           <div className="flex flex-col gap-5">
             <header className="flex flex-col gap-2">
@@ -394,15 +395,20 @@ export default function SlicePage() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-3" data-no-capture>
                   <span className="flex items-center gap-2 text-sm">
+                    <span className="text-xs text-text-muted">Whole-group pattern / rank confidence:</span>
                     <KindBadge kind={row.kind} hotspotType={row.hotspot_type} short={plain} className="text-sm" />
                     <ConfidenceMark value={row.stability} words className="text-sm" title={row.stability_reason ?? undefined} />
                   </span>
                   <FreezeButton projectId={ctx.projectId} screen="why" context={{ run_id: runId, slicing, view, slice_key: row.key, filters: filter ?? null, scope: run.scope ?? null }} data={{ row, drivers: top, contrast, validation }} defaultTitle={`${name} — ${missed ?? "why"}`} />
                 </div>
               </div>
-              {filter && <p role="status" className="reading rounded-md border border-border bg-surface-sunken p-3 text-sm" data-testid="diagnostic-scope-note"><strong>Whole-group assessment below.</strong> Scores, rule contributions, gain estimates and example items describe the whole group. The flow and measurement chart use your selected items. Saved decisions retain your exact selection.</p>}
+              <SelectionScope projectId={ctx.projectId} runId={runId} slicing={slicing} sliceKey={sliceKey} view={view} filter={search.filter} within={search.within} wholeGroupCases={row.n_cases} noun={noun}>
+                {filter && <p className="mb-1 text-xs text-text-muted">Filter across the run (the count below is not the selected group count):</p>}
+                <FilterChipsRow filter={filter} preview={preview.data} noun={noun} onChange={changeFilter} />
+              </SelectionScope>
+              {(search.filter !== undefined || search.within !== undefined) && <p role="status" className="reading rounded-md border border-border bg-surface-sunken p-3 text-sm" data-testid="diagnostic-scope-note"><strong>Whole-group assessment below.</strong> Scores, ranks, stability, rule contributions, score headroom and example items describe the whole group. The flow and distribution chart apply the exact supported parent selection and case filters, or are explicitly withheld; the measured comparison summary remains whole-group. Saved decisions retain your exact selection.</p>}
               <p className="reading headline text-text" data-testid="why-sentence" title={plain && row.gap > 0 ? distanceSentence(row, true) : undefined}>
-                <strong className="tnum">{fmtInt(row.n_cases)}</strong> {noun} ·{" "}
+                <span className="text-text-muted">Whole group: </span><strong className="tnum">{fmtInt(row.n_cases)}</strong> {noun} ·{" "}
                 {row.gap > 0 ? (
                   plain ? (
                     <>
@@ -442,26 +448,24 @@ export default function SlicePage() {
               </p>
               {comparison && (
                 <p className="reading text-base text-text-muted" data-testid="why-reason">
-                  {comparison}
+                  <span className="text-xs">Whole-group comparison: </span>{comparison}
                 </p>
               )}
               <div className="flex flex-wrap items-stretch gap-2 text-sm" data-testid="why-strip">
                 <div className="flex min-w-[120px] flex-col rounded-md border border-border bg-surface px-3 py-1.5">
-                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">{plain ? "priority" : t("stable_PI")}</span>
-                  <span className="tnum font-semibold">{fmtNum(row.stable_PI, 0)}</span>
+                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">{plain ? "priority" : t("stable_PI")} · whole group</span>
+                  <span className="tnum font-semibold">{Math.abs(row.stable_PI) > 0 && Math.abs(row.stable_PI) < 1 ? fmtSig(row.stable_PI, 3) : fmtNum(row.stable_PI, 0)}</span>
                 </div>
                 <div className="flex min-w-[120px] flex-col rounded-md border border-border bg-surface px-3 py-1.5">
-                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">rank</span>
-                  <span className="tnum font-semibold" title={ranked !== undefined && row.n_ranked && row.n_ranked !== ranked ? `${fmtInt(ranked)} groups are ranked at the list's smallest group size; the run scored ${fmtInt(row.n_ranked)}` : undefined}>
-                    {row.rank}
-                    {ranked !== undefined ? ` of ${fmtInt(ranked)}` : row.n_ranked ? ` of ${fmtInt(row.n_ranked)}` : ""}
-                  </span>
+                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">rank · whole group</span>
+                  <span className="tnum font-semibold">{rankText}</span>
+                  <span className="text-xs text-text-muted">{listedRank ? `Groups with at least ${fmtInt(rankMinCases)} ${noun}` : savedRank ? "Assessment ranking population" : "No matching ranking population supplied"}</span>
                 </div>
                 <div className="flex min-w-[160px] flex-col rounded-md border border-border bg-surface px-3 py-1.5">
-                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">{plain ? "average met" : t("mean_score")}</span>
+                  <span className="text-[11px] uppercase tracking-wide text-text-subtle">Mean WISE score (0–100) · whole group</span>
                   <span className="tnum font-semibold">
-                    {fmtPct(row.mean_score, 0)}
-                    {row.global_mean !== null && row.global_mean !== undefined ? <span className="font-normal text-text-muted"> (everyone {fmtPct(row.global_mean, 0)})</span> : null}
+                    {scoreOn100(row.mean_score)}
+                    {row.global_mean !== null && row.global_mean !== undefined ? <span className="font-normal text-text-muted"> (everyone {scoreOn100(row.global_mean)})</span> : null}
                   </span>
                 </div>
                 <div className="flex min-w-[160px] flex-col justify-center rounded-md border border-border bg-surface px-3 py-1.5">
@@ -472,6 +476,7 @@ export default function SlicePage() {
                   {showMetrics ? "less ▴" : "more ▾"}
                 </button>
               </div>
+              <p className="text-xs text-text-muted">WISE scores combine view weights and graded penalties for applicable expectations; they are not the percentage of rules passed.</p>
               {(showMetrics || !plain) && (
                 <div className="grid grid-cols-3 gap-4 sm:grid-cols-6" data-testid="method-strip">
                   <Metric label={t("n_cases")} value={fmtInt(row.n_cases)} explain={backlogExplain("n_cases", row, params, fmt)} size="sm" />
@@ -487,8 +492,6 @@ export default function SlicePage() {
                 in real units, <strong>Flow</strong> the full map (click an activity for its card; filters travel with the address), <strong>Cases</strong> what kind of cases carry it, <strong>Data trust</strong> what could distort the reading,{" "}
                 <strong>Gain</strong> what would be won. Your reading goes into the decision pane.
               </HowToRead>
-              <FilterChipsRow filter={filter} preview={preview.data} noun={noun} onChange={changeFilter} />
-
               <p className="sr-only" aria-live="polite" data-testid="filter-announcement">
                 {announcement}
               </p>
@@ -513,6 +516,9 @@ export default function SlicePage() {
                   </TabsList>
 
                   <TabsContent value="why" className="flex flex-col gap-4">
+                    <ScoreExplanation key={`${runId}:${slicing}:${sliceKey}:${view}`} drivers={detail.drivers} baseline={row.global_mean} groupScore={row.mean_score} groupName={name} noun={noun}
+                      view={view} selected={search.filter !== undefined || search.within !== undefined} plainOf={plainOf} layerNames={layerNames}
+                      onSelect={(c) => void navigate({ to: ".", search: (s) => ({ ...s, tab: "compared", constraint: c }) })} />
                     <Card>
                       <CardTitle>{filter ? "Whole group: which expectations are missed" : plain ? "Which expectations are missed" : "Top drivers"}</CardTitle>
                       {/* never a borrowed reading (R2-05): a group without a scored case says so, and a group whose
@@ -602,11 +608,9 @@ export default function SlicePage() {
                         </Suspense>
                       </>
                     )}
-                    {constraint && (
+                    {lensWanted && constraint && (
                       <Card data-testid="why-lens">
-                        <CardTitle>{filter ? "Selected items: measurement" : "Compared with everyone else, for the top expectation"}</CardTitle>
-                        {dist.isPending && <LoadingBlock rows={4} />}
-                        {dist.isError && <ErrorBlock error={dist.error} />}
+                        <CardTitle>{selectedCharts ? "Selected items: measurement" : "Compared with everyone else, for the top expectation"}</CardTitle>
                         {lens}
                         <button type="button" className="mt-2 text-sm text-accent-text underline" onClick={() => setTab("compared")}>
                           Open the full comparison →
@@ -644,25 +648,25 @@ export default function SlicePage() {
                     <Card data-testid="typical-causes">
                       <CardTitle>Typical causes for this pattern</CardTitle>
                       {actAnswer.isPending && <LoadingBlock rows={3} />}
-                      {actReasons.length > 0 ? (
+                      {actAnswer.isError && <ErrorBlock error={actAnswer.error} retry={() => void actAnswer.refetch()} />}
+                      {actAnswer.isSuccess && (actReasons.length > 0 ? (
                         <>
                           <p className="text-xs text-text-subtle">Candidates to check, not findings — for {actDriver?.plain_name ?? plainOf(top[0]?.constraint ?? "")}.</p>
                           <ReasonList reasons={actReasons} className="mt-2" />
                         </>
-                      ) : (
-                        !actAnswer.isPending && (
-                          <p className="reading text-sm text-text-muted">
-                            This run's process pack carries no candidate reasons for the expectations of this group. What can we do? still lists the possible gain and the actions.
-                          </p>
-                        )
-                      )}
+                      ) : <p className="reading text-sm text-text-muted">No candidate reasons were returned for this group.</p>)}
                       <Button variant="outline" size="sm" className="mt-3" onClick={() => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, filter: search.filter, within: search.within, constraint: top[0]?.constraint } })}>
                         What can we do? →
                       </Button>
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="compared">
+                  <TabsContent value="compared" className="flex flex-col gap-4">
+                    <MeasuredComparison noun={noun} row={topContrast} label={lensTitle || "No expectation selected"} view={view} selected={search.filter !== undefined || search.within !== undefined} />
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <Button variant="outline" size="sm" onClick={() => setTab("cases")}>Inspect group case examples →</Button>
+                      <span className="text-xs text-text-muted">Whole-group examples; the selected expectation stays in the address.</span>
+                    </div>
                     <Card>
                       <div className="mb-3 flex flex-wrap items-center gap-3">
                         <CardTitle className="mb-0">{plain ? "Compared with everyone else" : "Distribution of the raw signal · slice"}</CardTitle>
@@ -671,7 +675,7 @@ export default function SlicePage() {
                             <SelectValue placeholder={plain ? "expectation" : t("constraint")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {lensConstraints.map((c) => (
+                            {drivers.map((d) => d.constraint).map((c) => (
                               <SelectItem key={c} value={c}>
                                 <span className={cn("text-xs", !plain && "font-mono")}>{plain ? plainOf(c) : c}</span>
                               </SelectItem>
@@ -680,16 +684,16 @@ export default function SlicePage() {
                         </Select>
                       </div>
                       {!constraint && <p className="text-sm text-text-muted">No expectation with a threshold is missed in this group.</p>}
-                      {constraint && dist.isPending && <LoadingBlock rows={5} />}
-                      {constraint && dist.isError && <ErrorBlock error={dist.error} />}
+                      {constraint && !lensConstraints.includes(constraint) && <p className="text-sm text-text-muted">This expectation has no threshold distribution. Its measured comparison, when available, is shown above.</p>}
                       {lens}
                       <p className="mt-3 text-xs text-text-muted">
                         {plain ? "The expectation line and the tolerance band come from the norm." : "Changing ϑ or W here is exploration."} Committing a threshold happens on the{" "}
-                        <Link className="text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: run.normVersionId }} search={{ tab: "constraints", constraint }}>
+                        <Link className="text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: run.normVersionId }} search={calibrationSearch(run, constraint)} aria-describedby="calibration-population">
                           norm's calibration lens
                         </Link>{" "}
-                        (Recalibrate in the norm →) and asks for a note.
+                        (Recalibrate in the norm →).
                       </p>
+                      <p id="calibration-population" className="mt-2 text-xs text-text-muted">Calibration uses {calibrationSearch(run, constraint).selection ? "this run’s saved population" : "all prepared cases in this run’s case table"}. The investigation group, parent group, temporary filters and any flow-type restriction are not carried into calibration. Define shows the population before you change a target.</p>
                     </Card>
                   </TabsContent>
 
@@ -705,23 +709,29 @@ export default function SlicePage() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const scoped = addClause(filter, { kind: "slice", slicing, key: sliceKey });
+                            if (!fullMap.supported) return;
                             void navigate({
                               to: "/p/$projectId/runs/$runId/flow",
                               params: { projectId: ctx.projectId, runId },
-                              search: { view, slicing, render: "map" as const, filter: serializeFilter(scoped), fh: filterHash(scoped) } as never,
+                              search: { view, slicing, render: "map" as const, filter: fullMap.filterText, fh: filterHash(fullMap.filter) } as never,
                             });
                           }}
+                          disabled={!fullMap.supported}
+                          aria-describedby={!fullMap.supported ? "full-map-scope" : undefined}
                         >
                           Open full →
                         </Button>
                       </div>
+                      {!fullMap.supported && <p id="full-map-scope" className="mb-2 text-xs text-text-muted">Full map unavailable: {fullMap.reason}</p>}
                       {mapBlock(520, false)}
                       {topDriverActivities.length > 0 && <p className="mt-2 text-xs text-text-muted">Tinted activities belong to the top expectations behind the shortfall.</p>}
                     </Card>
                   </TabsContent>
 
                   <TabsContent value="cases" className="flex flex-col gap-4">
+                    <EvidenceSupport noun={noun} group={row.n_cases} scored={detail.scoredCases} evaluated={topContrast?.n_evaluated_group}
+                      label={lensTitle || "No expectation selected"} view={view} selected={search.filter !== undefined || search.within !== undefined} />
+                    <Button variant="outline" className="self-start" onClick={() => void navigate({ to: "/p/$projectId/runs/$runId/slices/$sliceKey/act", params: { projectId: ctx.projectId, runId, sliceKey }, search: { slicing, view, filter: search.filter, within: search.within, constraint } })}>Review actions for this expectation →</Button>
                     {subgroups.length > 0 && (
                       <Card data-testid="subgroups">
                         <CardTitle>{plain ? "What kind of cases carry it" : "Sub-groups by penalty mass"}</CardTitle>
@@ -742,13 +752,14 @@ export default function SlicePage() {
                     )}
                     <Card>
                       <CardTitle>
-                        <Term id="worst_cases" primaryOnly={plain} />
+                        <Term id="worst_cases" primaryOnly={plain} /> · whole-group examples
                       </CardTitle>
+                      <p className="mb-3 text-xs text-text-muted">These examples come from the whole group, ordered by score. They are not an exhaustive list of cases matching the filter or the selected expectation.</p>
                       <Table data-testid="worst-cases">
                         <thead>
                           <tr>
                             <Th>case</Th>
-                            <Th numeric>{plain ? "rules met" : <Term id="score">score</Term>}</Th>
+                            <Th numeric>WISE score (0–100)</Th>
                             <Th numeric>{plain ? "missed" : "violated"}</Th>
                             <Th>{plain ? "missed most" : <Term id="constraint">expectations missed</Term>}</Th>
                           </tr>
@@ -763,7 +774,7 @@ export default function SlicePage() {
                                     {c.caseId}
                                   </button>
                                 </Td>
-                                <Td numeric>{plain ? fmtPct(c.score, 0) : fmtNum(c.score, 3)}</Td>
+                                <Td numeric>{scoreOn100(c.score)}</Td>
                                 <Td numeric>{violated.length}</Td>
                                 <Td className="text-xs">
                                   {plain ? (
@@ -840,14 +851,15 @@ export default function SlicePage() {
                       </div>
                       <details className="mt-3 text-sm">
                         <summary className="cursor-pointer text-text-muted">The four numbers</summary>
+                        <p className="mt-2 text-text-muted">{definition("censoring")}</p>
                         <dl className="tnum mt-2 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
-                          <dt className="text-text-muted">{plain ? "still open at the end of the data" : <Term id="censoring" primaryOnly />}</dt>
+                          <dt className="text-text-muted"><Term id="censoring" primaryOnly /></dt>
                           <dd>{fmtPct(validation.censored_share, 1)}</dd>
                           <dt className="text-text-muted">{plain ? "duplicated events" : <Term id="replication" primaryOnly />}</dt>
                           <dd>{fmtPct(validation.replicated_share, 1)}</dd>
-                          <dt className="text-text-muted">{plain ? "shortfall kept when open cases are removed" : "gap retained"}</dt>
+                          <dt className="text-text-muted">{plain ? "shortfall kept after removing recent-unclosed flagged cases" : "gap retained"}</dt>
                           <dd>{fmtPct(validation.retained, 0)}</dd>
-                          <dt className="text-text-muted">{plain ? "shortfall per case among closed cases" : "stable gap kept"}</dt>
+                          <dt className="text-text-muted">{plain ? "shortfall per case among cases not flagged recent-unclosed" : "stable gap kept"}</dt>
                           <dd>{fmtPct(validation.stable_gap_kept, 1)}</dd>
                           {!plain && (
                             <>
@@ -864,7 +876,7 @@ export default function SlicePage() {
                     <Card>
                       <CardTitle>
                         <Term id="headroom" primaryOnly={plain}>
-                          {plain ? "Possible gain" : "Headroom under the norm"}
+                          {plain ? "Whole-group score headroom" : "Whole-group headroom under the norm"}
                         </Term>
                       </CardTitle>
                       {headroomRows.some((h) => typeof h.gain_points === "number" && Number.isFinite(h.gain_points)) ? (
@@ -877,7 +889,7 @@ export default function SlicePage() {
                               .map((h) => (
                                 <li key={h.constraint} className="flex flex-col gap-1">
                                   <p className="reading text-base">
-                                    Removing all recorded violations of <strong title={h.constraint}>{plain ? (h.plain ?? h.description ?? h.constraint) : h.constraint}</strong> would add <strong className="tnum">{fmtNum(h.gain_points, 1)} score points</strong>
+                                    <span className="text-xs text-text-muted">Whole group: </span>Removing all recorded violations of <strong title={h.constraint}>{plain ? (h.plain ?? h.description ?? h.constraint) : h.constraint}</strong> would add <strong className="tnum">{fmtNum(h.gain_points, 1)} score points</strong>
                                     {h.share_violated !== null && h.share_violated !== undefined ? <span className="text-text-muted">; {fmtPct(h.share_violated, 0)} of evaluated {noun} miss this constraint</span> : null}.
                                   </p>
                                   <GainScenario name={h.plain ?? h.constraint} meanScore={row.mean_score} points={h.gain_points} priorityPercent={h.gain_percent} meter />

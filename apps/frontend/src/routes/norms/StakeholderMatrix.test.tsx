@@ -69,3 +69,50 @@ it("previews selected rows and columns before editing, keeps General read-only, 
   expect(edit).toHaveBeenCalledWith("Finance", "b");
   await expectNoSeriousA11yViolations(screen.getByRole("region", { name: "Stakeholder weighting matrix" }));
 });
+
+it("bounds long expanded lists, selects all pages deliberately, and retains row identity for focus", async () => {
+  const user = userEvent.setup(); const edit = vi.fn(); const change = vi.fn();
+  const large = withGeneralBenchmark({ ...document, constraints: Array.from({ length: 125 }, (_, i) => ({ id: `c${i}`, layer: "a", type: "presence", description: `Expectation ${i}`, params: {}, weight: 1 })), views: [{ name: "Operations", layer_weights: { a: 1 } }] });
+  const ui = render(<StakeholderMatrix document={large} onChange={change} onEdit={edit} onConstraint={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Expand matrix layer Completion" }));
+  expect(screen.getAllByRole("button", { name: /^Expectation \d+ c\d+$/ })).toHaveLength(12);
+  await user.click(screen.getByRole("button", { name: "Next expectations in Completion" }));
+  expect(screen.getByRole("button", { name: "Expectation 12 c12" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Edit Operations: Expectation 12" }));
+  expect(edit).toHaveBeenCalledWith("Operations", "a", "c12");
+  await user.click(screen.getByRole("button", { name: "Change several memberships" }));
+  await user.click(screen.getByLabelText("Select layer Completion"));
+  await user.click(screen.getByLabelText("Select view Operations"));
+  expect(screen.getByText("125 constraints · 1 views selected")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Preview exclusion" }));
+  expect(within(screen.getByRole("list", { name: "Membership changes" })).getAllByRole("listitem")).toHaveLength(125);
+  expect(change).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  ui.rerender(<StakeholderMatrix document={large} focusRequest={{ layer: "b", revision: 1 }} onChange={change} onEdit={edit} onConstraint={() => {}} />);
+  expect(screen.getByRole("button", { name: "Expand matrix layer Timing" })).toHaveFocus();
+});
+
+it("marks invalid weights, prevents bulk editing, and reports orphaned expectations", async () => {
+  const user = userEvent.setup();
+  const invalid = { ...document, views: [{ name: "Operations", layer_weights: { a: NaN, b: 1 } }], constraints: [...document.constraints!, { ...document.constraints![0]!, id: "orphan", layer: "missing" }] };
+  render(<StakeholderMatrix document={invalid} onChange={() => {}} onEdit={() => {}} onConstraint={() => {}} />);
+  expect(screen.getByText(/1 expectations have no matching layer/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Edit Operations: Completion" })).toHaveTextContent("Invalid weight");
+  await user.click(screen.getByRole("button", { name: "Change several memberships" }));
+  await user.click(screen.getByLabelText("Select layer Completion"));
+  await user.click(screen.getByLabelText("Select view Operations"));
+  expect(screen.getByRole("button", { name: "Preview exclusion" })).toBeDisabled();
+});
+
+it("does not offer undo after another draft edit", async () => {
+  const user = userEvent.setup(); const change = vi.fn();
+  const ui = render(<StakeholderMatrix document={document} onChange={change} onEdit={() => {}} onConstraint={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Change several memberships" }));
+  await user.click(screen.getByLabelText("Select layer Completion"));
+  await user.click(screen.getByLabelText("Select view Operations"));
+  await user.click(screen.getByRole("button", { name: "Preview exclusion" }));
+  await user.click(screen.getByRole("button", { name: "Apply to draft" }));
+  const next = change.mock.calls[0]![0] as NormDocument;
+  ui.rerender(<StakeholderMatrix document={{ ...next, name: "Subsequent edit" }} onChange={change} onEdit={() => {}} onConstraint={() => {}} />);
+  expect(screen.queryByRole("button", { name: "Undo membership change" })).not.toBeInTheDocument();
+});

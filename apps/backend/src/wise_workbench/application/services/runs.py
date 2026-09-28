@@ -381,6 +381,91 @@ class RunService:
         key = parse_slice_key(slice_key, len(attributes))
         return self.c.engine.slice_detail(run, ctx, attributes, key, view, drilldown, bands=specs)
 
+    def driver_evidence(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        constraint_id: str,
+        slicing: str,
+        slice_key: str,
+        view: str | None = None,
+        filter_text: str | None = None,
+        bands: str | None = None,
+    ) -> dict[str, Any]:
+        import hashlib
+
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes, specs = self._slicing(ctx, slicing, bands)
+        # The general slice parser accepts bare single-column values. A JSON key
+        # supplied here must remain a valid tuple, never become a literal string.
+        if slice_key.lstrip().startswith(("[", "{")):
+            try:
+                parsed_key = json.loads(slice_key)
+            except ValueError as exc:
+                raise ValidationError("The group key is not valid JSON", code="slice.key") from exc
+            if (
+                not isinstance(parsed_key, list)
+                or len(parsed_key) != len(attributes)
+                or any(isinstance(value, (list, dict)) for value in parsed_key)
+            ):
+                raise ValidationError("The group key must have one scalar value per attribute", code="slice.key")
+        key = parse_slice_key(slice_key, len(attributes))
+        selected_view = view or (ctx.views[0] if ctx.views else None)
+        if selected_view is None or selected_view not in ctx.views:
+            raise ValidationError("The selected view is not part of this run", code="driver_evidence.view")
+        filter_obj = parse_filter(filter_text)
+        table = self.c.repos.get_case_table(run.params.case_table_id)
+        if table.cases is None or run.manifest is None:
+            raise ConflictError(
+                "The run's recorded source identity is unavailable", code="driver_evidence.source_unavailable"
+            )
+        result = self.c.engine.driver_evidence(
+            run,
+            ctx,
+            attributes,
+            key,
+            constraint_id,
+            bands=specs,
+            filter_obj=filter_obj,
+        )
+        source = {
+            "projectId": project_id,
+            "runId": run_id,
+            "caseTableId": table.id,
+            "datasetId": table.dataset_id,
+            "normVersionId": run.params.norm_version_id,
+            "normFingerprint": run.manifest.norm_fingerprint,
+            "contentHash": run.manifest.content_hash,
+            "selectionId": (ctx.scope or {}).get("selection_id"),
+            "runScope": ctx.scope,
+            "transformCount": len(ctx.transforms),
+        }
+        scope = {
+            "slicing": slicing,
+            "attributes": attributes,
+            "bands": specs,
+            "key": key,
+            "view": selected_view,
+            "filter": filter_obj,
+            "filtered": bool(filter_obj and filter_obj["and"]),
+            "caseNoun": ctx.case_noun,
+            "fullCaseTableCases": table.cases,
+            **{name: result.pop(name) for name in ("runCases", "groupCases", "selectedCases", "selectedEvents")},
+            "population": "selected_cases",
+            "ruleApplicabilityApplied": False,
+            "viewAffectsMeasurements": False,
+        }
+        scope["fingerprint"] = hashlib.sha256(
+            json.dumps(
+                {"source": source, "constraintId": constraint_id, "scope": scope}, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        return {"constraintId": constraint_id, "source": source, "scope": scope, **result}
+
     def slicing_options(self, project_id: str, run_id: str) -> dict[str, Any]:
         run, ctx = self._ready(project_id, run_id)
         return self.c.engine.slicing_options(run, ctx)

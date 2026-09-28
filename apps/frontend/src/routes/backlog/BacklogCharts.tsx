@@ -83,6 +83,13 @@ export function VolumeGapScatter({ rows, activeKey, onSelect, height = 300 }: { 
   return (
     <div className="min-w-0">
       <p className="mt-2 text-sm text-text-muted">{t("gap")} (score points)</p>
+      <ul className="mt-2 flex flex-wrap gap-3 text-xs text-text-muted" aria-label="Problem kind key">
+        <li><span style={{ color: tk.kind.acute }} aria-hidden>▲ </span>Acute · few cases, far off</li>
+        <li><span style={{ color: tk.kind.systematic }} aria-hidden>◆ </span>Systematic · concentrated pattern</li>
+        <li><span style={{ color: tk.kind.widespread }} aria-hidden>● </span>Widespread · many cases, smaller gaps</li>
+        <li><span style={{ color: tk.muted }} aria-hidden>● </span>Unknown / unclassified</li>
+      </ul>
+      <p className="mt-1 text-xs text-text-muted">Kinds describe assessed patterns, not proven causes. Symbol size represents priority; confidence in rank is separate.</p>
       <EChart
         ref={ref}
         option={option}

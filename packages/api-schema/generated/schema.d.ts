@@ -459,6 +459,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/case-tables/{caseTableId}/eda/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query Case Table Eda
+         * @description Read-only bounded explorer query. Exact values and typed decimal-string ranges share immutable save membership. jointAny ORs context conjunctions; hierarchyFields declares three ordered levels. Event evidence is opt-in.
+         */
+        post: operations["queryCaseTableEDA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{projectId}/case-tables/{caseTableId}/selections": {
         parameters: {
             query?: never;
@@ -548,6 +568,26 @@ export interface paths {
         get: operations["getNormRelevance"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/norms/{normVersionId}/preview/{constraintId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Norm Constraint
+         * @description Read-only exact evaluation of a proposed rule against its saved version on an explicit evidence cohort. Creates no norm, run, approval or validation metadata. Native signal coverage is separate from evaluation under the rule's missing-data policy.
+         */
+        post: operations["previewNormConstraint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1045,6 +1085,26 @@ export interface paths {
          * @description Per flow type side by side: cases, score and shortfall per view, the most-missed expectation and the top groups (a run without scope).
          */
         get: operations["compareFlowTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/runs/{runId}/driver-evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Driver Evidence
+         * @description Read-only activity coverage and temporal endpoints for the exact run, group and optional case filter. Counts include all selected cases, not a rule-applicability subset; view is context only. Recorded event rows and unique-endpoint durations do not reproduce scoring, prove payment batches or infer overdue/cost/causality.
+         */
+        get: operations["getDriverEvidence"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3132,6 +3192,310 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** DriverActivityCoverage */
+        DriverActivityCoverage: {
+            /** Labels */
+            labels: string[];
+            /** Observedlabels */
+            observedLabels: string[];
+            /** Mappedheaderlabels */
+            mappedHeaderLabels: string[];
+            /** Eventcount */
+            eventCount: number;
+            /** Casecount */
+            caseCount: number;
+            /** Missingtimestampevents */
+            missingTimestampEvents: number;
+            /** Selectedcases */
+            selectedCases: number;
+            /** Caseswithactivity */
+            casesWithActivity: number;
+            /** Caseswithoutactivity */
+            casesWithoutActivity: number;
+            /** Singleoccurrencecases */
+            singleOccurrenceCases: number;
+            /** Repeatedoccurrencecases */
+            repeatedOccurrenceCases: number;
+        };
+        /** DriverDayBucket */
+        DriverDayBucket: {
+            /** Day */
+            day: number;
+            /** Eventcount */
+            eventCount: number;
+            /** Casecount */
+            caseCount: number;
+            /** Monthspresent */
+            monthsPresent: number;
+        };
+        /** DriverDueDateEvidence */
+        DriverDueDateEvidence: {
+            /**
+             * Status
+             * @default unavailable
+             * @constant
+             */
+            status?: "unavailable";
+            /** Reason */
+            reason: string;
+        };
+        /** DriverDurationEvidence */
+        DriverDurationEvidence: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Reason */
+            reason: string | null;
+            /**
+             * Pairing
+             * @default unique_endpoints
+             * @constant
+             */
+            pairing?: "unique_endpoints";
+            /**
+             * Unit
+             * @default days
+             * @constant
+             */
+            unit?: "days";
+            /**
+             * Pairedcases
+             * @description Ordered plus tied unique endpoints; denominator of median and p90
+             */
+            pairedCases: number;
+            /** Median */
+            median: number | null;
+            /** P90 */
+            p90: number | null;
+            partitions: components["schemas"]["DriverEndpointPartitions"];
+            ordering: components["schemas"]["DriverEndpointOrdering"];
+        };
+        /** DriverEndDayOfMonth */
+        DriverEndDayOfMonth: {
+            /** Buckets */
+            buckets: components["schemas"]["DriverDayBucket"][];
+            /**
+             * Eventcount
+             * @description All recorded end-event rows, including missing timestamps
+             */
+            eventCount: number;
+            /**
+             * Casecount
+             * @description Distinct selected items with any end-event row
+             */
+            caseCount: number;
+            /** Datedeventcount */
+            datedEventCount: number;
+            /** Datedcasecount */
+            datedCaseCount: number;
+            /** Missingtimestampevents */
+            missingTimestampEvents: number;
+            /** Firsttimestamp */
+            firstTimestamp: string | null;
+            /** Lasttimestamp */
+            lastTimestamp: string | null;
+            /** Representedmonths */
+            representedMonths: number;
+            topDay: components["schemas"]["DriverDayBucket"] | null;
+            /**
+             * Timezone
+             * @description Null means timestamps have no established timezone
+             */
+            timezone: string | null;
+            /**
+             * Calendarexposureadjusted
+             * @default false
+             * @constant
+             */
+            calendarExposureAdjusted?: false;
+        };
+        /** DriverEndpoint */
+        DriverEndpoint: {
+            /** Labels */
+            labels: string[];
+            /** Observedlabels */
+            observedLabels: string[];
+            /** Mappedheaderlabels */
+            mappedHeaderLabels: string[];
+            /** Eventcount */
+            eventCount: number;
+            /** Casecount */
+            caseCount: number;
+            /** Missingtimestampevents */
+            missingTimestampEvents: number;
+        };
+        /** DriverEndpointOrdering */
+        DriverEndpointOrdering: {
+            /**
+             * Caseswithknownendpointtimes
+             * @description At least one dated start and end, including repeats
+             */
+            casesWithKnownEndpointTimes: number;
+            /** Firstendbeforefirststartcases */
+            firstEndBeforeFirstStartCases: number;
+            /** Alldatedendsbeforefirststartcases */
+            allDatedEndsBeforeFirstStartCases: number;
+        };
+        /** DriverEndpointPartitions */
+        DriverEndpointPartitions: {
+            /** Neitherendpointcases */
+            neitherEndpointCases: number;
+            /** Missingstartonlycases */
+            missingStartOnlyCases: number;
+            /** Missingendonlycases */
+            missingEndOnlyCases: number;
+            /**
+             * Repeatedendpointcases
+             * @description Both endpoints present, with more than one start or end row
+             */
+            repeatedEndpointCases: number;
+            /**
+             * Missingtimestampcases
+             * @description Exactly one row of each endpoint, at least one undated
+             */
+            missingTimestampCases: number;
+            /**
+             * Reversedcases
+             * @description Exactly one dated row of each endpoint; end before start
+             */
+            reversedCases: number;
+            /**
+             * Tiedcases
+             * @description Exactly one dated row of each endpoint; equal timestamps
+             */
+            tiedCases: number;
+            /**
+             * Orderedcases
+             * @description Exactly one dated row of each endpoint; end after start
+             */
+            orderedCases: number;
+        };
+        /** DriverEndpoints */
+        DriverEndpoints: {
+            start: components["schemas"]["DriverEndpoint"];
+            end: components["schemas"]["DriverEndpoint"];
+        };
+        /** DriverEvidence */
+        DriverEvidence: {
+            /** Constraintid */
+            constraintId: string;
+            /** Constrainttype */
+            constraintType: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Reason */
+            reason: string | null;
+            source: components["schemas"]["DriverEvidenceSource"];
+            scope: components["schemas"]["DriverEvidenceScope"];
+            solutionCard: components["schemas"]["SolutionCard"] | null;
+            activityCoverage: components["schemas"]["DriverActivityCoverage"] | null;
+            endpoints: components["schemas"]["DriverEndpoints"] | null;
+            endDayOfMonth: components["schemas"]["DriverEndDayOfMonth"] | null;
+            duration: components["schemas"]["DriverDurationEvidence"] | null;
+            dueDate: components["schemas"]["DriverDueDateEvidence"];
+            /** Caveats */
+            caveats: string[];
+        };
+        /** DriverEvidenceScope */
+        DriverEvidenceScope: {
+            /** Fingerprint */
+            fingerprint: string;
+            /** Slicing */
+            slicing: string;
+            /** Attributes */
+            attributes: string[];
+            /** Bands */
+            bands: {
+                [key: string]: unknown;
+            }[];
+            /** Key */
+            key: unknown[];
+            /** View */
+            view: string;
+            /** Filter */
+            filter: {
+                [key: string]: unknown;
+            } | null;
+            /** Filtered */
+            filtered: boolean;
+            /** Casenoun */
+            caseNoun: string;
+            /** Fullcasetablecases */
+            fullCaseTableCases: number;
+            /** Runcases */
+            runCases: number;
+            /** Groupcases */
+            groupCases: number;
+            /** Selectedcases */
+            selectedCases: number;
+            /** Selectedevents */
+            selectedEvents: number;
+            /**
+             * Population
+             * @default selected_cases
+             * @constant
+             */
+            population?: "selected_cases";
+            /**
+             * Ruleapplicabilityapplied
+             * @default false
+             * @constant
+             */
+            ruleApplicabilityApplied?: false;
+            /**
+             * Viewaffectsmeasurements
+             * @default false
+             * @constant
+             */
+            viewAffectsMeasurements?: false;
+        };
+        /** DriverEvidenceSource */
+        DriverEvidenceSource: {
+            /** Projectid */
+            projectId: string;
+            /** Runid */
+            runId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Datasetid */
+            datasetId: string;
+            /** Normversionid */
+            normVersionId: string;
+            /** Normfingerprint */
+            normFingerprint: string;
+            /** Contenthash */
+            contentHash: string;
+            /** Selectionid */
+            selectionId: string | null;
+            /** Runscope */
+            runScope: {
+                [key: string]: unknown;
+            } | null;
+            /** Transformcount */
+            transformCount: number;
+        };
+        /** EDAActivityRow */
+        EDAActivityRow: {
+            /** Activity */
+            activity: string | null;
+            /** Occurrences */
+            occurrences: number;
+            /** Cases */
+            cases: number;
+            /** Repeatedcases */
+            repeatedCases: number;
+            /** Zerocases */
+            zeroCases: number;
+            /** Presencerate */
+            presenceRate: number | null;
+            /** Repetitionrate */
+            repetitionRate: number | null;
+        };
         /** EDACategory */
         EDACategory: {
             /** Selected */
@@ -3214,6 +3578,35 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** EDAEndpointCoverage */
+        EDAEndpointCoverage: {
+            /** Startactivity */
+            startActivity: string;
+            /** Endactivity */
+            endActivity: string;
+            /** Eligiblecases */
+            eligibleCases: number;
+            /** Pairedcases */
+            pairedCases: number;
+            /** Startonlycases */
+            startOnlyCases: number;
+            /** Endonlycases */
+            endOnlyCases: number;
+            /** Neithercases */
+            neitherCases: number;
+            /** Undatedendpointcases */
+            undatedEndpointCases: number;
+            /** Reversedcases */
+            reversedCases: number;
+            /** Ambiguouscases */
+            ambiguousCases: number;
+            /** Mediandays */
+            medianDays: number | null;
+            /** P90Days */
+            p90Days: number | null;
+            /** Rule */
+            rule: string;
+        };
         /** EDAEventBin */
         EDAEventBin: {
             /** Selected */
@@ -3230,6 +3623,31 @@ export interface components {
             max: number | null;
             /** Missing */
             missing: boolean;
+        };
+        /** EDAEventEvidence */
+        EDAEventEvidence: {
+            /** Eligiblecases */
+            eligibleCases: number;
+            /** Recordedevents */
+            recordedEvents: number;
+            /** Caseswithoutevents */
+            casesWithoutEvents: number;
+            /** Missingactivityevents */
+            missingActivityEvents: number;
+            /** Undatedevents */
+            undatedEvents: number;
+            /** Activitypage */
+            activityPage: number;
+            /** Activitypagesize */
+            activityPageSize: number;
+            /** Totalactivities */
+            totalActivities: number;
+            /** Activities */
+            activities: components["schemas"]["EDAActivityRow"][];
+            endpoints: components["schemas"]["EDAEndpointCoverage"] | null;
+            trace: components["schemas"]["EDATrace"] | null;
+            /** Notes */
+            notes: string[];
         };
         /** EDAEventRange */
         EDAEventRange: {
@@ -3250,7 +3668,9 @@ export interface components {
             /** Field */
             field: string;
             /** Keys */
-            keys: string[];
+            keys?: string[];
+            /** Values */
+            values?: string[];
         };
         /** EDAFieldProfile */
         EDAFieldProfile: {
@@ -3271,6 +3691,24 @@ export interface components {
             missing: components["schemas"]["EDACount"];
             /** @description Selected-case finite numeric statistics; null for nonnumeric fields. */
             numeric: components["schemas"]["EDANumericStats"] | null;
+        };
+        /** EDAHierarchy */
+        EDAHierarchy: {
+            /** Fields */
+            fields: string[];
+            /** Cells */
+            cells: components["schemas"]["EDAHierarchyCell"][];
+        };
+        /** EDAHierarchyCell */
+        EDAHierarchyCell: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Keys */
+            keys: string[];
+            /** Labels */
+            labels: string[];
         };
         /** EDAInsights */
         EDAInsights: {
@@ -3300,6 +3738,30 @@ export interface components {
             /** Rightkey */
             rightKey: string;
         };
+        /** EDAJointPredicate */
+        EDAJointPredicate: {
+            /** Facets */
+            facets: components["schemas"]["EDAFacetSelection"][];
+        };
+        /** EDANumericFacet */
+        EDANumericFacet: {
+            /** Field */
+            field: string;
+            /** Ranges */
+            ranges?: components["schemas"]["EDANumericRange"][];
+            /**
+             * Missing
+             * @default false
+             */
+            missing?: boolean;
+        };
+        /** EDANumericRange */
+        EDANumericRange: {
+            /** Min */
+            min?: string | null;
+            /** Max */
+            max?: string | null;
+        };
         /** EDANumericStats */
         EDANumericStats: {
             /** Min */
@@ -3325,6 +3787,93 @@ export interface components {
             from: string | null;
             /** To */
             to: string | null;
+        };
+        /** EDARequest */
+        EDARequest: {
+            /** Datasetid */
+            datasetId: string;
+            /** Attribute */
+            attribute?: string | null;
+            /**
+             * Insight
+             * @default false
+             */
+            insight?: boolean;
+            /** Compareattribute */
+            compareAttribute?: string | null;
+            /** Hierarchyfields */
+            hierarchyFields?: string[] | null;
+            /** Valuefield */
+            valueField?: string | null;
+            /**
+             * Valuesearch
+             * @default
+             */
+            valueSearch?: string;
+            /**
+             * Valuepage
+             * @default 1
+             */
+            valuePage?: number;
+            /**
+             * Eventinsight
+             * @default false
+             */
+            eventInsight?: boolean;
+            /**
+             * Activitysearch
+             * @default
+             */
+            activitySearch?: string;
+            /**
+             * Activitypage
+             * @default 1
+             */
+            activityPage?: number;
+            /** Endpointstart */
+            endpointStart?: string | null;
+            /** Endpointend */
+            endpointEnd?: string | null;
+            /** Tracecaseid */
+            traceCaseId?: string | null;
+            /**
+             * Tracepage
+             * @default 1
+             */
+            tracePage?: number;
+            /** Filter */
+            filter?: string | null;
+            /**
+             * Selection
+             * @description JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected.
+             */
+            selection?: string | null;
+            /** Categorymode */
+            categoryMode?: ("missing" | "other") | null;
+            /**
+             * Timemissing
+             * @default false
+             */
+            timeMissing?: boolean;
+            /**
+             * Spanmissing
+             * @default false
+             */
+            spanMissing?: boolean;
+            /** Spanmin */
+            spanMin?: number | null;
+            /** Spanmax */
+            spanMax?: number | null;
+            /**
+             * Page
+             * @default 1
+             */
+            page?: number;
+            /**
+             * Pagesize
+             * @default 25
+             */
+            pageSize?: number;
         };
         /** EDAResponse */
         EDAResponse: {
@@ -3353,6 +3902,9 @@ export interface components {
             /** Notes */
             notes: string[];
             insights?: components["schemas"]["EDAInsights"] | null;
+            values?: components["schemas"]["EDAValuePage"] | null;
+            hierarchy?: components["schemas"]["EDAHierarchy"] | null;
+            eventEvidence?: components["schemas"]["EDAEventEvidence"] | null;
         };
         /** EDARow */
         EDARow: {
@@ -3376,6 +3928,10 @@ export interface components {
         EDASelection: {
             /** Facets */
             facets?: components["schemas"]["EDAFacetSelection"][] | null;
+            /** Numericfacets */
+            numericFacets?: components["schemas"]["EDANumericFacet"][] | null;
+            /** Jointany */
+            jointAny?: components["schemas"]["EDAJointPredicate"][] | null;
             /** Eventranges */
             eventRanges?: components["schemas"]["EDAEventRange"][] | null;
             /**
@@ -3449,6 +4005,66 @@ export interface components {
             from?: string | null;
             /** Before */
             before?: string | null;
+        };
+        /** EDATrace */
+        EDATrace: {
+            /** Caseid */
+            caseId: string;
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+            /** Undatedevents */
+            undatedEvents: number;
+            /** Events */
+            events: components["schemas"]["EDATraceEvent"][];
+            /** Endpointstatus */
+            endpointStatus: string | null;
+            /** Endpointdays */
+            endpointDays: number | null;
+        };
+        /** EDATraceEvent */
+        EDATraceEvent: {
+            /** Position */
+            position: number;
+            /** Activity */
+            activity: string | null;
+            /** Timestamp */
+            timestamp: string | null;
+            /** Lifecycle */
+            lifecycle: string | null;
+            /** Resource */
+            resource: string | null;
+            /** Timestamptied */
+            timestampTied: boolean;
+        };
+        /** EDAValue */
+        EDAValue: {
+            /** Selected */
+            selected: number;
+            /** Total */
+            total: number;
+            /** Value */
+            value: string;
+            /** Selectable */
+            selectable: boolean;
+        };
+        /** EDAValuePage */
+        EDAValuePage: {
+            /** Field */
+            field: string;
+            /** Query */
+            query: string;
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Totalvalues */
+            totalValues: number;
+            /** Rows */
+            rows: components["schemas"]["EDAValue"][];
         };
         /** FacetValue */
         FacetValue: {
@@ -4625,15 +5241,84 @@ export interface components {
             /** Casetableid */
             caseTableId: string;
         };
+        /** NormConstraintPreview */
+        NormConstraintPreview: {
+            /** Normversionid */
+            normVersionId: string;
+            /** Casetableid */
+            caseTableId: string;
+            /** Constraintid */
+            constraintId: string;
+            scope: components["schemas"]["NormEvidenceScope"];
+            saved: components["schemas"]["NormRulePreview"];
+            proposed: components["schemas"]["NormRulePreview"];
+        };
+        /** NormEvidenceScope */
+        NormEvidenceScope: {
+            /**
+             * Kind
+             * @default all_cases
+             * @enum {string}
+             */
+            kind?: "all_cases" | "saved_selection";
+            /** Selectionid */
+            selectionId?: string | null;
+            /** Selectionname */
+            selectionName?: string | null;
+            /** Membershipchecksum */
+            membershipChecksum?: string | null;
+        };
+        /** NormPreviewCounts */
+        NormPreviewCounts: {
+            /** Populationcases */
+            populationCases: number;
+            /** Applicablecases */
+            applicableCases: number;
+            /** Evaluatedcases */
+            evaluatedCases: number;
+            /** Unknowncases */
+            unknownCases: number;
+            /** Violatingcases */
+            violatingCases: number;
+            /** Violationshare */
+            violationShare?: number | null;
+            /** Meanpenalty */
+            meanPenalty?: number | null;
+            /**
+             * Observedcases
+             * @description Finite native signals; null when no native signal is supported
+             */
+            observedCases?: number | null;
+            /** Missingsignalcases */
+            missingSignalCases?: number | null;
+        };
+        /** NormPreviewRequest */
+        NormPreviewRequest: {
+            /** Casetableid */
+            caseTableId: string;
+            /** Selectionid */
+            selectionId?: string | null;
+            /** Constraint */
+            constraint: {
+                [key: string]: unknown;
+            };
+            /**
+             * Scale
+             * @default linear
+             * @enum {string}
+             */
+            scale?: "linear" | "log";
+        };
         /** NormRelevance */
         NormRelevance: {
             /** Normversionid */
             normVersionId: string;
             /** Casetableid */
             caseTableId: string;
+            scope?: components["schemas"]["NormEvidenceScope"];
             /**
              * Cases
-             * @description Total cases in the explicit mapped table
+             * @description Total cases in the explicit evidence population
              */
             cases: number;
             /** Constraints */
@@ -4658,11 +5343,18 @@ export interface components {
             observedCases: number | null;
             /**
              * Missingactivities
-             * @description Referenced raw activity labels with zero occurrences in the whole mapped table
+             * @description Referenced raw activity labels with zero occurrences in the evidence population
              */
             missingActivities: string[];
             /** Issues */
             issues: string[];
+        };
+        /** NormRulePreview */
+        NormRulePreview: {
+            counts: components["schemas"]["NormPreviewCounts"];
+            distribution?: components["schemas"]["Distribution"] | null;
+            /** Note */
+            note?: string | null;
         };
         /**
          * NormSignalDistribution
@@ -4734,6 +5426,7 @@ export interface components {
             normVersionId: string;
             /** Casetableid */
             caseTableId: string;
+            scope?: components["schemas"]["NormEvidenceScope"];
         };
         /** NormStatusUpdate */
         NormStatusUpdate: {
@@ -4817,7 +5510,7 @@ export interface components {
             observedCases: number | null;
             /**
              * Missingactivities
-             * @description Referenced raw activity labels with zero occurrences in the whole mapped table
+             * @description Referenced raw activity labels with zero occurrences in the evidence population
              */
             missingActivities: string[];
             /** Issues */
@@ -5835,6 +6528,50 @@ export interface components {
             data?: unknown;
             /** Author */
             author?: string | null;
+        };
+        /** SolutionCard */
+        SolutionCard: {
+            /** Id */
+            id: string;
+            /** Version */
+            version: number;
+            /** Title */
+            title: string;
+            /** Intent */
+            intent: string;
+            /** Hubnode */
+            hubNode: string | null;
+            /** Process */
+            process: string | null;
+            /** Blocks */
+            blocks: components["schemas"]["SolutionCardBlock"][];
+        };
+        /** SolutionCardBlock */
+        SolutionCardBlock: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "activity_coverage" | "endpoint_duration" | "end_day_of_month" | "due_date_lead";
+            /** Title */
+            title: string;
+            /** Question */
+            question: string;
+            /** Requires */
+            requires: string[];
+            /** Calculation */
+            calculation: string;
+            /**
+             * Presentation
+             * @enum {string}
+             */
+            presentation: "coverage" | "summary" | "day_bars" | "availability";
+            /** Missingdata */
+            missingData: string;
+            /** Interpretation */
+            interpretation: string;
         };
         /** Table */
         Table: {
@@ -7020,6 +7757,17 @@ export interface operations {
                 attribute?: string | null;
                 insight?: boolean;
                 compareAttribute?: string | null;
+                hierarchyFields?: string[] | null;
+                valueField?: string | null;
+                valueSearch?: string;
+                valuePage?: number;
+                eventInsight?: boolean;
+                activitySearch?: string;
+                activityPage?: number;
+                endpointStart?: string | null;
+                endpointEnd?: string | null;
+                traceCaseId?: string | null;
+                tracePage?: number;
                 filter?: string | null;
                 /** @description JSON object: facets ({field,keys}, up to 16 unique fields), eventRanges ({min,max}, nonnegative event counts, exclusive upper bound), eventMissing (union with eventRanges), categoryKeys (returned keys), timeRanges ({from,before}, exclusive upper bound), timeMissing, spanRanges ({min,max}, exclusive upper bound), spanMissing. OR within dimensions, AND across dimensions and legacy parameters. Empty arrays and unsupported fields are rejected. */
                 selection?: string | null;
@@ -7039,6 +7787,42 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EDAResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    queryCaseTableEDA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                caseTableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EDARequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -7222,6 +8006,8 @@ export interface operations {
                 caseTableId: string;
                 /** @description bin scale of the histogram */
                 scale?: "linear" | "log";
+                /** @description Explicit saved whole-case evidence cohort */
+                selectionId?: string | null;
             };
             header?: never;
             path: {
@@ -7267,6 +8053,8 @@ export interface operations {
             query: {
                 /** @description the exact mapped case table to inspect */
                 caseTableId: string;
+                /** @description Explicit saved whole-case evidence cohort */
+                selectionId?: string | null;
             };
             header?: never;
             path: {
@@ -7288,6 +8076,61 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewNormConstraint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+                normVersionId: string;
+                constraintId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NormPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NormConstraintPreview"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8461,6 +9304,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowTypeComparison"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDriverEvidence: {
+        parameters: {
+            query: {
+                constraintId: string;
+                slicing: string;
+                key: string;
+                view?: string | null;
+                /** @description URL-safe JSON filter: {"and": [{"kind": "attribute", "field": "…", "in": […]}, …]}; never changes applicability */
+                filter?: string | null;
+                /** @description JSON list of band specs for numeric attributes: [{"attribute": "exposure", "method": "quantile", "q": 4}] */
+                bands?: string | null;
+            };
+            header?: never;
+            path: {
+                projectId: string;
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverEvidence"];
                 };
             };
             /** @description Validation Error */

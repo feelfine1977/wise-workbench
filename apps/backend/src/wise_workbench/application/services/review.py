@@ -7,8 +7,8 @@ knows rather than asked of the reader:
   group (censoring, replication, duplicates, sentinel stamps, window edge) decide whether *this* group passes,
   and the checks that are properties of the whole log (drift, precision, exposure scale) are stated and decided
   once, at the run, under ``runWide`` (R3-03);
-* **censoring** — the share of the group's cases still open at that window end;
-* **replication** — the share of the group's cases carrying copied postings.
+* **censoring** — the legacy share without closure and active within the trailing window;
+* **replication** — the share with more than two events per distinct timestamp.
 
 A gate is `failed` while its evidence is above the threshold. Action proposals remain recordable;
 agreement or execution requires every gate for the saved context to pass or be waived with a note.
@@ -81,6 +81,42 @@ def _run_wide_text(report: dict[str, Any]) -> str:
         f"The data-readiness gate on this log reads {status}. {len(log_wide)} of its failed checks are properties "
         f"of the whole log and are the same for every group ({words}); they are decided once, here."
     )
+
+
+def _gate_display_text(gate: dict[str, Any], noun: str) -> str:
+    """Current interpretation only; legacy evidence payloads and decision fingerprints stay unchanged."""
+    kind = gate.get("kind")
+    share = (gate.get("evidence") or {}).get("share")
+    if kind in {"censoring", "replication"}:
+        label = "recent-unclosed diagnostic" if kind == "censoring" else "event-concentration diagnostic"
+        if share is None:
+            return f"The {label} is unavailable for these {noun}; no zero or pass is inferred."
+        if kind == "censoring":
+            return (
+                f"{float(share) * 100:.0f} % of these {noun} meet the legacy recent-unclosed diagnostic: "
+                "no configured closure observed and activity within the trailing window. "
+                "The denominator retains all assessed cases, regardless of closure applicability. "
+                "Not flagged does not mean closed; each rule retains its missing-event policy."
+            )
+        return (
+            f"{float(share) * 100:.0f} % of these {noun} have more than two events per distinct timestamp "
+            "(legacy event-concentration diagnostic). This is not proof of copied postings or identical events."
+        )
+    text = str(gate.get("text") or "")
+    if kind == "readiness":
+        for old, new in (
+            ("still open at the end of the data", "meeting the legacy recent-unclosed diagnostic"),
+            ("carrying copied postings", "with more than two events per distinct timestamp"),
+            ("duplicating an earlier event", "with repeated case/activity/timestamp keys"),
+            ("is clean for", "is below its configured thresholds for"),
+        ):
+            text = text.replace(old, new)
+        if "groupChecks" in (gate.get("evidence") or {}):
+            text += (
+                " These diagnostics do not prove business completion or event duplication; "
+                "closure applicability and per-rule missingness still require review."
+            )
+    return text
 
 
 class ReviewService:
@@ -222,6 +258,8 @@ class ReviewService:
             gates.append(
                 {
                     **gate,
+                    # Presentation follows fingerprinting and stored-decision matching.
+                    "text": _gate_display_text(gate, noun),
                     "computed_status": gate["status"],
                     "status": item.status if item is not None else gate["status"],
                     "note": item.note if item is not None else None,

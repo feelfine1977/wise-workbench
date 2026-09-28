@@ -22,7 +22,7 @@ import { fmtInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** The order the hub is walked in (the guidance contract), not the order the pack lists. */
-const KIND_ORDER = ["stage", "layer", "expectation", "failure_mode", "kpi", "reason", "action"] as const;
+const KIND_ORDER = ["process", "stage", "layer", "expectation", "failure_mode", "solution_card", "kpi", "reason", "action"] as const;
 
 const nameOf = (n: HubNode) => n.plain_name ?? n.method_name ?? n.id;
 
@@ -31,6 +31,7 @@ export default function KnowledgeHubPage() {
   const search = knowledgeRoute.useSearch();
   const navigate = useNavigate();
   const [q, setQ] = useState(search.q ?? "");
+  const [kindFilter, setKindFilter] = useState<string>("all");
   const index = useQuery(hubQuery(ctx.projectId));
 
   const byKind = useMemo(() => {
@@ -44,7 +45,7 @@ export default function KnowledgeHubPage() {
   }, [index.data, q]);
 
   const total = index.data?.nodes?.length ?? 0;
-  const shown = [...byKind.values()].reduce((s, l) => s + l.length, 0);
+  const shown = [...byKind].reduce((sum, [kind, list]) => sum + (kindFilter === "all" || kindFilter === kind ? list.length : 0), 0);
 
   if (index.isPending) return <LoadingBlock rows={10} />;
   if (index.isError) {
@@ -67,7 +68,7 @@ export default function KnowledgeHubPage() {
         <h1 className="text-2xl font-semibold">What the words mean in this process</h1>
         <p className="reading text-base text-text-muted">
           Every stage, expectation area, expectation and failure mode of this process has a page: what it means, why it matters, how we detect it, what usually causes it and what usually helps. The reason and remedy texts on the
-          other screens are the same pages, so a word means one thing here and there.
+          other screens are the same pages, so a word means one thing here and there. Solution-card templates link typical problems to their required data, calculations and interpretation before measurements are available.
         </p>
         <label className="flex max-w-md items-center gap-2 rounded border border-border bg-surface px-2">
           <Search className="size-4 shrink-0 text-text-subtle" aria-hidden />
@@ -82,19 +83,26 @@ export default function KnowledgeHubPage() {
             }}
           />
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          Browse by type
+          <select value={kindFilter} onChange={event => setKindFilter(event.target.value)} className="rounded border border-border bg-surface px-2 py-1.5">
+            <option value="all">All knowledge</option>
+            {KIND_ORDER.map(kind => <option key={kind} value={kind}>{KIND_WORDS[kind]}</option>)}
+          </select>
+        </label>
         <p className="text-sm text-text-muted" data-testid="hub-count">
-          {q.trim() ? `${fmtInt(shown)} of ${fmtInt(total)} pages match` : `${fmtInt(total)} pages`}
+          {(q.trim() || kindFilter !== "all") ? `${fmtInt(shown)} of ${fmtInt(total)} pages match` : `${fmtInt(total)} pages`}
           {(index.data?.overlays ?? 0) > 0 ? ` · ${fmtInt(index.data?.overlays)} carry your organisation's note` : ""}
         </p>
       </header>
 
       {shown === 0 && (
         <Card>
-          <p className="reading text-sm text-text-muted">No page carries that word. Try a shorter one, or the name of a stage.</p>
+          <p className="reading text-sm text-text-muted">No pages match this search and type. Try a shorter word or choose All knowledge.</p>
         </Card>
       )}
 
-      {KIND_ORDER.filter((k) => byKind.get(k)?.length).map((kind) => {
+      {KIND_ORDER.filter((k) => (kindFilter === "all" || kindFilter === k) && byKind.get(k)?.length).map((kind) => {
         const nodes = byKind.get(kind) ?? [];
         return (
           <Card key={kind} data-testid={`hub-group-${kind}`}>

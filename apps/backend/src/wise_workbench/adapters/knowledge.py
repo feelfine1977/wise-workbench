@@ -411,7 +411,8 @@ def translate_norm(
     every system's vocabulary. A norm has to speak the log's own labels, or nothing matches — and the screens
     have to keep the log's labels, or a reader cannot recognise the process. The template is therefore translated
     once, when the preset creates norm v1, and the norm version stored with the project is the translated one.
-    Returns the document and the canonical ids the label pack does not cover.
+    Activity predicates in applicability use the same binding as endpoints and recipes; attribute values stay
+    unchanged. Returns the document and unresolved canonical ids from all three locations.
     """
     labels = label_map(process, mapping_name)
     if not labels:
@@ -432,7 +433,22 @@ def translate_norm(
                 result.append(str(item))
         return list(dict.fromkeys(result))
 
+    def rewrite_applicability(rule: Any) -> None:
+        if not isinstance(rule, dict):
+            return
+        for key in ("has", "lacks"):
+            if key in rule:
+                rule[key] = rewrite(rule[key])
+        for key in ("all", "any"):
+            children = rule.get(key)
+            if isinstance(children, list):
+                for child in children:
+                    rewrite_applicability(child)
+        if "not" in rule:
+            rewrite_applicability(rule["not"])
+
     for constraint in out.get("constraints") or []:
+        rewrite_applicability(constraint.get("applicability"))
         params = constraint.get("params") or {}
         for key in ACTIVITY_PARAMS:
             if params.get(key):

@@ -20,6 +20,7 @@ export interface BatchNormDecisionsProps {
   versionId: string;
   document: NormDocument;
   caseTableId?: string;
+  selectionId?: string;
   onSaved: (id: string) => void;
   onConstraint: (id: string) => void;
 }
@@ -27,11 +28,28 @@ type EvidenceState = { evidence?: SignalEvidence; error?: string; loading?: bool
 
 /** Each saved-document/data context owns its selections, evidence and unsaved preview. */
 export function BatchNormDecisions(props: BatchNormDecisionsProps) {
-  return <BatchSession key={JSON.stringify([props.projectId, props.versionId, props.caseTableId, props.document])} {...props} />;
+  return <BatchSession key={JSON.stringify([props.projectId, props.versionId, props.caseTableId, props.selectionId ?? null, props.document])} {...props} />;
+}
+
+function evidencePopulationIssue(evidence: SignalEvidence | undefined, selectionId?: string): string | undefined {
+  if (!evidence) return undefined;
+  const scope = evidence.data.scope;
+  const matches = selectionId !== undefined
+    ? scope?.kind === "saved_selection" && scope.selectionId === selectionId
+    : (!scope?.kind || scope.kind === "all_cases") && !scope?.selectionId;
+  return matches ? undefined : "Evidence belongs to a different or unknown population. Reload it for this selection.";
+}
+
+function batchScopeNote(versionId: string, caseTableId: string | undefined, selectionId: string | undefined, rows: BatchPreviewRow[]): string {
+  const requestedScope = selectionId !== undefined ? { kind: "saved_selection", selectionId } : { kind: "all_cases" };
+  const measuredEvidence = rows.filter(row => row.evidence).map(row => ({ constraintId: row.id, scope: row.evidence!.data.scope ?? null }));
+  // CalibrationEntry rejects extra fields; the immutable version note retains evidence provenance.
+  return " Review context: " + JSON.stringify({ normVersionId: versionId, caseTableId: caseTableId ?? null, requestedScope, constraintIds: rows.map(row => row.id) }) +
+    (measuredEvidence.length ? ". Returned evidence scopes: " + JSON.stringify(measuredEvidence) : ". No signal evidence loaded for these decisions") + ".";
 }
 
 /** Preserve evidence checks without turning an unsigned target edit into a calibration decision. */
-export function thresholdDraftRequest(document: NormDocument, versionId: string, rows: BatchPreviewRow[], caseTableId?: string): NormVersionCreate {
+export function thresholdDraftRequest(document: NormDocument, versionId: string, rows: BatchPreviewRow[], caseTableId?: string, selectionId?: string): NormVersionCreate {
   if (!rows.length || !caseTableId) throw new Error("Choose threshold changes with measured evidence.");
   if (new Set(rows.map(row => row.id)).size !== rows.length) throw new Error("Each constraint can appear only once.");
   const byId = new Map(rows.map(row => [row.id, row]));
@@ -40,7 +58,7 @@ export function thresholdDraftRequest(document: NormDocument, versionId: string,
     const constraint = document.constraints?.find(c => c.id === row.id);
     const rule = constraint && batchNumericRule(constraint);
     if (!constraint || !rule || !row.after || !row.rule || row.rule.key !== rule.key || row.rule.targetKey !== rule.targetKey || row.rule.widthKey !== rule.widthKey) throw new Error("The preview no longer matches this rule.");
-    const issue = evidenceIssue(constraint, row.evidence, versionId, caseTableId) ?? thresholdSettingsIssue(constraint, String(row.after.target), String(row.after.width));
+    const issue = evidencePopulationIssue(row.evidence, selectionId) ?? evidenceIssue(constraint, row.evidence, versionId, caseTableId) ?? thresholdSettingsIssue(constraint, String(row.after.target), String(row.after.width));
     if (issue) throw new Error(issue);
     keys.add(rule.key);
   }
@@ -54,11 +72,11 @@ export function thresholdDraftRequest(document: NormDocument, versionId: string,
     note: `Draft threshold settings. Evidence: norm ${versionId}, case table ${caseTableId}; ` + rows.map(row => {
       const coverage = signalCoverage(row.evidence!.data)!;
       return normChangeNote(`${row.id}: ${coverage.measured}/${coverage.scope} measured, loaded ${row.evidence!.loadedAt}`, row);
-    }).join("; "),
+    }).join("; ") + batchScopeNote(versionId, caseTableId, selectionId, rows),
   };
 }
 
-function BatchSession({ projectId, versionId, document, caseTableId, onSaved, onConstraint }: BatchNormDecisionsProps) {
+function BatchSession({ projectId, versionId, document, caseTableId, selectionId, onSaved, onConstraint }: BatchNormDecisionsProps) {
   const { allowDraftWithoutDecision } = useNormAuthoringPreferences();
   const id = useId();
   const client = useQueryClient();
@@ -116,8 +134,10 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
     try {
       await forEachBatchLimited(rows, async c => {
         try {
-          const data = await client.fetchQuery({ ...normSignalQuery(projectId, versionId, caseTableId, c.id), staleTime: 0 });
-          if (mounted.current) setEvidence(previous => ({ ...previous, [c.id]: { evidence: { data, loadedAt: new Date().toISOString() } } }));
+          const data = await client.fetchQuery({ ...normSignalQuery(projectId, versionId, caseTableId, c.id, selectionId), staleTime: 0 });
+          const loaded = { data, loadedAt: new Date().toISOString() };
+          const populationIssue = evidencePopulationIssue(loaded, selectionId);
+          if (mounted.current) setEvidence(previous => ({ ...previous, [c.id]: populationIssue ? { error: populationIssue } : { evidence: loaded } }));
         } catch {
           if (mounted.current) setEvidence(previous => ({ ...previous, [c.id]: { error: "Evidence could not be loaded. Retry loading selected evidence." } }));
         }
@@ -141,7 +161,7 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
       const row: BatchPreviewRow = { id: c.id, name: constraintName(c), rationale: rationale.trim(), owner: owner.trim() };
       if (mode === "thresholds") {
         const data = evidence[c.id]?.evidence;
-        if (!caseTableId || evidenceIssue(c, data, versionId, caseTableId)) continue;
+        if (!caseTableId || evidencePopulationIssue(data, selectionId) || evidenceIssue(c, data, versionId, caseTableId)) continue;
         const rule = batchNumericRule(c)!;
         if (rule.target === Number(target) && rule.width === Number(width)) continue;
         rows.push({ ...row, rule, evidence: data, before: { target: rule.target, width: rule.width }, after: { target: Number(target), width: Number(width) } });
@@ -156,9 +176,14 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
     if (saving.current || busy || !readReady || !previewRows.length) return;
     if (mode === "decisions" && previewRows.some(r => !missing.includes(r.id))) { setIssue("Review requirements changed. Preview the pending decisions again."); return; }
     try {
+      if (mode === "thresholds") {
+        const populationIssue = previewRows.map(row => evidencePopulationIssue(row.evidence, selectionId)).find(Boolean);
+        if (populationIssue) throw new Error(populationIssue);
+      }
       const body = draftThresholds
-        ? thresholdDraftRequest(document, versionId, previewRows, caseTableId)
+        ? thresholdDraftRequest(document, versionId, previewRows, caseTableId, selectionId)
         : batchVersionRequest(document, versionId, mode, previewRows, caseTableId);
+      if (!draftThresholds) body.note += batchScopeNote(versionId, caseTableId, selectionId, previewRows);
       saving.current = true;
       create.mutate(body, {
         onSuccess: result => {
@@ -176,7 +201,7 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
       <div className="space-y-1">
         <h3 className="text-base font-semibold">Review several constraints</h3>
         <p className="text-sm text-text-muted">Choose the constraints that share a decision, check every row, then save one new draft. Review and approval remain separate actions.</p>
-        <p className="text-xs text-text-muted">Evidence context: norm {versionId} · {caseTableId ? "case table " + caseTableId : "no mapped case table selected"}. Views only change weighting.</p>
+        <p className="text-xs text-text-muted">Evidence context: norm {versionId} · {caseTableId ? "case table " + caseTableId : "no mapped case table selected"} · {selectionId !== undefined ? `selected cohort ${selectionId}` : caseTableId ? "all prepared cases" : "population unavailable"}. Views only change weighting.</p>
       </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Batch operation">
         <Button type="button" variant={mode === "decisions" ? "default" : "outline"} disabled={busy} aria-pressed={mode === "decisions"} onClick={() => filterChange(() => { setMode("decisions"); setGroup(""); })}>Pending decisions</Button>
@@ -212,7 +237,7 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
             const checked = selected.includes(c.id), state = evidence[c.id];
             const data = state?.evidence?.data;
             const coverage = data && signalCoverage(data);
-            const problem = mode === "thresholds" && caseTableId ? state?.error ?? evidenceIssue(c, state?.evidence, versionId, caseTableId) : undefined;
+            const problem = mode === "thresholds" && caseTableId ? state?.error ?? evidencePopulationIssue(state?.evidence, selectionId) ?? evidenceIssue(c, state?.evidence, versionId, caseTableId) : undefined;
             const old = decisionFor(c.id);
             return <li key={c.id} className="space-y-1 rounded border border-border p-2 text-sm">
               <div className="flex items-start gap-2">
@@ -266,7 +291,7 @@ function BatchSession({ projectId, versionId, document, caseTableId, onSaved, on
                 <p>Tolerance width: {batchValue(row.before.width)} → {batchValue(row.after.width)} {row.rule.unit}</p>
                 <p>Full penalty: {batchValue(row.rule.direction === "high" ? row.before.target + row.before.width : row.before.target - row.before.width)} → {batchValue(row.rule.direction === "high" ? row.after.target + row.after.width : row.after.target - row.after.width)} {row.rule.unit}</p>
               </>}
-              {coverage && row.evidence && <p className="text-xs text-text-muted">Evidence: norm {row.evidence.data.normVersionId} · case table {row.evidence.data.caseTableId} · {coverage.measured}/{coverage.scope} measured, {coverage.missing} missing · loaded {row.evidence.loadedAt}. Observed data supports review; no new score is claimed.</p>}
+              {coverage && row.evidence && <p className="text-xs text-text-muted">Evidence: norm {row.evidence.data.normVersionId} · case table {row.evidence.data.caseTableId} · {coverage.measured}/{coverage.scope} measured, {coverage.missing} missing · {selectionId !== undefined ? `selected cohort ${row.evidence.data.scope?.selectionName || selectionId}` : "all prepared cases"} · loaded {row.evidence.loadedAt}. Observed data supports review; no new score is claimed.</p>}
               {mode === "decisions" && <p className="text-xs text-text-muted">Threshold and applicability remain unchanged.</p>}
             </li>;
           })}

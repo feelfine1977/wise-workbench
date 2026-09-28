@@ -546,7 +546,9 @@ class Pack:
     sources: tuple[Any, ...] = ()
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
-    def interventions_for(self, *, layer: str | None = None, failure_mode: str | None = None) -> tuple[Intervention, ...]:
+    def interventions_for(
+        self, *, layer: str | None = None, failure_mode: str | None = None
+    ) -> tuple[Intervention, ...]:
         """Catalogue entries addressing a layer and/or a failure mode (S9 candidates)."""
         return tuple(i for i in self.interventions if i.addresses(layer, failure_mode))
 

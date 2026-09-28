@@ -268,9 +268,12 @@ def test_one_window_end_in_readiness_validation_and_gate(world: dict[str, Any]) 
     cols = diag["columns"]
     row = next(r for r in diag["rows"] if str(r[cols.index("vendor")]) == with_caveat["keys"]["vendor"])
     assert abs(row[cols.index("censored_share")] - share) < 1e-9
-    # duplicates: the backend's count is the gate's key (case, activity, timestamp)
+    # Exact prepared-row removal and candidate key collisions have different denominators.
     dup = items["duplicate_events"]["evidence"]["events"]
-    assert dup == int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
+    assert dup == int(log.events.duplicated().sum())
+    collisions = items["event_key_collisions"]["evidence"]["events"]
+    assert collisions == int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
+    assert collisions > dup and items["event_key_collisions"]["decision"] is None
     gate_ids = [i for i in items if i.startswith("gate:")]
     assert "gate:replication" in gate_ids and "gate:logging_asymmetry" in gate_ids
 

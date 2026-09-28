@@ -31,9 +31,10 @@ def get_norm_signal_distribution(
     c: ContainerDep,
     caseTableId: Annotated[str, Query(description="the mapped case table to preview")],
     scale: Annotated[Literal["linear", "log"], Query(description="bin scale of the histogram")] = "linear",
+    selectionId: Annotated[str | None, Query(description="Explicit saved whole-case evidence cohort")] = None,
 ) -> schemas.NormSignalDistribution:
     return schemas.NormSignalDistribution(
-        **c.norms.signals(projectId, normVersionId, caseTableId, constraintId, scale=scale)
+        **c.norms.signals(projectId, normVersionId, caseTableId, constraintId, scale=scale, selection_id=selectionId)
     )
 
 
@@ -54,8 +55,32 @@ def get_norm_relevance(
     normVersionId: str,
     c: ContainerDep,
     caseTableId: Annotated[str, Query(description="the exact mapped case table to inspect")],
+    selectionId: Annotated[str | None, Query(description="Explicit saved whole-case evidence cohort")] = None,
 ) -> schemas.NormRelevance:
-    return schemas.NormRelevance(**c.norms.relevance(projectId, normVersionId, caseTableId))
+    return schemas.NormRelevance(**c.norms.relevance(projectId, normVersionId, caseTableId, selection_id=selectionId))
+
+
+@router.post(
+    "/{normVersionId}/preview/{constraintId}",
+    operation_id="previewNormConstraint",
+    response_model=schemas.NormConstraintPreview,
+    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description="Read-only exact evaluation of a proposed rule against its saved version on an explicit evidence cohort. Creates no norm, run, approval or validation metadata. Native signal coverage is separate from evaluation under the rule's missing-data policy.",
+)
+def preview_norm_constraint(
+    projectId: str, normVersionId: str, constraintId: str, body: schemas.NormPreviewRequest, c: ContainerDep
+) -> schemas.NormConstraintPreview:
+    return schemas.NormConstraintPreview(
+        **c.norms.preview(
+            projectId,
+            normVersionId,
+            body.caseTableId,
+            constraintId,
+            body.constraint,
+            scale=body.scale,
+            selection_id=body.selectionId,
+        )
+    )
 
 
 def _out(c: ContainerDep, n: Any) -> schemas.NormVersion:

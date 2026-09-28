@@ -65,6 +65,9 @@ it.each([404, 405, 501])("preserves KPI fallback population boundaries (%s)", as
   const result = await client().fetchQuery(kpisQuery("p", "r", { slicing: "company", filter: { and: [{ kind: "open", value: true }] }, openShare: 0.5, caseNoun: "items" }));
   expect(result).toMatchObject({ cases: 4, casesTotal: 10, casesScored: 4, casesBelowExpectation: 0, meanScore: 0.8, baseline: 0.8, priorityAtStake: 5, groups: 3, openCases: 2, derived: true });
   expect(result.tiles?.[1]?.text).toContain("whole run");
+  expect(result.tiles?.[3]).toMatchObject({ id: "open_share", label: "recent-unclosed diagnostic", value: 0.5 });
+  expect(result.tiles?.[3]?.text).toContain("not recomputed for the current selection");
+  expect(result.tiles?.[3]?.text).toContain("Not flagged does not mean closed");
   const summary = requests.find(u => u.pathname.endsWith("/summary"))!;
   expect(summary.search).toBe("");
   const backlog = requests.find(u => u.pathname.endsWith("/backlog"))!;
@@ -76,6 +79,7 @@ it("does not request a preview or backlog without filter/grouping", async () => 
   vi.stubGlobal("fetch", fetch);
   const result = await client().fetchQuery(kpisQuery("p", "r", {}));
   expect(fetch).toHaveBeenCalledTimes(2);
+  expect(result.tiles?.[3]).toMatchObject({ id: "open_share", value: null, text: "The recent-unclosed diagnostic is unavailable on this backend." });
   expect(result).toMatchObject({ cases: 7, casesTotal: 7, meanScore: null, baseline: null, priorityAtStake: 0, groups: 0, openCases: null, derived: true });
 });
 

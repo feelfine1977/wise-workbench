@@ -7,7 +7,7 @@ export default {
   ...builtinEnvironments.jsdom,
   name: 'wise-jsdom',
   async setup(global, options) {
-    const web = Object.fromEntries(['fetch', 'Headers', 'Request', 'Response', 'FormData', 'Blob', 'File'].map((name) => [name, global[name]]));
+    const web = Object.fromEntries(['fetch', 'Headers', 'Request', 'Response', 'FormData', 'Blob', 'File', 'AbortController', 'AbortSignal'].map((name) => [name, global[name]]));
     const environment = await builtinEnvironments.jsdom.setup(global, options);
     const DomFormData = global.jsdom.window.FormData;
     const NativeFormData = web.FormData;

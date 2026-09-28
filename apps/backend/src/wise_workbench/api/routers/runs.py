@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Header, Query, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 
 from wise_workbench.api import schemas
 from wise_workbench.api.deps import ContainerDep
-from wise_workbench.domain import RunParams, Slicing
+from wise_workbench.api.schema_models.driver_evidence import DriverEvidence
+from wise_workbench.domain import RunParams, Slicing, ValidationError
 
 router = APIRouter(prefix="/projects/{projectId}/runs", tags=["runs"])
 
@@ -325,6 +326,46 @@ def compare_flow_types(
     ] = None,
 ) -> schemas.FlowTypeComparison:
     return schemas.FlowTypeComparison(**c.runs.compare_flow_types(projectId, runId, attribute=attribute))
+
+
+@router.get(
+    "/{runId}/driver-evidence",
+    operation_id="getDriverEvidence",
+    response_model=DriverEvidence,
+    description="Read-only activity coverage and temporal endpoints for the exact run, group and optional case filter. "
+    "Counts include all selected cases, not a rule-applicability subset; view is context only. "
+    "Recorded event rows and unique-endpoint durations do not reproduce scoring, prove payment batches or infer overdue/cost/causality.",
+)
+def get_driver_evidence(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    request: Request,
+    constraintId: str,
+    slicing: str,
+    key: str,
+    view: str | None = None,
+    filter: FilterParam = None,
+    bands: BandsParam = None,
+) -> DriverEvidence:
+    if set(request.query_params) - {"constraintId", "slicing", "key", "view", "filter", "bands"} or any(
+        len(request.query_params.getlist(name)) > 1 for name in request.query_params
+    ):
+        raise ValidationError(
+            "Unsupported driver-evidence query; drill context cannot be ignored", code="driver_evidence.query"
+        )
+    return DriverEvidence(
+        **c.runs.driver_evidence(
+            projectId,
+            runId,
+            constraint_id=constraintId,
+            slicing=slicing,
+            slice_key=key,
+            view=view,
+            filter_text=filter,
+            bands=bands,
+        )
+    )
 
 
 @router.get("/{runId}/slices/{sliceKey:path}", operation_id="getSlice", response_model=schemas.SliceDetail)

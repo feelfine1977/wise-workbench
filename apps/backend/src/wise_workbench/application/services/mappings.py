@@ -40,6 +40,23 @@ class MappingService:
             noun = pack_case_noun(project.process)
             if noun:
                 document = {**document, "caseNoun": noun}
+        if document.get("dedupe") and not any(
+            d.get("kind") == "collapse_duplicates" and d.get("policy") for d in document.get("decisions") or []
+        ):
+            # New preparations opt in explicitly; loading historical mappings keeps their policy.
+            document = {
+                **document,
+                "decisions": [
+                    *(document.get("decisions") or []),
+                    {
+                        "id": new_id("dec"),
+                        "kind": "collapse_duplicates",
+                        "params": {},
+                        "policy": "identical_prepared_rows_v1",
+                        "legacyKeyDedupeInherited": False,
+                    },
+                ],
+            }
         mapping = ColumnMapping.from_dict(new_id("map"), dataset_id, document)
         dataset_dir = self.c.workspace.dataset_dir(project_id, dataset_id)
         sample = self.c.engine.validate_mapping(dataset_dir, mapping, self.c.settings.mapping_sample_events)
