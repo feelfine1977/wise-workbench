@@ -6,6 +6,7 @@ import { Kbd } from "@/components/ui/misc";
 import { useUiStore } from "@/lib/stores/ui";
 import { cn } from "@/lib/utils";
 import type { WorkbenchContext } from "../context";
+import { useViewSelection } from "./viewSelection";
 
 interface Command {
   id: string;
@@ -27,6 +28,7 @@ export function CommandPalette({ ctx }: { ctx: WorkbenchContext }) {
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const pid = ctx.projectId;
+  const viewSelection = useViewSelection(ctx);
 
   const commands = useMemo<Command[]>(() => {
     const runId = ctx.run?.status === "done" ? ctx.run.id : undefined;
@@ -44,17 +46,17 @@ export function CommandPalette({ ctx }: { ctx: WorkbenchContext }) {
         hint: "the groups, worst first",
         run: () => void navigate({ to: "/p/$projectId/runs/$runId/backlog", params: { projectId: pid, runId }, search: { slicing: ctx.slicing, view: ctx.view } }),
       });
-      for (const v of ctx.run?.views ?? []) {
-        list.push({ id: `view-${v}`, label: `Switch ${vocabulary === "plain" ? "perspective" : "view"} to ${v}`, hint: "context", run: () => ctx.setView(v) });
-      }
       for (const s of ctx.run?.slicings ?? []) {
         if (s.id) list.push({ id: `slicing-${s.id}`, label: `${vocabulary === "plain" ? "Group" : "Slice"} by ${s.id}`, hint: "context", run: () => ctx.setSlicing(s.id as string) });
       }
     }
+    for (const v of viewSelection?.names ?? []) {
+      list.push({ id: `view-${v}`, label: `Switch ${vocabulary === "plain" ? "perspective" : "view"} to ${v}`, hint: "context", run: () => ctx.setView(v) });
+    }
     list.push({ id: "help", label: "Help and glossary", hint: "?", run: () => openHelp() });
     list.push({ id: "theme", label: `Theme: ${theme} → ${theme === "dark" ? "light" : "dark"}`, hint: "ui", run: () => setTheme(theme === "dark" ? "light" : "dark") });
     return list;
-  }, [ctx, navigate, pid, openHelp, setTheme, theme, vocabulary]);
+  }, [ctx, navigate, pid, openHelp, setTheme, theme, vocabulary, viewSelection]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

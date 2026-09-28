@@ -1,4 +1,4 @@
-/** The pack's own keys in the reader's words (`guidance_and_insight_panel.md` §1: plain language first). */
+/** The pack's own keys in the reader's words (plain language first). */
 
 /** `it_process_owner` → *IT process owner*; the pack's role keys are not words a reader uses. */
 export function roleWords(role: string | null | undefined): string | undefined {
@@ -12,6 +12,8 @@ export const measureWords = (kind: string | null | undefined): string | undefine
 
 /** The kind of a hub node in the reader's words; `expectation`, `layer`, `failure_mode` are not. */
 export const KIND_WORDS: Record<string, string> = {
+  process: "process",
+  solution_card: "solution-card template",
   stage: "stage of the process",
   layer: "expectation area",
   expectation: "expectation",
@@ -26,7 +28,7 @@ export const KIND_WORDS: Record<string, string> = {
  * The sources of a hub page that mean something to a reader: a report, a standard, a body of practice — never
  * a file of the repository the pack is kept in (P1-13).
  *
- * Every expectation page ended on *Sources: docs/panel/knowledge_hub_panel.md §1 and §5; failure_modes.yaml
+ * Every expectation page ended on *Sources: packages/process-knowledge/PACK_DESIGN.md; failure_modes.yaml
  * (p2p); BPI Challenge 2019 reports*. The first two say where the pack is written, which is the pack's own
  * business; the third is a source.
  */

@@ -3,7 +3,7 @@
  * reading sentence, the `Flow | Board` switch — two arrangements of one step, so context, filter, chips and
  * selection survive the switch — and the camera. 68 px at 1440, 60 at 1024.
  */
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BackControl } from "@/components/guide/BackControl";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,7 @@ export function StepHeader({
               </button>
             ))}
           </span>
+          <Link className="text-sm text-accent-text underline" to="/p/$projectId/runs/$runId/investigate" params={{projectId,runId}} search={{filter:typeof search.filter === "string" ? search.filter : undefined,view:typeof search.view === "string" ? search.view : undefined,slicing:typeof search.slicing === "string" ? search.slicing : undefined}}>Process questions</Link>
           {actions}
         </div>
       </div>

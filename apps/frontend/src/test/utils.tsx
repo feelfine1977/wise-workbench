@@ -5,6 +5,11 @@ import axe from "axe-core";
 import { expect } from "vitest";
 import { App } from "@/app/providers";
 
+// A route loads its module and several independent API responses. Allow that
+// explicit readiness check to survive a cold, busy CI worker without changing
+// the default deadline for interaction assertions or the 15-second test limit.
+export const ROUTE_READY = { timeout: 8000 };
+
 export function makeTestQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 }, mutations: { retry: false } } });
 }

@@ -238,7 +238,7 @@ set of settings, not a probability; combine it with the badge by requiring
 | `synthetic.py` | `generate`, `subsample_cases`, `GroundTruth`, `Hotspot` (nine planted artefacts) | MVP |
 | `vocabulary.py` | `check_reading`, `FORBIDDEN` — enforced on every reading and sentence by the tests | MVP |
 | `demo.py` | `python -m wise_analytics.demo` (checkpoint CP-C2) | MVP |
-| transform layer (`whatif.transform`, `whatif_scenario`), hypothesis helpers (`test_hypothesis`), `norm_aids.py`, `monitoring.py`, `signatures.py`, `resources.py`, `forecast.py` | not started (see `CHECKPOINT.md`, "Not done") | cycle 3 / later |
+| transform layer (`whatif.transform`, `whatif_scenario`), hypothesis helpers (`test_hypothesis`), `norm_aids.py`, `monitoring.py`, `signatures.py`, `resources.py`, `forecast.py` | not started | cycle 3 / later |
 
 ## Development
 

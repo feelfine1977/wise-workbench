@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Screenshots of the running application for reports (docs/RESULTS_TEMPLATE.md).
+ * Screenshots of the running application for reports.
  *
- *   node tools/capture_screens.mjs --base http://127.0.0.1:8000 --steps docs/examples/screens.json --out docs/examples/screenshots
+ *   node tools/capture_screens.mjs --base http://127.0.0.1:8000 --steps /path/to/screens.json --out /path/to/screenshots
  *
  * Node 18 or newer; uses the Playwright installed under apps/frontend/node_modules (npm install there,
  * then `npx playwright install chromium` once). Every step is an object:

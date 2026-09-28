@@ -107,13 +107,11 @@ export function useDecideGate(projectId: string, runId: string, params: GateScop
   });
 }
 
-/**
- * The gates that block this group's own hypothesis (R3-03): a gate whose computed state on **this group**
- * is not passed and which has not been waived. A run-wide gate — one that reads the same on every group of
- * the log — is stated once at the run and never counted 57 times here.
+/** Failed checks block an open hypothesis, including failures that apply to the whole run.
+ * Pending checks can accompany an open question; a supported conclusion needs all checks resolved.
  */
 export function blockingGates(gates: Gate[] | undefined): Gate[] {
-  return (gates ?? []).filter((g) => g.status !== "passed" && g.status !== "waived" && !isRunWide(g));
+  return (gates ?? []).filter((g) => g.status === "failed");
 }
 
 /** A gate whose evidence names the log rather than the group: the readiness report of the case table. */

@@ -178,6 +178,14 @@ PRESETS: dict[str, Preset] = {
         run_note="BPIC 2019 preset: company × spend area, γ = 20",
         # one case of this log is one purchase order item, and every screen says so
         case_noun="purchase order items",
+        pitfalls=(
+            "Invoice closure does not apply to consignment; recent-unclosed flags are not business completion.",
+            "The reference norm combines vendor invoice creation and invoice receipt in some rules.",
+            "Its clearing-time target is an elapsed-time proxy, not contractual lateness without due dates.",
+            "The reference labels 'Change Payment Terms' and 'Vendor creates credit memo' need vocabulary review.",
+            "Same case, activity and timestamp can identify distinct receipts; inspect IDs and values.",
+        ),
+        note="Historical reference rules are preserved. Review evidence warnings and use a new norm version for changes.",
         extra_slicings=(("case Vendor",),),
     ),
 }

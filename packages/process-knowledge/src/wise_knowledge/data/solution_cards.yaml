@@ -1,0 +1,180 @@
+version: 1
+blocks:
+  coverage:
+    id: coverage
+    kind: activity_coverage
+    title: Can this question be answered from the log?
+    question: How many selected items contain the required activities?
+    requires:
+    - prepared case identifiers
+    - recorded activity labels
+    - activity references from the saved rule
+    calculation: Count recorded events and distinct selected items for each referenced
+      endpoint; keep zero occurrences explicit.
+    presentation: coverage
+    missingData: No supported activity references are defined for this rule.
+    interpretation: Activity presence establishes evidence coverage, not completion,
+      compliance or the cause of a problem.
+  duration:
+    id: duration
+    kind: endpoint_duration
+    title: How long is the recorded interval?
+    question: What are the median and 90th percentile between the two endpoints?
+    requires:
+    - prepared case identifiers
+    - recorded activity labels
+    - recorded timestamps
+    - saved rule start and end activities
+    calculation: One occurrence of each distinct endpoint per item, both dated, end
+      at or after start. Report median and p90 elapsed calendar days; partition missing,
+      repeated, reversed and tied records.
+    presentation: summary
+    missingData: There are no unambiguous, dated, ordered endpoint pairs in the selected
+      population.
+    interpretation: This descriptive population can differ from the rule’s scored
+      population and pairing policy. Elapsed time is not measured active work, avoidable
+      waiting or contractual lateness.
+  calendar:
+    id: calendar
+    kind: end_day_of_month
+    title: When are the end events recorded?
+    question: Do records concentrate on particular days of the month?
+    requires:
+    - saved rule end activity labels
+    - recorded timestamps
+    - selected case identifiers
+    calculation: Group every dated end-event row by day of month, 1–31. Show event
+      count, distinct-item count and represented months for each day.
+    presentation: day_bars
+    missingData: No dated end events are recorded in this population.
+    interpretation: Raw day counts are not adjusted for calendar exposure. Header
+      postings may repeat across item traces; these are not unique payments or proof
+      of a payment-run schedule.
+  due:
+    id: due
+    kind: due_date_lead
+    title: Was release early relative to the payment due date?
+    question: How much time remained until payment was contractually due?
+    requires:
+    - semantically mapped invoice payment due date
+    - release timestamp
+    - a validated item-to-invoice linkage
+    calculation: Invoice payment due date minus release date, in calendar days. Positive
+      values mean release preceded the due date. This calculation is unavailable until
+      semantic due-date mapping and linkage are supported.
+    presentation: availability
+    missingData: No validated invoice payment due-date mapping and linkage are available.
+      A delivery date or the norm’s target cannot substitute for payment due date.
+    interpretation: Waiting may be planned when release precedes the due date. What
+      counts as unusually early depends on the agreed payment terms; no lateness or
+      financial loss is inferred.
+cards:
+- id: release-to-clearing
+  version: 1
+  title: Investigate time between release and clearing
+  intent: Separate recorded clearing rhythm and elapsed time from explanations such
+    as contractual terms, payment runs or holds.
+  match:
+    types:
+    - lag
+    processes:
+    - p2p
+    constraintIds:
+    - c_l3_df2_rpb_to_clear_days
+  blocks:
+  - coverage
+  - duration
+  - calendar
+  - due
+- id: invoice-to-clearing
+  version: 1
+  title: Investigate invoice-to-clearing intervals
+  intent: Check recorded invoice and clearing evidence before treating an interval
+    beyond the chosen target as late payment.
+  match:
+    types:
+    - lag
+    processes:
+    - p2p
+    constraintIds:
+    - c_l3_invoice_to_clear_days
+  blocks:
+  - coverage
+  - duration
+  - calendar
+- id: order-to-issue
+  version: 1
+  title: Investigate order-to-goods-issue intervals
+  intent: Inspect fulfilment records and missing endpoints. Goods issue is not customer
+    receipt, invoicing or cash collection.
+  match:
+    types:
+    - lag
+    processes:
+    - o2c
+    constraintIds:
+    - o_deliv_order_to_issue_days
+  blocks:
+  - coverage
+  - duration
+  - calendar
+- id: pick-to-issue
+  version: 1
+  title: Check picking and goods-issue chronology
+  intent: Check reversed or tied posting timestamps before interpreting the interval
+    as an operational delay.
+  match:
+    types:
+    - lag
+    processes:
+    - o2c
+    constraintIds:
+    - o_deliv_pick_to_issue_days
+  blocks:
+  - coverage
+  - duration
+  - calendar
+- id: elapsed-time
+  version: 1
+  title: Investigate a recorded time interval
+  intent: Check endpoint coverage, elapsed time and recording patterns before choosing
+    an intervention.
+  match:
+    types:
+    - lag
+  blocks:
+  - coverage
+  - duration
+  - calendar
+- id: event-order
+  version: 1
+  title: Investigate event-order evidence
+  intent: Distinguish an earlier recorded response, missing records and repeated endpoints
+    from confirmed process-order failures.
+  match:
+    types:
+    - precedence
+  blocks:
+  - coverage
+  - duration
+- id: activity-presence
+  version: 1
+  title: Investigate missing recorded activities
+  intent: Check how many items have the expected evidence before interpreting absence
+    as a missing business step.
+  match:
+    types:
+    - presence
+  blocks:
+  - coverage
+- id: activity-occurrence
+  version: 1
+  title: Investigate recorded activity occurrences
+  intent: Check activity evidence before treating a recorded occurrence as a confirmed
+    prohibited action or rework.
+  match:
+    types:
+    - exclusion
+    - singularity
+  blocks:
+  - coverage

@@ -370,7 +370,7 @@ class GuidanceExample:
 
 @dataclass(frozen=True)
 class Guidance:
-    """The generic tier of guidance for one layer, template constraint or failure mode (knowledge_hub_panel.md §1)."""
+    """The generic tier of guidance for one layer, template constraint or failure mode (the guidance contract)."""
 
     kind: str
     id: str
@@ -546,7 +546,9 @@ class Pack:
     sources: tuple[Any, ...] = ()
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
-    def interventions_for(self, *, layer: str | None = None, failure_mode: str | None = None) -> tuple[Intervention, ...]:
+    def interventions_for(
+        self, *, layer: str | None = None, failure_mode: str | None = None
+    ) -> tuple[Intervention, ...]:
         """Catalogue entries addressing a layer and/or a failure mode (S9 candidates)."""
         return tuple(i for i in self.interventions if i.addresses(layer, failure_mode))
 

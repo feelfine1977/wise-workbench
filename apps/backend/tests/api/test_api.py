@@ -142,12 +142,15 @@ def test_norm_versions_validate_with_the_library(client: TestClient) -> None:
         v1["version"] == 1
         and v1["status"] == "draft"
         and len(v1["fingerprint"]) == 64
-        and v1["views"] == ["Finance", "Logistics"]
+        and v1["views"] == ["Finance", "Logistics", "General"]
     )
     import wise
 
-    assert v1["fingerprint"] == wise.Norm.from_dict(doc).fingerprint()
-    assert v1["norm"] == wise.Norm.from_dict(doc).to_dict()
+    from wise_workbench.domain.norm_views import with_general_benchmark
+
+    expected = wise.Norm.from_dict(with_general_benchmark(wise.Norm.from_dict(doc).to_dict()))
+    assert v1["fingerprint"] == expected.fingerprint()
+    assert v1["norm"] == expected.to_dict()
     doc2 = json.loads(json.dumps(doc))
     doc2["constraints"][0]["description"] = "changed"
     v2 = client.post(
@@ -216,7 +219,7 @@ def test_run_lifecycle_idempotency_and_reads(client: TestClient, dependency_prof
     assert client.get(f"/api/v1/projects/{pid}").json()["latestRunId"] == run["id"]
     assert [r["id"] for r in client.get(f"/api/v1/projects/{pid}/runs").json()] == [run["id"]]
     summary = client.get(f"/api/v1/projects/{pid}/runs/{run['id']}/summary").json()
-    assert set(summary["means"]) == {"Finance", "Logistics"} and summary["layers"]["columns"] == [
+    assert set(summary["means"]) == {"Finance", "Logistics", "General"} and summary["layers"]["columns"] == [
         "view",
         "completeness",
         "lead_times",

@@ -30,14 +30,16 @@ export interface ModelViewProps {
 
 export default function ModelView({ scene, abstraction, overlays, selected, onSelect, height, graph, className }: ModelViewProps) {
   const [error, setError] = useState<Error>();
-  const lite = useMemo(() => {
+  const [exported, setExported] = useState<{ graph: LibraryGraph; xml: string }>();
+  const converted = useMemo(() => {
     try {
-      return liteFromGraph(scene, { abstraction, lanes: "groups", selfLoops: "marker" });
+      return { graph: liteFromGraph(scene, { abstraction, lanes: "groups", selfLoops: "marker" }) };
     } catch (e) {
-      setError(e as Error);
-      return undefined;
+      return { error: e as Error };
     }
   }, [scene, abstraction]);
+  const lite = converted.graph;
+  const xml = exported?.graph === lite ? exported?.xml : undefined;
 
   // activities of the scene that no task in the diagram carries (§3.9)
   const unmapped = useMemo(() => {
@@ -46,13 +48,35 @@ export default function ModelView({ scene, abstraction, overlays, selected, onSe
     return graph.nodes.filter((n) => n.kind === "activity" && !tasks.has(n.id)).map((n) => n.label);
   }, [lite, graph]);
 
-  useEffect(() => setError(undefined), [scene]);
+  useEffect(() => {
+    setError(undefined);
+    if (!lite) return;
+    let active = true;
+    let worker: Worker | undefined;
+    try {
+      worker = new Worker(new URL("./bpmnExportWorker.ts", import.meta.url), { type: "module" });
+      worker.onmessage = (event: MessageEvent<{ xml?: string; error?: string }>) => {
+        if (!active) return;
+        if (typeof event.data.xml === "string") setExported({ graph: lite, xml: event.data.xml });
+        else setError(new Error(event.data.error ?? "The BPMN layout could not be generated."));
+        worker?.terminate();
+      };
+      worker.onerror = () => {
+        if (active) setError(new Error("The BPMN layout worker could not be loaded."));
+        worker?.terminate();
+      };
+      worker.postMessage(lite);
+    } catch (e) {
+      setError(e as Error);
+    }
+    return () => { active = false; worker?.terminate(); };
+  }, [lite]);
 
-  if (error || !lite) {
+  if (error || converted.error || !lite) {
     return (
       <div className={cn("flex flex-col gap-2 p-4 text-sm", className)} role="alert" style={{ height }}>
         <p className="font-medium">This process cannot be drawn as a model.</p>
-        <p className="text-text-muted">{error?.message ?? "The diagram could not be generated from the log."}</p>
+        <p className="text-text-muted">{error?.message ?? converted.error?.message ?? "The diagram could not be generated from the log."}</p>
         <Button variant="outline" size="sm" onClick={() => onSelect?.(undefined)}>
           Back to the map
         </Button>
@@ -62,20 +86,21 @@ export default function ModelView({ scene, abstraction, overlays, selected, onSe
 
   return (
     // The host hides the editing palette; bpmn-js attribution remains visible.
-    <div className={cn("wise-model flex h-full min-w-0 flex-col", className)} data-testid="model-view">
-      <BpmnView
-        graph={lite}
+    <div className={cn("wise-model flex h-full min-h-0 min-w-0 flex-1 flex-col", className)} data-testid="model-view">
+      {!xml ? <p role="status" className="p-4 text-sm text-text-muted">Arranging the process model… You can continue using the other views.</p> : <BpmnView
+        xml={xml}
         overlays={overlays}
         locale="en"
         controls={false}
+        navigation
         legend={false}
         selection={{ tasks: selected ? [selected] : [], flows: [], lanes: [] }}
         onSelect={(s) => onSelect?.(s.tasks[0])}
         onError={setError}
         ariaLabel="The same process as a BPMN model, with the same expectations drawn on it"
-        containerStyle={{ height: "100%" }}
+        containerStyle={{ height: "100%", minHeight: 0 }}
         className="min-h-0 flex-1"
-      />
+      />}
       <p className="border-t border-border px-3 py-1.5 text-xs text-text-subtle" data-testid="model-note">
         <span className="mr-2 rounded-full border border-border px-2 py-0.5">model from the log · generated</span>
         {unmapped.length > 0

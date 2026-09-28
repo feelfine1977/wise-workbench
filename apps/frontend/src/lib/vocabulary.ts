@@ -1,5 +1,5 @@
 /**
- * The plain-language layer (panel report, section 2): one table with the plain label, the method's
+ * The plain-language layer: one table with the plain label, the method's
  * term and a one-sentence definition per concept. Every column header, badge, filter label, chart axis
  * and popover reads its words from here; the ribbon's vocabulary switch decides which of the two is
  * primary. Plain is the default; the other vocabulary appears as a muted secondary label.
@@ -47,7 +47,7 @@ export const TERMS: readonly TermEntry[] = [
   { id: "contribution", plain: "share of the shortfall", method: "contribution", definition: "how much of the shortfall this expectation accounts for", formula: "Δ = mean penalty in the group − mean penalty in the log; the Δ sum to the gap" },
   { id: "applicability", plain: "applies to", method: "applicability", definition: "which cases an expectation is meant for" },
   { id: "in_scope", plain: "counted", method: "in scope", definition: "cases the expectation applies to", reworded: "this rule applies to 92 % of the items" },
-  { id: "censoring", plain: "still open at the end of the data", method: "right-censored", definition: "cases that had not finished when the data was extracted" },
+  { id: "censoring", plain: "recent-unclosed diagnostic", method: "WISE recent-unclosed flag (legacy)", definition: "WISE’s legacy flag: no configured closure observed and activity within the trailing window. Its share uses all assessed cases, regardless of closure applicability. Not flagged does not mean closed. This flag does not define censoring in general." },
   { id: "replication", plain: "duplicated events", method: "replication", definition: "the same event copied onto several cases (e.g. a header line)", reworded: "the same posting copied onto every item of the order" },
   { id: "headroom", plain: "possible gain", method: "headroom", definition: "how much the group would improve if this expectation were fully met", reworded: "what would be gained if this rule were always met" },
   { id: "readiness", plain: "data caveats", method: "readiness", definition: "what in the data could distort the results", reworded: "what could distort this" },
@@ -69,7 +69,7 @@ export const TERMS: readonly TermEntry[] = [
   // cycle 2
   { id: "case_noun", plain: "purchase order items", method: "cases", definition: "the business name of a case from the mapping; the word the screens use instead of \"cases\"" },
   { id: "comparison", plain: "compared with everyone else", method: "contrast", definition: "one real-unit sentence from the top expectation: what happens here against elsewhere (days, postings, shares)" },
-  { id: "caveat", plain: "data caveat on this group", method: "readiness item share", definition: "how much of the group a data caveat touches, e.g. 14 % still open at the end of the data" },
+  { id: "caveat", plain: "data caveat on this group", method: "readiness item share", definition: "how much of the group a data caveat touches, e.g. 14 % meeting the recent-unclosed diagnostic" },
   { id: "flow_type", plain: "flow type", method: "flow type", definition: "one way the process runs (e.g. three-way match with the invoice after goods receipt); flow types have their own expectations" },
   { id: "scope", plain: "one flow type only", method: "run scope", definition: "a run restricted to one flow type: its own ranked list, map and reasons; applicability rules stay untouched" },
   { id: "filter", plain: "cases in / out", method: "filter model", definition: "clauses that keep or exclude cases on the map, the ranked list and the analytics; they travel in the address and never change applicability" },

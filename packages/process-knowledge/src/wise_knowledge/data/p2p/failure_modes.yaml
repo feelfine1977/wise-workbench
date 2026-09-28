@@ -13,7 +13,7 @@ sources:
   - BPI Challenge 2019 CSV, shares measured on 2026-09-05 (case = PO item)
   - ICPM 2026 hackathon purchase extract, shares measured on 2026-09-05 (case = PO item)
   - Jessen, Fahland, Zerbato, WISE, BPIC 2019 norm (examples/bpic19_norm.json, 29 constraints)
-  - docs/panel/llm_knowledge_architecture.md §2.1 (typical failure modes per process)
+  - packages/process-knowledge/PACK_DESIGN.md (typical failure modes per process)
   - SAP MM documentation (release strategy, GR-based invoice verification, tolerance keys, payment blocks)
   - BPI Challenge 2019 winner reports (invoice-before-GR and change patterns)
 layers:
@@ -310,7 +310,7 @@ failure_modes:
       - Document type and source (contract, MRP, manual) of the order; spend area
       - Invoice-before-order share on the same slices (see p2p.fm.invoice_before_order)
     owner_role: purchasing
-    sources: [BPI Challenge 2019 measurement 2026-09-05, docs/panel/llm_knowledge_architecture.md §2.1 maverick buying]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, packages/process-knowledge/PACK_DESIGN.md maverick buying]
     review_status: draft
 
   # ------------------------------------------------------------- receive stage
@@ -590,7 +590,7 @@ failure_modes:
       - Which evidence precedes the order (vendor document vs receipt posting); document type; spend area
       - Requisition evidence on the same items
     owner_role: purchasing
-    sources: [BPI Challenge 2019 measurement 2026-09-05, docs/panel/llm_knowledge_architecture.md §2.1 vendor-created invoices without PO]
+    sources: [BPI Challenge 2019 measurement 2026-09-05, packages/process-knowledge/PACK_DESIGN.md vendor-created invoices without PO]
     review_status: draft
 
   # ------------------------------------------------------------- match stage

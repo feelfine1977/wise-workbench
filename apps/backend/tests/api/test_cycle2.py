@@ -68,10 +68,14 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Any]]:
         job = wait_job(client, r.json()["id"])
         assert job["status"] == "done", job
         ct = job["resultRef"].split(":")[1]
+        binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
         norm = client.post(f"/api/v1/projects/{pid}/norms", json={"norm": truth.norm.to_dict(), "note": "synthetic"})
         assert norm.status_code == 201, norm.text
         body = {"caseTableId": ct, "normVersionId": norm.json()["id"], "slicings": SLICINGS, "gamma": 2, "minCases": 5}
-        run = client.post(f"/api/v1/projects/{pid}/runs", json=body).json()
+        response = client.post(f"/api/v1/projects/{pid}/runs", json=body)
+        assert response.status_code == 202, response.text
+        run = response.json()
         assert wait_job(client, run["jobId"], timeout=120)["status"] == "done"
         analytics = _wait_analytics(client, pid, run["id"])
         yield {
@@ -264,9 +268,12 @@ def test_one_window_end_in_readiness_validation_and_gate(world: dict[str, Any]) 
     cols = diag["columns"]
     row = next(r for r in diag["rows"] if str(r[cols.index("vendor")]) == with_caveat["keys"]["vendor"])
     assert abs(row[cols.index("censored_share")] - share) < 1e-9
-    # duplicates: the backend's count is the gate's key (case, activity, timestamp)
+    # Exact prepared-row removal and candidate key collisions have different denominators.
     dup = items["duplicate_events"]["evidence"]["events"]
-    assert dup == int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
+    assert dup == int(log.events.duplicated().sum())
+    collisions = items["event_key_collisions"]["evidence"]["events"]
+    assert collisions == int(log.events.duplicated(subset=[log.case_col, log.activity_col, log.timestamp_col]).sum())
+    assert collisions > dup and items["event_key_collisions"]["decision"] is None
     gate_ids = [i for i in items if i.startswith("gate:")]
     assert "gate:replication" in gate_ids and "gate:logging_asymmetry" in gate_ids
 
@@ -360,7 +367,7 @@ def test_flow_types_scope_and_comparison(world: dict[str, Any]) -> None:
     cmp = c.get(
         f"/api/v1/projects/{pid}/runs/{world['run']['id']}/compare-flow-types", params={"attribute": "flow_type"}
     ).json()
-    assert cmp["attribute"] == "flow_type" and set(cmp["views"]) == {"Finance", "Logistics"}
+    assert cmp["attribute"] == "flow_type" and set(cmp["views"]) == {"Finance", "Logistics", "General"}
     by_name = {t["name"]: t for t in cmp["types"]}
     assert set(by_name) == {"DF1", "DF2"}
     for t in cmp["types"]:

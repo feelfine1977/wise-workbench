@@ -90,7 +90,7 @@
    "owner_role": "accounts_payable",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],
@@ -301,7 +301,7 @@
    "owner_role": "accounts_payable",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],
@@ -504,7 +504,7 @@
    "owner_role": "purchasing",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],
@@ -712,7 +712,7 @@
    "owner_role": "accounts_payable",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],
@@ -979,7 +979,7 @@
    "owner_role": "purchasing",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],
@@ -1272,7 +1272,7 @@
    "owner_role": "accounts_payable",
    "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
    "sources": [
-    "docs/panel/knowledge_hub_panel.md §1 and §5",
+    "packages/process-knowledge/PACK_DESIGN.md",
     "failure_modes.yaml (p2p)",
     "BPI Challenge 2019 reports"
    ],

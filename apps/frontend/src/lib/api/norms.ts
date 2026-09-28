@@ -27,14 +27,21 @@ export const normCalibrationQuery = (projectId: string, normVersionId: string) =
   });
 
 /** No prior-run or prior-version placeholder is valid for a norm calibration lens. */
-export const normSignalQuery = (projectId: string, normVersionId: string, caseTableId: string, constraintId: string) =>
+export const normSignalQuery = (projectId: string, normVersionId: string, caseTableId: string, constraintId: string, selectionId?: string) =>
   queryOptions({
-    queryKey: ["projects", projectId, "norms", normVersionId, "signals", caseTableId, constraintId] as const,
-    queryFn: () => http.get<S["NormSignalDistribution"]>(`/projects/${enc(projectId)}/norms/${enc(normVersionId)}/signals/${enc(constraintId)}`, { caseTableId }),
+    queryKey: ["projects", projectId, "norms", normVersionId, "signals", caseTableId, constraintId, selectionId ?? null] as const,
+    queryFn: ({ signal }) => http.get<S["NormSignalDistribution"]>(`/projects/${enc(projectId)}/norms/${enc(normVersionId)}/signals/${enc(constraintId)}`, { caseTableId, selectionId }, signal),
     enabled: !!projectId && !!normVersionId && !!caseTableId && !!constraintId,
     retry: false,
   });
 
+export const normPreviewQuery = (projectId: string, versionId: string, constraintId: string, body: S["NormPreviewRequest"]) => queryOptions({
+  queryKey: ["projects", projectId, "norms", versionId, "preview", constraintId, body] as const,
+  queryFn: ({ signal }) => http.post<S["NormConstraintPreview"]>(`/projects/${enc(projectId)}/norms/${enc(versionId)}/preview/${enc(constraintId)}`, body, undefined, signal),
+  enabled: !!projectId && !!versionId && !!constraintId && !!body.caseTableId,
+  retry: false,
+});
+export type NormConstraintPreview = S["NormConstraintPreview"];
 export type Inventory = S["Inventory"];
 
 export type ActivityInventory = S["ActivityInventory"];

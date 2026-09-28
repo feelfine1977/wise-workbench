@@ -1,6 +1,6 @@
 # packages/process-knowledge
 
-Curated, human-authored process knowledge, one folder per process, plus the
+Versioned process knowledge, one folder per process, plus the
 Python package `wise_knowledge` that validates, loads, graphs and matches it
 and serves the knowledge hub. Two packs ship under `src/wise_knowledge/data`: `p2p/` (purchase-to-pay,
 evidenced by BPI Challenge 2019, the OCEL 2.0 P2P vocabulary and the
@@ -14,9 +14,8 @@ Every entry carries `id`, `version`, `sources` and `review_status`; content
 is owned by the domain lead, schema and loaders by engineering. Measured
 shares in the catalogues are seeds, never thresholds; every template
 threshold is flagged uncalibrated until an owner sets it on the empirical
-distribution (F8). User-visible text follows `docs/CUSTOMER_JOURNEY.md` §8
-and the plain-language rule of `docs/panel/guidance_and_insight_panel.md`
-§2: the plain words first, the method term second.
+distribution (F8). User-visible text uses plain words first and the method term second.
+See [pack design and evidence](PACK_DESIGN.md) for the guidance contract.
 
 ## Installed resources
 
@@ -43,7 +42,7 @@ the ordinary test checks the known public classic v0.1.0 SHA-256 without it.
 
 ```
 process-knowledge/
-  README.md, CHECKPOINT.md          this file; how to try CP-D1 and CP-D2 with expected output
+  README.md, PACK_DESIGN.md         package use and evidence contract
   pyproject.toml                    package wise-knowledge, script wise-knowledge
   src/wise_knowledge/data/           installed content root (the following content paths are relative to it)
   datasets.yaml                     registry of evidence logs (validated by schema/datasets.schema.json)
@@ -51,7 +50,7 @@ process-knowledge/
     common.schema.json              shared $defs: ids, texts en/de, sources, evidence, review status
     ontology.schema.json  stages.schema.json  failure_modes.schema.json  kpis.schema.json
     glossary.schema.json  playbooks.schema.json  slicing.schema.json  templates.schema.json
-    guidance.schema.json            the guidance object of the knowledge hub (blocks of knowledge_hub_panel.md §1)
+    guidance.schema.json            the guidance object of the knowledge hub (blocks of the guidance contract)
     presets.schema.json             public-log presets (column mapping, prepared attributes, starting norm, slicings)
     datasets.schema.json
   p2p/, o2c/                        one folder per process
@@ -137,7 +136,7 @@ in `metadata.meta.uncalibrated_parameters`.
 ## Guidance and knowledge hub
 
 `guidance.yaml` is the generic tier of the knowledge hub
-(`docs/panel/knowledge_hub_panel.md` §§1–3): one entry per layer of the
+(`packages/process-knowledge/PACK_DESIGN.md`): one entry per layer of the
 pack, per constraint of the pack's templates (keyed by constraint id, with
 `templates` and `aliases` for the same expectation under another id in a
 derived template) and per failure mode. Every entry carries the same blocks:
@@ -173,7 +172,7 @@ says where it is checked, that every action names a countermeasure, that the
 examples show both cases, and that the plain-language blocks name no
 constraint id.
 
-Where the guidance lives (knowledge_hub_panel.md §2): in `guidance.yaml`
+Where the guidance lives (the guidance contract): in `guidance.yaml`
 (source of truth), in the `metadata.guidance` block of every non-verbatim
 template (`wise-knowledge embed-guidance <pack>` writes it, `--check`
 reports a stale block; keyed by layer id and constraint id, with the hub
@@ -288,4 +287,4 @@ to `load_pack`; a pack that ships templates needs a `guidance.yaml`.
 BPMN reference models (`bpmn/*.bpmn`), embedding candidates for matching,
 label packs for Ariba, Coupa, Oracle and D365, the project overlay and its
 approval flow (RK-5, cycle 3) and the elicitation questions of the norm
-builder (RK-6, cycle 3) are listed in `CHECKPOINT.md` under "Not done".
+builder remain separate planned capabilities.

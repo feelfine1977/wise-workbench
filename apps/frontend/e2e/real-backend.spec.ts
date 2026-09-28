@@ -58,7 +58,7 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(page.getByTestId("top-signal")).toContainText("Packaging", { timeout: 60_000 });
   await expect(page.getByTestId("top-signal")).not.toContainText("companyID");
   await expect(page.getByTestId("next-step")).toContainText("Why? Packaging");
-  await expect(page.getByRole("navigation", { name: "Analysis path" })).toContainText("Signals");
+  await expect(page.getByRole("navigation", { name: "Analysis path" })).toContainText("Process questions");
   if (await served(request, `/projects/${pid}/case-tables/${(run as Run).caseTableId}/flow-types`)) {
     await expect(page.getByRole("list", { name: "Flow types" })).toContainText("DF2", { timeout: 60_000 });
   } else {
@@ -109,7 +109,15 @@ test("dashboard, the Table XI signals with the analytics fields, Why? on Packagi
   await expect(page.getByRole("button", { name: /^Refine/ })).toBeVisible();
   // the three bands: no journey rail, no readiness banner; the ribbon shows the caveats chip and no id
   await expect(page.getByRole("complementary", { name: "Journey" })).toHaveCount(0);
-  await expect(page.getByTestId("caveats-chip")).toContainText("caveats");
+  const preparedResponse = await request.get(`${API}/api/v1/projects/${pid}/case-tables/${(run as Run).caseTableId}`);
+  expect(preparedResponse.ok(), "the assessment preparation's readiness is available").toBe(true);
+  const prepared = await preparedResponse.json() as { readiness?: { items?: { level: string }[] } };
+  expect(Array.isArray(prepared.readiness?.items), "recorded readiness check details").toBe(true);
+  const failures = prepared.readiness!.items!.filter(item => item.level === "fail").length;
+  const warnings = prepared.readiness!.items!.filter(item => item.level === "warn").length;
+  expect(failures + warnings, "this verified preparation has readiness issues").toBeGreaterThan(0);
+  const expectedReadiness = `${failures} blocking ${failures === 1 ? "issue" : "issues"} · ${warnings} ${warnings === 1 ? "warning" : "warnings"}`;
+  await expect(page.getByTestId("caveats-chip")).toHaveText(new RegExp(`^⚠\\s*${expectedReadiness}$`));
   await expect(page.getByRole("banner")).not.toContainText(/run_0|ct_0|map_0/);
 
   // the metric table shows the same numbers

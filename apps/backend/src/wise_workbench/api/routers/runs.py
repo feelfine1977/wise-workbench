@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Header, Query, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 
 from wise_workbench.api import schemas
 from wise_workbench.api.deps import ContainerDep
-from wise_workbench.domain import RunParams, Slicing
+from wise_workbench.api.schema_models.driver_evidence import DriverEvidence
+from wise_workbench.domain import RunParams, Slicing, ValidationError
 
 router = APIRouter(prefix="/projects/{projectId}/runs", tags=["runs"])
 
@@ -109,7 +110,9 @@ def get_backlog(
     projectId: str,
     runId: str,
     c: ContainerDep,
-    slicing: Annotated[str, Query(description="slicing id or comma-separated case attributes")],
+    slicing: Annotated[
+        str, Query(description="saved slicing id, comma-separated case attributes, or self-contained group: JSON token")
+    ],
     view: str | None = None,
     gamma: float | None = None,
     minCases: Annotated[int, Query(ge=1)] = 20,
@@ -162,6 +165,16 @@ def get_backlog(
 
 
 @router.get(
+    "/{runId}/slicings/options",
+    operation_id="getSlicingOptions",
+    response_model=schemas.SlicingOptions,
+    description="Actual case-attribute profiles and deterministic grouping suggestions for this run's scoped population.",
+)
+def get_slicing_options(projectId: str, runId: str, c: ContainerDep) -> schemas.SlicingOptions:
+    return schemas.SlicingOptions(**c.runs.slicing_options(projectId, runId))
+
+
+@router.get(
     "/{runId}/slicings/preview",
     operation_id="previewSlicing",
     response_model=schemas.SlicingPreview,
@@ -171,7 +184,9 @@ def preview_slicing(
     projectId: str,
     runId: str,
     c: ContainerDep,
-    slicing: Annotated[str, Query(description="slicing id or comma-separated case attributes")],
+    slicing: Annotated[
+        str, Query(description="saved slicing id, comma-separated case attributes, or self-contained group: JSON token")
+    ],
     bands: BandsParam = None,
     minCases: Annotated[int, Query(ge=1)] = 20,
 ) -> schemas.SlicingPreview:
@@ -313,6 +328,46 @@ def compare_flow_types(
     return schemas.FlowTypeComparison(**c.runs.compare_flow_types(projectId, runId, attribute=attribute))
 
 
+@router.get(
+    "/{runId}/driver-evidence",
+    operation_id="getDriverEvidence",
+    response_model=DriverEvidence,
+    description="Read-only activity coverage and temporal endpoints for the exact run, group and optional case filter. "
+    "Counts include all selected cases, not a rule-applicability subset; view is context only. "
+    "Recorded event rows and unique-endpoint durations do not reproduce scoring, prove payment batches or infer overdue/cost/causality.",
+)
+def get_driver_evidence(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    request: Request,
+    constraintId: str,
+    slicing: str,
+    key: str,
+    view: str | None = None,
+    filter: FilterParam = None,
+    bands: BandsParam = None,
+) -> DriverEvidence:
+    if set(request.query_params) - {"constraintId", "slicing", "key", "view", "filter", "bands"} or any(
+        len(request.query_params.getlist(name)) > 1 for name in request.query_params
+    ):
+        raise ValidationError(
+            "Unsupported driver-evidence query; drill context cannot be ignored", code="driver_evidence.query"
+        )
+    return DriverEvidence(
+        **c.runs.driver_evidence(
+            projectId,
+            runId,
+            constraint_id=constraintId,
+            slicing=slicing,
+            slice_key=key,
+            view=view,
+            filter_text=filter,
+            bands=bands,
+        )
+    )
+
+
 @router.get("/{runId}/slices/{sliceKey:path}", operation_id="getSlice", response_model=schemas.SliceDetail)
 def get_slice(
     projectId: str,
@@ -327,6 +382,69 @@ def get_slice(
     return schemas.SliceDetail(
         **c.runs.slice_detail(
             projectId, runId, slicing=slicing, slice_key=sliceKey, view=view, drilldown=drilldown, bands=bands
+        )
+    )
+
+
+@router.get(
+    "/{runId}/investigation-questions",
+    operation_id="getInvestigationQuestions",
+    response_model=schemas.InvestigationQuestions,
+    description="Dataset-adaptive descriptive analysis of the exact run/filter population. Overview returns "
+    "bounded repetition, direct-transition timing and boundary profiles. Explicit timing/sequence requires "
+    "source and target. Eventual means a strictly later recorded event position, not timestamp >=. "
+    "A null question filter disables drill links. Unknown query parameters are rejected.",
+)
+def get_investigation_questions(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    params: Annotated[schemas.InvestigationQuery, Query()],
+) -> schemas.InvestigationQuestions:
+    return schemas.InvestigationQuestions(
+        **c.runs.investigation_questions(
+            projectId,
+            runId,
+            filter_text=params.filter,
+            family=params.family,
+            activity=params.activity,
+            source=params.source,
+            target=params.target,
+            relation=params.relation,
+            limit=params.limit,
+        )
+    )
+
+
+@router.get(
+    "/{runId}/variants",
+    operation_id="getProcessVariants",
+    response_model=schemas.ProcessVariants,
+    description="Top exact activity sequences in the run population, optionally filtered and sliced. "
+    "Shares include selected zero-event cases in the denominator. Equal timestamps use the log's stable "
+    "mapped ordering, not business causality. Durations are descriptive first-to-last spans, not savings.",
+)
+def get_process_variants(
+    projectId: str,
+    runId: str,
+    c: ContainerDep,
+    slicing: str | None = None,
+    sliceKey: str | None = None,
+    filter: FilterParam = None,
+    bands: BandsParam = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    exampleLimit: Annotated[int, Query(ge=1, le=5)] = 3,
+) -> schemas.ProcessVariants:
+    return schemas.ProcessVariants(
+        **c.runs.variants(
+            projectId,
+            runId,
+            slicing=slicing,
+            slice_key=sliceKey,
+            filter_text=filter,
+            bands=bands,
+            limit=limit,
+            example_limit=exampleLimit,
         )
     )
 

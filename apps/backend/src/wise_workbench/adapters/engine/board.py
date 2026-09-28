@@ -267,15 +267,16 @@ def kpi_tiles(
         },
         {
             "id": "open_share",
-            "label": "Still open",
+            "label": "Recent-unclosed",
             "value": None if open_share is None else float(open_share),
             "format": "share",
             "unit": None,
             "text": (
-                f"{_pct(open_share)} of these {noun} are still open at the end of the data"
+                f"{_pct(open_share)} of these {noun} meet the recent-unclosed diagnostic"
                 + (f" ({window_end[:10]})." if window_end else ".")
+                + " Not flagged does not mean closed."
                 if open_share is not None
-                else "Open cases cannot be told apart: the mapping names no closure activity."
+                else "Recent-unclosed diagnostic unavailable: the mapping names no closure activity."
             ),
         },
     ]

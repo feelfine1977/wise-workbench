@@ -33,8 +33,9 @@ def test_invalid_constraint_is_reported_before_loading_missing_artefacts(
     assert out["errors"][0]["field"] == "constraint"
     assert out["sentence"] is None and out["casesEvaluated"] is None
     valid = wise.running_p2p_norm().to_dict()["constraints"][0]
-    with pytest.raises(NotFoundError, match="case table artefacts missing"):
+    with pytest.raises(NotFoundError) as missing:
         engine.validate_constraint(tmp_path / "absent", mapping, valid)
+    assert missing.value.code == "case_table.artefacts_missing"
 
 
 def test_inventory_search_keeps_population_shares_and_numeric_summary(

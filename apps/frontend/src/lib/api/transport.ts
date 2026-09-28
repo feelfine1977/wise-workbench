@@ -11,7 +11,7 @@ async function problemOf(res: Response): Promise<Problem | undefined> {
   }
 }
 
-async function request<T>(method: string, path: string, init: { body?: unknown; form?: FormData; query?: Record<string, string | number | undefined> } = {}): Promise<T> {
+async function request<T>(method: string, path: string, init: { signal?: AbortSignal; body?: unknown; form?: FormData; query?: Record<string, string | number | undefined> } = {}): Promise<T> {
   const url = new URL(`${apiBase}${path}`);
   // An empty filter is still selection input: dropping it would silently request the whole group.
   for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && (v !== "" || k === "filter")) url.searchParams.set(k, String(v));
@@ -23,15 +23,15 @@ async function request<T>(method: string, path: string, init: { body?: unknown; 
     body = JSON.stringify(init.body);
   }
   if (method === "POST") headers["Idempotency-Key"] = crypto.randomUUID();
-  const res = await globalThis.fetch(url.toString(), { method, headers, body });
+  const res = await globalThis.fetch(url.toString(), { method, headers, body, ...(init.signal ? { signal: init.signal } : {}) });
   if (!res.ok) throw new ApiError(res.status, await problemOf(res));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
 export const http = {
-  get: <T>(path: string, query?: Record<string, string | number | undefined>) => request<T>("GET", path, { query }),
-  post: <T>(path: string, body?: unknown, query?: Record<string, string | number | undefined>) => request<T>("POST", path, { body, query }),
+  get: <T>(path: string, query?: Record<string, string | number | undefined>, signal?: AbortSignal) => request<T>("GET", path, { query, signal }),
+  post: <T>(path: string, body?: unknown, query?: Record<string, string | number | undefined>, signal?: AbortSignal) => request<T>("POST", path, { body, query, signal }),
   postForm: <T>(path: string, form: FormData) => request<T>("POST", path, { form }),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, { body }),
   put: <T>(path: string, body: unknown, query?: Record<string, string | number | undefined>) => request<T>("PUT", path, { body, query }),

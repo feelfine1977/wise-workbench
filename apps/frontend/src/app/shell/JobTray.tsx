@@ -134,7 +134,7 @@ export function useTrackJob(projectId: string) {
   const track = useJobStore((s) => s.track);
   const setOpen = useUiStore((s) => s.setTrayOpen);
   return (job: Job, label: string, resultRoute?: TrackedJob["resultRoute"]) => {
-    track({ id: job.id, kind: job.kind, label, projectId, resultRoute });
+    track({ id: job.id, kind: job.kind, label, projectId, resultRoute, lastStatus: job.status });
     setOpen(true);
   };
 }

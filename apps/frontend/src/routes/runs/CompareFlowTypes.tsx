@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/misc";
 import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { sliceLabel } from "@/lib/utils";
+import { definition, label } from "@/lib/vocabulary";
 
 /**
  * Flow types side by side (R2-O10): for a run without scope, one column per flow type with its cases, its
@@ -78,9 +79,9 @@ export function CompareFlowTypes({ projectId, runId, view, slicing, runs, caseNo
           </ol>
         </div>
         {(t.censoredShare ?? 0) > 0.05 && (
-          <p className="text-xs text-warning">
+          <p className="text-xs text-warning" title={definition("censoring")}>
             <span aria-hidden>! </span>
-            {fmtPct(t.censoredShare ?? 0, 0)} still open at the end of the data
+            {fmtPct(t.censoredShare ?? 0, 0)} of this flow type’s {noun} meet the {label("censoring")}. Not flagged does not mean closed.
           </p>
         )}
         {scopedRun ? (

@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import builtins
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
-from wise_workbench.application.ports import RunContext, Table
+from wise_workbench.application.ports import (
+    GROUPING_ATTRIBUTES,
+    GROUPING_PREFIX,
+    RunContext,
+    Table,
+    grouping_slicing,
+    validate_grouping_spec,
+)
 from wise_workbench.domain import (
     CaseTableStatus,
     ConflictError,
@@ -17,9 +25,9 @@ from wise_workbench.domain import (
     Run,
     RunParams,
     RunStatus,
-    Slicing,
     ValidationError,
 )
+from wise_workbench.domain.norm_views import BENCHMARK_POLICY, with_general_benchmark
 from wise_workbench.ids import new_id
 
 CLOSURE_LABELS = {"p2p": "clearing", "o2c": "goods issue"}
@@ -27,7 +35,7 @@ CLOSURE_LABELS = {"p2p": "clearing", "o2c": "goods issue"}
 
 def parse_bands(text: str | None) -> list[dict[str, Any]]:
     """Band specs from the ``bands`` query parameter (a JSON list)."""
-    if not text:
+    if text is None:
         return []
     try:
         obj = json.loads(text)
@@ -35,7 +43,7 @@ def parse_bands(text: str | None) -> list[dict[str, Any]]:
         raise ValidationError(f"bands is not valid JSON: {exc}", code="run.bands") from exc
     if isinstance(obj, dict):
         obj = [obj]
-    if not isinstance(obj, list):
+    if not isinstance(obj, list) or any(not isinstance(b, dict) for b in obj):
         raise ValidationError("bands must be a JSON list of band specs", code="run.bands")
     return [dict(b) for b in obj]
 
@@ -64,6 +72,21 @@ class RunService:
         (a what-if scenario) and scores it itself.
         """
         self.c.repos.get_project(project_id)
+        from wise_workbench.application.services.project_binding import require_dataset_binding
+
+        require_dataset_binding(self.c, project_id, params.case_table_id)
+        if params.scope and params.scope.get("selection_id"):
+            from wise_workbench.application.services.selections import get_selection
+
+            get_selection(self.c, project_id, params.case_table_id, params.scope["selection_id"])
+        norm = self.c.norms.get(project_id, params.norm_version_id)
+        effective = with_general_benchmark(norm.document)
+        benchmark_name = (effective.get("metadata") or {}).get("general_benchmark", {}).get("name")
+        effective_views = [v["name"] for v in effective.get("views", [])]
+        chosen = list(params.views) or effective_views
+        if benchmark_name and benchmark_name not in chosen:
+            chosen.append(benchmark_name)
+        params = replace(params, views=tuple(chosen), general_benchmark=BENCHMARK_POLICY)
         if idempotency_key:
             existing = self.c.repos.find_run(project_id, idempotency_key=idempotency_key)
             if existing is not None:
@@ -76,24 +99,33 @@ class RunService:
         if table.status != CaseTableStatus.READY:
             raise ValidationError(f"case table {table.id} is {table.status}", code="run.case_table_not_ready")
         norm = self.c.norms.get(project_id, params.norm_version_id)
-        unknown_views = [v for v in params.views if v not in norm.view_names]
+        unknown_views = [v for v in params.views if v not in effective_views]
         if unknown_views:
             raise ValidationError(
-                f"views {unknown_views} are not in norm {norm.name!r}; available: {norm.view_names}", code="run.view"
+                f"views {unknown_views} are not in norm {norm.name!r}; available: {effective_views}", code="run.view"
             )
         available = set(table.attributes) | {r["name"] for r in norm.document.get("derived_attributes", [])}
+        grouping_available = available | set(GROUPING_ATTRIBUTES)
         for s in params.slicings:
-            missing = [a for a in s.attributes if a not in available]
+            missing = [a for a in s.attributes if a not in grouping_available]
             if missing:
                 raise ValidationError(
                     f"slicing {s.id!r} uses attributes that are not in the case table: {missing}",
                     code="run.slicing_attribute",
                     errors=[{"field": "slicings", "message": f"unknown attribute {m}"} for m in missing],
                 )
-        if params.scope and params.scope.get("attribute") not in available:
+        if params.scope and params.scope.get("attribute") is not None and params.scope["attribute"] not in available:
             raise ValidationError(
                 f"scope attribute {params.scope.get('attribute')!r} is not in the case table",
                 code="run.scope_attribute",
+            )
+        if params.scope and params.scope.get("selection_id"):
+            # Fail an empty flow intersection or inconsistent case IDs before queueing.
+            self.c.engine.transform_preview(
+                self.c.workspace.case_table_dir(project_id, table.id),
+                self.c.repos.get_mapping(table.mapping_id),
+                params.scope,
+                [],
             )
         if not force:
             existing = self.c.repos.find_run(project_id, params_hash=params.params_hash())
@@ -144,10 +176,17 @@ class RunService:
         return self.c.repos.list_runs(project_id)
 
     def context(self, run: Run) -> RunContext:
+        if run.params.scope and run.params.scope.get("selection_id"):
+            from wise_workbench.application.services.selections import get_selection
+
+            get_selection(self.c, run.project_id, run.params.case_table_id, run.params.scope["selection_id"])
         table = self.c.repos.get_case_table(run.params.case_table_id)
         mapping = self.c.repos.get_mapping(table.mapping_id)
         norm = self.c.repos.get_norm_version(run.params.norm_version_id)
         project = self.c.repos.get_project(run.project_id)
+        document = (
+            with_general_benchmark(norm.document) if run.params.general_benchmark == BENCHMARK_POLICY else norm.document
+        )
         views = tuple(run.params.views) or tuple(norm.view_names)
         window_end = None
         if table.readiness is not None and table.readiness.window_end:
@@ -165,7 +204,7 @@ class RunService:
             run_dir=self.c.workspace.run_dir(run.project_id, run.id),
             case_table_dir=self.c.workspace.case_table_dir(run.project_id, table.id),
             mapping=mapping,
-            document=norm.document,
+            document=document,
             views=views,
             gamma=run.params.gamma,
             min_cases=run.params.min_cases,
@@ -195,8 +234,11 @@ class RunService:
         attributes = ctx.slicing_attributes(slicing)
         if not attributes:
             raise ValidationError("slicing must name at least one case attribute", code="backlog.slicing")
-        specs = parse_bands(bands) or ctx.slicing_bands(slicing)
-        spec = Slicing(id="", attributes=tuple(attributes), bands=tuple(specs))  # validates the combination
+        inline = grouping_slicing(slicing)
+        specs = parse_bands(bands) if bands is not None else ctx.slicing_bands(slicing)
+        spec = validate_grouping_spec({"attributes": attributes, "bands": specs})
+        if inline is not None and spec.bands != inline.bands:
+            raise ValidationError("separate bands conflict with the inline grouping", code="run.grouping_conflict")
         return list(spec.attributes), [dict(b) for b in spec.bands]
 
     def _drill(
@@ -210,7 +252,14 @@ class RunService:
 
         attrs, specs = self._slicing(ctx, drill_from, bands)
         key = parse_slice_key(drill_key, len(attrs))
-        return {"id": ctx.slicing_id(attrs, specs) or ",".join(attrs), "attributes": attrs, "bands": specs, "key": key}
+        return {
+            "id": drill_from
+            if drill_from.startswith(GROUPING_PREFIX)
+            else ctx.slicing_id(attrs, specs) or ",".join(attrs),
+            "attributes": attrs,
+            "bands": specs,
+            "key": key,
+        }
 
     def ready(self, project_id: str, run_id: str) -> tuple[Run, RunContext]:
         """The run and its context, once it is done; the read side of every screen starts here."""
@@ -286,7 +335,9 @@ class RunService:
             "globalMean": result.global_mean,
             "maxStablePI": result.max_stable_pi,
             "params": {
-                "slicing": ctx.slicing_id(attributes, specs) or ",".join(attributes),
+                "slicing": slicing
+                if slicing.startswith(GROUPING_PREFIX)
+                else ctx.slicing_id(attributes, specs) or ",".join(attributes),
                 "attributes": attributes,
                 "bands": specs,
                 "view": result.view,
@@ -329,6 +380,95 @@ class RunService:
         attributes, specs = self._slicing(ctx, slicing, bands)
         key = parse_slice_key(slice_key, len(attributes))
         return self.c.engine.slice_detail(run, ctx, attributes, key, view, drilldown, bands=specs)
+
+    def driver_evidence(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        constraint_id: str,
+        slicing: str,
+        slice_key: str,
+        view: str | None = None,
+        filter_text: str | None = None,
+        bands: str | None = None,
+    ) -> dict[str, Any]:
+        import hashlib
+
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        attributes, specs = self._slicing(ctx, slicing, bands)
+        # The general slice parser accepts bare single-column values. A JSON key
+        # supplied here must remain a valid tuple, never become a literal string.
+        if slice_key.lstrip().startswith(("[", "{")):
+            try:
+                parsed_key = json.loads(slice_key)
+            except ValueError as exc:
+                raise ValidationError("The group key is not valid JSON", code="slice.key") from exc
+            if (
+                not isinstance(parsed_key, list)
+                or len(parsed_key) != len(attributes)
+                or any(isinstance(value, (list, dict)) for value in parsed_key)
+            ):
+                raise ValidationError("The group key must have one scalar value per attribute", code="slice.key")
+        key = parse_slice_key(slice_key, len(attributes))
+        selected_view = view or (ctx.views[0] if ctx.views else None)
+        if selected_view is None or selected_view not in ctx.views:
+            raise ValidationError("The selected view is not part of this run", code="driver_evidence.view")
+        filter_obj = parse_filter(filter_text)
+        table = self.c.repos.get_case_table(run.params.case_table_id)
+        if table.cases is None or run.manifest is None:
+            raise ConflictError(
+                "The run's recorded source identity is unavailable", code="driver_evidence.source_unavailable"
+            )
+        result = self.c.engine.driver_evidence(
+            run,
+            ctx,
+            attributes,
+            key,
+            constraint_id,
+            bands=specs,
+            filter_obj=filter_obj,
+        )
+        source = {
+            "projectId": project_id,
+            "runId": run_id,
+            "caseTableId": table.id,
+            "datasetId": table.dataset_id,
+            "normVersionId": run.params.norm_version_id,
+            "normFingerprint": run.manifest.norm_fingerprint,
+            "contentHash": run.manifest.content_hash,
+            "selectionId": (ctx.scope or {}).get("selection_id"),
+            "runScope": ctx.scope,
+            "transformCount": len(ctx.transforms),
+        }
+        scope = {
+            "slicing": slicing,
+            "attributes": attributes,
+            "bands": specs,
+            "key": key,
+            "view": selected_view,
+            "filter": filter_obj,
+            "filtered": bool(filter_obj and filter_obj["and"]),
+            "caseNoun": ctx.case_noun,
+            "fullCaseTableCases": table.cases,
+            **{name: result.pop(name) for name in ("runCases", "groupCases", "selectedCases", "selectedEvents")},
+            "population": "selected_cases",
+            "ruleApplicabilityApplied": False,
+            "viewAffectsMeasurements": False,
+        }
+        scope["fingerprint"] = hashlib.sha256(
+            json.dumps(
+                {"source": source, "constraintId": constraint_id, "scope": scope}, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        return {"constraintId": constraint_id, "source": source, "scope": scope, **result}
+
+    def slicing_options(self, project_id: str, run_id: str) -> dict[str, Any]:
+        run, ctx = self._ready(project_id, run_id)
+        return self.c.engine.slicing_options(run, ctx)
 
     def slicing_preview(
         self, project_id: str, run_id: str, *, slicing: str, bands: str | None, min_cases: int
@@ -435,7 +575,17 @@ class RunService:
         technical["datasetId"] = dataset.id
         technical["datasetContentHash"] = dataset.content_hash
         technical["normVersionId"] = norm.id
-        technical["normFingerprint"] = norm.fingerprint
+        technical["normFingerprint"] = m.norm_fingerprint if m else norm.fingerprint
+        technical["sourceNormFingerprint"] = norm.fingerprint
+        if run.params.general_benchmark:
+            technical["generalBenchmark"] = run.params.general_benchmark
+            plain.append(
+                {
+                    "label": "General benchmark",
+                    "value": "Equal layer weights",
+                    "note": "Includes the union of constraints used by the norm views; generated for this run.",
+                }
+            )
         return {
             "runId": run.id,
             "status": str(run.status),
@@ -566,7 +716,7 @@ class RunService:
         if slicing:
             attributes, specs = self._slicing(ctx, slicing, bands)
         key = parse_slice_key(slice_key, len(attributes)) if (attributes and slice_key is not None) else None
-        group_attrs = ctx.slicing_attributes(grouping) if grouping else None
+        group_attrs, group_bands = self._slicing(ctx, grouping, None) if grouping else (None, None)
         return self.c.engine.kpis(
             run,
             ctx,
@@ -577,6 +727,7 @@ class RunService:
             key=key,
             bands=specs,
             grouping=group_attrs,
+            grouping_bands=group_bands,
             min_cases=min_cases,
         )
 
@@ -720,7 +871,8 @@ class RunService:
 
     def diagnostics(self, project_id: str, run_id: str, *, slicing: str, view: str | None) -> Table:
         run, ctx = self._ready(project_id, run_id)
-        return self.c.engine.diagnostics(run, ctx, ctx.slicing_attributes(slicing), view)
+        attributes, bands = self._slicing(ctx, slicing, None)
+        return self.c.engine.diagnostics(run, ctx, attributes, view, bands=bands)
 
     def signals(
         self,
@@ -752,6 +904,67 @@ class RunService:
             filter_obj=parse_filter(filter_text),
             scale=scale,
             bands=specs,
+        )
+
+    def investigation_questions(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        filter_text: str | None = None,
+        family: str = "overview",
+        activity: str | None = None,
+        source: str | None = None,
+        target: str | None = None,
+        relation: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine.filters import parse_filter
+        from wise_workbench.adapters.engine.investigation_questions import validate_parameters
+
+        run, ctx = self._ready(project_id, run_id)
+        validate_parameters(family, activity, source, target, relation)
+        return self.c.engine.investigation_questions(
+            run,
+            ctx,
+            filter_obj=parse_filter(filter_text),
+            family=family,
+            activity=activity,
+            source=source,
+            target=target,
+            relation=relation,
+            limit=limit,
+        )
+
+    def variants(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        slicing: str | None = None,
+        slice_key: str | None = None,
+        filter_text: str | None = None,
+        bands: str | None = None,
+        limit: int = 10,
+        example_limit: int = 3,
+    ) -> dict[str, Any]:
+        from wise_workbench.adapters.engine import parse_slice_key
+        from wise_workbench.adapters.engine.filters import parse_filter
+
+        run, ctx = self._ready(project_id, run_id)
+        if slice_key is not None and not slicing:
+            raise ValidationError("sliceKey needs a slicing", code="variants.slicing")
+        attributes, specs = self._slicing(ctx, slicing, bands) if slicing else (None, [])
+        key = parse_slice_key(slice_key, len(attributes)) if (attributes and slice_key is not None) else None
+        return self.c.engine.variants(
+            run,
+            ctx,
+            attributes if key is not None else None,
+            key,
+            filter_obj=parse_filter(filter_text),
+            bands=specs,
+            limit=limit,
+            example_limit=example_limit,
         )
 
     def flow(

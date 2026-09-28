@@ -40,6 +40,23 @@ class MappingService:
             noun = pack_case_noun(project.process)
             if noun:
                 document = {**document, "caseNoun": noun}
+        if document.get("dedupe") and not any(
+            d.get("kind") == "collapse_duplicates" and d.get("policy") for d in document.get("decisions") or []
+        ):
+            # New preparations opt in explicitly; loading historical mappings keeps their policy.
+            document = {
+                **document,
+                "decisions": [
+                    *(document.get("decisions") or []),
+                    {
+                        "id": new_id("dec"),
+                        "kind": "collapse_duplicates",
+                        "params": {},
+                        "policy": "identical_prepared_rows_v1",
+                        "legacyKeyDedupeInherited": False,
+                    },
+                ],
+            }
         mapping = ColumnMapping.from_dict(new_id("map"), dataset_id, document)
         dataset_dir = self.c.workspace.dataset_dir(project_id, dataset_id)
         sample = self.c.engine.validate_mapping(dataset_dir, mapping, self.c.settings.mapping_sample_events)
@@ -91,7 +108,13 @@ class MappingService:
         return self.c.repos.list_case_tables(project_id)
 
     def flow_types(
-        self, project_id: str, case_table_id: str, *, attribute: str | None, abstraction: float = 0.05
+        self,
+        project_id: str,
+        case_table_id: str,
+        *,
+        attribute: str | None,
+        abstraction: float = 0.05,
+        selection_id: str | None = None,
     ) -> dict[str, Any]:
         """The detected flow types of a case table with counts, one map each and a readiness headline (R2-O10)."""
         table = self.get_case_table(project_id, case_table_id)
@@ -104,6 +127,10 @@ class MappingService:
             or (table.readiness.case_noun if table.readiness else None)
             or pack_case_noun(project.process)
         )
+        if selection_id is not None:
+            from wise_workbench.application.services.selections import get_selection
+
+            get_selection(self.c, project_id, case_table_id, selection_id)
         out = self.c.engine.flow_types(
             self.c.workspace.case_table_dir(project_id, table.id),
             mapping,
@@ -111,5 +138,6 @@ class MappingService:
             process=project.process,
             abstraction=abstraction,
             case_noun=noun,
+            selection_id=selection_id,
         )
         return {"caseTableId": table.id, **out}

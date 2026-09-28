@@ -169,7 +169,7 @@
           "owner_role": "credit_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -271,7 +271,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -373,7 +373,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -466,7 +466,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -549,7 +549,7 @@
           "owner_role": "sales",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -638,7 +638,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -740,7 +740,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -813,7 +813,7 @@
           "owner_role": "credit_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -882,7 +882,7 @@
           "owner_role": "credit_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -975,7 +975,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1055,7 +1055,7 @@
           "owner_role": "supply_planning",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1135,7 +1135,7 @@
           "owner_role": "sales",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1207,7 +1207,7 @@
           "owner_role": "customer_service",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1276,7 +1276,7 @@
           "owner_role": "supply_planning",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1350,7 +1350,7 @@
           "owner_role": "supply_planning",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1430,7 +1430,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1510,7 +1510,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1596,7 +1596,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1682,7 +1682,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1751,7 +1751,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1825,7 +1825,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1894,7 +1894,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -1979,7 +1979,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2048,7 +2048,7 @@
           "owner_role": "supply_planning",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2116,7 +2116,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2185,7 +2185,7 @@
           "owner_role": "order_management",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2251,7 +2251,7 @@
           "owner_role": "sales",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2320,7 +2320,7 @@
           "owner_role": "sales",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2394,7 +2394,7 @@
           "owner_role": "logistics",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2463,7 +2463,7 @@
           "owner_role": "customer_service",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2532,7 +2532,7 @@
           "owner_role": "customer_service",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2606,7 +2606,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2675,7 +2675,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2744,7 +2744,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2818,7 +2818,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2898,7 +2898,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"
@@ -2967,7 +2967,7 @@
           "owner_role": "accounts_receivable",
           "stakeholders": "Seeded from the O2C pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the order-management process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (o2c)",
             "o2c/README.md",
             "ICPM 2026 hackathon sales extract measured 2026-09-05"

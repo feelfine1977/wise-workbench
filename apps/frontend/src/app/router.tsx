@@ -1,10 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext, createRoute, createRouter, lazyRouteComponent, redirect } from "@tanstack/react-router";
-import { projectsQuery } from "@/lib/queries";
 import { AppShell } from "./shell/AppShell";
 import { NotFound } from "./NotFound";
-import { parseSearch, stringifySearch, validateActSearch, validateBacklogSearch, validateBoardSearch, validateDatasetSearch, validateFlowSearch, validateKnowledgeSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateSliceSearch } from "./search";
+import { parseSearch, stringifySearch, validateActSearch, validateBacklogSearch, validateBoardSearch, validateDatasetSearch, validateFlowSearch, validateKnowledgeSearch, validateNormSearch, validateNotebookSearch, validateRunSearch, validateRunSetupSearch, validateSliceSearch } from "./search";
 import { LoadingBlock } from "@/components/states";
+import { validateInvestigationSearch } from "./investigationSearch";
 
 export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => <Outlet />,
@@ -14,10 +14,7 @@ export const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  beforeLoad: async ({ context }) => {
-    const projects = await context.queryClient.ensureQueryData(projectsQuery);
-    const first = projects[0];
-    if (first) throw redirect({ to: "/p/$projectId", params: { projectId: first.id } });
+  beforeLoad: () => {
     throw redirect({ to: "/projects" });
   },
 });
@@ -69,6 +66,7 @@ export const normRoute = createRoute({
 export const runsRoute = createRoute({
   getParentRoute: () => projectRoute,
   path: "runs",
+  validateSearch: validateRunSetupSearch,
   component: lazyRouteComponent(() => import("@/routes/runs/RunsPage")),
 });
 
@@ -77,6 +75,14 @@ export const runRoute = createRoute({
   path: "runs/$runId",
   validateSearch: validateRunSearch,
   component: lazyRouteComponent(() => import("@/routes/runs/RunPage")),
+});
+
+export const investigationRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "runs/$runId/investigate",
+  validateSearch: validateInvestigationSearch,
+  errorComponent: ({error}) => <div className="surface space-y-3 p-6" role="alert"><h1 className="text-xl font-semibold">Cannot open this process question</h1><p>{error.message}</p><a className="text-accent-text underline" href={window.location.pathname}>Choose a process question</a></div>,
+  component: lazyRouteComponent(() => import("@/routes/investigate/InvestigationPage")),
 });
 
 export const backlogRoute = createRoute({
@@ -139,7 +145,7 @@ export const notebookRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   projectsRoute,
-  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, backlogRoute, flowRoute, boardRoute, actRoute, sliceRoute, knowledgeRoute, hubNodeRoute, notebookRoute]),
+  projectRoute.addChildren([dashboardRoute, dataRoute, datasetRoute, normsRoute, normRoute, runsRoute, runRoute, investigationRoute, backlogRoute, flowRoute, boardRoute, actRoute, sliceRoute, knowledgeRoute, hubNodeRoute, notebookRoute]),
 ]);
 
 export function createAppRouter(queryClient: QueryClient, history?: Parameters<typeof createRouter>[0]["history"]) {

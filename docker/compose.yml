@@ -44,23 +44,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -U wise"]
     profiles: [team, dev]
 
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama:/root/.ollama
-    profiles: [team]
-
-  ollama-init:
-    image: ollama/ollama:latest
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "ollama pull ${WISE_LLM_MODEL:-qwen3:8b} &&
-       ollama pull ${WISE_EMBED_MODEL:-bge-m3}"
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    depends_on: [ollama]
-    profiles: [team]
-
   caddy:
     image: caddy:2
     ports: ["80:80", "443:443"]
@@ -73,7 +56,6 @@ services:
 volumes:
   workspace:
   pgdata:
-  ollama:
   caddy:
 
 secrets:

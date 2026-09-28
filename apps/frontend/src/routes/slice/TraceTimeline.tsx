@@ -1,114 +1,179 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import type { Trace } from "@wise/api-schema";
-import { Badge } from "@/components/ui/badge";
-import { fmtDateTime, fmtDays } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const DAY = 86_400_000;
+type EventTime = { raw?: string | null; instant?: bigint; basis?: "instant" | "recorded"; issue?: string };
 
-/** A simple trace timeline: events on a time axis, violated constraints marked with a glyph and listed; table alternative below. */
+function eventTime(raw?: string | null): EventTime {
+  if (!raw?.trim()) return { issue: "Timestamp not recorded" };
+  // Parse recorded clock values independently of the browser's timezone.
+  const parts = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:?\d{2})?$/i.exec(raw.trim());
+  if (!parts) return { raw, issue: "Invalid timestamp" };
+  const [, year, month, day, hour, minute, second, fraction = "", offset] = parts;
+  const y = Number(year);
+  const m = Number(month);
+  const monthDays = [31, y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (m < 1 || m > 12 || Number(day) < 1 || Number(day) > monthDays[m - 1]! || Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) {
+    return { raw, issue: "Invalid timestamp" };
+  }
+  const milliseconds = Date.parse(`${year}-${month}-${day}T${hour}:${minute}:${second}${offset?.toUpperCase() ?? "Z"}`);
+  if (!Number.isFinite(milliseconds)) return { raw, issue: "Invalid timestamp" };
+  // Preserve sub-millisecond differences from the supplied timestamp instead of rounding them to zero.
+  return { raw, instant: BigInt(milliseconds) * 1_000_000n + BigInt(fraction.padEnd(9, "0")), basis: offset ? "instant" : "recorded" };
+}
+
+function elapsed(nanoseconds: bigint): string {
+  const units = [[86_400_000_000_000n, "d"], [3_600_000_000_000n, "h"], [60_000_000_000n, "min"], [1_000_000_000n, "s"], [1_000_000n, "ms"], [1_000n, "µs"], [1n, "ns"]] as const;
+  const parts: string[] = [];
+  for (const [size, label] of units) {
+    const count = nanoseconds / size;
+    if (count) parts.push(`${count} ${label}`);
+    nanoseconds %= size;
+  }
+  return parts.join(" ") || "0 s";
+}
+
+function Timestamp({ time }: { time: EventTime }) {
+  if (time.instant !== undefined) return <time dateTime={time.raw!}>{time.raw}</time>;
+  return <span>{time.issue}{time.raw && <>: <span className="font-mono">{time.raw}</span></>}</span>;
+}
+
+/** Every event has its own row; spacing conveys sequence, never elapsed time or causality. */
 export function TraceTimeline({ trace, highlight, onHighlight, plainOf }: { trace: Trace; highlight?: string; onHighlight?: (constraintId: string | undefined) => void; plainOf?: (constraintId: string) => string }) {
-  const name = (id: string) => plainOf?.(id) ?? id;
-  const events = useMemo(() => [...(trace.events ?? [])].sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? "")), [trace.events]);
-  const t0 = events[0]?.timestamp ? new Date(events[0].timestamp).getTime() : 0;
-  const t1 = events[events.length - 1]?.timestamp ? new Date(events[events.length - 1]?.timestamp as string).getTime() : t0;
-  const span = Math.max(1, t1 - t0);
-  const width = 720;
-  const pad = 24;
-  const x = (ts?: string | null) => pad + ((ts ? new Date(ts).getTime() - t0 : 0) / span) * (width - pad * 2);
-  const violatedAll = useMemo(() => [...new Set(events.flatMap((e) => e.violates ?? []))], [events]);
+  const id = useId();
+  const { events, mixedTimezones } = useMemo(() => {
+    const rows = (trace.events ?? []).map((event, sourceIndex) => ({ event, sourceIndex, time: eventTime(event.timestamp) }));
+    const mixedTimezones = new Set(rows.flatMap(({ time }) => time.basis ? [time.basis] : [])).size > 1;
+    // Offset-free clock values cannot be placed relative to absolute instants.
+    if (!mixedTimezones) rows.sort((a, b) => {
+      if (a.time.instant === undefined) return b.time.instant === undefined ? a.sourceIndex - b.sourceIndex : 1;
+      if (b.time.instant === undefined) return -1;
+      return a.time.instant < b.time.instant ? -1 : a.time.instant > b.time.instant ? 1 : a.sourceIndex - b.sourceIndex;
+    });
+    return { events: rows, mixedTimezones };
+  }, [trace.events]);
+  const constraints = [...new Set(events.flatMap(({ event }) => event.violates ?? []))].map((key, index) => ({
+    key, reference: `C${index + 1}`, target: `${id}-constraint-${index + 1}`, name: plainOf?.(key),
+  }));
+  const constraintOf = new Map(constraints.map((constraint) => [constraint.key, constraint]));
+  const attributes = Object.entries(trace.attributes ?? {});
+  const unavailable = events.filter(({ time }) => time.instant === undefined).length;
+  const first = events[0]?.time.instant;
+  const last = events[events.length - 1]?.time.instant;
+  const recordedClock = !mixedTimezones && events.some(({ time }) => time.basis === "recorded");
+  const gapLabel = recordedClock ? "Recorded clock gap" : "Since previous event";
+  const span = !mixedTimezones && events.length > 1 && unavailable === 0 && first !== undefined && last !== undefined ? elapsed(last - first) : undefined;
+  const spanReason = events.length === 0 ? "no events" : events.length === 1 ? "at least two timed events needed" : mixedTimezones ? "mixed timezone information" : "some timestamps are unavailable";
+  const sincePrevious = (index: number) => {
+    const current = events[index]?.time.instant;
+    const previous = events[index - 1]?.time.instant;
+    if (mixedTimezones || current === undefined) return "Unavailable";
+    if (index === 0) return "First timed event";
+    return previous === undefined ? "Unavailable" : elapsed(current - previous);
+  };
+  const references = (violations?: string[]) => violations?.length ? (
+    <span className="flex flex-wrap gap-2">
+      {violations.map((key, index) => {
+        const constraint = constraintOf.get(key)!;
+        const className = cn("inline-flex min-h-8 items-center rounded border px-2 py-1 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2", highlight === key ? "border-accent bg-accent-subtle text-accent-text" : "border-border text-text");
+        return onHighlight ? (
+          <button key={`${key}-${index}`} type="button" className={className} aria-label={`Highlight constraint ${constraint.reference}`} aria-describedby={constraint.target} aria-pressed={highlight === key} onClick={() => onHighlight(highlight === key ? undefined : key)}>
+            {constraint.reference}
+          </button>
+        ) : (
+          <a key={`${key}-${index}`} className={className} href={`#${constraint.target}`} aria-label={`Constraint ${constraint.reference} details`} aria-describedby={constraint.target}>{constraint.reference}</a>
+        );
+      })}
+    </span>
+  ) : <span className="text-text-muted">None recorded</span>;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
-        <span className="font-mono text-text">{trace.caseId}</span>
-        <span>· {events.length} events · {fmtDays(span / DAY)} from first to last</span>
-        {Object.entries(trace.attributes ?? {})
-          .slice(0, 6)
-          .map(([k, v]) => (
-            <Badge key={k} variant="outline" className="font-mono">
-              {k.replace(/^case /, "")}: {String(v)}
-            </Badge>
-          ))}
+    <section aria-label={`Timeline of case ${trace.caseId}`} className="min-w-0 space-y-4 text-sm">
+      <div className="space-y-1">
+        <p className="font-medium [overflow-wrap:anywhere]">Case {trace.caseId} · {events.length} {events.length === 1 ? "event" : "events"}</p>
+        <p className="tnum text-text-muted">{recordedClock ? "First-to-last recorded clock span" : "First-to-last span"}: {span ?? `unavailable (${spanReason})`}</p>
       </div>
-      <div className="overflow-x-auto">
-        <svg role="img" aria-label={`Timeline of case ${trace.caseId} with ${violatedAll.length} violated constraints`} viewBox={`0 0 ${width} 140`} className="h-[140px] min-w-[720px] w-full">
-          <line x1={pad} y1={70} x2={width - pad} y2={70} stroke="var(--color-border-strong)" strokeWidth={2} />
-          {events.map((e, i) => {
-            const cx = x(e.timestamp);
-            const bad = (e.violates?.length ?? 0) > 0;
-            const hit = highlight && e.violates?.includes(highlight);
-            const up = i % 2 === 0;
-            const dense = events.length > 24 && !bad;
-            return (
-              <g key={i} transform={`translate(${cx},70)`} onMouseEnter={() => onHighlight?.(e.violates?.[0])} onMouseLeave={() => onHighlight?.(undefined)}>
-                {bad ? (
-                  <polygon points="0,-8 8,6 -8,6" fill={hit ? "var(--color-accent)" : "var(--hotspot-severity-solid)"} stroke="var(--color-surface)" strokeWidth={1.5} />
-                ) : (
-                  <circle r={6} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth={1.5} />
-                )}
-                <line x1={0} y1={up ? -10 : 10} x2={0} y2={up ? -26 : 26} stroke="var(--color-border-strong)" />
-                {!dense && (
-                  <text x={0} y={up ? -30 : 40} textAnchor="middle" fontSize={10} fill="var(--color-text)" className="font-sans">
-                    {e.activity}
-                  </text>
-                )}
-                <text x={0} y={up ? -42 : 52} textAnchor="middle" fontSize={9} fill="var(--color-text-subtle)">
-                  {e.timestamp ? new Date(e.timestamp).toISOString().slice(0, 10) : ""}
-                </text>
-                {bad && (
-                  <text x={0} y={up ? 22 : -16} textAnchor="middle" fontSize={9} fill="var(--hotspot-severity-fg)" className="font-mono">
-                    ▲ {e.violates?.length}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <table className="tnum w-full text-xs">
-        <caption className="sr-only">Events of case {trace.caseId}</caption>
-        <thead>
-          <tr className="text-left text-text-muted">
-            <th scope="col" className="py-1">#</th>
-            <th scope="col">activity</th>
-            <th scope="col">timestamp</th>
-            <th scope="col">Δ prev</th>
-            <th scope="col">resource</th>
-            <th scope="col">violates</th>
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((e, i) => {
-            const prev = events[i - 1]?.timestamp;
-            const delta = prev && e.timestamp ? (new Date(e.timestamp).getTime() - new Date(prev).getTime()) / DAY : undefined;
-            const bad = (e.violates?.length ?? 0) > 0;
-            return (
-              <tr key={i} className={cn("border-t border-border", bad && "bg-danger-subtle/40")}>
-                <td className="py-1 text-text-subtle">{i + 1}</td>
-                <td className="font-medium">{e.activity}</td>
-                <td>{fmtDateTime(e.timestamp)}</td>
-                <td>{delta === undefined ? "–" : fmtDays(delta)}</td>
-                <td className="font-mono">{e.resource}</td>
-                <td>
-                  {bad ? (
-                    <span className="flex flex-wrap gap-1">
-                      {e.violates?.map((v) => (
-                        <button key={v} type="button" title={v} onClick={() => onHighlight?.(highlight === v ? undefined : v)} className={cn("rounded-sm border px-1 text-[11px]", !plainOf && "font-mono", highlight === v ? "border-accent bg-accent-subtle text-accent-text" : "border-border")} aria-pressed={highlight === v}>
-                          <span aria-hidden>▲ </span>
-                          {name(v)}
-                        </button>
-                      ))}
-                    </span>
-                  ) : (
-                    <span className="text-text-subtle">–</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+      {attributes.length > 0 && (
+        <details className="rounded border border-border p-3">
+          <summary className="cursor-pointer text-text-muted">Case metadata ({attributes.length} fields)</summary>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            {attributes.map(([key, value]) => (
+              <div key={key} className="min-w-0 [overflow-wrap:anywhere]">
+                <dt className="text-xs text-text-muted">{key.replace(/^case /, "")}</dt>
+                <dd>{value === null || value === undefined ? "Not recorded" : typeof value === "object" ? JSON.stringify(value) : String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
+      {events.length === 0 ? <p>No events recorded for this case.</p> : (
+        <>
+          <div id={`${id}-ordering`} className="space-y-1 text-xs leading-relaxed text-text-muted">
+            <p>{mixedTimezones ? "Recorded event order; chronological order is unknown because timestamps mix explicit offsets and unspecified timezones." : "Chronological event rows; equal timestamps keep recorded order."} Distances are not to scale.</p>
+            <p>Timestamps are shown exactly as recorded. {mixedTimezones ? "Elapsed time is unavailable with mixed timezone information." : recordedClock ? "Timezone not supplied: gaps use recorded clock times; timezone and daylight-saving adjustments are unknown." : "Timezone offsets are retained; elapsed time is shown separately."}</p>
+            {unavailable > 0 && <p>{unavailable} {unavailable === 1 ? "event has" : "events have"} no usable timestamp. {mixedTimezones ? "These events stay in recorded order" : "These events follow the timed events in recorded order"}; their chronological position and elapsed time are unknown.</p>}
+          </div>
+          <ol aria-label={`Events ${mixedTimezones ? "in recorded order" : "in time order"} for case ${trace.caseId}`} aria-describedby={`${id}-ordering`} role="list" className="space-y-2">
+            {events.map(({ event, sourceIndex, time }, index) => (
+              <li key={sourceIndex} className={cn("grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded border border-border p-3", highlight && event.violates?.includes(highlight) && "border-accent bg-accent-subtle/20")}>
+                <span className="tnum pt-0.5 text-text-muted" aria-label={`Event ${index + 1}`}>{index + 1}</span>
+                <div className="min-w-0">
+                  <p className="font-medium leading-relaxed [overflow-wrap:anywhere]">{event.activity?.trim() ? event.activity : "Activity not recorded"}</p>
+                  <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1fr)]">
+                    <div className="min-w-0 [overflow-wrap:anywhere]"><dt className="text-xs text-text-muted">Timestamp</dt><dd className="tnum"><Timestamp time={time} /></dd></div>
+                    <div><dt className="text-xs text-text-muted">{gapLabel}</dt><dd className="tnum">{sincePrevious(index)}</dd></div>
+                    <div className="min-w-0 [overflow-wrap:anywhere]"><dt className="text-xs text-text-muted">Resource</dt><dd>{event.resource?.trim() ? event.resource : "Not recorded"}</dd></div>
+                    <div><dt className="mb-1 text-xs text-text-muted">Recorded violations</dt><dd>{references(event.violates)}</dd></div>
+                  </dl>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {constraints.length > 0 && (
+        <section aria-label="Constraint key" className="min-w-0 space-y-2 rounded border border-border p-3">
+          <p className="font-medium">Constraint key</p>
+          <p className="text-xs leading-relaxed text-text-muted">Recorded violations identify missed constraints; they do not establish the cause. {onHighlight ? "Select a reference to highlight its events; select it again to clear." : "Follow a reference for its full details."}</p>
+          <dl className="space-y-3">
+            {constraints.map((constraint) => (
+              <div key={constraint.key} id={constraint.target} tabIndex={-1} className={cn("grid min-w-0 scroll-mt-4 grid-cols-[2.5rem_minmax(0,1fr)] gap-2 rounded p-1", highlight === constraint.key && "bg-accent-subtle")}>
+                <dt className="font-semibold">{constraint.reference}</dt>
+                <dd className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
+                  {constraint.name && constraint.name !== constraint.key && <p>{constraint.name}</p>}
+                  <p className="text-xs leading-relaxed text-text-muted">Full constraint ID: <code>{constraint.key}</code></p>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+      {events.length > 0 && (
+        <details className="min-w-0 rounded border border-border p-3">
+          <summary className="cursor-pointer font-medium">Event table</summary>
+          <div role="region" aria-label={`Scrollable event table for case ${trace.caseId}`} tabIndex={0} className="mt-3 overflow-x-auto">
+            <table className="tnum w-full min-w-[48rem] table-fixed text-left text-sm">
+              <caption className="sr-only">Events of case {trace.caseId}</caption>
+              <colgroup><col className="w-[5%]" /><col className="w-[25%]" /><col className="w-[25%]" /><col className="w-[16%]" /><col className="w-[14%]" /><col className="w-[15%]" /></colgroup>
+              <thead><tr className="text-xs text-text-muted">
+                {["#", "Activity", "Timestamp (as recorded)", gapLabel, "Resource", "Recorded violations"].map((label) => <th key={label} scope="col" className="p-3 align-top">{label}</th>)}
+              </tr></thead>
+              <tbody>
+                {events.map(({ event, sourceIndex, time }, index) => (
+                  <tr key={sourceIndex} className={cn("border-t border-border [&>td]:p-3 [&>td]:align-top [&>td]:[overflow-wrap:anywhere]", highlight && event.violates?.includes(highlight) && "bg-accent-subtle/20")}>
+                    <td className="text-text-muted">{index + 1}</td>
+                    <td className="font-medium">{event.activity?.trim() ? event.activity : "Activity not recorded"}</td>
+                    <td><Timestamp time={time} /></td>
+                    <td>{sincePrevious(index)}</td>
+                    <td>{event.resource?.trim() ? event.resource : "Not recorded"}</td>
+                    <td>{references(event.violates)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+    </section>
   );
 }

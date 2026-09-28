@@ -6,6 +6,7 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.venv-next/
 __pycache__/
 build/
 dist/
@@ -14,3 +15,11 @@ playwright-report/
 storybook-static/
 test-results/
 workspace*/
+
+# Local test coverage, never application source
+.coverage
+.coverage.*
+htmlcov/
+
+# Explicit frontend fixture build output
+apps/frontend/dist-demo/

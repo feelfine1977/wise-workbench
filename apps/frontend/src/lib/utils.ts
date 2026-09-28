@@ -1,3 +1,4 @@
+import { groupingAttributes } from "./grouping";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -44,7 +45,7 @@ export function parseResultRef(ref: string | undefined): { kind: string; id: str
 
 /** The finer attribute a group is drilled into (the backend's default drill-down keys for the BPIC 2019 mapping; vendor otherwise). */
 export function drillAttributeFor(slicing: string): string {
-  const attributes = slicing.split("+");
+  const attributes = groupingAttributes(slicing);
   const order = ["case Vendor", "case Spend area text", "case Company", "case Item Type", "case Document Type", "flow_type"];
   return order.find((a) => !attributes.includes(a)) ?? "case Vendor";
 }

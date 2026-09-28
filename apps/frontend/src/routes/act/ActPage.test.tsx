@@ -1,12 +1,15 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/node";
 import type { ReviewItem } from "@/lib/api/review";
 import type { Filter } from "@/lib/api/filter-types";
 import { buildBacklog } from "@/mocks/fixtures/backlog";
+import { verifiedBacklog } from "@/mocks/fixtures/verified";
 import { expectNoSeriousA11yViolations, renderApp } from "@/test/utils";
+
+beforeEach(() => server.use(http.get("*/api/v1/projects/:projectId/runs/:runId/driver-evidence", () => HttpResponse.json({ detail: "Event evidence unavailable in this fixture." }, { status: 404 }))));
 
 const T = { timeout: 8000 };
 const SLICING_ID = "case Company+case Spend area text";
@@ -361,6 +364,26 @@ describe("Action proposals", () => {
 });
 
 describe("What can we do? — the seventh step (R3-01)", () => {
+  it.each([true, false])("uses only the matching group's mean for the gain example (row available: %s)", async (available) => {
+    const page = verifiedBacklog(SLICING_ID, "Automation")!;
+    const key = JSON.stringify(JSON.parse(decodeURIComponent(KEY)) as unknown);
+    server.use(http.get("*/api/v1/projects/p2p2018/runs/run_41/backlog", () => HttpResponse.json({
+      ...page,
+      rows: page.rows.map((row) => ({ ...row, key: JSON.stringify(JSON.parse(row.key) as unknown) })).filter((row) => available || row.key !== key),
+    })));
+    renderApp(PATH);
+    const first = (await screen.findAllByTestId("driver-card", {}, T))[0]!;
+    const scenario = within(first).getByTestId("gain-scenario");
+    expect(scenario).toHaveTextContent("100% of current priority");
+    if (available) {
+      // URL and served key have different JSON spacing; they still identify the same measured mean.
+      await waitFor(() => expect(scenario).toHaveTextContent(/83\.6 now.*87\.9 in this scenario/), T);
+    } else {
+      expect(scenario).not.toHaveTextContent("Mean WISE score");
+      expect(within(first).getByTestId("headroom")).toHaveTextContent("4.34 score points");
+    }
+  });
+
   it("lists the drivers with their headroom, their reasons split in and outside the log, and their actions with an owner role", async () => {
     renderApp(PATH);
     const cards = await screen.findAllByTestId("driver-card", {}, T);
@@ -372,7 +395,11 @@ describe("What can we do? — the seventh step (R3-01)", () => {
     expect(first.textContent).not.toMatch(/c_l3_invoice_to_clear_days/);
     // the share of the shortfall and the headroom in score points
     expect(within(first).getByTestId("driver-reading")).toHaveTextContent(/93\s?% of the shortfall/);
-    expect(within(first).getByTestId("headroom")).toHaveTextContent(/4\.3\d? points of possible gain/);
+    expect(within(first).getByTestId("headroom")).toHaveTextContent(/4\.3\d? score points of possible gain/);
+    expect(within(first).getByTestId("headroom")).not.toHaveTextContent("%");
+    await waitFor(() => expect(within(first).getByTestId("gain-scenario")).toHaveTextContent(/83\.6 now.*87\.9 in this scenario/), T);
+    expect(within(first).getByTestId("gain-scenario")).toHaveTextContent("Priority reduction: 100% of current priority");
+    expect(screen.getByTestId("gain-explanation")).toHaveTextContent("ceiling under the norm");
     // the reasons say what the log can show and whom to ask when it cannot
     const reasons = within(first).getByTestId("driver-reasons");
     expect(reasons).toHaveTextContent(/in the log — check/);

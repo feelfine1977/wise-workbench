@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from typing import Any
 
 import pandas as pd
@@ -14,89 +13,21 @@ from wise_workbench.application.ports import RunContext
 from wise_workbench.domain import ConflictError, ValidationError
 
 from . import analytics as an
-from .filters import ACTIVITY_OPS, filter_masks
+from .filters import filter_masks
+from .filters import validate_filter as validate_selection_filter
 from .logs import censored_flags
 from .tables import jsonable, table_from_frame
 
-_FIELDS = {
-    "activity": {"kind", "op", "activity"},
-    "attribute": {"kind", "field", "in", "eq", "min", "max"},
-    "time": {"kind", "field", "from", "to"},
-    "follows": {"kind", "a", "b", "directly"},
-    "lag": {"kind", "a", "b", "unit", "min", "max"},
-    "count": {"kind", "activity", "min", "max"},
-    "open": {"kind", "value"},
-}
-
-
-def _unsupported() -> None:
-    raise ValidationError(
-        "This filter cannot yet be assessed exactly. Keep it as a proposal or choose a supported selection.",
-        code="review.filter_unsupported",
-    )
-
 
 def validate_filter(filter_obj: dict[str, Any]) -> None:
-    """Only admit clauses whose complete semantics the shared filter engine evaluates.
-
-    Unknown fields must not become ignored qualifiers (for example `never` on follows,
-    `directly` on lag, or an active-period filter treated as case end).
-    """
-    for clause in filter_obj["and"]:
-        kind = clause["kind"]
-        if kind not in _FIELDS or set(clause) - _FIELDS[kind]:
-            _unsupported()
-        if kind == "time":
-            if clause.get("field", "case_start") not in (
-                "case_start",
-                "case_end",
-                "first_ts",
-                "last_ts",
-                "start",
-                "end",
-            ):
-                _unsupported()
-            if not any(clause.get(k) for k in ("from", "to")):
-                _unsupported()
-        if kind == "activity" and clause.get("op", "contains") not in ACTIVITY_OPS:
-            _unsupported()
-        for name in ("activity", "a", "b"):
-            if name in _FIELDS[kind]:
-                labels = clause.get(name)
-                if not (isinstance(labels, str) and labels) and not (
-                    isinstance(labels, list) and labels and all(isinstance(v, str) and v for v in labels)
-                ):
-                    _unsupported()
-        if kind == "attribute":
-            if not isinstance(clause.get("field"), str) or not clause["field"]:
-                _unsupported()
-            forms = sum(("in" in clause, "eq" in clause, "min" in clause or "max" in clause))
-            if forms != 1:
-                _unsupported()
-            if "in" in clause and not (
-                isinstance(clause["in"], list)
-                and clause["in"]
-                and all(isinstance(v, str | int | float | bool) for v in clause["in"])
-            ):
-                _unsupported()
-            if "eq" in clause and not isinstance(clause["eq"], str | int | float | bool):
-                _unsupported()
-        if kind in {"count", "lag"} and not any(clause.get(k) is not None for k in ("min", "max")):
-            _unsupported()
-        for bound in ("min", "max"):
-            if bound in clause and clause[bound] is not None:
-                value = clause[bound]
-                if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
-                    _unsupported()
-                if kind == "count" and (value < 0 or int(value) != value):
-                    _unsupported()
-        if clause.get("min") is not None and clause.get("max") is not None and clause["min"] > clause["max"]:
-            _unsupported()
-        if kind == "lag" and clause.get("unit", "D") not in ("D", "H", "M", "S"):
-            _unsupported()
-        for boolean in ("directly", "value"):
-            if boolean in clause and not isinstance(clause[boolean], bool):
-                _unsupported()
+    """Use the shared selection validator while preserving the review error contract."""
+    try:
+        validate_selection_filter(filter_obj)
+    except ValidationError as exc:
+        raise ValidationError(
+            "This filter cannot yet be assessed exactly. Keep it as a proposal or choose a supported selection.",
+            code="review.filter_unsupported",
+        ) from exc
 
 
 def assess(

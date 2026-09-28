@@ -1,4 +1,4 @@
-# Purchase-to-pay playbooks per journey stage (docs/CUSTOMER_JOURNEY.md §3).
+# Purchase-to-pay playbooks per journey stage (the pack journey-stage contract).
 # Questions are asked to people; hypotheses are candidates per hotspot type
 # (reservoir: many cases with a moderate shortfall; mechanism: a specific
 # constraint pattern; severity: few cases with a large shortfall).
@@ -6,8 +6,8 @@ pack: p2p
 version: 1
 review_status: draft
 sources:
-  - docs/CUSTOMER_JOURNEY.md journey stages S0 to S12
-  - docs/panel/process_panel.md §2 and §5 (P2P pitfalls)
+  - packages/process-knowledge/PACK_DESIGN.md (journey stages S0 to S12)
+  - packages/process-knowledge/PACK_DESIGN.md (P2P pitfalls)
   - BPI Challenge 2019 measurement 2026-09-05
 playbooks:
   - id: p2p.pb.s0_scope

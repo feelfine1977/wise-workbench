@@ -1,12 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { NormVersion, NormVersionCreate, components } from "@wise/api-schema";
+import { bindProjectDataset } from "@/lib/api/projectBinding";
 import { server } from "@/mocks/node";
 import { db } from "@/mocks/db";
 import { buildDistribution } from "@/mocks/fixtures/distribution";
-import { renderApp } from "@/test/utils";
+import { renderApp, ROUTE_READY as LOAD } from "@/test/utils";
 import { SignVersion } from "./SignVersion";
 import { makeTestQueryClient } from "@/test/utils";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -16,9 +17,6 @@ import { inventoryFor } from "@/mocks/fixtures/cycle4";
 import { act, render } from "@testing-library/react";
 
 const PATH = "/p/p2p2018/norms/nv_7?tab=constraints&constraint=c_save";
-// Route code, the norm response and the log inventory load independently. Keep their
-// local UI deadline consistent with Builder tests; no global testing timeout changes.
-const LOAD = { timeout: 8000 };
 const DATE = "2026-09-10T08:15:00Z";
 type Calibration = components["schemas"]["NormCalibration"];
 type Document = { constraints: { id: string; type: string; layer: string; params: Record<string, unknown>; description: string; plain_name?: string; applicability?: Record<string, unknown> }[]; metadata?: Record<string, unknown>; views: { name: string; constraint_weights?: Record<string, number> }[] };
@@ -41,7 +39,7 @@ function persistenceApi(options: { saveFailure?: number | "network"; signFailure
   const signals: { version: string; caseTable: string; constraint: string }[] = [];
   let rejectSave = options.saveFailure;
   let rejectSign = options.signFailure;
-  const refusal = (status: number, detail: string) => HttpResponse.json({ status, title: "Cannot save this decision", detail, code: "norm.rationale_required", errors: [{ field: "c_save", message: "Required" }] }, { status });
+  const refusal = (status: number, detail: string) => HttpResponse.json({ status, title: "Cannot save this decision", detail, code: status === 422 ? "norm.rationale_required" : status === 409 ? "norm.transition" : "norm.unavailable", errors: [{ field: "c_save", message: "Required" }] }, { status });
   server.use(
     http.get("*/projects/p2p2018/norms/:version/signals/:constraint", ({ params, request }) => {
       const caseTableId = new URL(request.url).searchParams.get("caseTableId")!;
@@ -90,32 +88,44 @@ function persistenceApi(options: { saveFailure?: number | "network"; signFailure
   return { bodies, signatures, saved, signals };
 }
 
+// These journeys verify persisted text and decisions, not individual keystrokes.
+// Paste prose through the real input event instead of rerendering the whole norm
+// for every character. Numeric and validation-specific typing stays below.
+async function pasteText(user: ReturnType<typeof userEvent.setup>, input: HTMLElement, text: string) {
+  await user.click(input);
+  await user.paste(text);
+}
+
+// The rule form lives beside a navigator and retained hidden tab panels. Query
+// its controls locally rather than scanning every button in the entire page.
+const ruleForm = () => within(screen.getByTestId("norm-builder"));
+
 async function openRule() {
   const user = userEvent.setup();
   const app = renderApp(PATH);
   await screen.findByTestId("norm-builder", {}, LOAD);
-  await user.click(screen.getByRole("button", { name: "the rule" }));
+  await user.click(ruleForm().getByRole("button", { name: "the rule" }));
   await screen.findByTestId("rule-editor", {}, LOAD);
   const value = screen.getByLabelText("within");
   await user.clear(value); await user.type(value, "42");
-  await user.type(screen.getByLabelText("why this change (required)"), "  The agreed service target  ");
-  await user.type(screen.getByLabelText("who owns it (required)"), "  Calibration owner  ");
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "  The agreed service target  ");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "  Calibration owner  ");
   return { user, app };
 }
 
 async function openExclusion() {
   const user = userEvent.setup(); const app = renderApp(PATH);
   await screen.findByTestId("norm-builder", {}, LOAD);
-  await user.click(screen.getByRole("button", { name: "who it applies to" }));
+  await user.click(ruleForm().getByRole("button", { name: "who it applies to" }));
   await user.click(screen.getByLabelText(/Not applicable to this log/));
-  await user.type(screen.getByLabelText("why this change (required)"), "Keep unevaluable rules out");
-  await user.type(screen.getByLabelText("who owns it (required)"), "Decision owner");
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Keep unevaluable rules out");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "Decision owner");
   return { user, app };
 }
 
 it("saves typed calibration from the rule editor and reads the actual reason, owner and date after a fresh render", async () => {
   const api = persistenceApi(); const { user, app } = await openRule();
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   const decision = await screen.findByTestId("saved-calibration");
   expect(decision).toHaveTextContent("The agreed service target"); expect(decision).toHaveTextContent("Calibration owner");
   expect(decision.querySelector("time")).toHaveAttribute("datetime", DATE);
@@ -129,12 +139,13 @@ it("saves typed calibration from the rule editor and reads the actual reason, ow
 it("the threshold dialog uses the same calibration contract and preserves both chosen numbers", async () => {
   const api = persistenceApi(); const user = userEvent.setup(); renderApp(PATH);
   await screen.findByTestId("norm-builder", {}, LOAD);
-  const threshold = await screen.findByLabelText(/ϑ threshold/); await user.clear(threshold); await user.type(threshold, "44");
-  const width = screen.getByLabelText(/W width/); await user.clear(width); await user.type(width, "95");
+  await user.click(ruleForm().getByRole("button", { name: "the numbers" }));
+  const threshold = await screen.findByLabelText(/Target \(/); await user.clear(threshold); await user.type(threshold, "44");
+  const width = screen.getByLabelText(/Tolerance width \(/); await user.clear(width); await user.type(width, "95");
   await user.click(screen.getByRole("button", { name: /Commit as version/ }));
   const dialog = screen.getByRole("dialog");
-  await user.type(within(dialog).getByLabelText("why this threshold (required)"), "Agreed after inspection");
-  await user.type(within(dialog).getByLabelText("who owns it (required)"), "Threshold owner");
+  await pasteText(user, within(dialog).getByLabelText("why this threshold (required)"), "Agreed after inspection");
+  await pasteText(user, within(dialog).getByLabelText("who owns it (required)"), "Threshold owner");
   await user.click(within(dialog).getByRole("button", { name: "Save as the next version" }));
   await screen.findByTestId("saved-calibration");
   expect(api.bodies[0]?.calibration).toEqual({ c_save: { rationale: "Agreed after inspection", owner: "Threshold owner" } });
@@ -143,7 +154,7 @@ it("the threshold dialog uses the same calibration contract and preserves both c
 
 it.each([422, "network"] as const)("keeps rule edits and visible refusal on %s, then retries without losing input", async failure => {
   const api = persistenceApi({ saveFailure: failure }); const { user } = await openRule();
-  const button = screen.getByRole("button", { name: "Save as the next version" }); await user.click(button);
+  const button = ruleForm().getByRole("button", { name: "Save as the next version" }); await user.click(button);
   expect(await screen.findByTestId("norm-save-error")).toHaveAttribute("role", "alert");
   expect(screen.getByTestId("norm-save-error")).toHaveTextContent(failure === 422 ? "Add a reason and an owner for “Invoice timing”." : "could not be reached");
   expect(screen.getByLabelText("within")).toHaveValue(42);
@@ -155,8 +166,8 @@ it.each([422, "network"] as const)("keeps rule edits and visible refusal on %s, 
 
 it("sends exclusion separately, retains its note on refusal, and reads it after save and reload", async () => {
   const api = persistenceApi({ saveFailure: 422 }); const { user, app } = await openExclusion();
-  const save = screen.getByRole("button", { name: "Save as the next version" }); expect(save).toBeEnabled();
-  await user.click(save); expect(screen.getByLabelText("why (required)")).toHaveFocus();
+  const save = ruleForm().getByRole("button", { name: "Save as the next version" }); expect(save).toBeEnabled();
+  await user.click(save); await waitFor(() => expect(screen.getByLabelText("why (required)")).toHaveFocus());
   expect(api.bodies).toHaveLength(0);
   await user.type(screen.getByLabelText("why (required)"), "   "); await user.click(save);
   expect(screen.getByLabelText("why (required)")).toHaveAttribute("aria-invalid", "true");
@@ -178,7 +189,7 @@ it("sends exclusion separately, retains its note on refusal, and reads it after 
 it("unchecking exclusion leaves the original library applicability intact", async () => {
   const api = persistenceApi(); const { user } = await openExclusion();
   await user.click(screen.getByLabelText(/Not applicable to this log/));
-  await user.click(screen.getByRole("button", { name: "Save as the next version" })); await screen.findByTestId("saved-calibration");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" })); await screen.findByTestId("saved-calibration");
   expect(api.bodies[0]?.notApplicable).toBeUndefined(); expect((api.bodies[0]?.norm as Document).constraints[0]?.applicability).toEqual({ attr: "company", in: ["A"] });
 });
 
@@ -188,14 +199,14 @@ it("shows a readback failure instead of implying that no decisions were saved", 
 });
 
 describe("explicit signing and recovery", () => {
-  it.each([422, 409])("retains the signer on %s then displays the returned signer after reload", async status => {
+  it.each([503, 409])("retains the signer on %s then displays the returned signer after reload", async status => {
     const api = persistenceApi({ signFailure: status }); const user = userEvent.setup(); const app = renderApp(PATH);
     await user.click(await screen.findByRole("button", { name: "Mark reviewed" }));
     const dialog = screen.getByTestId("sign-norm");
     await user.type(within(dialog).getByLabelText("Who signs it"), "  Explicit reviewer  ");
     await user.click(within(dialog).getByRole("button", { name: "Mark reviewed" }));
     expect(await screen.findByTestId("sign-error")).toHaveAttribute("role", "alert");
-    expect(screen.getByTestId("sign-error")).toHaveTextContent("Add a reason and an owner for “Invoice timing”.");
+    expect(screen.getByTestId("sign-error")).toHaveTextContent(status === 409 ? "status has changed" : "could not answer");
     expect(within(dialog).getByLabelText("Who signs it")).toHaveValue("  Explicit reviewer  ");
     expect(screen.getByText("draft — not yet signed")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Mark reviewed" }));
@@ -210,7 +221,7 @@ describe("explicit signing and recovery", () => {
 
   it("does not allow a whitespace-only signer", async () => {
     const user = userEvent.setup(); render(<QueryClientProvider client={makeTestQueryClient()}><SignVersion projectId="p2p2018" version={{ id: "nv_7", version: 7, status: "reviewed" }} onDone={() => undefined} /></QueryClientProvider>);
-    await user.type(screen.getByLabelText("Who signs it"), "   ");
+    await user.type(await screen.findByLabelText("Who signs it"), "   ");
     await user.click(screen.getByRole("button", { name: "Approve this version" }));
     expect(screen.getByLabelText("Who signs it")).toHaveFocus();
     expect(screen.getByLabelText("Who signs it")).toHaveAttribute("aria-invalid", "true");
@@ -221,7 +232,7 @@ describe("explicit signing and recovery", () => {
 it("saves a new threshold under its own id, retaining the previously selected expectation", async () => {
   const api = persistenceApi(); const user = userEvent.setup(); renderApp(PATH);
   await screen.findByTestId("norm-builder", {}, LOAD);
-  await user.click(screen.getByRole("button", { name: "Add your own expectation" }));
+  await user.click(screen.getByRole("button", { name: "Add constraint" }));
   await user.type(screen.getByLabelText("what it is called"), "Payment target");
   await user.click(screen.getByRole("button", { name: "Add it" }));
   const editor = await screen.findByTestId("rule-editor", {}, LOAD);
@@ -229,9 +240,9 @@ it("saves a new threshold under its own id, retaining the previously selected ex
   await user.click(within(first).getByRole("option", { name: /Record Goods Receipt/ }));
   const second = within(editor).getByRole("group", { name: "Then this" });
   await user.click(within(second).getByRole("option", { name: /Clear Invoice/ }));
-  await user.type(screen.getByLabelText("why this change (required)"), "Agreed target for the new rule");
-  await user.type(screen.getByLabelText("who owns it (required)"), "New rule owner");
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Agreed target for the new rule");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "New rule owner");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   expect(await screen.findByTestId("saved-calibration")).toHaveTextContent("New rule owner");
   expect(api.bodies[0]?.calibration).toEqual({ c_own_payment_target: { rationale: "Agreed target for the new rule", owner: "New rule owner" } });
   const constraints = (api.bodies[0]?.norm as Document).constraints;
@@ -248,6 +259,7 @@ it("keeps the explicitly selected mapped table through tabs, constraint selectio
   db.jobs.clear();
   for (const project of db.projects) delete project.latestRunId;
   const table = { ...db.caseTables[0]!, id: "ct_explicit_before_run" };
+  await bindProjectDataset("p2p2018", table.datasetId);
   db.caseTables.push(table);
   const inventoryRequests: string[] = [];
   server.use(http.get("*/projects/p2p2018/norms/inventory", ({ request }) => {
@@ -264,13 +276,13 @@ it("keeps the explicitly selected mapped table through tabs, constraint selectio
   await user.click(screen.getByRole("button", { name: /^Goods receipt/ }));
   await user.click(screen.getByRole("button", { name: /^Invoice timing/ }));
   expect(new URL(history.location.href, "http://localhost").searchParams.get("caseTable")).toBe(table.id);
-  await user.click(screen.getByRole("button", { name: "the rule" }));
+  await user.click(ruleForm().getByRole("button", { name: "the rule" }));
   await screen.findByTestId("rule-editor", {}, LOAD);
   await user.clear(screen.getByLabelText("within"));
   await user.type(screen.getByLabelText("within"), "42");
-  await user.type(screen.getByLabelText("why this change (required)"), "Before the first score");
-  await user.type(screen.getByLabelText("who owns it (required)"), "Mapped table owner");
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Before the first score");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "Mapped table owner");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   await screen.findByTestId("saved-calibration");
   await waitFor(() => expect(history.location.pathname).toContain("nv_saved_1"));
   const savedUrl = history.location.href;
@@ -279,7 +291,7 @@ it("keeps the explicitly selected mapped table through tabs, constraint selectio
   app.unmount();
   render(<App queryClient={makeTestQueryClient()} history={createMemoryHistory({ initialEntries: [savedUrl] })} />);
   await screen.findByTestId("saved-calibration");
-  await user.click(screen.getByRole("button", { name: "the rule" }));
+  await user.click(ruleForm().getByRole("button", { name: "the rule" }));
   await screen.findByTestId("rule-editor", {}, LOAD);
   expect(screen.getByLabelText("within")).toHaveValue(42);
   expect(inventoryRequests.length).toBeGreaterThanOrEqual(2);
@@ -304,8 +316,8 @@ it("renames the whole norm as a new version, keeps pending calibration, and pres
   expect(name).not.toHaveAttribute("aria-invalid");
   await user.click(within(dialog).getByRole("button", { name: "Save as the next version" }));
   expect(within(dialog).getByLabelText("why this change (required)")).toHaveFocus();
-  await user.type(within(dialog).getByLabelText("why this change (required)"), "The agreed title");
-  await user.type(within(dialog).getByLabelText("who owns it (required)"), "Title owner");
+  await pasteText(user, within(dialog).getByLabelText("why this change (required)"), "The agreed title");
+  await pasteText(user, within(dialog).getByLabelText("who owns it (required)"), "Title owner");
   await user.click(within(dialog).getByRole("button", { name: "Save as the next version" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Policy 2025 — target 30");
@@ -313,29 +325,29 @@ it("renames the whole norm as a new version, keeps pending calibration, and pres
   expect(api.bodies[0]?.norm.metadata).toEqual({ calibration_pending: ["c_save"] });
   expect(original.norm.name).toBe("Policy 2024 — target 30");
   await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
-  await user.type(screen.getByLabelText("Who signs it"), "Reviewer");
-  await user.click(within(screen.getByTestId("sign-norm")).getByRole("button", { name: "Mark reviewed" }));
-  expect(await screen.findByTestId("sign-error")).toHaveTextContent("Add a reason and an owner");
+  expect(await screen.findByRole("list", { name: "Required decisions" })).toHaveTextContent("Invoice timing");
+  expect(screen.queryByLabelText("Who signs it")).not.toBeInTheDocument();
+  expect(api.signatures).toHaveLength(0);
   await user.click(within(screen.getByTestId("sign-norm")).getByRole("button", { name: "Cancel" }));
-  await user.click(screen.getByRole("button", { name: "the rule" }));
+  await user.click(ruleForm().getByRole("button", { name: "the rule" }));
   await screen.findByTestId("rule-editor", {}, LOAD);
   await user.clear(screen.getByLabelText("within")); await user.type(screen.getByLabelText("within"), "44");
-  await user.type(screen.getByLabelText("why this change (required)"), "Explicit calibration");
-  await user.type(screen.getByLabelText("who owns it (required)"), "Rule owner");
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Explicit calibration");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "Rule owner");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   await screen.findByTestId("saved-calibration");
   expect(api.bodies[1]?.norm.name).toBe("Policy 2025 — target 30");
   expect(api.bodies[1]?.calibration?.c_save).toEqual({ rationale: "Explicit calibration", owner: "Rule owner" });
-  await user.click(screen.getByRole("button", { name: "who it applies to" }));
+  await user.click(ruleForm().getByRole("button", { name: "who it applies to" }));
   await user.click(screen.getByLabelText(/Not applicable to this log/));
   await user.type(screen.getByLabelText("why (required)"), "Outside the agreed scope");
-  await user.type(screen.getByLabelText("why this change (required)"), "Scope decision");
-  await user.type(screen.getByLabelText("who owns it (required)"), "Scope owner");
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Scope decision");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "Scope owner");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   await screen.findByTestId("saved-exclusions");
   expect(api.bodies[2]?.norm.name).toBe("Policy 2025 — target 30");
   expect(db.runs).toEqual(runs);
-});
+}, 30000); // This journey saves, reloads and checks three immutable versions.
 
 it("renames an expectation without changing its id, arbitrary title numbers or unresolved calibration", async () => {
   const api = persistenceApi(); const original = db.norms.find(n => n.id === "nv_7")!;
@@ -343,15 +355,15 @@ it("renames an expectation without changing its id, arbitrary title numbers or u
   original.norm.metadata = { calibration_pending: ["c_save"] };
   const user = userEvent.setup(); renderApp(PATH);
   await user.click(await screen.findByRole("button", { name: "the rule" })); await screen.findByTestId("rule-editor", {}, LOAD);
-  const name = screen.getByLabelText("Expectation name"); await user.clear(name);
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
-  expect(name).toHaveFocus(); expect(name).toHaveAccessibleDescription("Enter a name for this expectation.");
+  const name = screen.getByLabelText("Constraint name"); await user.clear(name);
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
+  await waitFor(() => expect(name).toHaveFocus()); expect(name).toHaveAccessibleDescription("Enter a name for this constraint.");
   expect(api.bodies).toHaveLength(0);
   await user.type(name, "Invoice 30 — agreed in 2024");
   expect(name).not.toHaveAttribute("aria-invalid");
-  await user.type(screen.getByLabelText("why this change (required)"), "Clarify the display name");
-  await user.type(screen.getByLabelText("who owns it (required)"), "Name owner");
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await pasteText(user, screen.getByLabelText("why this change (required)"), "Clarify the display name");
+  await pasteText(user, screen.getByLabelText("who owns it (required)"), "Name owner");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("version 8"));
   const next = (api.bodies[0]?.norm as Document).constraints.find(c => c.id === "c_save")!;
   expect(next.description).toBe("Invoice 30 — agreed in 2024"); expect(next).not.toHaveProperty("plain_name"); expect(next.params.delta).toBe(30);
@@ -362,14 +374,14 @@ it("renames an expectation without changing its id, arbitrary title numbers or u
 
 it("an empty new expectation name is highlighted on submit and clears as the name is corrected", async () => {
   persistenceApi(); const user = userEvent.setup(); renderApp(PATH);
-  await user.click(await screen.findByRole("button", { name: "Add your own expectation" }));
+  await user.click(await screen.findByRole("button", { name: "Add constraint" }));
   await user.click(screen.getByRole("button", { name: "Add it" }));
   const name = screen.getByLabelText("what it is called");
   expect(name).toHaveFocus(); expect(name).toHaveAttribute("aria-invalid", "true");
-  expect(name).toHaveAccessibleDescription("Enter a name for the new expectation.");
+  expect(name).toHaveAccessibleDescription("Enter a name for the new constraint.");
   await user.type(name, "New expectation"); expect(name).not.toHaveAttribute("aria-invalid");
   await user.click(screen.getByRole("button", { name: "Add it" }));
-  expect(await screen.findByLabelText("Expectation name")).toHaveValue("New expectation");
+  expect(await screen.findByLabelText("Constraint name")).toHaveValue("New expectation");
 });
 
 it("previews only the selected norm and table, resets lens values between versions and shows no old-data fallback on refusal", async () => {
@@ -387,16 +399,17 @@ it("previews only the selected norm and table, resets lens values between versio
   );
   const history = createMemoryHistory({ initialEntries: [`${PATH}&caseTable=${table.id}`] });
   render(<App queryClient={makeTestQueryClient()} history={history} />);
-  expect(await screen.findByLabelText(/ϑ threshold/)).toHaveValue(30);
+  await userEvent.setup().click(await screen.findByRole("button", { name: "the numbers" }));
+  expect(await screen.findByLabelText(/Target \(/)).toHaveValue(30);
   expect(api.signals[0]).toEqual({ version: "nv_7", caseTable: table.id, constraint: "c_save" });
   await act(async () => { history.push(`/p/p2p2018/norms/nv_preview?caseTable=${table.id}&constraint=c_save`); });
-  await waitFor(() => expect(screen.getByLabelText(/ϑ threshold/)).toHaveValue(12));
-  expect(screen.getByLabelText(/W width/)).toHaveValue(20);
-  expect(screen.getByTestId("norm-builder")).toHaveTextContent("Preview of norm version 8 on the selected data");
+  await waitFor(() => expect(screen.getByLabelText(/Target \(/)).toHaveValue(12));
+  expect(screen.getByLabelText(/Tolerance width \(/)).toHaveValue(20);
+  expect(screen.getByTestId("norm-builder")).toHaveTextContent("Evidence: All prepared cases · saved norm version 8");
   expect(screen.getByTestId("norm-sentence")).toHaveTextContent("with 20 days of tolerance");
   await act(async () => { history.push(`/p/p2p2018/norms/nv_refused?caseTable=${table.id}&constraint=c_save`); });
   const builder = await screen.findByTestId("norm-builder", {}, LOAD); await within(builder).findByRole("alert");
-  expect(within(builder).queryByLabelText(/ϑ threshold/)).not.toBeInTheDocument(); expect(oldRequests).toBe(0);
+  expect(within(builder).queryByLabelText(/Target \(/)).not.toBeInTheDocument(); expect(oldRequests).toBe(0);
 });
 
 
@@ -428,7 +441,7 @@ it("waits for a held norm response before editing, then saves and rereads the de
   if (outcome.error) throw outcome.error;
   const { user, app } = outcome.value!;
   expect(screen.getByLabelText("within")).toHaveValue(42);
-  await user.click(screen.getByRole("button", { name: "Save as the next version" }));
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
   expect(await screen.findByTestId("saved-calibration")).toHaveTextContent("The agreed service target");
   expect(api.bodies[0]?.calibration).toEqual({ c_save: { rationale: "The agreed service target", owner: "Calibration owner" } });
   app.unmount();
@@ -438,3 +451,97 @@ it("waits for a held norm response before editing, then saves and rereads the de
   expect(decision).toHaveTextContent("Calibration owner");
   expect(decision.querySelector("time")).toHaveAttribute("datetime", DATE);
 });
+
+it("keeps structure edits across substeps, saves an immutable draft, and reads assignments after reload", async () => {
+  const api = persistenceApi(); const original = db.norms.find(n => n.id === "nv_7")!;
+  original.norm.layers = [{ id: "L3", name: "Timing" }, { id: "L4", name: "Quality" }];
+  const before = structuredClone(original.norm); const runs = structuredClone(db.runs);
+  const user = userEvent.setup(); const app = renderApp(PATH);
+  await user.click(await screen.findByRole("tab", { name: "Layers & views" }, LOAD));
+  await user.click(screen.getByText("Edit constraint assignments"));
+  await user.selectOptions(screen.getByLabelText("Layer for Invoice timing"), "L4");
+  await user.click(screen.getByRole("tab", { name: "Constraints" }));
+  expect(await screen.findByTestId("rule-editor")).toBeVisible();
+  await user.click(screen.getByRole("tab", { name: "Layers & views" }));
+  expect(screen.getByLabelText("Layer for Invoice timing")).toHaveValue("L4");
+  await user.click(screen.getByRole("button", { name: "Save structure as new draft" }));
+  const dialog = screen.getByRole("dialog", { name: "Save structure as new draft" });
+  await pasteText(user, within(dialog).getByLabelText("why this change (required)"), "Quality now owns this timing target");
+  await pasteText(user, within(dialog).getByLabelText("who owns it (required)"), "Process owner");
+  await user.click(within(dialog).getByRole("button", { name: "Save as the next version" }));
+  await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("version 8"));
+  expect(api.bodies[0]?.parentId).toBe("nv_7");
+  expect((api.bodies[0]!.norm as Document).constraints[0]?.layer).toBe("L4");
+  expect(api.bodies[0]?.norm.metadata).toEqual({ ...(before as Document).metadata, general_benchmark: { name: "General", policy: "equal_layers_union_v1" } });
+  expect(api.bodies[0]?.calibration).toBeUndefined();
+  expect(original.norm).toEqual(before); expect(db.runs).toEqual(runs);
+  app.unmount(); renderApp("/p/p2p2018/norms/nv_saved_1?tab=structure");
+  await screen.findByRole("button", { name: "Save structure as new draft" }, LOAD);
+  await user.click(screen.getByText("Edit constraint assignments"));
+  expect(screen.getByLabelText("Layer for Invoice timing")).toHaveValue("L4");
+  await user.click(screen.getByRole("tab", { name: "Review" }));
+  await user.click(await screen.findByRole("button", { name: "Continue to signature" }));
+  expect(await screen.findByLabelText("Who signs it")).toBeVisible();
+});
+
+
+it("retains an unfinished rule and its reason across constraint and guide switches without saving other drafts", async () => {
+  const api = persistenceApi(); const { user } = await openRule();
+  await user.click(screen.getByRole("button", { name: /^Goods receipt/ }));
+  await user.clear(screen.getByLabelText("Constraint name"));
+  await pasteText(user, screen.getByLabelText("Constraint name"), "Unsaved receipt label");
+  await user.click(screen.getByRole("tab", { name: "Guided overview" }));
+  await user.click(screen.getByRole("tab", { name: "Constraints" }));
+  await user.click(screen.getByRole("button", { name: /^Invoice timing/ }));
+  expect(screen.getByLabelText("within")).toHaveValue(42);
+  expect(screen.getByLabelText("why this change (required)")).toHaveValue("  The agreed service target  ");
+  expect(screen.getByLabelText("who owns it (required)")).toHaveValue("  Calibration owner  ");
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
+  await screen.findByTestId("saved-calibration");
+  const doc = api.bodies[0]!.norm as Document;
+  expect(doc.constraints.find(c => c.id === "c_save")?.params.delta).toBe(42);
+  expect(doc.constraints.find(c => c.id === "c_keep")?.description).toBe("Goods receipt");
+  expect(api.bodies).toHaveLength(1);
+});
+
+it("applies advanced parameters and compound scope explicitly, rejects invalid JSON, and saves both together", async () => {
+  const api = persistenceApi(); const { user } = await openRule();
+  await user.click(screen.getByText("Advanced rule parameters", { exact: true }));
+  const parameters = screen.getByLabelText("Rule parameters (JSON object)");
+  await user.clear(parameters); await user.click(parameters); await user.paste("[]");
+  await user.click(ruleForm().getByRole("button", { name: "Apply parameters to form" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("valid JSON object");
+  expect(screen.getByLabelText("within")).toHaveValue(42);
+  const params = { a: ["Record Goods Receipt"], b: ["Clear Invoice"], delta: 15, width: 30, unit: "D", pairing: "first" };
+  await user.clear(parameters); await user.click(parameters); await user.paste(JSON.stringify(params));
+  await user.click(ruleForm().getByRole("button", { name: "Apply parameters to form" }));
+  expect(screen.getByLabelText("within")).toHaveValue(15);
+  await user.click(ruleForm().getByRole("button", { name: "who it applies to" }));
+  await user.click(screen.getByText("Advanced applicability clause", { exact: true }));
+  const clause = { all: [{ attr: "company", in: ["A"] }, { attr: "vendor", in: ["Rare supplier"] }] };
+  const input = screen.getByLabelText("Applicability (JSON object)");
+  await user.clear(input); await user.click(input); await user.paste(JSON.stringify(clause));
+  await user.click(ruleForm().getByRole("button", { name: "Apply parameters to form" }));
+  await user.click(ruleForm().getByRole("button", { name: "Save as the next version" }));
+  await screen.findByTestId("saved-calibration");
+  const rule = (api.bodies[0]!.norm as Document).constraints.find(c => c.id === "c_save");
+  expect(rule?.params).toEqual(params); expect(rule?.applicability).toEqual(clause);
+});
+
+it("hiding the edited constraint keeps its draft, shares display settings with the map, and restores it without saving", async () => {
+  const api = persistenceApi(); const { user } = await openRule();
+  await user.click(screen.getByRole("button", { name: "Hide constraint Invoice timing from picture" }));
+  await waitFor(() => expect(screen.getByTestId("norm-builder")).not.toBeVisible());
+  await user.click(screen.getByRole("tab", { name: "Norm map" }));
+  expect(screen.queryByRole("button", { name: "Open constraint Invoice timing" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Constraints" }));
+  await user.click(screen.getByRole("button", { name: "Show everything again" }));
+  await user.type(screen.getByRole("searchbox", { name: "Find a constraint" }), "Invoice timing");
+  await user.click(screen.getByRole("button", { name: /^Invoice timing/ }));
+  expect(screen.getByLabelText("within")).toHaveValue(42);
+  expect(screen.getByLabelText("why this change (required)")).toHaveValue("  The agreed service target  ");
+  expect(api.bodies).toHaveLength(0);
+});
+
+// These existing decision/signature regressions use the explicit Expert requirements.
+beforeEach(() => localStorage.setItem("wise-norm-authoring-preferences", JSON.stringify({ mode: "expert", skipReasonOwner: true })));

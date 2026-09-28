@@ -7,8 +7,8 @@ knows rather than asked of the reader:
   group (censoring, replication, duplicates, sentinel stamps, window edge) decide whether *this* group passes,
   and the checks that are properties of the whole log (drift, precision, exposure scale) are stated and decided
   once, at the run, under ``runWide`` (R3-03);
-* **censoring** — the share of the group's cases still open at that window end;
-* **replication** — the share of the group's cases carrying copied postings.
+* **censoring** — the legacy share without closure and active within the trailing window;
+* **replication** — the share with more than two events per distinct timestamp.
 
 A gate is `failed` while its evidence is above the threshold. Action proposals remain recordable;
 agreement or execution requires every gate for the saved context to pass or be waived with a note.
@@ -39,7 +39,7 @@ from wise_workbench.domain.comparison import Comparison, capitalised, percent, r
 from wise_workbench.domain.project import utcnow
 from wise_workbench.ids import new_id
 
-from . import action_evidence
+from . import action_evidence, hypothesis_evidence
 
 if TYPE_CHECKING:  # pragma: no cover
     from wise_workbench.container import Container
@@ -81,6 +81,42 @@ def _run_wide_text(report: dict[str, Any]) -> str:
         f"The data-readiness gate on this log reads {status}. {len(log_wide)} of its failed checks are properties "
         f"of the whole log and are the same for every group ({words}); they are decided once, here."
     )
+
+
+def _gate_display_text(gate: dict[str, Any], noun: str) -> str:
+    """Current interpretation only; legacy evidence payloads and decision fingerprints stay unchanged."""
+    kind = gate.get("kind")
+    share = (gate.get("evidence") or {}).get("share")
+    if kind in {"censoring", "replication"}:
+        label = "recent-unclosed diagnostic" if kind == "censoring" else "event-concentration diagnostic"
+        if share is None:
+            return f"The {label} is unavailable for these {noun}; no zero or pass is inferred."
+        if kind == "censoring":
+            return (
+                f"{float(share) * 100:.0f} % of these {noun} meet the legacy recent-unclosed diagnostic: "
+                "no configured closure observed and activity within the trailing window. "
+                "The denominator retains all assessed cases, regardless of closure applicability. "
+                "Not flagged does not mean closed; each rule retains its missing-event policy."
+            )
+        return (
+            f"{float(share) * 100:.0f} % of these {noun} have more than two events per distinct timestamp "
+            "(legacy event-concentration diagnostic). This is not proof of copied postings or identical events."
+        )
+    text = str(gate.get("text") or "")
+    if kind == "readiness":
+        for old, new in (
+            ("still open at the end of the data", "meeting the legacy recent-unclosed diagnostic"),
+            ("carrying copied postings", "with more than two events per distinct timestamp"),
+            ("duplicating an earlier event", "with repeated case/activity/timestamp keys"),
+            ("is clean for", "is below its configured thresholds for"),
+        ):
+            text = text.replace(old, new)
+        if "groupChecks" in (gate.get("evidence") or {}):
+            text += (
+                " These diagnostics do not prove business completion or event duplication; "
+                "closure applicability and per-rule missingness still require review."
+            )
+    return text
 
 
 class ReviewService:
@@ -125,10 +161,19 @@ class ReviewService:
         )
         row = detail["row"]
         noun = detail["params"].get("case_noun") or "cases"
-        caveats = list(detail.get("caveats") or [])
+        # Display caveats omit small and unavailable shares. Decisions need the
+        # unsuppressed measurements, including an explicit measured zero.
+        measured_detail = (
+            detail
+            if filter_obj
+            else self.c.runs.review_selection(
+                project_id, run_id, slicing=slicing, slice_key=slice_key, view=resolved_view, filter_obj={"and": []}
+            )
+        )
+        caveats = list(measured_detail.get("caveats") or [])
         shares = {str(cav["id"]): cav.get("share") for cav in caveats}
-        report = detail["readiness"] if filter_obj else self.c.runs.readiness_report(project_id, run_id)
-        measured = bool((detail.get("analytics") or {}).get("available")) and bool(report.get("checks"))
+        report = measured_detail["readiness"] if filter_obj else self.c.runs.readiness_report(project_id, run_id)
+        measured = bool((measured_detail.get("analytics") or {}).get("available")) and bool(report.get("checks"))
         computed = [
             self._readiness_gate(report, caveats, noun, row, measured=measured),
             self._share_gate(
@@ -149,25 +194,15 @@ class ReviewService:
             ),
             self._domain_gate(project_id, run_id, detail, noun),
         ]
-        if filter_obj:
-            # No display-threshold suppression: zero is measured, absence is unknown.
-            expected = set(action_evidence.FILTERED_CHECKS)
-            missing = sorted(expected - {k for k, value in shares.items() if value is not None})
-            if missing:
-                computed[0] = {
-                    "id": "readiness",
-                    "kind": "readiness",
-                    "scope": "group",
-                    "status": "failed" if computed[0]["status"] == "failed" else "pending",
-                    "evidence": {"missingMeasurements": missing, "groupChecks": caveats},
-                    "text": "Readiness for this selection is incomplete. Review the missing measurements before acting.",
-                }
-            for gate in computed[1:3]:
-                if shares.get(gate["id"]) is None:
-                    gate.update(
-                        status="pending", scope="group", text="This measurement is unavailable for the selected items."
-                    )
-            computed[0]["scope"] = "group"
+        expected = set(action_evidence.FILTERED_CHECKS)
+        missing = sorted(expected - {k for k, value in shares.items() if value is not None})
+        if missing:
+            computed[0].update(
+                status="failed" if computed[0]["status"] == "failed" else "pending",
+                evidence={**computed[0]["evidence"], "missingMeasurements": missing, "groupChecks": caveats},
+                text="Readiness for this selection is incomplete. Review the missing measurements before acting.",
+            )
+        computed[0]["scope"] = "group"
         # A clean group's checks cannot erase independent failures of the whole log.
         whole_checks = [check for check in report.get("checks", []) if not check.get("perGroup")]
         whole_failed = list(report.get("logWideFailed") or [])
@@ -223,6 +258,8 @@ class ReviewService:
             gates.append(
                 {
                     **gate,
+                    # Presentation follows fingerprinting and stored-decision matching.
+                    "text": _gate_display_text(gate, noun),
                     "computed_status": gate["status"],
                     "status": item.status if item is not None else gate["status"],
                     "note": item.note if item is not None else None,
@@ -421,9 +458,10 @@ class ReviewService:
             return {
                 "id": kind,
                 "kind": kind,
-                "status": "passed",
+                "status": "pending",
+                "scope": "group",
                 "evidence": {"share": None},
-                "text": f"No {kind} caveat on this group.",
+                "text": f"The {kind} measurement is unavailable for these {noun}.",
             }
         value = float(share)
         status = "failed" if value >= fail else "pending" if value >= warn else "passed"
@@ -505,26 +543,43 @@ class ReviewService:
             project_id, run_id, slicing=slicing, slice_key=slice_key, view=view, filter_value=filter_value
         )
 
-    def _require_gates(self, project_id: str, run_id: str | None, slicing: str | None, slice_key: str | None) -> None:
-        """Legacy hypothesis policy; action writes use the complete commitment check below."""
+    def _require_gates(
+        self,
+        project_id: str,
+        run_id: str | None,
+        slicing: str | None,
+        slice_key: str | None,
+        view: str | None,
+        *,
+        conclusive: bool = False,
+    ) -> None:
+        """Open questions may await a check; conclusions need every check resolved."""
         if not (run_id and slicing and slice_key):
             return
         try:
-            state = self.gates(project_id, run_id, slicing=slicing, slice_key=slice_key)
-        except (NotFoundError, ConflictError, ValidationError):
-            return
-        if state["blocking"]:
+            state = self.gates(project_id, run_id, slicing=slicing, slice_key=slice_key, view=view)
+        except (NotFoundError, ConflictError, ValidationError) as exc:
+            raise ConflictError(
+                "Readiness for this assessment is unavailable.", code="review.evidence_unavailable"
+            ) from exc
+        blocking = (
+            [g["id"] for g in state["gates"] if g["status"] not in {"passed", "waived"}]
+            if conclusive
+            else state["blocking"]
+        )
+        if blocking:
             raise ConflictError(
                 "the "
-                + ", ".join(state["blocking"])
-                + " gate has failed for this group; pass or waive it with a note first",
-                code="review.gate_failed",
-                errors=[{"field": "gate", "message": g} for g in state["blocking"]],
+                + ", ".join(blocking)
+                + " check is unresolved for this group and view; pass or waive it with a note first",
+                code="review.gate_unresolved" if conclusive else "review.gate_failed",
+                errors=[{"field": "gate", "message": g} for g in blocking],
             )
 
     # ------------------------------------------------------------- hypotheses
     def create_hypothesis(self, project_id: str, body: dict[str, Any]) -> ReviewItem:
         self.c.repos.get_project(project_id)
+        hypothesis_evidence.protect(body, ReviewKind.HYPOTHESIS)
         payload = dict(body)
         run_id = payload.pop("runId", None) or payload.pop("run_id", None)
         slicing = payload.pop("slicing", None)
@@ -534,8 +589,18 @@ class ReviewService:
         note = payload.pop("note", None)
         title = str(payload.pop("statement_plain", "") or payload.pop("title", "") or "")
         clean = validate_hypothesis(payload)
-        self._require_gates(project_id, run_id, slicing, slice_key)
+        context = action_evidence.capture(
+            self.c, project_id, run_id, slicing, slice_key, view, None, comparison="group_vs_rest"
+        )
+        if context:
+            run_id, slicing, slice_key, view = (context[k] for k in ("runId", "slicing", "sliceKey", "view"))
+        clean["evidenceContext"] = context
+        clean["evidenceState"] = "recorded" if context else "unassessed"
+        self._require_gates(
+            project_id, run_id, slicing, slice_key, view, conclusive=clean["outcome"] in hypothesis_evidence.CONCLUSIVE
+        )
         clean["test"] = self._hypothesis_test(project_id, run_id, slicing, slice_key, view, clean)
+        hypothesis_evidence.require_test(self.c, project_id, clean)
         clean["statement_plain"] = title or self._statement(clean)
         item = ReviewItem(
             id=new_id("hyp"),
@@ -591,14 +656,16 @@ class ReviewService:
                 "plain_name": row.get("plain"),
                 "risk_difference": row.get("risk_difference"),
                 "interval": [row.get("rd_lo"), row.get("rd_hi")],
-                "interval_method": "bootstrap percentile (analytics)",
+                "interval_method": row.get("interval_method"),
+                "confidence_level": row.get("confidence_level"),
+                "comparison": row.get("comparison"),
                 "share_here": row.get("share_missed_group"),
                 "share_elsewhere": row.get("share_missed_elsewhere"),
                 "median_here": row.get("median_group"),
                 "median_elsewhere": row.get("median_elsewhere"),
                 "shift": row.get("shift"),
                 "unit": row.get("unit"),
-                "n_group": row.get("n_evaluated_group") or detail["row"].get("n_cases"),
+                "n_group": row.get("n_evaluated_group"),
                 "n_rest": row.get("n_evaluated_elsewhere"),
                 "share_of_shortfall": row.get("share_of_shortfall"),
                 "reading": _comparison_line(row, detail["params"].get("case_noun") or "cases"),
@@ -610,6 +677,7 @@ class ReviewService:
     # ------------------------------------------------------------- findings and actions
     def create_finding(self, project_id: str, body: dict[str, Any]) -> ReviewItem:
         self.c.repos.get_project(project_id)
+        hypothesis_evidence.protect(body, ReviewKind.FINDING)
         payload = dict(body)
         item = ReviewItem(
             id=new_id("find"),
@@ -712,16 +780,30 @@ class ReviewService:
             )
         if item.kind == ReviewKind.ACTION:
             action_evidence.protected_fields(body, update=True)
+        else:
+            hypothesis_evidence.protect(body, item.kind, update=True)
         payload = dict(body)
         status = payload.pop("status", None)
         title = payload.pop("title", None)
         note = payload.pop("note", None)
         merged = {**item.body, **payload}
         if item.kind == ReviewKind.HYPOTHESIS:
+            if status is not None and "outcome" in payload and status != payload["outcome"]:
+                raise ValidationError("status and outcome must agree", code="hypothesis.outcome")
             if status is not None:
                 merged["outcome"] = status
             merged = validate_hypothesis(merged)
             status = merged["outcome"]
+            if {"status", "outcome"} & set(body):
+                hypothesis_evidence.require_test(self.c, project_id, merged)
+                self._require_gates(
+                    project_id,
+                    item.run_id,
+                    item.slicing,
+                    item.slice_key,
+                    item.view,
+                    conclusive=status in hypothesis_evidence.CONCLUSIVE,
+                )
         elif item.kind == ReviewKind.ACTION:
             if status is not None:
                 merged["status"] = status

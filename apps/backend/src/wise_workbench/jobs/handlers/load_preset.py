@@ -12,6 +12,7 @@ from typing import Any
 from wise_workbench.adapters.knowledge import translate_norm
 from wise_workbench.adapters.storage import sha256_file
 from wise_workbench.application.ports import ProgressFn
+from wise_workbench.application.services.project_binding import bind_dataset, get_binding, require_dataset_binding
 from wise_workbench.domain import (
     CaseTable,
     CaseTableStatus,
@@ -20,13 +21,13 @@ from wise_workbench.domain import (
     DatasetStatus,
     DatasetVersion,
     NotFoundError,
-    Run,
     RunParams,
     RunStatus,
     Slicing,
     SourceKind,
     slicing_id,
 )
+from wise_workbench.domain.norm_views import BENCHMARK_POLICY, with_general_benchmark
 from wise_workbench.ids import new_id
 from wise_workbench.jobs.worker import JobContext
 from wise_workbench.presets import Preset, all_presets
@@ -197,6 +198,20 @@ def run(ctx: JobContext) -> str:
     return perform(ctx.container, ctx.payload["projectId"], ctx.payload["presetId"], ctx.progress)
 
 
+def bound_preset_dataset(c: Any, project_id: str, digest: str) -> DatasetVersion | None:
+    """A preset may reuse the exact bound dataset, never replace it with another import."""
+    binding = get_binding(c, project_id)
+    if binding["datasetId"] is None:
+        return None
+    dataset = c.datasets.get(project_id, binding["datasetId"])
+    if dataset.content_hash != digest or dataset.status != DatasetStatus.READY:
+        raise ConflictError(
+            "This preset uses a different dataset than the project's fixed dataset. Create a new project to load it.",
+            code="project.dataset_binding_mismatch",
+        )
+    return dataset
+
+
 def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> str:
     try:
         preset = all_presets(c.settings)[preset_id]
@@ -212,7 +227,7 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
     # 1. dataset: reuse by content hash, else register the file in place and ingest it
     progress(0.01, "hashing the log file")
     digest = sha256_file(csv)
-    dataset = next(
+    dataset = bound_preset_dataset(c, project_id, digest) or next(
         (d for d in c.repos.list_datasets(project_id) if d.content_hash == digest and d.status == DatasetStatus.READY),
         None,
     )
@@ -235,6 +250,11 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
             )
             raise
         dataset = c.repos.get_dataset(dataset.id)
+
+    # Choosing this preset explicitly chooses its dataset. Bind only after successful
+    # ingestion, and atomically reject a competing different choice before creating
+    # mappings, norms or assessments. Generic run submissions never bind implicitly.
+    bind_dataset(c, project_id, dataset.id)
 
     # 2. mapping and case table: reuse a ready table built with the same mapping
     columns = {col.name for col in dataset.columns}
@@ -282,12 +302,14 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
         doc, untranslated = translate_norm(doc, preset.process, preset.label_pack)
         if untranslated:
             note += f"; {len(untranslated)} canonical activities have no label in this log ({untranslated[0]}, …)"
-    _canonical, fingerprint = c.engine.validate_norm(doc)
+    canonical, _ = c.engine.validate_norm(doc)
+    _canonical, fingerprint = c.engine.validate_norm(with_general_benchmark(canonical))
     norm = next((n for n in c.repos.list_norm_versions(project_id) if n.fingerprint == fingerprint), None)
     if norm is None:
         norm = c.norms.create_version(project_id, doc, note=note)
 
     # 4. run: reuse identical parameters, else score in this job
+    require_dataset_binding(c, project_id, table.id)
     slicings = [Slicing(id=slicing_id(preset.slicing), attributes=tuple(preset.slicing))]
     for extra in preset.extra_slicings:
         if all(a in table.attributes for a in extra):
@@ -303,6 +325,7 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
         gamma=preset.gamma,
         min_cases=preset.min_cases,
         note=preset.run_note,
+        general_benchmark=BENCHMARK_POLICY,
     )
     run_ = c.repos.find_run(project_id, params_hash=params.params_hash())
     if run_ is not None and run_.status == RunStatus.DONE:
@@ -314,8 +337,7 @@ def perform(c: Any, project_id: str, preset_id: str, progress: ProgressFn) -> st
     if run_ is not None:
         run_ = c.repos.update_run(run_.transition(RunStatus.QUEUED, error=None))
     else:
-        run_ = Run(id=new_id("run"), project_id=project_id, params=params, status=RunStatus.QUEUED)
-        c.repos.add_run(run_)
+        run_, _job, _created = c.runs.create(project_id, params, enqueue=False)
     try:
         score_run.perform(c, run_.id, _scaled(progress, 0.8, 0.99, "scoring"))
     except Exception as exc:

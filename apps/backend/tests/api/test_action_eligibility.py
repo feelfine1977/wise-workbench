@@ -41,10 +41,15 @@ def proposal(w: dict[str, Any], **extra: Any) -> dict[str, Any]:
 
 
 def decide_all(w: dict[str, Any], *, view: str = "Finance", status: str = "waived") -> None:
-    for gate in ["readiness", "censoring", "replication", "domain"]:
+    params = {"slicing": "company", "key": '["A"]', "view": view}
+    current = w["client"].get(endpoint(w) + f"/runs/{w['run']}/gates", params=params).json()
+    for check in current["gates"]:
+        if check.get("scope") == "run" and view != "Finance":
+            continue
+        gate = check["id"]
         r = w["client"].post(
             endpoint(w) + f"/runs/{w['run']}/gates/{gate}",
-            params={"slicing": "company", "key": '["A"]', "view": view},
+            params=params,
             json={"status": status, "note": "Synthetic decision for this exact assessment", "author": "Reviewer"},
         )
         assert r.status_code == 200, r.text

@@ -207,7 +207,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -312,7 +312,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -412,7 +412,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -432,7 +432,7 @@
           "missed_label_de": "wiederholte oder geänderte Buchungen",
           "expectation": "Each step is posted once and stays; no repeated receipts, invoices, approvals, confirmations or term changes on the same item.",
           "meaning_when_missed": "The same step was posted several times or changed afterwards, so the item was handled more than once and its history is unstable.",
-          "why_it_matters": "Every repeat is a manual touch, a matching problem and a chance for a duplicate payment; unstable commitments make planning and vendor evaluation unreliable.",
+          "why_it_matters": "Repeated postings can reflect corrections, legitimate installments, shared documents or logging replication. Review the document links and business purpose before treating a repeat as extra work or a payment defect.",
           "how_detected": "Count rules with a tolerated number and a saturation point: receipt events (more than two count), invoice receipts (more than one), approval changes (any), payment-term changes (any), vendor confirmations and confirmed-date changes in the baseline.",
           "usual_reasons": [
             {
@@ -506,7 +506,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -606,7 +606,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -705,7 +705,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -798,7 +798,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -887,7 +887,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -980,7 +980,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1072,7 +1072,7 @@
           "owner_role": "warehouse",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1159,7 +1159,7 @@
           "owner_role": "vendor_management",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1239,7 +1239,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1319,7 +1319,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1400,7 +1400,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1466,7 +1466,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1533,7 +1533,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1625,7 +1625,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1650,7 +1650,7 @@
           "missed_label_de": "Rechnungen spät ausgeglichen",
           "expectation": "Invoices are cleared within the agreed days after the invoice (30 days, tolerance to 90 in the paper's norm; the real payment terms of the vendor once they are a case attribute).",
           "meaning_when_missed": "The invoice waited longer than the target before payment, because of a block, a payment-run calendar, long terms or a dispute.",
-          "why_it_matters": "Lost discounts, vendor escalations and delivery stops when paid late; working capital paid out early when the terms are longer than the target.",
+          "why_it_matters": "This elapsed-time target identifies items to review. Contractual lateness and discount loss require actual payment terms, due dates and linked settlement records; paying sooner can also increase working-capital use.",
           "how_detected": "A time rule from the first invoice evidence to the clearing on invoice-bearing items, scored between met at 30 days and fully missed at 90. In BPIC 2019 the median is 63.6 days and 88.9 % of cleared items exceed 30 days, so without payment terms this rule is a lateness meter rather than a pass-fail rule; the baseline scores open invoices by their age.",
           "usual_reasons": [
             {
@@ -1722,7 +1722,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1808,7 +1808,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1827,48 +1827,48 @@
         "c_l3_df2_rpb_to_clear_days": {
           "kind": "constraint",
           "id": "c_l3_df2_rpb_to_clear_days",
-          "plain_name": "Paid soon after the release",
-          "plain_name_de": "Bald nach der Freigabe bezahlt",
-          "missed_label": "released but paid late",
-          "missed_label_de": "freigegeben, aber spät bezahlt",
+          "plain_name": "Cleared soon after release",
+          "plain_name_de": "Zeitnah nach der Freigabe ausgeglichen",
+          "missed_label": "clearing later than the elapsed-time target",
+          "missed_label_de": "Ausgleich später als das Laufzeitziel",
           "expectation": "Once the block is released, the invoice is cleared within days (5 days, tolerance to 25 in the paper's norm).",
-          "meaning_when_missed": "The invoice was released for payment but waited for a payment run or a second hold.",
-          "why_it_matters": "Late payment after the control has passed is pure waiting; it costs discounts and goodwill.",
+          "meaning_when_missed": "Recorded clearing occurred later than the norm’s elapsed-time target after release, or is still unobserved. The timestamps do not establish a payment run, a second hold or contractual lateness.",
+          "why_it_matters": "This interval identifies cases to investigate. Planned waiting until the due date can be appropriate; discount loss, cash effects and supplier impact require payment terms and linked financial evidence.",
           "how_detected": "A time rule from the block release to the clearing on invoice-first items; the baseline applies it to every item with a release and scores open ones by age.",
           "usual_reasons": [
             {
-              "text": "Payment runs on fixed dates",
+              "text": "A fixed payment schedule may contribute to the observed calendar pattern",
               "where": "log",
-              "check": "lag distribution from release to clearing; weekday and day-of-month pattern"
+              "check": "inspect measured release-to-clearing durations and calendar counts, then confirm the schedule with accounts payable; clustering alone is not proof"
             },
             {
-              "text": "The invoice was not yet due under the payment terms when released",
-              "where": "log",
-              "check": "release-to-clearing lag against the vendor's terms; early releases wait for the due date"
+              "text": "The invoice may not yet have been due when released",
+              "where": "outside",
+              "check": "obtain a mapped invoice payment due date and calculate due date minus release date; positive lead time may be planned waiting"
             },
             {
-              "text": "A second block or a cash hold after the release",
+              "text": "A second block or a cash hold may have followed release",
               "where": "outside",
               "check": "ask accounts payable for holds after release"
             }
           ],
           "usual_actions": [
             {
-              "text": "Payment-run cadence reviewed against the terms of the largest vendors",
+              "text": "Review a confirmed payment schedule against agreed invoice due dates before changing its cadence",
               "countermeasure": "review",
               "owner_role": "accounts_payable",
               "effect_area": "timeliness_ageing"
             },
             {
-              "text": "Score days beyond the due date rather than days after the release",
+              "text": "If reliable due dates are mapped, assess a separate due-date measure before proposing a new norm version",
               "countermeasure": "measurement",
               "owner_role": "finance_controlling",
               "effect_area": "timeliness_ageing"
             }
           ],
           "what_to_check_first": [
-            "Day-of-month pattern of clearings",
-            "Whether the release came long before the due date"
+            "Count clearing event records and distinct items by day of month; distinguish records from unique bank payments",
+            "Check release-to-due lead time only with a mapped invoice payment due date; otherwise keep it unavailable"
           ],
           "examples": [
             {
@@ -1888,7 +1888,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -1972,7 +1972,7 @@
           "owner_role": "warehouse",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2052,7 +2052,7 @@
           "owner_role": "approver",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2144,7 +2144,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2216,7 +2216,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2302,7 +2302,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2394,7 +2394,7 @@
           "owner_role": "warehouse",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2486,7 +2486,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2571,7 +2571,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2643,7 +2643,7 @@
           "owner_role": "accounts_payable",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2740,7 +2740,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2832,7 +2832,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2905,7 +2905,7 @@
           "owner_role": "finance_controlling",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -2985,7 +2985,7 @@
           "owner_role": "finance_controlling",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -3010,7 +3010,7 @@
           "missed_label_de": "viele manuelle Eingriffe",
           "expectation": "An item needs at most a handful of manual touches by named users (more than 4 count, 10 saturate).",
           "meaning_when_missed": "People intervened on the item many times; it did not pass through by itself.",
-          "why_it_matters": "Manual touches are effort, waiting time and error risk; they are the direct measure of the automation gap.",
+          "why_it_matters": "Events attributed to named users are a proxy for manual handling. Validate execution identities and automation eligibility, and obtain handling time and recovery effort before estimating an automation benefit.",
           "how_detected": "A threshold rule on the count of events posted by named (non-batch) users, derived from the resource column.",
           "usual_reasons": [
             {
@@ -3076,7 +3076,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -3156,7 +3156,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -3236,7 +3236,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -3316,7 +3316,7 @@
           "owner_role": "purchasing",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],
@@ -3387,7 +3387,7 @@
           "owner_role": "finance_controlling",
           "stakeholders": "Seeded from the P2P pack by the process-knowledge workstream on 2026-09-06; owner of the generic tier: the procurement process lead; every project confirms or overrides the text in its own note.",
           "sources": [
-            "docs/panel/knowledge_hub_panel.md §1 and §5",
+            "packages/process-knowledge/PACK_DESIGN.md",
             "failure_modes.yaml (p2p)",
             "BPI Challenge 2019 reports"
           ],

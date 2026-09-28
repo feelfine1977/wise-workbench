@@ -1,9 +1,15 @@
+import { driverEvidenceHandlers } from "./driver-evidence";
+import { selectionHandlers } from "./selections";
+import { projectBindingHandlers } from "./projectBinding";
+import { edaHandlers } from "./eda";
+import { datasetCatalogueHandlers } from "./dataset-catalogue";
 import { http, HttpResponse, delay } from "msw";
 import type { components, BacklogRow, ColumnMapping, HotspotType, Kind, NormVersionCreate, Preset, RunCreate, Stability } from "@wise/api-schema";
 import type { DecisionRequest } from "@/lib/api/readiness";
 import type { Snapshot, SnapshotContext } from "@/lib/api/notebook";
 import type { Within } from "@/lib/api/exploration";
 import { parseFilter } from "@/lib/filter";
+import { investigationFamilies } from "@/lib/api/investigation";
 import { UNCALIBRATED, pageBacklog } from "./fixtures/backlog";
 import { applyFilter, backlogParamsC2, caveatSummary, compareFlowTypesFor, decisionKinds, decisionPreviewFor, decisionRecord, drillInto, enrichRow, filterKeepShare, filterPreviewFor, flowTypesFor, readinessAfterDecision, sliceC2, slicingPreviewFor } from "./fixtures/cycle2";
 import { facetsFor, kpisFor, pathsForFocus, scaleDistribution } from "./fixtures/board";
@@ -156,6 +162,11 @@ const snapshotDto = ({ image: _i, ...s }: MockSnapshot): Snapshot => s;
 const isBlob = (v: unknown): v is Blob => !!v && typeof v === "object" && typeof (v as Blob).arrayBuffer === "function";
 
 export const handlers = [
+  ...driverEvidenceHandlers,
+  ...projectBindingHandlers,
+  ...selectionHandlers,
+  ...datasetCatalogueHandlers,
+  ...edaHandlers,
   http.get(`${API}/system/health`, () => HttpResponse.json({ status: "ok", workspace: "mock", inprocessWorker: true })),
   http.get(`${API}/system/ready`, () => HttpResponse.json({ status: "ready", database: "ok", workspaceWritable: true })),
   http.get(`${API}/system/version`, () => HttpResponse.json({ workbench: "0.1.0-mock", wise: "0.1.0", duckdb: "1.5.5" })),
@@ -179,6 +190,12 @@ export const handlers = [
   http.get(`${API}/projects/:projectId/datasets`, async () => {
     await delay(latency);
     return HttpResponse.json(db.datasets);
+  }),
+  http.post(`${API}/projects/:projectId/dataset-catalogue/imports/:entryId`, () => {
+    const id = nextId("dataset", "ds");
+    db.datasets.unshift({ id, name: "Catalogue example", status: "ingesting", createdAt: new Date().toISOString(), sourceKind: "csv" });
+    const job = createJob("ingest", "ingesting configured example", { kind: "dataset", id });
+    return HttpResponse.json({ ...job, resultRef: `dataset:${id}` }, { status: 202 });
   }),
   http.post(`${API}/projects/:projectId/datasets`, async ({ request }) => {
     const form = await request.formData();
@@ -324,6 +341,7 @@ export const handlers = [
     return HttpResponse.json(created, { status: 201 });
   }),
   // Raw synthetic values stay fixed; thresholds come from the selected saved norm version.
+  http.post(`${API}/projects/:projectId/norms/:normVersionId/preview/:constraintId`, () => HttpResponse.json({ title: "Exact preview requires the live engine", status: 503 }, { status: 503 })),
   http.get(`${API}/projects/:projectId/norms/:normVersionId/signals/:constraintId`, ({ params, request }) => {
     const caseTableId = new URL(request.url).searchParams.get("caseTableId");
     if (!caseTableId) return problem(422, "Select data", "A mapped case table is required.", "norm.case_table");
@@ -363,6 +381,17 @@ export const handlers = [
     return HttpResponse.json(guidanceQuestions(u.searchParams.get("kind") ?? "layer", u.searchParams.get("id") ?? undefined));
   }),
   // every threshold of a version with its rationale and its owner, and what still keeps it in draft (R3-02)
+  http.get(`${API}/projects/:projectId/norms/:normVersionId/relevance`, async ({ request, params }) => {
+    await delay(latency);
+    const caseTableId = new URL(request.url).searchParams.get("caseTableId");
+    if (!caseTableId) return problem(422, "Unprocessable Content", "caseTableId is required", "norm.case_table");
+    const table = db.caseTables.find(t => t.id === caseTableId);
+    const norm = db.norms.find(n => n.id === params.normVersionId);
+    if (!table || !norm) return problem(404, "Not Found", "Norm or mapped table not found", "norm.not_found");
+    const doc = norm.norm as { constraints?: { id: string }[] };
+    // Mock mode has no event engine. Unknown coverage must not become an invented 0% or 100%.
+    return HttpResponse.json({ normVersionId: norm.id, caseTableId, cases: table.cases ?? 0, constraints: (doc.constraints ?? []).map(c => ({ id: c.id, casesInScope: null, observedCases: null, missingActivities: [], issues: ["Coverage is not evaluated in mock mode"] })) });
+  }),
   http.get(`${API}/projects/:projectId/norms/:normVersionId/calibration`, async ({ params }) => {
     await delay(latency);
     const n = db.norms.find((x) => x.id === params.normVersionId);
@@ -374,6 +403,14 @@ export const handlers = [
     const body = (await request.json().catch(() => ({}))) as { caseTableId?: string; constraint?: Record<string, unknown> };
     if (!body.caseTableId || !body.constraint) return problem(422, "Unprocessable Content", "caseTableId and constraint are required", "norm.constraint");
     return HttpResponse.json(constraintCheck(body.caseTableId, body.constraint));
+  }),
+  http.get(`${API}/projects/:projectId/norms/templates`, ({ params, request }) => {
+    const query = new URL(request.url).searchParams;
+    const caseTableId = query.get("caseTableId");
+    if (!caseTableId) return problem(422, "Unprocessable Content", "caseTableId is required", "norm.case_table");
+    const table = db.caseTables.find(t => t.id === caseTableId);
+    if (!table) return problem(404, "Not Found", "Case table not found", "norm.case_table");
+    return HttpResponse.json({ projectId: String(params.projectId), process: db.projects.find(p => p.id === params.projectId)?.process ?? null, caseTableId, datasetId: table.datasetId, cases: table.cases ?? null, labelPack: query.get("labelPack"), templateId: query.get("templateId"), labelPacks: [], templates: [] });
   }),
   http.get(`${API}/projects/:projectId/norms/:normVersionId`, async ({ params }) => {
     await delay(latency);
@@ -523,6 +560,15 @@ export const handlers = [
       },
     });
   }),
+  http.get(`${API}/projects/:projectId/runs/:runId/slicings/options`, ({ params }) => {
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const attributes = [{ name: "case Company", type: "categorical", distinct: 4, missing: 0 }, { name: "case Spend area text", type: "categorical", distinct: 18, missing: 5 }, { name: "exposure", type: "numeric", distinct: 80, missing: 0 }, { name: "flow_type", type: "categorical", distinct: 4, missing: 0 }];
+    return HttpResponse.json({ caseNoun: "cases", cases: summaryFor(run.id).cases ?? 251734, attributes, suggestions: attributes.map((a) => {
+      const spec = { attributes: [a.name], bands: a.type === "numeric" ? [{ attribute: a.name, method: "quantile", q: 4 }] : [] };
+      return { ...spec, id: "group:" + JSON.stringify(spec), label: a.name === "exposure" ? "Value bands" : a.name.replace("case ", ""), description: "Explore cases by " + a.name };
+    }) });
+  }),
   http.get(`${API}/projects/:projectId/runs/:runId/slicings/preview`, async ({ params, request }) => {
     await delay(latency);
     const run = runOr404(String(params.runId));
@@ -552,6 +598,32 @@ export const handlers = [
     const badClause = unknownClause(raw);
     if (badClause) return problem(422, "Unprocessable Content", badClause, "filter.clause");
     return HttpResponse.json(filterPreviewFor(parseFilter(raw), summaryFor(run.id).cases ?? 251734));
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/investigation-questions`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    if (u.searchParams.has("filter")) return problem(422, "Unprocessable Content", "This illustration has no exact filtered population. Use the live backend for selection measurements.", "filter.unsupported");
+    const family = investigationFamilies.find(value => value === (u.searchParams.get("family") ?? "overview"));
+    if (!family) return problem(422, "Unprocessable Content", "Unknown question family", "investigation.family");
+    return HttpResponse.json({
+      runId: run.id, caseNoun: "example cases", totalCases: 3, selectedCases: 3, filter: null, family,
+      choices: { activities: { values: ["Create request", "Review request", "Close request"], total: 3, truncated: false }, attributes: { values: [], total: 0, truncated: false } },
+      questions: [{ id: "illustration", family, title: "Explore a live dataset", status: "unavailable", summary: "Question measurements require a live run. This screen uses a three-case illustration.", measurement: "No real dataset was evaluated by this mock.", parameters: {}, metrics: [], filter: null, limitations: ["Illustrative mock data is not analysis evidence."], contextNeeded: ["A completed live assessment."], nextCheck: "Open a live dataset to explore recorded patterns.", exampleCaseIds: [], rows: [] }],
+    } satisfies components["schemas"]["InvestigationQuestions"]);
+  }),
+  http.get(`${API}/projects/:projectId/runs/:runId/variants`, async ({ params, request }) => {
+    await delay(latency);
+    const run = runOr404(String(params.runId));
+    if (!run) return problem(404, "Not Found", "run not found", "run.not_found");
+    const u = new URL(request.url);
+    if (["filter", "sliceKey", "bands"].some(key => u.searchParams.has(key))) return problem(422, "Unprocessable Content", "This illustration has no exact filtered paths. Use the live backend.", "filter.unsupported");
+    return HttpResponse.json({
+      runId: run.id, totalSelectedCases: 3, excludedZeroEventCases: 1, totalVariants: 1, coveredCount: 2, coverage: 2 / 3,
+      limit: 10, exampleLimit: 3, ordering: "Illustrative mock paths only. Repeated steps retain their recorded positions.", durationDescription: "Observed first-to-last elapsed time; not active work or savings.",
+      variants: [{ id: "illustrative-path", activities: ["Create request", "Review request", "Review request", "Close request"], count: 2, share: 2 / 3, medianDurationHours: 30, durationCases: 2, exampleCaseIds: [] }],
+    } satisfies components["schemas"]["ProcessVariants"]);
   }),
   http.get(`${API}/projects/:projectId/runs/:runId/analytics`, async ({ params }) => {
     await delay(latency);

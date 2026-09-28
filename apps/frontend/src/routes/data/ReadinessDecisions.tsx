@@ -19,9 +19,9 @@ const CHOICES: Record<string, { param: string; options: { id: string; label: str
   open_cases: {
     param: "handling",
     options: [
-      { id: "censor", label: "Censor: ignore the missing closures (lags without an end are not counted as late)" },
-      { id: "exclude", label: "Exclude the open cases from the case table" },
-      { id: "keep", label: "Keep them as they are and count the missing closure" },
+      { id: "censor", label: "Set the observation window for rules that score open-item age; each rule keeps its missing-event policy" },
+      { id: "exclude", label: "Exclude cases flagged recently unclosed (legacy diagnostic; not all unfinished cases)" },
+      { id: "keep", label: "Keep cases and use each rule’s missing-event policy" },
     ],
   },
   zero_exposure: {
@@ -37,10 +37,10 @@ const CHOICES: Record<string, { param: string; options: { id: string; label: str
 const PLAIN_LABEL: Record<string, string> = {
   drop_outside_window: "Drop the events outside the window",
   sentinel_as_missing: "Treat placeholder dates as missing",
-  collapse_duplicates: "Collapse exact duplicates",
+  collapse_duplicates: "Remove identical prepared event rows",
   day_precision: "Mark day-precise activities",
   header_events: "Type the header events away",
-  open_cases: "Decide how open cases count",
+  open_cases: "Review recent-unclosed handling",
   zero_exposure: "Decide how items without a value count",
   flow_type_assignment: "Assign the flow types",
 };
@@ -292,19 +292,28 @@ function DecisionDialog({
  * The report is the machine's own log: sixteen lines in the order the checks ran, every one of them a
  * sentence with ISO stamps, `value(s)` and the raw evidence in brackets, and a reader had to read all of them
  * to find the one that mattered. The list below is ordered by what a reader has to do — what is still
- * undecided first, worst first by the share of items it touches — the decided ones become ✓ lines with
+ * undecided first, worst first by its reported share — the decided ones become ✓ lines with
  * *Change*, and the machine's own sentence is kept behind *the exact reading*.
  */
 
-/** The share of items a readiness item touches, for the order; the ones with no share sort by their level. */
+/** A reported share keeps its own denominator; an untyped fraction is not a case fraction. */
+export function readinessCoverage(item: ReadinessItem, cases: number | undefined): { share: number; population: "cases" | "recorded events" | "header events" } | undefined {
+  const ev = item.evidence ?? {};
+  const fraction = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  if (fraction(ev.casesShare)) return { share: ev.casesShare, population: "cases" };
+  if (item.id === "header_event_replication" && fraction(ev.replicatedShare)) return { share: ev.replicatedShare, population: "header events" };
+  for (const count of [ev.cases, ev.casesFlagged]) {
+    if (typeof count === "number" && typeof cases === "number" && cases > 0 && fraction(count / cases)) return { share: count / cases, population: "cases" };
+  }
+  if (fraction(ev.eventShare)) return { share: ev.eventShare, population: "recorded events" };
+  const eventShares = ["timestamp_outliers", "missing_timestamps", "duplicate_events", "event_key_collisions", "tied_timestamps"];
+  if (eventShares.includes(item.id) && fraction(ev.share)) return { share: ev.share, population: "recorded events" };
+  return undefined;
+}
+
+/** Sort by the reported share within a severity; shares can describe different populations. */
 export function readinessShare(item: ReadinessItem, cases: number | undefined): number {
-  const ev = (item.evidence ?? {}) as { share?: number; replicatedShare?: number; cases?: number; casesShare?: number; casesFlagged?: number };
-  if (typeof ev.share === "number") return ev.share;
-  if (typeof ev.replicatedShare === "number") return ev.replicatedShare;
-  if (typeof ev.casesShare === "number") return ev.casesShare;
-  if (typeof ev.cases === "number" && cases) return ev.cases / cases;
-  if (typeof ev.casesFlagged === "number" && cases) return ev.casesFlagged / cases;
-  return 0;
+  return readinessCoverage(item, cases)?.share ?? 0;
 }
 
 /**
@@ -347,7 +356,7 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
     const k = kindOf(it);
     return !!k && decided.has(k.kind);
   };
-  // undecided first, the one that touches the most items first; the decided ones follow in the same order
+  // Undecided first, then severity and reported share; each footer states its denominator.
   const ordered = [...items].sort((a, b) => {
     const da = isDone(a) ? 1 : 0;
     const db = isDone(b) ? 1 : 0;
@@ -365,13 +374,13 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
         <p className="reading mb-2 text-sm text-text-muted">
           {undecided.length === 0
             ? "Everything this report raises has been decided. The lines below say what was decided and let you change it."
-            : `${fmtInt(undecided.length)} ${undecided.length === 1 ? "reading is" : "readings are"} still open, the one that touches the most ${caseNoun} first.`}
+            : `${fmtInt(undecided.length)} ${undecided.length === 1 ? "reading is" : "readings are"} still open, ordered by severity and reported share. Each share names its population.`}
         </p>
         <ul className="flex flex-col divide-y divide-border">
           {ordered.map((it) => {
             const kind = kindOf(it);
             const done = kind ? decided.has(kind.kind) : false;
-            const share = readinessShare(it, readiness ? cases : undefined);
+            const coverage = readinessCoverage(it, readiness ? cases : undefined);
             const plain = plainReadiness(it.message);
             return (
               <li key={it.id} className="flex flex-wrap items-start gap-3 py-3" data-readiness-item={it.id} data-decided={done ? "1" : undefined}>
@@ -384,9 +393,9 @@ export function ReadinessDecisions({ readiness, projectId, caseTableId, onRebuil
                 )}
                 <span className="min-w-0 flex-1 text-sm">
                   <span className="reading block">{plain}</span>
-                  {share > 0 && !done && (
+                  {coverage && coverage.share > 0 && !done && (
                     <span className="text-xs text-text-subtle">
-                      touches {fmtShare(share)} of the {caseNoun}
+                      touches {fmtShare(coverage.share)} of the {coverage.population === "cases" ? caseNoun : coverage.population}
                     </span>
                   )}
                   {plain !== it.message && (

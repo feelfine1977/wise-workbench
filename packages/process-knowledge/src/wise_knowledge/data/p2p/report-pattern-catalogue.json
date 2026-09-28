@@ -1,0 +1,363 @@
+{
+  "schema": "wise-report-pattern-catalogue/1",
+  "id": "p2p_report_patterns",
+  "template": "templates/p2p_report_patterns.json",
+  "review_status": "draft",
+  "sources": [
+    "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+    "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+    "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205).",
+    "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), p.14, Table 5 (supplied merged collection p.353); first cycles of completed cases.",
+    "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), pp.14–15 (supplied merged collection pp.60–61); reported starts-with cohort, with 3,416 versus appendix 3,415 discrepancy.",
+    "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+    "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331).",
+    "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), p.15, Table 7 (supplied merged collection p.175).",
+    "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.16–19 (supplied merged collection pp.355–358).",
+    "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.10–13 (supplied merged collection pp.349–352).",
+    "Hüser and Heisenberger, BPI Challenge 2019 (2019), pp.19–20 (supplied merged collection pp.251–252)."
+  ],
+  "mapping_contract": {
+    "activities": "Explicit canonical ID -> one or more observed labels; unions sum counts and use earliest anchor. Never guess from similar spelling.",
+    "case_attributes": "flow_type required; automation fields optional and require validation.",
+    "flow_values": {
+      "all_items": "Explicit mapped PO-item flow values",
+      "invoice_bearing": "Explicit mapped flows with invoice evidence expected; consignment must be reviewed separately."
+    },
+    "case_notion": "PO item; adapt and review for other units",
+    "applicability_status": "proposed_screening_population_requires_business_review"
+  },
+  "interpretation": [
+    "All added rules and weights are draft threshold/applicability proposals requiring review; business ownership and approval are unspecified.",
+    "Affected cases are not event counts; cases are not necessarily unique business documents.",
+    "Do not infer manual work, time saving or labor cost from identity, event counts or elapsed calendar intervals.",
+    "Clearing is not independently verified payment; repetition is not duplicate payment.",
+    "No contractual-lateness claim without invoice-specific terms and actual settlement.",
+    "Service, framework, recurring and consignment patterns require context review; screens are not defect rates.",
+    "Timestamp comparisons use strict < or >; equal-time event positions do not prove business chronology.",
+    "Legacy constraints and scores remain unchanged and retain their original caveats."
+  ],
+  "patterns": [
+    {
+      "constraint_id": "rp_any_commercial_correction",
+      "name": "Price or quantity correction observed",
+      "family": "RP_corrections",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "One affected case if either change occurs; multiple changes still count as one affected case. Raw event counts remain separate.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+        "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+        "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+      ],
+      "required_context": [
+        "Old/new values, correction reasons, contract version, legitimate amendment review",
+        "Service, recurring and installment applicability; handling time if effort is assessed"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Reported event occurrence does not establish an avoidable defect.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_repeated_quantity_correction",
+      "name": "Repeated quantity corrections",
+      "family": "RP_corrections",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "max(count − 1, 0), saturated at 1; flags at least two recorded changes per item.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+        "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+        "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+      ],
+      "required_context": [
+        "Old/new values, correction reasons, contract version, legitimate amendment review",
+        "Service, recurring and installment applicability; handling time if effort is assessed"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Reported event occurrence does not establish an avoidable defect.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_repeated_price_correction",
+      "name": "Repeated price corrections",
+      "family": "RP_corrections",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "max(count − 1, 0), saturated at 1; flags at least two recorded changes per item.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+        "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+        "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+      ],
+      "required_context": [
+        "Old/new values, correction reasons, contract version, legitimate amendment review",
+        "Service, recurring and installment applicability; handling time if effort is assessed"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Reported event occurrence does not establish an avoidable defect.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_quantity_change_after_receipt",
+      "name": "Quantity change after first receipt",
+      "family": "RP_corrections",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Any quantity change at a strictly later timestamp than the earliest goods receipt OR service entry; missing anchor is unmeasured. Equal timestamps do not count.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+        "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+        "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+      ],
+      "required_context": [
+        "Old/new values, correction reasons, contract version, legitimate amendment review",
+        "Service, recurring and installment applicability; handling time if effort is assessed"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Not cycle-matched. Partial delivery and services may justify changes; no causal delay or labor estimate.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_price_change_after_invoice",
+      "name": "Price change after invoice recording",
+      "family": "RP_corrections",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Any price change strictly after the first invoice recording; missing anchor is unmeasured, ties excluded.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), p.17 (supplied merged collection p.63).",
+        "Meyer zu Wickern et al., Analysis and prediction of purchasing compliance using process mining (2019), p.19, Fig.7 (supplied merged collection p.96).",
+        "Badakhshan et al., Process Mining in the Coatings and Paints Industry: The Purchase Order Handling Process (2019), p.20 (supplied merged collection p.205)."
+      ],
+      "required_context": [
+        "Old/new values, correction reasons, contract version, legitimate amendment review",
+        "Service, recurring and installment applicability; handling time if effort is assessed"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Reported event occurrence does not establish an avoidable defect.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_invoice_capture_interval",
+      "name": "Vendor creation to invoice recording interval",
+      "family": "RP_invoice_capture",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Calendar days from the sole vendor-invoice event to the sole receipt recording. Reversed endpoints are unmeasured, zero lag is measured. Requires exactly one event of each kind.",
+      "sources": [
+        "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), p.14, Table 5 (supplied merged collection p.353); first cycles of completed cases."
+      ],
+      "required_context": [
+        "Actual invoice arrival/channel, readiness/holds, unique invoice identity",
+        "Open invoices and cutoff; business threshold review"
+      ],
+      "threshold_proposal": "14-day delta / 14-day saturation width are uncalibrated screening proposals, not a report-prescribed SLA.",
+      "limitations": "Vendor creation is not AP arrival. Does not measure AP queue, labor or recoverable delay. Repeated, missing and reversed endpoints are outside finite lag coverage; no FIFO matching.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_invoice_recorded_before_vendor_date",
+      "name": "Invoice recording before vendor creation date",
+      "family": "RP_invoice_capture",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Counts invoice recordings strictly before the vendor creation timestamp in single-event pairs; timestamp ties are allowed.",
+      "sources": [
+        "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), p.14, Table 5 (supplied merged collection p.353); first cycles of completed cases."
+      ],
+      "required_context": [
+        "Timestamp semantics, business-effective versus posting date, timezone, document identity"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Chronology/data-quality review only, not proof of incorrect accounting.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_invoice_before_order",
+      "name": "Vendor invoice before order creation",
+      "family": "RP_invoice_capture",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Any vendor invoice timestamp strictly before first PO-item creation; both endpoints required. This is not an exact starts-with-vendor cohort.",
+      "sources": [
+        "Rząd, Wojnecka, Rutkowski and Guliński (PwC), Investigating Purchase-to-Pay process using Process Mining in a multinational corporation (2019), pp.14–15 (supplied merged collection pp.60–61); reported starts-with cohort, with 3,416 versus appendix 3,415 discrepancy."
+      ],
+      "required_context": [
+        "Actual commitment/authorization, framework coverage, emergency exception and posting dates"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Does not establish unauthorized purchasing; missing authorization logging is not absence of approval.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_recorded_invoice_to_clearing_interval",
+      "name": "Invoice recording to clearing interval",
+      "family": "RP_settlement",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Calendar days from sole recorded invoice receipt to sole clearing; reversed endpoints unmeasured. Start is recorded receipt only, never vendor creation.",
+      "sources": [
+        "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), p.15, Table 7 (supplied merged collection p.175).",
+        "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.16–19 (supplied merged collection pp.355–358)."
+      ],
+      "required_context": [
+        "Invoice identity, terms/baseline/due date, readiness, block history, actual bank settlement"
+      ],
+      "threshold_proposal": "30-day delta / 60-day width are draft diagnostic proposals; they do not test contractual lateness.",
+      "limitations": "No FIFO pairing, no due-date or payment completion claim. Repeated/missing/reversed endpoints outside finite coverage.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_repeated_clearing_limited_receipts",
+      "name": "Repeated clearing with at most one receipt",
+      "family": "RP_settlement",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "At least two clearing events in a case with zero or one invoice-receipt recording. Includes non-adjacent repeats; NOT the exact report direct-repeat cohort.",
+      "sources": [
+        "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+        "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+      ],
+      "required_context": [
+        "Invoice/clearing/payment IDs, allocation and signed reversal links, extraction deduplication review"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Broader repetition screen, never duplicate-payment proof. Exact adjacency is an explicit unsupported constraint gap.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_clearing_after_cancellation",
+      "name": "Clearing after invoice cancellation",
+      "family": "RP_settlement",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Any clearing at a strictly later timestamp than first invoice cancellation. Missing cancellation is unmeasured; ties excluded.",
+      "sources": [
+        "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+        "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+      ],
+      "required_context": [
+        "Cancellation document identity, replacement invoices, clearing allocation, signed reversals, payment records"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "No document or cycle matching, no immediate-adjacency claim, no proof of payment after a void invoice.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_clearing_without_recorded_invoice",
+      "name": "Clearing without recorded invoice receipt",
+      "family": "RP_settlement",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Cases with no invoice-receipt event and one or more clearing events; denominator is invoice-bearing cases lacking receipt.",
+      "sources": [
+        "Augusto, Leno and Reissner, BPI Challenge 2019 Report: a Purchase-to-Pay Process Analysis (2019), pp.22–23 (supplied merged collection pp.182–183).",
+        "Bekker and Kisjes, Ninth International Business Process Intelligence Challenge — Submission in the Non-Student Category (2019), p.17, Fig.24 (supplied merged collection p.331)."
+      ],
+      "required_context": [
+        "Invoice linkage, extraction coverage, alternate settlement and credit processes"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Missing event may reflect logging. Does not establish settlement without an invoice obligation.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_recorded_transfer_failure",
+      "name": "Recorded transfer failure",
+      "family": "RP_automation",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "At least one explicit transfer-failure event among cases with transfer or failure evidence; no actor identity classification.",
+      "sources": [
+        "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.10–13 (supplied merged collection pp.349–352).",
+        "Hüser and Heisenberger, BPI Challenge 2019 (2019), pp.19–20 (supplied merged collection pp.251–252)."
+      ],
+      "required_context": [
+        "Interface/automation configuration, failure reason, retry outcome, eligibility and recovery effort"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Explicit interface failure evidence only. Does not establish automated execution mode, labor or general automation opportunity; report provides the question, not this exact operational rule.",
+      "owner": null,
+      "approved_by": null
+    },
+    {
+      "constraint_id": "rp_validated_automation_recovery",
+      "name": "Validated automation recovery evidence",
+      "family": "RP_automation",
+      "evidence_status": "diagnostic_candidate",
+      "review_status": "draft",
+      "unit": "PO-item cases; never unique invoices or payments",
+      "measurement": "Recovery count > 0 only for eligible cases with validated execution evidence. Missing metric remains unmeasured; no regex on user IDs.",
+      "sources": [
+        "Porter et al. (CKM Analytix), Balancing Efficiency and Risk in Procure to Pay: Safely Realizing Cost Savings Using Process Mining Techniques (2019), pp.10–13 (supplied merged collection pp.349–352).",
+        "Hüser and Heisenberger, BPI Challenge 2019 (2019), pp.19–20 (supplied merged collection pp.251–252)."
+      ],
+      "required_context": [
+        "Mapped validated eligibility, validated execution evidence and numeric recovery count",
+        "Rule/configuration version, measured handling minutes and errors"
+      ],
+      "threshold_proposal": "Binary screen / one event beyond allowance; diagnostic proposal, review needed.",
+      "limitations": "Optional component omitted when required validated fields are unavailable. No labor estimate from identity or event count.",
+      "owner": null,
+      "approved_by": null
+    }
+  ],
+  "gaps": [
+    {
+      "id": "exact_direct_repeat_clearing",
+      "status": "not_expressed",
+      "reason": "Installed constraint primitives do not encode adjacency in the recorded sequence. The separately labelled broad repetition screen cannot reproduce the reported 626 cohort."
+    },
+    {
+      "id": "unique_invoice_queue_and_open_age",
+      "status": "not_assessable",
+      "reason": "Need actual arrival/readiness and document links; completed single-event lag excludes repeated/missing/reversed pairs and is not an AP queue or open-age measure."
+    },
+    {
+      "id": "contractual_lateness",
+      "status": "not_assessable",
+      "reason": "Terms, due dates and actual bank settlement unavailable; generic clearing interval cannot substitute."
+    },
+    {
+      "id": "object_linked_reconciliation",
+      "status": "not_assessable",
+      "reason": "Need allocations, signed reversals, document IDs, cross-line matching; case event count/balance is insufficient."
+    },
+    {
+      "id": "manual_work_and_automation_eligibility",
+      "status": "mapping_required",
+      "reason": "Validated eligibility/execution/recovery fields required for optional metric. Resource identity is not evidence of labor; explicit transfer failures cover only a narrow interface question."
+    },
+    {
+      "id": "authorization_and_correction_reason",
+      "status": "not_assessable",
+      "reason": "Authorization/commitment history and amendment reason records unavailable; occurrence/chronology only."
+    }
+  ],
+  "local_reproduction_note": "Thresholds, explicit mappings and executable tests are implementation proposals. Run-specific counts and parity checks are local evaluation outputs, separate from original report evidence; different populations are not claimed as reproductions."
+}

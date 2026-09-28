@@ -72,6 +72,7 @@ class ReviewItem:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            **dict(self.body),
             "id": self.id,
             "projectId": self.project_id,
             "kind": str(self.kind),
@@ -85,7 +86,6 @@ class ReviewItem:
             "note": self.note,
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
-            **dict(self.body),
         }
 
 
@@ -94,6 +94,12 @@ def validate_hypothesis(body: dict[str, Any]) -> dict[str, Any]:
     comparison = str(out.get("comparison") or "group_vs_rest")
     if comparison not in COMPARISONS:
         raise ValidationError(f"comparison must be one of {list(COMPARISONS)}", code="hypothesis.comparison")
+    if comparison != "group_vs_rest":
+        raise ValidationError(
+            "Only group-versus-rest hypotheses can be computed. Period and subgroup comparisons are not implemented.",
+            code="hypothesis.comparison_unsupported",
+            errors=[{"field": "comparison", "message": "Choose group_vs_rest"}],
+        )
     direction = str(out.get("expected_direction") or "higher")
     if direction not in DIRECTIONS:
         raise ValidationError(f"expected_direction must be one of {list(DIRECTIONS)}", code="hypothesis.direction")

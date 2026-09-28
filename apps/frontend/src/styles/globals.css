@@ -193,6 +193,15 @@
   font-size: var(--wise-small-units, 9px);
   line-height: 1.25;
 }
+/* Readable activities reserve their box before layout; names and counts never grow on interaction. */
+.wise-map[data-label-mode] .wf-node[data-kind="activity"] .wf-node__meta {
+  font-size: 12px;
+  line-height: 1.25;
+  margin-left: 0;
+}
+.wise-map[data-label-mode] .wf-node[data-kind="activity"].wf-node--dimmed {
+  opacity: 1;
+}
 .wise-map[data-scaled="1"] .wf-node__meta {
   margin-left: 0;
   flex: 0 0 auto;

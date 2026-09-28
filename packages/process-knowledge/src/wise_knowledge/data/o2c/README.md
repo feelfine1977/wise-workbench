@@ -5,22 +5,29 @@ use permitted by the owner, raw files not redistributed) — 51,164 sales
 order items with 267,071 events over 16 activities, 59,629 stock
 movements, purchase orders and material master; vocabulary for the stages
 the extract does not cover (invoice, payment, dunning) from the OCEL 2.0
-Order Management log and SAP SD documentation. Every number below was
-measured on the extract with `tools/profile_log.py` and a short pandas
-script; they seed the failure-mode catalogue and are **not** thresholds.
+Order Management log and SAP SD documentation. The original measurements
+use `tools/profile_log.py` and a short pandas script; they seed the
+failure-mode catalogue and are **not** thresholds.
+
+The count and quantity corrections below were checked on 2026-09-28
+against the full `Sales_Eventlog.csv` import: 51,164 sales order items,
+267,071 events, SHA256
+`9c887faa36c9203ca6f8d1f357af3956ca17b592548d95238eeb45a8bdf1758c`.
+They concern the sales event log, without cohort filters; companion
+stock-movement and purchase-log counts were not rechecked in that audit.
 
 ## 1. Scope and stage model
 
 | Stage | Canonical activities (draft ids) | Evidence in the extract |
 |---|---|---|
-| capture | `o2c.order_create` (Create Order), `o2c.item_create` (Create Order Item), `o2c.confirmation_send` (Send Order Confirmation) | 100 % / 100 % / 4 % of items — confirmation is not logged for most channels; a presence rule on it would measure logging, not behaviour |
+| capture | `o2c.order_create` (Create Order), `o2c.item_create` (Create Order Item), `o2c.confirmation_send` (Send Order Confirmation) | 51,154 / 51,164 items have Create Order; 51,154 / 51,164 have Create Order Item; 2,044 / 51,164 have Send Order Confirmation. Absence alone does not distinguish missing logging from missing business activity |
 | commit | `o2c.schedule_confirm` (schedule line confirmed quantity changed/removed), `o2c.schedule_request_change`, `o2c.avail_date_change` (Changed Mat.Avail.Date), `o2c.delivery_date_postpone`, `o2c.delivery_date_prepone`, `o2c.incoterms_change`, `o2c.delivery_block_change`, `o2c.rejection_change` (Changed RejectionReason) | changes in 13.7 % of items, 2.3 change events on average among them; postponed 3.2 %, preponed 7.8 %, availability date changed 9.9 %, confirmed quantity removed 1.5 %, rejection set 3.1 %, incoterms 0.8 %, block 0.1 % |
-| fulfil | `o2c.delivery_create` (Create Delivery Item), `o2c.pick` (Picking Completed), `o2c.pack` (Packing Completed), `o2c.goods_issue` (Goods issue) | 95.3 % / 94.8 % / 0.2 % / 95.2 %; 4.8 % of items have no goods issue at the extract end (open or cancelled) |
-| return | `o2c.return_delivery`, `o2c.return_to_own_stock`, `o2c.delivery_reversal` | stock movements: returns delivery 59, returns to own stock 110, goods delivery reversal 397; 20 items flagged as return items |
+| fulfil | `o2c.delivery_create` (Create Delivery Item), `o2c.pick` (Picking Completed), `o2c.pack` (Packing Completed), `o2c.goods_issue` (Goods issue) | 48,753 / 48,485 / 119 / 48,703 distinct items, each out of 51,164; 2,461 items have no recorded goods issue (not proof that every one is open) |
+| return | `o2c.return_delivery`, `o2c.return_to_own_stock`, `o2c.delivery_reversal` | companion stock movements: returns delivery 59, returns to own stock 110, goods delivery reversal 397; the sales event log has 10 distinct items flagged X across 16 event rows, with no return-receipt activity |
 | invoice, pay | `o2c.invoice_create`, `o2c.invoice_cancel`, `o2c.payment_receive`, `o2c.dunning` | not in the extract; vocabulary from OCEL Order Management and SAP SD |
 
 Case notion: sales document item (`Sales Document Number` + `Item`); the
-header event *Create Order* is replicated onto every item and must be
+header event *Create Order* is present on 51,154 of the 51,164 items and must be
 typed as a header event (replication diagnostic). Deliveries and stock
 movements link by document and item; returns are separate items.
 
@@ -91,12 +98,23 @@ planning types get their own lag thresholds.
 
 ## 4. Pitfalls recorded for the readiness report
 
-Header-event replication; censoring at the extract end (4.8 % without
-goods issue, of which some are cancelled); confirmation events logged for
-4 % of items only; confirmed quantity equals ordered quantity for every
-item, so ATP shortfalls are invisible in this extract; change events carry
-`changed_from` and `changed_to` values that the derive recipes should
-keep; timestamps are second-precision.
+Header-event replication; 2,461 / 51,164 items without recorded goods issue;
+confirmation recorded for 2,044 / 51,164 items. Order and confirmed quantities
+are both numeric in 267,067 event rows covering 51,162 items: 267,017 rows
+agree and 50 rows differ. The latter is an event-row count, not a distinct
+item count, and does not by itself establish an ATP shortfall. Change events
+carry `changed_from` and `changed_to` values that the derive recipes should
+keep; timestamps are second-precision with no source timezone established.
+
+**Unresolved pick-to-issue policy:** 42,791 items have every recorded goods
+issue before their first Picking Completed event. The median first-issue
+minus first-pick offset is -1 second across all 48,468 items with both events.
+The current template uses `first_after` plus `missing_b=censor`, which treats
+those earlier issues as missing responses and scores elapsed age. Confirm
+source timestamp ordering before interpreting this rule as shipment delay.
+No event reordering or lag-policy correction is established by these counts;
+any revised norm needs a new immutable version. Goods issue is recorded
+fulfilment evidence, not customer receipt, invoice payment or full O2C closure.
 
 ## 5. Companion: P2P side of the same extract
 

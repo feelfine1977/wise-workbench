@@ -37,7 +37,7 @@ from ._common import bootstrap_weights, fmt, fmt_unit, pct, resolve_view, slice_
 from ._stats import cliffs_delta, ecdf_pair, hodges_lehmann, newcombe_interval, quantile, z_for
 from .provenance import AnalyticResult, record, result_fingerprints
 
-CONTRAST_VERSION = "1"
+CONTRAST_VERSION = "2"
 
 PATTERNS = ("whole distribution shifted", "tail shifted", "no material shift", "not available")
 
@@ -278,6 +278,9 @@ def contrast_slice(
             "risk_difference": rate_s - rate_r,
             "rd_lo": rd_lo,
             "rd_hi": rd_hi,
+            "interval_method": "Newcombe/Wilson",
+            "confidence_level": float(ci),
+            "comparison": "group_vs_rest",
             "relative_risk": (rate_s / rate_r) if (rate_r and np.isfinite(rate_r) and rate_r > 0) else np.nan,
             "mean_violation_slice": float(v[ev_s].mean()) if ev_s.any() else np.nan,
             "mean_violation_rest": float(v[ev_r].mean()) if ev_r.any() else np.nan,

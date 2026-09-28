@@ -1,0 +1,2127 @@
+{
+  "nodes": [
+    {
+      "id": "__start__",
+      "kind": "event",
+      "label": "start",
+      "group": null,
+      "metrics": {
+        "cases": 51164.0,
+        "share": 1.0
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "__end__",
+      "kind": "event",
+      "label": "end",
+      "group": null,
+      "metrics": {
+        "cases": 51164.0,
+        "share": 1.0
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "a_create_order_item",
+      "kind": "activity",
+      "label": "Create Order Item",
+      "group": "capture",
+      "metrics": {
+        "events": 51154.0,
+        "cases": 51154.0,
+        "share": 0.9998045500742709,
+        "caseShare": 0.9998045500742709,
+        "eventsPerCase": 1.0,
+        "violationShare": 0.31436446807678775
+      },
+      "tags": []
+    },
+    {
+      "id": "a_create_order",
+      "kind": "activity",
+      "label": "Create Order",
+      "group": "capture",
+      "metrics": {
+        "events": 51154.0,
+        "cases": 51154.0,
+        "share": 0.9998045500742709,
+        "caseShare": 0.9998045500742709,
+        "eventsPerCase": 1.0,
+        "violationShare": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "a_create_delivery_item",
+      "kind": "activity",
+      "label": "Create Delivery Item",
+      "group": "fulfil",
+      "metrics": {
+        "events": 48868.0,
+        "cases": 48753.0,
+        "share": 0.9528770229067313,
+        "caseShare": 0.9528770229067313,
+        "eventsPerCase": 1.0023588292002543,
+        "violationShare": 0.04693670094225281
+      },
+      "tags": []
+    },
+    {
+      "id": "a_goods_issue",
+      "kind": "activity",
+      "label": "Goods issue",
+      "group": "fulfil",
+      "metrics": {
+        "events": 48818.0,
+        "cases": 48703.0,
+        "share": 0.9518997732780862,
+        "caseShare": 0.9518997732780862,
+        "eventsPerCase": 1.0023612508469704,
+        "violationShare": 0.9987064451881814
+      },
+      "tags": []
+    },
+    {
+      "id": "a_picking_completed",
+      "kind": "activity",
+      "label": "Picking Completed",
+      "group": "fulfil",
+      "metrics": {
+        "events": 48593.0,
+        "cases": 48485.0,
+        "share": 0.9476389648971933,
+        "caseShare": 0.9476389648971933,
+        "eventsPerCase": 1.0022274930390842,
+        "violationShare": 0.8864391048777972
+      },
+      "tags": []
+    },
+    {
+      "id": "a_changed_mat_avail_date",
+      "kind": "activity",
+      "label": "Changed Mat.Avail.Date",
+      "group": "commit",
+      "metrics": {
+        "events": 6639.0,
+        "cases": 5077.0,
+        "share": 0.09922992729262763,
+        "caseShare": 0.09922992729262763,
+        "eventsPerCase": 1.3076620051211345,
+        "violationShare": 0.019916347431787974
+      },
+      "tags": []
+    },
+    {
+      "id": "a_scheduled_delivery_date_preponed",
+      "kind": "activity",
+      "label": "Scheduled delivery date preponed",
+      "group": "commit",
+      "metrics": {
+        "events": 4322.0,
+        "cases": 3995.0,
+        "share": 0.07808224532874677,
+        "caseShare": 0.07808224532874677,
+        "eventsPerCase": 1.0818523153942428,
+        "violationShare": 0.00547259792041279
+      },
+      "tags": []
+    },
+    {
+      "id": "a_scheduled_delivery_date_postponed",
+      "kind": "activity",
+      "label": "Scheduled delivery date postponed",
+      "group": "commit",
+      "metrics": {
+        "events": 2175.0,
+        "cases": 1613.0,
+        "share": 0.03152607302009225,
+        "caseShare": 0.03152607302009225,
+        "eventsPerCase": 1.3484190948543087,
+        "violationShare": 0.03153223599327521
+      },
+      "tags": []
+    },
+    {
+      "id": "a_send_order_confirmation",
+      "kind": "activity",
+      "label": "Send Order Confirmation",
+      "group": "capture",
+      "metrics": {
+        "events": 2048.0,
+        "cases": 2044.0,
+        "share": 0.03994996481901337,
+        "caseShare": 0.03994996481901337,
+        "eventsPerCase": 1.0019569471624266,
+        "violationShare": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "a_changed_rejectionreason",
+      "kind": "activity",
+      "label": "Changed RejectionReason",
+      "group": "commit",
+      "metrics": {
+        "events": 1647.0,
+        "cases": 1605.0,
+        "share": 0.03136971307950903,
+        "caseShare": 0.03136971307950903,
+        "eventsPerCase": 1.0261682242990655,
+        "violationShare": 0.031282993782504986
+      },
+      "tags": []
+    },
+    {
+      "id": "a_schedule_line_confirmed_quantity_removed",
+      "kind": "activity",
+      "label": "Schedule line confirmed quantity removed",
+      "group": "commit",
+      "metrics": {
+        "events": 768.0,
+        "cases": 764.0,
+        "share": 0.014932374325697757,
+        "caseShare": 0.014932374325697757,
+        "eventsPerCase": 1.0052356020942408,
+        "violationShare": 0.014935293427688939
+      },
+      "tags": []
+    },
+    {
+      "id": "a_changed_incoterms",
+      "kind": "activity",
+      "label": "Changed Incoterms",
+      "group": "commit",
+      "metrics": {
+        "events": 400.0,
+        "cases": 393.0,
+        "share": 0.007681182081150809,
+        "caseShare": 0.007681182081150809,
+        "eventsPerCase": 1.0178117048346056,
+        "violationShare": 0.007681182081150809
+      },
+      "tags": []
+    },
+    {
+      "id": "a_schedule_line_requested_quantity_changed",
+      "kind": "activity",
+      "label": "Schedule line requested quantity changed",
+      "group": "commit",
+      "metrics": {
+        "events": 150.0,
+        "cases": 134.0,
+        "share": 0.0026190290047689783,
+        "caseShare": 0.0026190290047689783,
+        "eventsPerCase": 1.1194029850746268,
+        "violationShare": 0.0026190290047689783
+      },
+      "tags": []
+    },
+    {
+      "id": "a_schedule_line_confirmed_quantity_changed",
+      "kind": "activity",
+      "label": "Schedule line confirmed quantity changed",
+      "group": "commit",
+      "metrics": {
+        "events": 147.0,
+        "cases": 132.0,
+        "share": 0.0025799390196231727,
+        "caseShare": 0.0025799390196231727,
+        "eventsPerCase": 1.1136363636363635,
+        "violationShare": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "a_packing_completed",
+      "kind": "activity",
+      "label": "Packing Completed",
+      "group": "fulfil",
+      "metrics": {
+        "events": 119.0,
+        "cases": 119.0,
+        "share": 0.002325854116175436,
+        "caseShare": 0.002325854116175436,
+        "eventsPerCase": 1.0,
+        "violationShare": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "a_changed_delivery_block",
+      "kind": "activity",
+      "label": "Changed Delivery block",
+      "group": "commit",
+      "metrics": {
+        "events": 69.0,
+        "cases": 54.0,
+        "share": 0.0010554295989367525,
+        "caseShare": 0.0010554295989367525,
+        "eventsPerCase": 1.2777777777777777,
+        "violationShare": 0.00105563592289948
+      },
+      "tags": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "f_a_create_order_item__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 1367.0,
+        "cases": 1367.0,
+        "share": 0.02671800484715816,
+        "caseShare": 0.02671800484715816,
+        "medianLagHours": 3.0455555555555556,
+        "medianHours": 3.0455555555555556
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_delivery_item__a_packing_completed",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "a_packing_completed",
+      "metrics": {
+        "count": 42.0,
+        "cases": 42.0,
+        "share": 0.0008208896880619185,
+        "caseShare": 0.0008208896880619185,
+        "medianLagHours": 1.925138888888889,
+        "medianHours": 1.925138888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 2126.0,
+        "cases": 1588.0,
+        "share": 0.03103744820576968,
+        "caseShare": 0.03103744820576968,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 909.0,
+        "cases": 909.0,
+        "share": 0.017766398248768665,
+        "caseShare": 0.017766398248768665,
+        "medianLagHours": 28.37,
+        "medianHours": 28.37
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 110.0,
+        "cases": 94.0,
+        "share": 0.0018372293018528653,
+        "caseShare": 0.0018372293018528653,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_picking_completed__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 668.0,
+        "cases": 668.0,
+        "share": 0.013056055038699086,
+        "caseShare": 0.013056055038699086,
+        "medianLagHours": 12.235277777777778,
+        "medianHours": 12.235277777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 349.0,
+        "cases": 349.0,
+        "share": 0.006821202407943085,
+        "caseShare": 0.006821202407943085,
+        "medianLagHours": 8.673055555555555,
+        "medianHours": 8.673055555555555
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_goods_issue",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 213.0,
+        "cases": 213.0,
+        "share": 0.004163083418028301,
+        "caseShare": 0.004163083418028301,
+        "medianLagHours": 51.01694444444445,
+        "medianHours": 51.01694444444445
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_create_order",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 46.07472222222222,
+        "medianHours": 46.07472222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 29.0,
+        "cases": 29.0,
+        "share": 0.0005668047846141819,
+        "caseShare": 0.0005668047846141819,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 9.0,
+        "cases": 9.0,
+        "share": 0.0001759049331561254,
+        "caseShare": 0.0001759049331561254,
+        "medianLagHours": 0.07027777777777777,
+        "medianHours": 0.07027777777777777
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05,
+        "medianLagHours": 0.004722222222222222,
+        "medianHours": 0.004722222222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_goods_issue__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_goods_issue",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 131.62777777777777,
+        "medianHours": 131.62777777777777
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_requested_quantity_changed__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_schedule_line_requested_quantity_changed",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.030555555555555555,
+        "medianHours": 0.030555555555555555
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 6.0,
+        "cases": 6.0,
+        "share": 0.00011726995543741693,
+        "caseShare": 0.00011726995543741693,
+        "medianLagHours": 1753.6247222222223,
+        "medianHours": 1753.6247222222223
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_create_order",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_create_order",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 21.77138888888889,
+        "medianHours": 21.77138888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 42207.0,
+        "cases": 42207.0,
+        "share": 0.8249355015245095,
+        "caseShare": 0.8249355015245095,
+        "medianLagHours": 29.275833333333335,
+        "medianHours": 29.275833333333335
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_packing_completed__a_picking_completed",
+      "kind": "follows",
+      "source": "a_packing_completed",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 48.0,
+        "cases": 48.0,
+        "share": 0.0009381596434993355,
+        "caseShare": 0.0009381596434993355,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 45.0,
+        "cases": 45.0,
+        "share": 0.000879524665780627,
+        "caseShare": 0.000879524665780627,
+        "medianLagHours": 0.12638888888888888,
+        "medianHours": 0.12638888888888888
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 14.0,
+        "cases": 14.0,
+        "share": 0.0002736298960206395,
+        "caseShare": 0.0002736298960206395,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 127.0,
+        "cases": 122.0,
+        "share": 0.0023844890938941442,
+        "caseShare": 0.0023844890938941442,
+        "medianLagHours": 155.17916666666667,
+        "medianHours": 155.17916666666667
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 423.0,
+        "cases": 369.0,
+        "share": 0.007212102259401142,
+        "caseShare": 0.007212102259401142,
+        "medianLagHours": 96.1763888888889,
+        "medianHours": 96.1763888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 48.0,
+        "cases": 48.0,
+        "share": 0.0009381596434993355,
+        "caseShare": 0.0009381596434993355,
+        "medianLagHours": 355.0911111111111,
+        "medianHours": 355.0911111111111
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 115.0,
+        "cases": 115.0,
+        "share": 0.0022476741458838244,
+        "caseShare": 0.0022476741458838244,
+        "medianLagHours": 24.08888888888889,
+        "medianHours": 24.08888888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_delivery_item__a_picking_completed",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 222.0,
+        "cases": 222.0,
+        "share": 0.004338988351184426,
+        "caseShare": 0.004338988351184426,
+        "medianLagHours": 0.006111111111111111,
+        "medianHours": 0.006111111111111111
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_requested_quantity_changed__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_schedule_line_requested_quantity_changed",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 9.0,
+        "cases": 9.0,
+        "share": 0.0001759049331561254,
+        "caseShare": 0.0001759049331561254,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_schedule_line_confirmed_quantity_changed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_schedule_line_confirmed_quantity_changed",
+      "metrics": {
+        "count": 8.0,
+        "cases": 8.0,
+        "share": 0.00015635994058322257,
+        "caseShare": 0.00015635994058322257,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_create_order_item",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_create_order_item",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 392.0472222222222,
+        "medianHours": 392.0472222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 9.0,
+        "cases": 9.0,
+        "share": 0.0001759049331561254,
+        "caseShare": 0.0001759049331561254,
+        "medianLagHours": 6.153888888888889,
+        "medianHours": 6.153888888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 32.0,
+        "cases": 32.0,
+        "share": 0.0006254397623328903,
+        "caseShare": 0.0006254397623328903,
+        "medianLagHours": 886.2040277777778,
+        "medianHours": 886.2040277777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 35.0,
+        "cases": 35.0,
+        "share": 0.0006840747400515988,
+        "caseShare": 0.0006840747400515988,
+        "medianLagHours": 196.94416666666666,
+        "medianHours": 196.94416666666666
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 17.0,
+        "cases": 17.0,
+        "share": 0.000332264873739348,
+        "caseShare": 0.000332264873739348,
+        "medianLagHours": 276.21972222222223,
+        "medianHours": 276.21972222222223
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 45.0,
+        "cases": 45.0,
+        "share": 0.000879524665780627,
+        "caseShare": 0.000879524665780627,
+        "medianLagHours": 332.10083333333336,
+        "medianHours": 332.10083333333336
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_changed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_changed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 20.0,
+        "cases": 20.0,
+        "share": 0.00039089985145805646,
+        "caseShare": 0.00039089985145805646,
+        "medianLagHours": 388.78263888888887,
+        "medianHours": 388.78263888888887
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_packing_completed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_packing_completed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 93.56305555555555,
+        "medianHours": 93.56305555555555
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 5.0,
+        "cases": 5.0,
+        "share": 9.772496286451411e-05,
+        "caseShare": 9.772496286451411e-05,
+        "medianLagHours": 0.165,
+        "medianHours": 0.165
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 0.7094444444444444,
+        "medianHours": 0.7094444444444444
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 9.73263888888889,
+        "medianHours": 9.73263888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_create_order",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 9.020694444444445,
+        "medianHours": 9.020694444444445
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_goods_issue__a_goods_issue",
+      "kind": "follows",
+      "source": "a_goods_issue",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_picking_completed__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 56.392916666666665,
+        "medianHours": 56.392916666666665
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 100.955,
+        "medianHours": 100.955
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_picking_completed",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 4.645,
+        "medianHours": 4.645
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_goods_issue",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05,
+        "medianLagHours": 0.01972222222222222,
+        "medianHours": 0.01972222222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 49.76638888888889,
+        "medianHours": 49.76638888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_changed__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_changed",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 0.07652777777777778,
+        "medianHours": 0.07652777777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_delivery_item__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order__a_create_order_item",
+      "kind": "follows",
+      "source": "a_create_order",
+      "target": "a_create_order_item",
+      "metrics": {
+        "count": 51149.0,
+        "cases": 51149.0,
+        "share": 0.9997068251114064,
+        "caseShare": 0.9997068251114064,
+        "medianLagHours": 0.0011111111111111111,
+        "medianHours": 0.0011111111111111111
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 4895.0,
+        "cases": 4895.0,
+        "share": 0.09567273864435931,
+        "caseShare": 0.09567273864435931,
+        "medianLagHours": 490.44638888888886,
+        "medianHours": 490.44638888888886
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 4287.0,
+        "cases": 3976.0,
+        "share": 0.07771089046986163,
+        "caseShare": 0.07771089046986163,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 3139.0,
+        "cases": 3139.0,
+        "share": 0.06135173168634196,
+        "caseShare": 0.06135173168634196,
+        "medianLagHours": 27.80527777777778,
+        "medianHours": 27.80527777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 1275.0,
+        "cases": 1275.0,
+        "share": 0.0249198655304511,
+        "caseShare": 0.0249198655304511,
+        "medianLagHours": 11.401944444444444,
+        "medianHours": 11.401944444444444
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 1377.0,
+        "cases": 1377.0,
+        "share": 0.026913454772887185,
+        "caseShare": 0.026913454772887185,
+        "medianLagHours": 410.56916666666666,
+        "medianHours": 410.56916666666666
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 12.0,
+        "cases": 12.0,
+        "share": 0.00023453991087483386,
+        "caseShare": 0.00023453991087483386,
+        "medianLagHours": 0.7045833333333333,
+        "medianHours": 0.7045833333333333
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_changed__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_changed",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 107.0,
+        "cases": 107.0,
+        "share": 0.002091314205300602,
+        "caseShare": 0.002091314205300602,
+        "medianLagHours": 107.69388888888889,
+        "medianHours": 107.69388888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 631.0,
+        "cases": 631.0,
+        "share": 0.01233289031350168,
+        "caseShare": 0.01233289031350168,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 701.0,
+        "cases": 701.0,
+        "share": 0.013701039793604878,
+        "caseShare": 0.013701039793604878,
+        "medianLagHours": 23.075555555555557,
+        "medianHours": 23.075555555555557
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_changed_incoterms",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_changed_incoterms",
+      "metrics": {
+        "count": 5.0,
+        "cases": 5.0,
+        "share": 9.772496286451411e-05,
+        "caseShare": 9.772496286451411e-05,
+        "medianLagHours": 8.69111111111111,
+        "medianHours": 8.69111111111111
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_changed__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_changed",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 14.0,
+        "cases": 14.0,
+        "share": 0.0002736298960206395,
+        "caseShare": 0.0002736298960206395,
+        "medianLagHours": 0.13944444444444445,
+        "medianHours": 0.13944444444444445
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 8.0,
+        "cases": 8.0,
+        "share": 0.00015635994058322257,
+        "caseShare": 0.00015635994058322257,
+        "medianLagHours": 19.13138888888889,
+        "medianHours": 19.13138888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_goods_issue__a_packing_completed",
+      "kind": "follows",
+      "source": "a_goods_issue",
+      "target": "a_packing_completed",
+      "metrics": {
+        "count": 77.0,
+        "cases": 77.0,
+        "share": 0.0015049644281135174,
+        "caseShare": 0.0015049644281135174,
+        "medianLagHours": 0.0002777777777777778,
+        "medianHours": 0.0002777777777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05,
+        "medianLagHours": 74.01361111111112,
+        "medianHours": 74.01361111111112
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_picking_completed",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 16.0,
+        "cases": 16.0,
+        "share": 0.00031271988116644513,
+        "caseShare": 0.00031271988116644513,
+        "medianLagHours": 197.44041666666666,
+        "medianHours": 197.44041666666666
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 38.0,
+        "cases": 38.0,
+        "share": 0.0007427097177703072,
+        "caseShare": 0.0007427097177703072,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_delivery_item__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_picking_completed__a_picking_completed",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_create_order_item",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_create_order_item",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 2.2622222222222224,
+        "medianHours": 2.2622222222222224
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 13.178055555555556,
+        "medianHours": 13.178055555555556
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 2.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 59.1375,
+        "medianHours": 59.1375
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_delivery_item__a_goods_issue",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 48596.0,
+        "cases": 48486.0,
+        "share": 0.9476585098897662,
+        "caseShare": 0.9476585098897662,
+        "medianLagHours": 0.004722222222222222,
+        "medianHours": 0.004722222222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_goods_issue__a_picking_completed",
+      "kind": "follows",
+      "source": "a_goods_issue",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 48301.0,
+        "cases": 48199.0,
+        "share": 0.9420490970213431,
+        "caseShare": 0.9420490970213431,
+        "medianLagHours": 0.0002777777777777778,
+        "medianHours": 0.0002777777777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 1003.0,
+        "cases": 734.0,
+        "share": 0.014346024548510672,
+        "caseShare": 0.014346024548510672,
+        "medianLagHours": 277.1136111111111,
+        "medianHours": 277.1136111111111
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_changed_incoterms",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_changed_incoterms",
+      "metrics": {
+        "count": 389.0,
+        "cases": 389.0,
+        "share": 0.007603002110859198,
+        "caseShare": 0.007603002110859198,
+        "medianLagHours": 0.05527777777777778,
+        "medianHours": 0.05527777777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_requested_quantity_changed__a_schedule_line_confirmed_quantity_changed",
+      "kind": "follows",
+      "source": "a_schedule_line_requested_quantity_changed",
+      "target": "a_schedule_line_confirmed_quantity_changed",
+      "metrics": {
+        "count": 135.0,
+        "cases": 122.0,
+        "share": 0.0023844890938941442,
+        "caseShare": 0.0023844890938941442,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 36.03472222222222,
+        "medianHours": 36.03472222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order_item__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 52.0,
+        "cases": 52.0,
+        "share": 0.0010163396137909467,
+        "caseShare": 0.0010163396137909467,
+        "medianLagHours": 163.04777777777778,
+        "medianHours": 163.04777777777778
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_schedule_line_requested_quantity_changed",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_schedule_line_requested_quantity_changed",
+      "metrics": {
+        "count": 16.0,
+        "cases": 16.0,
+        "share": 0.00031271988116644513,
+        "caseShare": 0.00031271988116644513,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 39.0,
+        "cases": 38.0,
+        "share": 0.0007427097177703072,
+        "caseShare": 0.0007427097177703072,
+        "medianLagHours": 68.62861111111111,
+        "medianHours": 68.62861111111111
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 27.0,
+        "cases": 27.0,
+        "share": 0.0005277147994683762,
+        "caseShare": 0.0005277147994683762,
+        "medianLagHours": 0.19944444444444445,
+        "medianHours": 0.19944444444444445
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 104.0,
+        "cases": 104.0,
+        "share": 0.0020326792275818933,
+        "caseShare": 0.0020326792275818933,
+        "medianLagHours": 168.37944444444443,
+        "medianHours": 168.37944444444443
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 8.0,
+        "cases": 7.0,
+        "share": 0.00013681494801031976,
+        "caseShare": 0.00013681494801031976,
+        "medianLagHours": 1.8655555555555556,
+        "medianHours": 1.8655555555555556
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_goods_issue",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05,
+        "medianLagHours": 5.650833333333333,
+        "medianHours": 5.650833333333333
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__a_scheduled_delivery_date_preponed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "a_scheduled_delivery_date_preponed",
+      "metrics": {
+        "count": 14.0,
+        "cases": 14.0,
+        "share": 0.0002736298960206395,
+        "caseShare": 0.0002736298960206395,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_schedule_line_confirmed_quantity_removed",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_schedule_line_confirmed_quantity_removed",
+      "metrics": {
+        "count": 71.0,
+        "cases": 71.0,
+        "share": 0.0013876944726761004,
+        "caseShare": 0.0013876944726761004,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_mat_avail_date__a_create_delivery_item",
+      "kind": "follows",
+      "source": "a_changed_mat_avail_date",
+      "target": "a_create_delivery_item",
+      "metrics": {
+        "count": 28.0,
+        "cases": 28.0,
+        "share": 0.000547259792041279,
+        "caseShare": 0.000547259792041279,
+        "medianLagHours": 0.003472222222222222,
+        "medianHours": 0.003472222222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 35.0,
+        "cases": 35.0,
+        "share": 0.0006840747400515988,
+        "caseShare": 0.0006840747400515988,
+        "medianLagHours": 149.5536111111111,
+        "medianHours": 149.5536111111111
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_picking_completed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05,
+        "medianLagHours": 298.55,
+        "medianHours": 298.55
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 13.0,
+        "cases": 12.0,
+        "share": 0.00023453991087483386,
+        "caseShare": 0.00023453991087483386,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_schedule_line_requested_quantity_changed__a_scheduled_delivery_date_postponed",
+      "kind": "follows",
+      "source": "a_schedule_line_requested_quantity_changed",
+      "target": "a_scheduled_delivery_date_postponed",
+      "metrics": {
+        "count": 5.0,
+        "cases": 5.0,
+        "share": 9.772496286451411e-05,
+        "caseShare": 9.772496286451411e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__a_schedule_line_confirmed_quantity_changed",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "a_schedule_line_confirmed_quantity_changed",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 0.0,
+        "medianHours": 0.0
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_send_order_confirmation__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 4.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05,
+        "medianLagHours": 0.009305555555555555,
+        "medianHours": 0.009305555555555555
+      },
+      "tags": [
+        "selfLoop"
+      ]
+    },
+    {
+      "id": "f_a_picking_completed__a_changed_incoterms",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_changed_incoterms",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05,
+        "medianLagHours": 184.03916666666666,
+        "medianHours": 184.03916666666666
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_picking_completed__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 665.6663888888888,
+        "medianHours": 665.6663888888888
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_create_order__a_changed_delivery_block",
+      "kind": "follows",
+      "source": "a_create_order",
+      "target": "a_changed_delivery_block",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 19.66888888888889,
+        "medianHours": 19.66888888888889
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_incoterms__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 1317.8938888888888,
+        "medianHours": 1317.8938888888888
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_rejectionreason__a_picking_completed",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "a_picking_completed",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 514.5522222222222,
+        "medianHours": 514.5522222222222
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__a_goods_issue",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "a_goods_issue",
+      "metrics": {
+        "count": 1.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 0.013888888888888888,
+        "medianHours": 0.013888888888888888
+      },
+      "tags": []
+    },
+    {
+      "id": "f_a_changed_delivery_block__a_changed_incoterms",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "a_changed_incoterms",
+      "metrics": {
+        "count": 2.0,
+        "cases": 1.0,
+        "share": 1.954499257290282e-05,
+        "caseShare": 1.954499257290282e-05,
+        "medianLagHours": 70.71791666666667,
+        "medianHours": 70.71791666666667
+      },
+      "tags": []
+    },
+    {
+      "id": "f_start__a_create_order",
+      "kind": "follows",
+      "source": "__start__",
+      "target": "a_create_order",
+      "metrics": {
+        "count": 51152.0,
+        "cases": 51152.0,
+        "share": 0.9997654600891251,
+        "caseShare": 0.9997654600891251
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "f_start__a_send_order_confirmation",
+      "kind": "follows",
+      "source": "__start__",
+      "target": "a_send_order_confirmation",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "f_start__a_changed_rejectionreason",
+      "kind": "follows",
+      "source": "__start__",
+      "target": "a_changed_rejectionreason",
+      "metrics": {
+        "count": 5.0,
+        "cases": 5.0,
+        "share": 9.772496286451411e-05,
+        "caseShare": 9.772496286451411e-05
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "f_start__a_create_order_item",
+      "kind": "follows",
+      "source": "__start__",
+      "target": "a_create_order_item",
+      "metrics": {
+        "count": 2.0,
+        "cases": 2.0,
+        "share": 3.908998514580564e-05,
+        "caseShare": 3.908998514580564e-05
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "f_start__a_changed_mat_avail_date",
+      "kind": "follows",
+      "source": "__start__",
+      "target": "a_changed_mat_avail_date",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05
+      },
+      "tags": [
+        "start"
+      ]
+    },
+    {
+      "id": "f_a_packing_completed__end",
+      "kind": "follows",
+      "source": "a_packing_completed",
+      "target": "__end__",
+      "metrics": {
+        "count": 70.0,
+        "cases": 70.0,
+        "share": 0.0013681494801031976,
+        "caseShare": 0.0013681494801031976
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_changed_delivery_block__end",
+      "kind": "follows",
+      "source": "a_changed_delivery_block",
+      "target": "__end__",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_changed_incoterms__end",
+      "kind": "follows",
+      "source": "a_changed_incoterms",
+      "target": "__end__",
+      "metrics": {
+        "count": 3.0,
+        "cases": 3.0,
+        "share": 5.8634977718708466e-05,
+        "caseShare": 5.8634977718708466e-05
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_create_delivery_item__end",
+      "kind": "follows",
+      "source": "a_create_delivery_item",
+      "target": "__end__",
+      "metrics": {
+        "count": 5.0,
+        "cases": 5.0,
+        "share": 9.772496286451411e-05,
+        "caseShare": 9.772496286451411e-05
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_removed__end",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_removed",
+      "target": "__end__",
+      "metrics": {
+        "count": 7.0,
+        "cases": 7.0,
+        "share": 0.00013681494801031976,
+        "caseShare": 0.00013681494801031976
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_picking_completed__end",
+      "kind": "follows",
+      "source": "a_picking_completed",
+      "target": "__end__",
+      "metrics": {
+        "count": 47571.0,
+        "cases": 47571.0,
+        "share": 0.9297748416855601,
+        "caseShare": 0.9297748416855601
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_changed_rejectionreason__end",
+      "kind": "follows",
+      "source": "a_changed_rejectionreason",
+      "target": "__end__",
+      "metrics": {
+        "count": 1562.0,
+        "cases": 1562.0,
+        "share": 0.030529278398874208,
+        "caseShare": 0.030529278398874208
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_create_order_item__end",
+      "kind": "follows",
+      "source": "a_create_order_item",
+      "target": "__end__",
+      "metrics": {
+        "count": 684.0,
+        "cases": 684.0,
+        "share": 0.013368774919865531,
+        "caseShare": 0.013368774919865531
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_postponed__end",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_postponed",
+      "target": "__end__",
+      "metrics": {
+        "count": 103.0,
+        "cases": 103.0,
+        "share": 0.0020131342350089908,
+        "caseShare": 0.0020131342350089908
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_schedule_line_confirmed_quantity_changed__end",
+      "kind": "follows",
+      "source": "a_schedule_line_confirmed_quantity_changed",
+      "target": "__end__",
+      "metrics": {
+        "count": 4.0,
+        "cases": 4.0,
+        "share": 7.817997029161128e-05,
+        "caseShare": 7.817997029161128e-05
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_goods_issue__end",
+      "kind": "follows",
+      "source": "a_goods_issue",
+      "target": "__end__",
+      "metrics": {
+        "count": 434.0,
+        "cases": 434.0,
+        "share": 0.008482526776639824,
+        "caseShare": 0.008482526776639824
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_send_order_confirmation__end",
+      "kind": "follows",
+      "source": "a_send_order_confirmation",
+      "target": "__end__",
+      "metrics": {
+        "count": 673.0,
+        "cases": 673.0,
+        "share": 0.013153780001563599,
+        "caseShare": 0.013153780001563599
+      },
+      "tags": [
+        "end"
+      ]
+    },
+    {
+      "id": "f_a_scheduled_delivery_date_preponed__end",
+      "kind": "follows",
+      "source": "a_scheduled_delivery_date_preponed",
+      "target": "__end__",
+      "metrics": {
+        "count": 45.0,
+        "cases": 45.0,
+        "share": 0.000879524665780627,
+        "caseShare": 0.000879524665780627
+      },
+      "tags": [
+        "end"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "capture",
+      "kind": "stage",
+      "label": "Capture",
+      "parent": null
+    },
+    {
+      "id": "commit",
+      "kind": "stage",
+      "label": "Commit",
+      "parent": null
+    },
+    {
+      "id": "fulfil",
+      "kind": "stage",
+      "label": "Fulfil",
+      "parent": null
+    }
+  ]
+}

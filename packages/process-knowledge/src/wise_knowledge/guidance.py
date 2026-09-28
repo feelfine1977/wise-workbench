@@ -1,6 +1,6 @@
 """Knowledge hub: guidance pages, hub index and the ``metadata.guidance`` block of norm templates.
 
-The hub is one page per node (``docs/panel/knowledge_hub_panel.md`` §3):
+The hub is one page per node (``packages/process-knowledge/PACK_DESIGN.md``):
 stages, layers (expectation areas), expectations (template constraints),
 failure modes, usual reasons, usual actions and KPIs. Every page follows the
 same template; the generic tier of the text comes from ``guidance.yaml``,
@@ -22,9 +22,13 @@ from pathlib import Path
 from typing import Any
 
 from .models import GUIDANCE_KINDS, Guidance, Pack
+from .solution_cards import expand_solution_card, load_solution_cards, solution_card_for
 
-HUB_KINDS = ("stage", "layer", "expectation", "failure_mode", "reason", "action", "kpi")
+HUB_KINDS = ("process", "solution_card", "stage", "layer", "expectation", "failure_mode", "reason", "action", "kpi")
 HUB_EDGE_KINDS = (
+    "in_process",
+    "investigates",
+    "evidence_template",
     "precedes",
     "contains",
     "detects",
@@ -136,6 +140,27 @@ class Hub:
 
     def _build(self) -> None:
         pack, lang = self.pack, self.lang
+        process_id = hub_node_id("process", pack.id)
+        self._add({"id": process_id, "kind": "process", "plain_name": pack.process, "method_name": pack.id})
+        catalogue = load_solution_cards()
+        # Register generic recipes too: custom rules can use them even when a
+        # shipped norm happens not to contain that rule type.
+        for recipe in catalogue["cards"]:
+            if "processes" in recipe["match"] and pack.id not in recipe["match"]["processes"]:
+                continue
+            card = expand_solution_card(recipe, pack.id, catalogue)
+            card_id = hub_node_id("solution_card", pack.id, card["id"])
+            card["hubNode"] = card_id
+            self._add(
+                {
+                    "id": card_id,
+                    "kind": "solution_card",
+                    "plain_name": card["title"],
+                    "method_name": card["id"],
+                    "solution_card": card,
+                }
+            )
+            self._edge(card_id, process_id, "in_process")
         for s in pack.stages:
             self._add(
                 {
@@ -146,6 +171,7 @@ class Hub:
                     "order": s.order,
                 }
             )
+            self._edge(process_id, hub_node_id("stage", s.id), "contains")
         for a, b in zip(pack.stages, pack.stages[1:], strict=False):
             self._edge(hub_node_id("stage", a.id), hub_node_id("stage", b.id), "precedes")
         for k in pack.kpis:
@@ -193,8 +219,14 @@ class Hub:
                 )
                 if layer:
                     self._edge(hub_node_id("layer", layer.id), nid, "contains")
+                card = solution_card_for(pack.id, c, catalogue=catalogue)
+                card_id = hub_node_id("solution_card", pack.id, card["id"]) if card else None
+                if card_id:
+                    self._edge(nid, card_id, "evidence_template")
                 for fm in pack.failure_modes_for_constraint(cid, template=tid):
                     self._edge(nid, hub_node_id("failure_mode", fm.id), "detects")
+                    if card_id:
+                        self._edge(card_id, hub_node_id("failure_mode", fm.id), "investigates")
                 self._attach_guidance(nid, g)
         for fm in pack.failure_modes:
             g = pack.guidance_for("failure_mode", fm.id)
@@ -279,7 +311,13 @@ class Hub:
         fms: list[str] = []
         expectations: list[str] = []
         stage: str | None = None
-        if kind == "layer":
+        if kind == "process":
+            expectations = [x["id"] for x in self.nodes if x["kind"] == "expectation"]
+            fms = [x["id"] for x in self.nodes if x["kind"] == "failure_mode"]
+        elif kind == "solution_card":
+            expectations = self._in(node_id, "evidence_template")
+            fms = self._out(node_id, "investigates")
+        elif kind == "layer":
             expectations = self._out(node_id, "contains")
             fms = _unique(f for e in expectations for f in self._out(e, "detects"))
         elif kind == "expectation":
@@ -318,10 +356,24 @@ class Hub:
             for pb in self.pack.playbooks
             if set(pb.failure_modes) & fm_ids
         ]
+        if kind == "process":
+            cards = self._in(node_id, "in_process")
+        elif kind == "solution_card":
+            cards = []
+        else:
+            # Include the subject itself as well as related expectations/problems.
+            subjects = [node_id, *expectations, *fms]
+            cards = _unique(
+                c
+                for subject in subjects
+                for c in [*self._out(subject, "evidence_template"), *self._in(subject, "investigates")]
+            )
         page = {
             "node": dict(n),
             "guidance": g.as_block(hub_node=node_id, method_name=n["method_name"]) if g else None,
             "related": {
+                "process": self._brief_node(hub_node_id("process", self.pack.id)),
+                "solution_cards": [self._brief_node(c) for c in cards],
                 "stage": self._brief_node(stage) if stage else None,
                 "expectations": [self._brief_node(e) for e in expectations],
                 "failure_modes": [self._brief_node(f) for f in fms],
@@ -352,7 +404,7 @@ def build_hub(pack: Pack, lang: str = "en") -> Hub:
 
 # --------------------------------------------------------------------------- page rendering
 def render_page(hub: Hub, node_id: str, lang: str = "en") -> str:
-    """The hub page as text, in the template of knowledge_hub_panel.md §3."""
+    """The hub page as text, in the template of the guidance contract."""
     pack = hub.pack
     page = hub.page(node_id)
     n, g, rel = page["node"], page["guidance"], page["related"]
@@ -374,7 +426,22 @@ def render_page(hub: Hub, node_id: str, lang: str = "en") -> str:
     if n.get("missed_label"):
         lines.append(f"  when missed a card says: {n['missed_label']}")
     lines.append("")
-    if g is None:
+    if n.get("solution_card"):
+        card = n["solution_card"]
+        lines += ["Investigation template (no dataset findings)", f"  {card['intent']}"]
+        for block in card["blocks"]:
+            lines += [
+                block["title"],
+                f"  Question: {block['question']}",
+                "  Required data: " + "; ".join(block["requires"]),
+                f"  Calculation: {block['calculation']}",
+                f"  Presentation: {block['presentation']}",
+                f"  If unavailable: {block['missingData']}",
+                f"  Interpretation: {block['interpretation']}",
+            ]
+    elif n["kind"] == "process":
+        lines.append("Explore this process through its expectations, typical problems and solution-card templates.")
+    elif g is None:
         lines.append("(no guidance entry for this node; reasons and actions are listed on the pages that name it)")
     else:
         lines += [
@@ -408,6 +475,10 @@ def render_page(hub: Hub, node_id: str, lang: str = "en") -> str:
             trace = f" [{e['trace']}]" if e.get("trace") else ""
             lines.append(f"  - {e['kind']}: {e['text']}{trace}")
     lines.append("Related")
+    if rel["process"]:
+        lines.append(f"  process: {rel['process']['plain_name']}")
+    if rel["solution_cards"]:
+        lines.append("  solution-card templates: " + "; ".join(x["plain_name"] for x in rel["solution_cards"]))
     if rel["stage"]:
         lines.append(f"  stage: {rel['stage']['plain_name']}")
     if rel["expectations"]:  # one expectation node per template; the same plain name is listed once

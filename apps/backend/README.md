@@ -22,7 +22,7 @@ Knowledge is an installed runtime dependency. The `full` extra adds analytics
 (stability, contrast, headroom and provenance). For the minimal backend omit
 `../../packages/wise-analytics` and use `.[dev]`; its analytics responses
 explicitly report unavailable results. No sibling checkout or uv path override
-is required. Optional extras also include `xes`, `postgres`, `docx` and `llm`.
+is required. XES support (`pm4py`) is installed by default; the `xes` extra remains for compatibility. Optional extras include `postgres` and `docx`.
 
 See [distribution and clean CI](DISTRIBUTION.md) for the two dependency test
 profiles, supplied-frontend wheel builder, and installation outside a checkout.
@@ -76,8 +76,7 @@ whatever the project already has. Job progress streams over
 `GET /jobs/{id}/events` (server-sent events: `progress`, heartbeats, one
 terminal `done`).
 
-Cycle 2 (see `CHECKPOINT.md`, CP-2.1 to CP-2.8, and
-`packages/api-schema/CONTRACT_CYCLE2.md`):
+Additional API capabilities:
 
 - an `analytics` job after every scoring job (`POST/GET …/runs/{r}/analytics`):
   backlog rows gain `stability` (bootstrap badge), `kind` and `kind_reading`
@@ -167,7 +166,6 @@ tests/
                   focus); contract drift check (committed openapi.yaml == generated document)
   golden/         API backlog == library prioritize on the running example; opt-in BPIC 2019
                   (Table XI, readiness, and the cycle 2 numbers)
-CHECKPOINT.md     how to try CP-A1 … CP-A4, the service side of CP-B2, CP-1.1 … CP-1.6 and CP-2.1 … CP-2.8 by hand
 ```
 
 ### Norm inspection boundary

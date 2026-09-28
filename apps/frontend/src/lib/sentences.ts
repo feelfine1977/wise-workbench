@@ -1,3 +1,4 @@
+import { readGrouping } from "./grouping";
 /**
  * The plain sentences of a group, built from the backend's row: the share below expectation, the phrase of
  * the most-missed expectation, the real-unit comparison normalised into one form, and the group's name
@@ -169,7 +170,8 @@ export const shareWord = (share: number | undefined) => (share === undefined ? "
  * a reader uses for the thing they name.
  */
 export function groupingLabel(slicing: string | undefined, attributes?: (string | null | undefined)[]): string {
-  const parts = (attributes?.filter((a): a is string => !!a) ?? (slicing ? slicing.split("+") : [])).map((a) =>
+  const definition = readGrouping(slicing);
+  const parts = (attributes?.filter((a): a is string => !!a) ?? definition?.attributes ?? (slicing ? slicing.split(/[+,]/) : [])).map((a) =>
     a
       .replace(/^case /i, "")
       .replace(/[ _](text|id|code|key|no|nr|number)$/i, "")
@@ -177,7 +179,11 @@ export function groupingLabel(slicing: string | undefined, attributes?: (string 
       .replace(/_/g, " ")
       .trim(),
   );
-  return parts.filter(Boolean).join(" × ");
+  const named = parts.map((part, i) => {
+    const band = definition?.bands?.find((b) => b.attribute === definition.attributes[i]);
+    return band ? `${part} (${band.method === "cuts" ? "custom bands" : `${band.q ?? 4} bands`})` : part;
+  });
+  return named.filter(Boolean).join(" × ");
 }
 
 /** *no filter* · *1 filter* · *3 filters*. */

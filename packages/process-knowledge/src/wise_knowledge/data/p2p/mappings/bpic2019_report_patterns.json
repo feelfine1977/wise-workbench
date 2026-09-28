@@ -1,0 +1,149 @@
+{
+  "profile": "bpic2019_report_patterns",
+  "review_status": "draft",
+  "source": "Existing bpic2019.yaml label mapping and current BPIC19 baseline flow types; proposed screening applicability.",
+  "activity_mapping": {
+    "p2p.gr": [
+      "Record Goods Receipt"
+    ],
+    "p2p.po_item_create": [
+      "Create Purchase Order Item"
+    ],
+    "p2p.ir": [
+      "Record Invoice Receipt"
+    ],
+    "p2p.vendor_invoice": [
+      "Vendor creates invoice"
+    ],
+    "p2p.invoice_clear": [
+      "Clear Invoice"
+    ],
+    "p2p.ses": [
+      "Record Service Entry Sheet"
+    ],
+    "p2p.payment_block_remove": [
+      "Remove Payment Block"
+    ],
+    "p2p.pr_item_create": [
+      "Create Purchase Requisition Item"
+    ],
+    "p2p.po_confirmation_receive": [
+      "Receive Order Confirmation"
+    ],
+    "p2p.po_change_quantity": [
+      "Change Quantity"
+    ],
+    "p2p.po_change_price": [
+      "Change Price"
+    ],
+    "p2p.po_item_delete": [
+      "Delete Purchase Order Item"
+    ],
+    "p2p.po_change_approval": [
+      "Change Approval for Purchase Order"
+    ],
+    "p2p.ir_cancel": [
+      "Cancel Invoice Receipt"
+    ],
+    "p2p.vendor_debit_memo": [
+      "Vendor creates debit memo"
+    ],
+    "p2p.po_change_delivery_indicator": [
+      "Change Delivery Indicator"
+    ],
+    "p2p.gr_cancel": [
+      "Cancel Goods Receipt"
+    ],
+    "p2p.srm_transfer": [
+      "SRM: In Transfer to Execution Syst."
+    ],
+    "p2p.srm_awaiting_approval": [
+      "SRM: Awaiting Approval"
+    ],
+    "p2p.srm_complete": [
+      "SRM: Complete"
+    ],
+    "p2p.srm_ordered": [
+      "SRM: Ordered"
+    ],
+    "p2p.srm_document_completed": [
+      "SRM: Document Completed"
+    ],
+    "p2p.srm_created": [
+      "SRM: Created"
+    ],
+    "p2p.po_release": [
+      "Release Purchase Order"
+    ],
+    "p2p.srm_change_transmitted": [
+      "SRM: Change was Transmitted"
+    ],
+    "p2p.po_item_reactivate": [
+      "Reactivate Purchase Order Item"
+    ],
+    "p2p.po_item_block": [
+      "Block Purchase Order Item"
+    ],
+    "p2p.subsequent_invoice_cancel": [
+      "Cancel Subsequent Invoice"
+    ],
+    "p2p.pr_release": [
+      "Release Purchase Requisition"
+    ],
+    "p2p.po_change_storage_location": [
+      "Change Storage Location"
+    ],
+    "p2p.po_confirmation_update": [
+      "Update Order Confirmation"
+    ],
+    "p2p.srm_deleted": [
+      "SRM: Deleted"
+    ],
+    "p2p.subsequent_invoice": [
+      "Record Subsequent Invoice"
+    ],
+    "p2p.payment_block_set": [
+      "Set Payment Block"
+    ],
+    "p2p.srm_transfer_failed": [
+      "SRM: Transfer Failed (E.Sys.)"
+    ],
+    "p2p.po_change_currency": [
+      "Change Currency"
+    ],
+    "p2p.final_invoice_indicator_change": [
+      "Change Final Invoice Indicator"
+    ],
+    "p2p.srm_transaction_completed": [
+      "SRM: Transaction Completed"
+    ],
+    "p2p.po_change_payment_terms": [
+      "Change payment term"
+    ],
+    "p2p.srm_incomplete": [
+      "SRM: Incomplete"
+    ],
+    "p2p.srm_held": [
+      "SRM: Held"
+    ],
+    "p2p.po_change_rejection_indicator": [
+      "Change Rejection Indicator"
+    ]
+  },
+  "attribute_mapping": {
+    "flow_type": "flow_type"
+  },
+  "flow_values": {
+    "all_items": [
+      "DF1",
+      "DF2",
+      "2-way",
+      "Consignment"
+    ],
+    "invoice_bearing": [
+      "DF1",
+      "DF2",
+      "2-way"
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+import { normRelevanceQuery } from "./normRelevance";
 import { createElement, type PropsWithChildren } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -50,10 +51,29 @@ it("keys norm signal previews by the exact version, case table and constraint wi
     return HttpResponse.json({ bins: [], constraintId: String(params.constraint), normVersionId: String(params.version), caseTableId: url.searchParams.get("caseTableId")! } satisfies components["schemas"]["NormSignalDistribution"]);
   }));
   const query = normSignalQuery("p /", "version /", "table /", "c /");
-  expect(query.queryKey).toEqual(["projects", "p /", "norms", "version /", "signals", "table /", "c /"]);
+  expect(query.queryKey).toEqual(["projects", "p /", "norms", "version /", "signals", "table /", "c /", null]);
   expect(query).not.toHaveProperty("placeholderData"); expect(query.retry).toBe(false);
   expect(normSignalQuery("p", "v", "", "c").enabled).toBe(false);
   for (const args of [["p /", "other", "table /", "c /"], ["p /", "version /", "other", "c /"], ["p /", "version /", "table /", "other"]] as const) expect(normSignalQuery(args[0], args[1], args[2], args[3]).queryKey).not.toEqual(query.queryKey);
+  const selected = normSignalQuery("p /", "version /", "table /", "c /", "saved / scope");
+  expect(selected.queryKey).not.toEqual(query.queryKey);
+  await new QueryClient().fetchQuery(selected);
+  expect(urls[0]!.searchParams.get("selectionId")).toBe("saved / scope");
   await new QueryClient().fetchQuery(query);
   expect(urls[0]!.pathname).toContain("/norms/version%20%2F/signals/c%20%2F"); expect(urls[0]!.searchParams.get("caseTableId")).toBe("table /");
+});
+
+it("keeps relevance isolated by version and mapped table, including unknown coverage", async () => {
+  server.use(http.get("*/projects/:projectId/norms/:version/relevance", ({ request, params }) => HttpResponse.json({
+    normVersionId: params.version, caseTableId: new URL(request.url).searchParams.get("caseTableId"), cases: 10,
+    constraints: [{ id: "c", casesInScope: null, observedCases: null, missingActivities: [], issues: ["Missing attribute"] }],
+  })));
+  const query = normRelevanceQuery("p", "v", "t");
+  expect(query.queryKey).not.toEqual(normRelevanceQuery("p", "v2", "t").queryKey);
+  expect(query.queryKey).not.toEqual(normRelevanceQuery("p", "v", "t2").queryKey);
+  expect(normRelevanceQuery("p", "v", "").enabled).toBe(false);
+  expect(query).not.toHaveProperty("placeholderData");
+  const result = await new QueryClient().fetchQuery(query);
+  expect(result.constraints[0]!.casesInScope).toBeNull();
+  expect(result.caseTableId).toBe("t");
 });

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from wise_workbench.adapters.storage import sha256_file
+from wise_workbench.application.services.project_binding import get_binding
 from wise_workbench.domain import Job, JobKind, JobStatus, NotFoundError, ValidationError
-from wise_workbench.jobs.handlers.load_preset import fit_mapping, preset_paths
+from wise_workbench.jobs.handlers.load_preset import bound_preset_dataset, fit_mapping, preset_paths
 from wise_workbench.presets import all_presets
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -61,6 +63,9 @@ class PresetService:
                 code="preset.unavailable",
                 errors=[{"field": "path", "message": m} for m in missing],
             )
+        if get_binding(self.c, project_id)["datasetId"] is not None:
+            assert csv is not None
+            bound_preset_dataset(self.c, project_id, sha256_file(csv))
         for status in (JobStatus.QUEUED, JobStatus.RUNNING):
             for job in self.c.queue.list(status=str(status), project_id=project_id):
                 if job.kind == str(JobKind.LOAD_PRESET) and job.payload.get("presetId") == preset_id:

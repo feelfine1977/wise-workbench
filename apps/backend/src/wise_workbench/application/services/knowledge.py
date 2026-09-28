@@ -1,6 +1,6 @@
 """Guidance and the knowledge hub (RK-2, RK-3, RK-4): what an expectation means, why it matters, what to do.
 
-Two tiers, as ``docs/panel/knowledge_hub_panel.md`` §2 asks for: the pack's generic tier (``guidance.yaml``, or the
+Two tiers, as ``packages/process-knowledge/PACK_DESIGN.md`` asks for: the pack's generic tier (``guidance.yaml``, or the
 ``metadata.guidance`` block a norm carries with it) and the project overlay — "your organisation's note" — kept in
 the project's workspace next to its other files. A reader always sees the generic text; the overlay adds to it and
 never silently replaces it.
@@ -27,7 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 KINDS = ("layer", "constraint", "expectation", "failure_mode")
 
-# the five elicitation questions of docs/panel/knowledge_hub_panel.md §4, asked when a layer or an expectation is
+# the five elicitation questions of packages/process-knowledge/PACK_DESIGN.md, asked when a layer or an expectation is
 # defined; the answers become the project overlay and travel with the norm (R3-O6, RK-6)
 GUIDANCE_QUESTIONS: list[dict[str, str]] = [
     {"id": "plain_name", "field": "plain_name", "question": "What do we call this in our own words?"},

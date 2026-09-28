@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { BacklogRow, Kind } from "@wise/api-schema";
 import { EChart, type EChartHandle } from "@/components/charts/EChart";
-import { chartTokens, type EChartsOption } from "@/components/charts/echarts";
+import { ChartTable } from "@/components/charts/ChartTable";
+import { escapeChartText, readableTooltip } from "@/components/charts/readability";
+import { chartTokens, type ECharts, type EChartsOption } from "@/components/charts/echarts";
 import { useVocabulary } from "@/components/Term";
-import { fmtInt, fmtNum, fmtPct } from "@/lib/format";
+import { fmtCompact, fmtInt, fmtNum, fmtPct } from "@/lib/format";
 import { useUiStore, resolveTheme } from "@/lib/stores/ui";
 import { sliceLabel } from "@/lib/utils";
 import { kindOf } from "@/lib/vocabulary";
@@ -22,17 +24,18 @@ export function VolumeGapScatter({ rows, activeKey, onSelect, height = 300 }: { 
     const data = rows.map((r) => [r.n_cases, r.gap, r.stable_PI, sliceLabel(r), kindOf(r) ?? "", r.PI_lower !== undefined && r.PI_lower !== null ? r.PI_lower / Math.max(1, r.n_cases) : r.gap, r.key]);
     return {
       animation: false,
-      grid: { left: 60, right: 16, top: 24, bottom: 40 },
+      grid: { left: 12, right: 32, top: 20, bottom: 56, containLabel: true },
       legend: { show: false },
       tooltip: {
+        ...readableTooltip,
         trigger: "item",
         formatter: (p: unknown) => {
           const d = (p as { data: (number | string)[] }).data;
-          return `<strong>${String(d[3])}</strong><br/>${fmtInt(d[0])} ${t("n_cases")} · ${t("gap")} ${fmtPct(d[1] as number, 1)}<br/>${t("stable_PI")} ${fmtNum(d[2], 1)} · ${d[4] ? String(d[4]) : "no kind yet"}<br/>${t("PI_lower")} per case ${fmtPct(d[5] as number, 1)}`;
+          return `<strong>${escapeChartText(d[3])}</strong><br/>${fmtInt(d[0])} ${t("n_cases")} · ${t("gap")} ${fmtNum((d[1] as number) * 100, 1)} score points<br/>${t("stable_PI")} ${fmtNum(d[2], 1)} · ${d[4] ? escapeChartText(d[4]) : "no kind yet"}<br/>${t("PI_lower")} per case ${fmtNum((d[5] as number) * 100, 1)} score points`;
         },
       },
-      xAxis: { type: "log", name: `${t("n_cases")} (log)`, nameLocation: "middle", nameGap: 26, min: 10 },
-      yAxis: { type: "value", name: t("gap"), min: 0, axisLabel: { formatter: (v: number) => fmtPct(v) } },
+      xAxis: { type: "log", name: `${t("n_cases")} (log scale)`, nameLocation: "middle", nameGap: 34, nameTextStyle: { fontSize: 13 }, min: Math.min(10, ...rows.map((r) => r.n_cases).filter((n) => n > 0)), axisLabel: { fontSize: 13, hideOverlap: true, formatter: (v: number) => fmtCompact(v) } },
+      yAxis: { type: "value", min: 0, axisLabel: { fontSize: 13, formatter: (v: number) => fmtNum(v * 100, 1) } },
       series: [
         {
           name: "whiskers",
@@ -66,22 +69,62 @@ export function VolumeGapScatter({ rows, activeKey, onSelect, height = 300 }: { 
     };
   }, [rows, tk, maxPI, t]);
 
-  useEffect(() => {
-    const chart = ref.current?.instance();
-    if (!chart) return;
+  const highlightSelection = useCallback((chart: ECharts) => {
     chart.dispatchAction({ type: "downplay", seriesIndex: 1 });
     const i = rows.findIndex((r) => r.key === activeKey);
     if (i >= 0) chart.dispatchAction({ type: "highlight", seriesIndex: 1, dataIndex: i });
-  }, [activeKey, rows, option]);
+  }, [activeKey, rows]);
+
+  useEffect(() => {
+    const chart = ref.current?.instance();
+    if (chart) highlightSelection(chart);
+  }, [highlightSelection, option]);
 
   return (
-    <EChart
-      ref={ref}
-      option={option}
-      height={height}
-      ariaLabel={`All ${rows.length} groups at once: cases by shortfall; whiskers show the cautious bound of the shortfall; shape and colour show the kind of problem`}
-      onEvents={{ click: (p) => { const d = (p as { data?: (number | string)[] }).data; if (d) onSelect(String(d[6])); } }}
-    />
+    <div className="min-w-0">
+      <p className="mt-2 text-sm text-text-muted">{t("gap")} (score points)</p>
+      <ul className="mt-2 flex flex-wrap gap-3 text-xs text-text-muted" aria-label="Problem kind key">
+        <li><span style={{ color: tk.kind.acute }} aria-hidden>▲ </span>Acute · few cases, far off</li>
+        <li><span style={{ color: tk.kind.systematic }} aria-hidden>◆ </span>Systematic · concentrated pattern</li>
+        <li><span style={{ color: tk.kind.widespread }} aria-hidden>● </span>Widespread · many cases, smaller gaps</li>
+        <li><span style={{ color: tk.muted }} aria-hidden>● </span>Unknown / unclassified</li>
+      </ul>
+      <p className="mt-1 text-xs text-text-muted">Kinds describe assessed patterns, not proven causes. Symbol size represents priority; confidence in rank is separate.</p>
+      <EChart
+        ref={ref}
+        option={option}
+        height={Math.max(340, height)}
+        ariaLabel={`All ${rows.length} groups at once: cases by shortfall in score points; whiskers show the cautious bound of the shortfall; shape and colour show the kind of problem`}
+        onReady={highlightSelection}
+        onEvents={{ click: (p) => { const d = (p as { data?: (number | string)[] }).data; if (d) onSelect(String(d[6])); } }}
+      />
+      <ChartTable label="Cases and shortfall by group">
+        <thead>
+          <tr>
+            <th scope="col" className="text-left">group</th>
+            <th scope="col" className="text-right">{t("n_cases")}</th>
+            <th scope="col" className="text-right">{t("gap")} (score points)</th>
+            <th scope="col" className="text-right">{t("stable_PI")}</th>
+            <th scope="col" className="text-right">{t("PI_lower")} per case (score points)</th>
+            <th scope="col" className="text-left">kind</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              <th scope="row" className="text-left font-normal">
+                <button type="button" className="text-left text-accent underline underline-offset-2" aria-pressed={r.key === activeKey} onClick={() => onSelect(r.key)}>{sliceLabel(r)}</button>
+              </th>
+              <td className="text-right">{fmtInt(r.n_cases)}</td>
+              <td className="text-right">{fmtNum(r.gap * 100, 1)}</td>
+              <td className="text-right">{fmtNum(r.stable_PI, 1)}</td>
+              <td className="text-right">{fmtNum((r.PI_lower != null ? r.PI_lower / Math.max(1, r.n_cases) : r.gap) * 100, 1)}</td>
+              <td>{kindOf(r) ?? "no kind yet"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </ChartTable>
+    </div>
   );
 }
 
@@ -100,13 +143,14 @@ export function ConcentrationCurve({ rows, height = 300 }: { rows: BacklogRow[];
     return { points: pts, top10: (pts[Math.min(9, pts.length - 1)]?.[1] as number | undefined) ?? 0 };
   }, [rows]);
 
+  const topCount = Math.min(10, points.length);
   const option = useMemo<EChartsOption>(
     () => ({
       animation: false,
-      grid: { left: 60, right: 16, top: 24, bottom: 40 },
-      tooltip: { trigger: "axis", formatter: (p: unknown) => { const a = (p as { data: (number | string)[] }[])[0]; return a ? `${t("rank")} ${String(a.data[0])} · ${String(a.data[2])}<br/>cumulative ${fmtPct(a.data[1] as number)}` : ""; } },
-      xAxis: { type: "value", name: t("rank"), nameLocation: "middle", nameGap: 26, min: 1, max: Math.max(2, points.length) },
-      yAxis: { type: "value", name: `share of ${t("stable_PI")}`, min: 0, max: 1, axisLabel: { formatter: (v: number) => fmtPct(v) } },
+      grid: { left: 12, right: 32, top: 20, bottom: 56, containLabel: true },
+      tooltip: { ...readableTooltip, trigger: "axis", formatter: (p: unknown) => { const a = (p as { data: (number | string)[] }[])[0]; return a ? `${t("rank")} ${String(a.data[0])} · ${escapeChartText(a.data[2])}<br/>cumulative ${fmtPct(a.data[1] as number)}` : ""; } },
+      xAxis: { type: "value", name: t("rank"), nameLocation: "middle", nameGap: 34, nameTextStyle: { fontSize: 13 }, min: 1, max: Math.max(2, points.length), minInterval: 1, axisLabel: { fontSize: 13, hideOverlap: true } },
+      yAxis: { type: "value", min: 0, max: 1, axisLabel: { fontSize: 13, formatter: (v: number) => fmtPct(v) } },
       series: [
         {
           type: "line",
@@ -114,12 +158,35 @@ export function ConcentrationCurve({ rows, height = 300 }: { rows: BacklogRow[];
           showSymbol: false,
           lineStyle: { color: tk.accent, width: 2 },
           areaStyle: { color: tk.accent, opacity: 0.12 },
-          markLine: { symbol: "none", lineStyle: { color: tk.reference, type: "dashed" }, label: { formatter: () => `top 10 = ${fmtPct(top10)}`, position: "insideEndTop" }, data: [{ xAxis: Math.min(10, Math.max(1, points.length)) }] },
+          markLine: { symbol: "none", lineStyle: { color: tk.reference, type: "dashed" }, label: { show: false }, data: [{ xAxis: Math.min(10, Math.max(1, points.length)) }] },
         },
       ],
     }),
-    [points, tk, top10, t],
+    [points, tk, t],
   );
 
-  return <EChart option={option} height={height} ariaLabel={`Concentration curve: the top 10 groups carry ${fmtPct(top10)} of the priority`} />;
+  return (
+    <div className="min-w-0">
+      <p className="mt-2 text-sm text-text-muted">Share of {t("stable_PI")} (%). {points.length ? `Top ${topCount} ${topCount === 1 ? "group" : "groups"}: ${fmtPct(top10)}.` : "No groups with positive priority."}</p>
+      <EChart option={option} height={Math.max(340, height)} ariaLabel={`Concentration curve: the top ${topCount} groups carry ${fmtPct(top10)} of the priority`} />
+      <ChartTable label="Cumulative priority by group rank">
+        <thead>
+          <tr>
+            <th scope="col" className="text-right">{t("rank")}</th>
+            <th scope="col" className="text-left">group</th>
+            <th scope="col" className="text-right">cumulative share of {t("stable_PI")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {points.map((point) => (
+            <tr key={point[0]}>
+              <td className="text-right">{point[0]}</td>
+              <th scope="row" className="text-left font-normal">{point[2]}</th>
+              <td className="text-right">{fmtPct(point[1] as number, 1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </ChartTable>
+    </div>
+  );
 }

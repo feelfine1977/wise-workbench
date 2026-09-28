@@ -88,8 +88,7 @@ describe("no release name, no stage code, no raw id as a primary label (R3-13)",
 
   it("the datasets table", async () => {
     renderApp("/p/p2p2018/data");
-    await screen.findByText("Datasets", {}, T);
-    const table = screen.getAllByRole("table")[0] as HTMLElement;
+    const table = (await screen.findAllByRole("table", {}, T))[0] as HTMLElement;
     expectPlainWords("the datasets table", visibleText(table));
   });
 

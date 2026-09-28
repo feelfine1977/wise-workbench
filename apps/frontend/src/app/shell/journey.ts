@@ -1,17 +1,27 @@
 import type { CaseTable, DatasetVersion, NormVersion, Project, Run } from "@wise/api-schema";
 
-export type StageState = "not_started" | "in_progress" | "gated" | "done";
+import { summarizeReadiness } from "./readiness";
+
+export const mainJourney = [
+  { id: "goal", label: "Project", description: "Name your process and improvement question." },
+  { id: "data", label: "Understand data", description: "Check data coverage and explore recorded behavior." },
+  { id: "norm", label: "Process norm", description: "Define expectations, layers and views." },
+  { id: "run", label: "Run WISE", description: "Assess prepared data against a saved norm version." },
+  { id: "analyse", label: "Analyse", description: "Investigate recorded patterns and group evidence." },
+  { id: "act", label: "Improve", description: "Record a proposal and decide how to test it." },
+] as const;
+
+export type StageState = "not_started" | "in_progress" | "gated" | "done" | "available" | "planned";
+export type JourneyScreen = "dashboard" | "data" | "context" | "norms" | "weights" | "runs" | "investigate" | "signals" | "flow" | "why" | "act";
 
 export interface StageInfo {
   id: string;
-  index: number;
+  label: string;
+  description: string;
   state: StageState;
-  /** Why the stage is gated and where to fix it. */
-  why?: string;
-  fixAt?: { screen: "data" | "dataset" | "norms" | "runs" | "backlog"; id?: string };
-  screen?: "dashboard" | "data" | "dataset" | "norms" | "runs" | "backlog";
-  /** Free text for stages that arrive in a later increment. */
-  later?: string;
+  /** A measured fact or an explicit prerequisite, never inferred completion of a feature. */
+  status: string;
+  screen?: JourneyScreen;
 }
 
 export interface JourneyInput {
@@ -19,66 +29,42 @@ export interface JourneyInput {
   datasets: DatasetVersion[];
   caseTable?: CaseTable;
   norms: NormVersion[];
+  norm?: NormVersion;
   runs: Run[];
   run?: Run;
-  findings: number;
-  dispositions: number;
-  gatesPassed: number;
 }
 
-/** Stage states for the journey rail (UX-2). Gates record where evidence is missing; they never block exploration. */
-export function computeStages(input: JourneyInput): StageInfo[] {
-  const { project, datasets, caseTable, norms, runs, run, findings, dispositions, gatesPassed } = input;
+/** Navigation availability and recorded facts for the selected context, not a completion checklist. */
+export function computeStages({ project, datasets, caseTable, norms, norm: selectedNorm, runs, run }: JourneyInput): StageInfo[] {
   const readiness = caseTable?.readiness;
-  const items = readiness?.items ?? [];
-  const fails = items.filter((i) => i.level === "fail");
-  const replication = items.find((i) => i.id === "header_event_replication" && i.level === "warn");
-  const censoring = items.find((i) => i.id === "right_censored" && i.level === "warn");
-  const anyRunDone = runs.some((r) => r.status === "done");
-  const activeRun = runs.find((r) => r.status === "queued" || r.status === "running");
-  const failedRun = !anyRunDone && runs.find((r) => r.status === "failed");
+  const summary = summarizeReadiness(readiness);
+  const issues = (readiness?.items ?? []).filter((item) => item.level === "warn" || item.level === "fail");
+  const dataFailed = caseTable?.status === "failed" || readiness?.status === "fail" || issues.some((item) => item.level === "fail");
+  const dataWarning = readiness?.status === "warn" || issues.length > 0;
+  const tableReady = caseTable?.status === "ready";
+  const dataState: StageState = dataFailed || dataWarning ? "gated" : tableReady && readiness?.status === "pass" ? "done" : datasets.length ? "in_progress" : "not_started";
+  const norm = selectedNorm ?? norms.find((candidate) => candidate.id === run?.normVersionId);
+  const constraints = norm?.norm.constraints;
+  const hasConstraints = Array.isArray(constraints) && constraints.length > 0;
+  const normWarnings = !!(norm?.validation?.length || norm?.warnings?.length || norm?.uncalibrated?.length);
+  const normReviewed = norm?.status === "reviewed" || norm?.status === "approved";
+  const assessed = run?.status === "done";
+  const running = run?.status === "running" || run?.status === "queued";
+  const assessmentFailed = run?.status === "failed" || run?.status === "cancelled";
+  const analysisState: StageState = assessed ? "available" : "not_started";
+  const analysisStatus = assessed ? "Available" : "Needs completed assessment";
 
-  const s0: StageInfo = { id: "S0", index: 0, state: project?.question ? "done" : project ? "in_progress" : "not_started", screen: "dashboard" };
-
-  let s1: StageInfo = { id: "S1", index: 1, state: "not_started", screen: "data" };
-  if (datasets.some((d) => d.status === "ingesting")) s1 = { ...s1, state: "in_progress" };
-  else if (datasets.some((d) => d.status === "ready")) s1 = { ...s1, state: "done" };
-  if (fails.length) s1 = { ...s1, state: "gated", why: fails.map((f) => f.message).join(" "), fixAt: { screen: "dataset", id: caseTable?.datasetId } };
-
-  let s2: StageInfo = { id: "S2", index: 2, state: caseTable ? "done" : datasets.length ? "in_progress" : "not_started", screen: "dataset" };
-  if (caseTable && replication) {
-    s2 = { ...s2, state: "gated", why: `Duplicated header events: ${replication.message}`, fixAt: { screen: "dataset", id: caseTable.datasetId } };
-  }
-
-  const s3: StageInfo = {
-    id: "S3",
-    index: 3,
-    state: norms.some((n) => n.status === "approved" || n.status === "reviewed") ? "done" : norms.length ? "in_progress" : "not_started",
-    screen: "norms",
-  };
-  const normViews = (norms.find((n) => n.status === "approved") ?? norms[0])?.norm as { views?: unknown[] } | undefined;
-  const s4: StageInfo = { id: "S4", index: 4, state: normViews?.views?.length ? "done" : norms.length ? "in_progress" : "not_started", screen: "norms" };
-
-  let s5: StageInfo = { id: "S5", index: 5, state: anyRunDone ? "done" : activeRun ? "in_progress" : "not_started", screen: "runs" };
-  if (failedRun) s5 = { ...s5, state: "gated", why: `Run ${failedRun.id} failed; open it for the message and start a new run.`, fixAt: { screen: "runs" } };
-
-  const s6: StageInfo = {
-    id: "S6",
-    index: 6,
-    state: !anyRunDone ? "not_started" : dispositions >= 3 ? "done" : "in_progress",
-    screen: "backlog",
-  };
-
-  let s7: StageInfo = { id: "S7", index: 7, state: findings ? (gatesPassed ? "in_progress" : "not_started") : "not_started", screen: "backlog" };
-  if (anyRunDone && (replication || censoring) && !gatesPassed) {
-    const parts = [
-      replication ? `duplicated events on ${Math.round(((replication.evidence?.replicatedShare as number | undefined) ?? 0) * 100)} % of header events` : "",
-      censoring ? `${(((censoring.evidence?.cases as number | undefined) ?? 0)).toLocaleString("en")} cases still open at the end of the data` : "",
-    ].filter(Boolean);
-    s7 = { ...s7, state: "gated", why: `Checks before acting await a reading: ${parts.join(", ")}. Pass, fail or waive them with a note on the group's "Can the data be trusted?" tab.`, fixAt: { screen: "backlog" } };
-  }
-
-  const later = (id: string, index: number, when: string): StageInfo => ({ id, index, state: "not_started", later: when });
-  void run;
-  return [s0, s1, s2, s3, s4, s5, s6, s7, later("S8", 8, "increment 1"), later("S9", 9, "increment 2"), later("S10", 10, "increment 2"), later("S11", 11, "increment 2"), later("S12", 12, "v1")];
+  return [
+    { id: "goal", label: "Goal and question", description: "Name the decision you want to make and the process you want to understand.", state: project?.question?.trim() ? "done" : "not_started", status: project?.question?.trim() ? "Question recorded" : "Define the question", screen: "dashboard" },
+    { id: "data", label: "Data and readiness", description: summary.hasIssues ? `${summary.label}. Review data checks before interpreting results.` : "Load the event log and check what its timestamps, activities and missing data can support.", state: dataState, status: dataFailed ? "Checks need attention" : dataWarning ? "Review data checks" : tableReady && readiness?.status === "pass" ? "Checks passed" : caseTable?.status === "building" ? "Preparing data" : tableReady ? "Checks unavailable" : datasets.length ? "Check mapping and readiness" : "Add data", screen: "data" },
+    { id: "context", label: "Case and flow context", description: "Check what one case represents, which events belong to it, and which flow types belong together.", state: tableReady ? "available" : "not_started", status: tableReady ? "Review available" : "Needs a case table", screen: tableReady ? "context" : undefined },
+    { id: "norm", label: "Process norm · constraints", description: "Start with the purpose and available evidence, then define expectations, priorities and review decisions.", state: normWarnings ? "gated" : hasConstraints && normReviewed ? "done" : hasConstraints ? "in_progress" : "not_started", status: normWarnings ? "Review needed" : hasConstraints && normReviewed ? "Review recorded" : hasConstraints ? "Draft constraints" : "Define constraints", screen: "norms" },
+    { id: "weights", label: "Layers and views", description: "Inspect how constraints are grouped into layers and weighted in each view. Edit membership and weights in the structure editor; changes create a new version.", state: norm ? "available" : "not_started", status: norm ? "Definition available" : "Choose a Process norm", screen: norm ? "weights" : undefined },
+    { id: "run", label: "Assessment", description: "Score the selected data against the Process norm. Results describe that assessment, not a validated explanation or an improvement.", state: assessmentFailed ? "gated" : running ? "in_progress" : assessed ? "available" : "not_started", status: assessmentFailed ? "Assessment did not finish" : running ? "Assessment in progress" : assessed ? "Results available" : runs.length ? "Choose an assessment" : "Run an assessment", screen: "runs" },
+    { id: "explore", label: "Explore and ask process questions", description: "Explore recorded behavior, comparisons, paths and individual cases. Check which questions the available data can answer.", state: analysisState, status: analysisStatus, screen: assessed ? "investigate" : undefined },
+    { id: "why", label: "Evidence and hypotheses", description: "Open a group, inspect its evidence, and record a question to test. A saved finding or an assessment alone does not validate a cause.", state: analysisState, status: assessed ? "Choose or revisit a group" : analysisStatus, screen: assessed ? "why" : undefined },
+    { id: "act", label: "Recommendations", description: "Record a proposed action, owner and rationale for a group. Acceptance requires evidence and the relevant checks.", state: analysisState, status: assessed ? "Choose or revisit a group" : analysisStatus, screen: assessed ? "act" : undefined },
+    { id: "pilot", label: "Pilot and outcome measures", description: "Agree a test, comparison, outcome measures and balancing measures before claiming improvement. A dedicated pilot workflow is planned.", state: "planned", status: "Planned" },
+    { id: "follow_up", label: "Follow-up", description: "Compare measured outcomes over time and decide whether to adopt, adjust or stop a change. A dedicated follow-up workflow is planned.", state: "planned", status: "Planned" },
+  ];
 }

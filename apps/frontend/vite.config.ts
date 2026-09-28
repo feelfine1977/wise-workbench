@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { mockApiPlugin } from "./src/mocks/vitePlugin";
+import { runtimeMode } from "./src/lib/runtimeMode";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../..");
@@ -12,9 +13,9 @@ const repoRoot = path.resolve(here, "../..");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, here, "VITE_");
-  const backend = env.VITE_API_URL || "http://127.0.0.1:8000";
-  // Mocks unless a backend URL is given; `VITE_USE_MOCKS=1` forces them, `VITE_USE_MOCKS=0` selects the same origin.
-  const mocks = env.VITE_USE_MOCKS === "1" || (env.VITE_USE_MOCKS !== "0" && !env.VITE_API_URL);
+  const config = runtimeMode({ ...env, MODE: mode });
+  const backend = config.apiUrl || "http://127.0.0.1:8000";
+  const mocks = config.useMocks;
   return {
     plugins: [react(), mockApiPlugin(mocks)],
     resolve: {
@@ -39,6 +40,7 @@ export default defineConfig(({ mode }) => {
       // With mocks on, the mock middleware answers /api/v1 before the proxy sees the request.
       proxy: { "/api": { target: backend, changeOrigin: true } },
     },
+    worker: { format: "es" },
     build: {
       target: "es2022",
       sourcemap: true,
@@ -60,6 +62,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     test: {
+      // Node MSW and fixture-dependent UI tests explicitly opt into demo semantics.
+      env: { VITE_USE_MOCKS: "1" },
       environment: "./vitest.environment.mjs",
       globals: false,
       setupFiles: ["./src/test/setup.ts"],

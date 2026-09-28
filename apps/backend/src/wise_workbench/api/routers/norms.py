@@ -31,9 +31,55 @@ def get_norm_signal_distribution(
     c: ContainerDep,
     caseTableId: Annotated[str, Query(description="the mapped case table to preview")],
     scale: Annotated[Literal["linear", "log"], Query(description="bin scale of the histogram")] = "linear",
+    selectionId: Annotated[str | None, Query(description="Explicit saved whole-case evidence cohort")] = None,
 ) -> schemas.NormSignalDistribution:
     return schemas.NormSignalDistribution(
-        **c.norms.signals(projectId, normVersionId, caseTableId, constraintId, scale=scale)
+        **c.norms.signals(projectId, normVersionId, caseTableId, constraintId, scale=scale, selection_id=selectionId)
+    )
+
+
+@router.get(
+    "/{normVersionId}/relevance",
+    operation_id="getNormRelevance",
+    response_model=schemas.NormRelevance,
+    responses={404: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "Read-only relevance of the exact saved norm on an explicit mapped table. Reports applicability and "
+        "distinct in-scope cases containing any referenced rule activity, never violations or compliance. "
+        "Counts are null when unavailable; observedCases is also null for rules without activity references. "
+        "Does not create a run, update validation metadata, or cache results across norm versions."
+    ),
+)
+def get_norm_relevance(
+    projectId: str,
+    normVersionId: str,
+    c: ContainerDep,
+    caseTableId: Annotated[str, Query(description="the exact mapped case table to inspect")],
+    selectionId: Annotated[str | None, Query(description="Explicit saved whole-case evidence cohort")] = None,
+) -> schemas.NormRelevance:
+    return schemas.NormRelevance(**c.norms.relevance(projectId, normVersionId, caseTableId, selection_id=selectionId))
+
+
+@router.post(
+    "/{normVersionId}/preview/{constraintId}",
+    operation_id="previewNormConstraint",
+    response_model=schemas.NormConstraintPreview,
+    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description="Read-only exact evaluation of a proposed rule against its saved version on an explicit evidence cohort. Creates no norm, run, approval or validation metadata. Native signal coverage is separate from evaluation under the rule's missing-data policy.",
+)
+def preview_norm_constraint(
+    projectId: str, normVersionId: str, constraintId: str, body: schemas.NormPreviewRequest, c: ContainerDep
+) -> schemas.NormConstraintPreview:
+    return schemas.NormConstraintPreview(
+        **c.norms.preview(
+            projectId,
+            normVersionId,
+            body.caseTableId,
+            constraintId,
+            body.constraint,
+            scale=body.scale,
+            selection_id=body.selectionId,
+        )
     )
 
 
@@ -86,6 +132,29 @@ def get_applicability_options(
     caseTableId: Annotated[str, Query(description="the case table the norm is written against")],
 ) -> schemas.ApplicabilityOptions:
     return schemas.ApplicabilityOptions(**c.norms.applicability_options(projectId, caseTableId))
+
+
+@router.get(
+    "/templates",
+    operation_id="getNormTemplates",
+    response_model=schemas.NormTemplateCatalogue,
+    responses={404: {"model": schemas.Problem}, 409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description=(
+        "Read process-specific norm templates for the explicit project case table. The catalogue does not score "
+        "templates; templateId requests a preview of only that template. Optional labelPack uses an explicitly "
+        "chosen curated label mapping. No dataset, assessment, norm or approval is created by this read."
+    ),
+)
+def get_norm_templates(
+    projectId: str,
+    c: ContainerDep,
+    caseTableId: Annotated[str, Query(description="the prepared table for the fixed project dataset")],
+    labelPack: Annotated[str | None, Query(description="an explicitly selected curated activity label pack")] = None,
+    templateId: Annotated[str | None, Query(description="preview only this template; omit for the catalogue")] = None,
+) -> schemas.NormTemplateCatalogue:
+    return schemas.NormTemplateCatalogue(
+        **c.norms.templates(projectId, caseTableId, label_pack=labelPack, template_id=templateId)
+    )
 
 
 # ---------------------------------------------------------------------------- norm builder (R3-O6)

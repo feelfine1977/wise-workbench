@@ -248,7 +248,7 @@ export const UNCALIBRATED = [
     share_violated: 0.009852806254736926,
     evaluated: 250690,
     reason: "almost_never_missed",
-    text: "Receipt not cancelled is met by 99 % of all purchase order items it applies to — it cannot fail on this log as it is set.",
+    text: "Receipt not cancelled is rarely missed on this log; check whether it distinguishes the problem you want to detect.",
   },
   {
     id: "c_l2_df2_release_after_goods",
@@ -258,7 +258,7 @@ export const UNCALIBRATED = [
     share_violated: 0.0065355805243445695,
     evaluated: 53400,
     reason: "almost_never_missed",
-    text: "Block released after the goods (invoice-first flow) is met by 99 % of all purchase order items it applies to — it cannot fail on this log as it is set.",
+    text: "Block released after the goods (invoice-first flow) is rarely missed on this log; check whether it distinguishes the problem you want to detect.",
   },
 ];
 

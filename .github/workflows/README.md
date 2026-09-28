@@ -1,14 +1,17 @@
-# .github/workflows
+# Continuous integration
 
-`ci.yml` runs on pushes to `main`, on pull requests and by hand:
+Updated 27 September 2026. [ci.yml](ci.yml) is authoritative. It runs on pushes to `main`, pull requests and manual dispatch. A new checkpoint-branch push alone may not start it.
 
-| Job | Runner | What it does |
+| Job | Runtime | Required checks |
 |---|---|---|
-| `backend` | Python 3.12 and 3.13 | installs `wise-pm` from GitHub (`git+https://github.com/feelfine1977/wise-pm.git@v0.1.0`), the knowledge package and `apps/backend[dev]`; `ruff check`, `ruff format --check`, `mypy`, `pytest`; regenerates the OpenAPI document and diffs it against `packages/api-schema/openapi.yaml` |
-| `analytics` | Python 3.12 | `packages/wise-analytics`: `ruff`, `mypy`, `pytest` |
-| `knowledge` | Python 3.12 | `packages/process-knowledge`: `ruff`, `pytest` |
-| `frontend` | Node 20 | `npm ci` (the flow library link is absent on the runner, so the stub in `apps/frontend/stubs/wise-flow` is resolved), design tokens, `eslint`, `tsc -b`, `vitest`, a check that `npm run generate` leaves `packages/api-schema/generated` unchanged, `npm run build:live` |
+| backend | Python 3.12 / 3.13 | Classic pinned method, knowledge and analytics imports/provenance; tooling tests; Ruff/types; full backend; exact OpenAPI drift |
+| backend-next | Python 3.12 / 3.13 | Explicit pinned next candidate, provenance/imports, backend/analytics/knowledge regressions and exact OpenAPI drift |
+| backend-minimal | Python 3.12 / 3.13 | Deliberate no-analytics environment and explicit fallback/evidence contracts |
+| analytics | Python 3.12 | Package lint, types and tests |
+| knowledge | Python 3.12 | Package validation/lint and tests |
+| frontend | Node 24; Python 3.13 for norm workflow | Real packaged flow artifact/provenance, clean npm install/import, lint/types/tests, generated contract parity, live build, Playwright map/board and isolated norm workflow |
+| distribution | Python 3.13; built live SPA | Build application/knowledge/analytics artifacts; install outside checkout and exercise resources, health and SPA routes |
 
-Actions: `actions/checkout@v5`, `actions/setup-python@v6`, `actions/setup-node@v5` (all on the Node 24 runtime).
+The renderer is the actual checked-in artifact, not the old stub. Exact method pins and supported startup profiles are described in [Core profiles](../../docs/CORE_PROFILES.md). The frontend lockfile and vendor provenance identify renderer bytes. Optional private-dataset checks are separate from portable required gates.
 
-Not in CI: the Playwright smoke tests (`npm run e2e`) and the real-backend e2e, which need a browser and the BPIC 2019 workspace; run them locally as described in `apps/frontend/README.md`. Release jobs (wheels, images, desktop bundles) arrive with the deployment work.
+These workflow definitions do not prove that a particular working tree passed hosted CI. Record the reviewed commit, actual job result and skips. See [compatibility and release checks](../../docs/COMPATIBILITY.md).

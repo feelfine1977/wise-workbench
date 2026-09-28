@@ -8,6 +8,7 @@ evaluation and derived-attribute behavior.
 from __future__ import annotations
 
 from collections.abc import Callable
+from copy import deepcopy
 from typing import Any
 
 import numpy as np
@@ -18,7 +19,7 @@ from wise_workbench.adapters.knowledge import guidance_ref, stage_model
 from wise_workbench.domain import ColumnMapping, NotFoundError, ValidationError
 
 from . import compat, sentences
-from .logs import activity_inventory
+from .logs import activity_inventory, norm_interpretation_label, norm_interpretation_warnings
 from .signals import distribution, raw_signal
 
 
@@ -73,6 +74,134 @@ class NormInspector:
         out = distribution(values[mask], violations, meta, scale=scale)
         out["casesInScope"] = int(mask.sum())
         return out
+
+    def preview(
+        self, document: dict[str, Any], constraint_id: str, proposed: dict[str, Any], *, scale: str = "linear"
+    ) -> dict[str, Any]:
+        saved = _norm_from(document)
+        try:
+            saved.get_constraint(constraint_id)
+        except wise.NormError as exc:
+            raise NotFoundError(str(exc), code="constraint.not_found") from exc
+        if proposed.get("id") != constraint_id:
+            raise ValidationError("Preview must keep the selected expectation ID", code="norm.preview_identity")
+        candidate = deepcopy(document)
+        candidate["constraints"] = [
+            deepcopy(proposed) if row["id"] == constraint_id else row for row in candidate["constraints"]
+        ]
+        proposed_norm = _norm_from(candidate)
+
+        log = self._load_log()  # one private log, never a shared cached run
+
+        def measure(norm: wise.Norm) -> dict[str, Any]:
+            nc = norm.get_constraint(constraint_id)
+            try:
+                if norm.derived_attributes:
+                    log.derive(norm.derived_attributes, overwrite=False)
+                mask = nc.applies_to(log.cases, log)
+                if (
+                    not mask.index.equals(log.case_ids)
+                    or mask.isna().any()
+                    or not pd.api.types.is_bool_dtype(mask.dtype)
+                ):
+                    raise ValueError("Applicability must return one known boolean per case")
+                penalties = wise.evaluate_constraint(log, nc).reindex(log.case_ids)[mask]
+                finite = penalties.where(np.isfinite(penalties)).dropna()
+                counts = {
+                    "populationCases": len(log),
+                    "applicableCases": int(mask.sum()),
+                    "evaluatedCases": len(finite),
+                    "unknownCases": int(mask.sum()) - len(finite),
+                    "violatingCases": int((finite > 0).sum()),
+                    "violationShare": float((finite > 0).mean()) if len(finite) else None,
+                    "meanPenalty": float(finite.mean()) if len(finite) else None,
+                    "observedCases": None,
+                    "missingSignalCases": None,
+                }
+                try:
+                    values, meta = raw_signal(log, nc)
+                except wise.NormError as exc:
+                    if "unsupported constraint type" not in str(exc):
+                        raise
+                    return {
+                        "counts": counts,
+                        "distribution": None,
+                        "note": "This rule has no native signal chart; counts use its full evaluation policy.",
+                    }
+                values = values.where(np.isfinite(values))[mask]
+                counts["observedCases"] = int(values.notna().sum())
+                counts["missingSignalCases"] = int(values.isna().sum())
+                chart = distribution(values, penalties, meta, scale=scale)
+                chart["casesInScope"] = int(mask.sum())
+                return {
+                    "counts": counts,
+                    "distribution": chart,
+                    "note": "Evaluation includes the rule's missing-data policy. Native signal coverage is reported separately.",
+                }
+            except (wise.NormError, wise.LogSchemaError, KeyError, TypeError, ValueError) as exc:
+                raise ValidationError(str(exc), code="norm.preview_unavailable") from exc
+
+        return {"constraintId": constraint_id, "saved": measure(saved), "proposed": measure(proposed_norm)}
+
+    def relevance(self, document: dict[str, Any]) -> dict[str, Any]:
+        """Read applicability and observed activity coverage; never evaluate or score a rule."""
+        norm = _norm_from(document)
+        log = self._load_log()  # the gateway supplies a fresh, uncached log
+        derivation_issues: list[str] = []
+        for recipe in norm.derived_attributes:
+            try:
+                log.derive([recipe], overwrite=False)
+            except (wise.NormError, wise.LogSchemaError, KeyError, TypeError, ValueError) as exc:
+                derivation_issues.append(f"derived attribute {recipe.get('name')!r}: {exc}")
+                # A failed replacement must not leave a same-named source or
+                # mapping attribute masquerading as the norm's derived value.
+                name = str(recipe.get("name") or "")
+                if name in log.cases.columns:
+                    log.cases.drop(columns=[name], inplace=True)
+
+        references = {nc.id: tuple(sorted(set(nc.constraint.activities()))) for nc in norm.constraints}
+        labels = {label for refs in references.values() for label in refs}
+        # One pass over the referenced event labels. Sets count distinct cases,
+        # even when a case repeats a label or contains several referenced labels.
+        events = log.events
+        pairs = events.loc[events[log.activity_col].isin(labels), [log.activity_col, log.case_col]].drop_duplicates()
+        activity_cases = {
+            str(label): frozenset(group[log.case_col])
+            for label, group in pairs.groupby(log.activity_col, observed=True)
+        }
+        unions: dict[tuple[str, ...], frozenset[Any]] = {}
+        rows = []
+        for nc in norm.constraints:
+            refs = references[nc.id]
+            issues = list(derivation_issues)
+            in_scope: int | None = None
+            observed: int | None = None
+            try:
+                mask = nc.applies_to(log.cases, log)
+                if (
+                    not mask.index.equals(log.case_ids)
+                    or not pd.api.types.is_bool_dtype(mask.dtype)
+                    or mask.isna().any()
+                ):
+                    raise ValueError("applicability did not return one known boolean per case")
+                in_scope = int(mask.sum())
+                if refs:
+                    if refs not in unions:
+                        unions[refs] = frozenset().union(*(activity_cases.get(label, frozenset()) for label in refs))
+                    observed = len(unions[refs].intersection(log.case_ids[mask.to_numpy(dtype=bool)]))
+            except (wise.NormError, wise.LogSchemaError, KeyError, TypeError, ValueError) as exc:
+                in_scope = observed = None
+                issues.append(f"applicability: {exc}")
+            rows.append(
+                {
+                    "id": nc.id,
+                    "casesInScope": in_scope,
+                    "observedCases": observed,
+                    "missingActivities": [label for label in refs if not activity_cases.get(label)],
+                    "issues": issues,
+                }
+            )
+        return {"cases": len(log), "constraints": rows}
 
     def inventory(
         self,
@@ -189,7 +318,10 @@ class NormInspector:
             share = (missing / evaluated) if evaluated else None
         except (wise.NormError, wise.LogSchemaError) as exc:
             errors.append({"field": "constraint", "message": str(exc)})
-        plain = guidance_ref(process, "constraint", nc.id, document=document).plain_name
+        plain = (
+            norm_interpretation_label(nc.id, document or {})
+            or guidance_ref(process, "constraint", nc.id, document=document).plain_name
+        )
         return {
             "valid": not errors,
             "errors": errors,
@@ -214,7 +346,7 @@ class NormInspector:
     def check_norm(self, document: dict[str, Any]) -> dict[str, Any]:
         norm = _norm_from(document)
         log = self._load_log()
-        issues = norm.check(log)
+        issues = list(dict.fromkeys([*norm.check(log), *norm_interpretation_warnings(log, document)]))
         try:
             if norm.derived_attributes:
                 log.derive(norm.derived_attributes, overwrite=False)
@@ -246,4 +378,4 @@ class NormInspector:
         """``Norm.check``: activities and attributes the norm names that never occur in the case table (R1-08)."""
         norm = _norm_from(document)
         log = self._load_log()
-        return [str(w) for w in norm.check(log)]
+        return list(dict.fromkeys([str(w) for w in norm.check(log)] + norm_interpretation_warnings(log, document)))

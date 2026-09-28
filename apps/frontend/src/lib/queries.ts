@@ -23,11 +23,11 @@ export const keys = {
   slice: (p: string, r: string, key: string, slicing: string, view?: string) =>
     ["projects", p, "runs", r, "slices", key, slicing, view ?? ""] as const,
   trace: (p: string, r: string, c: string) => ["projects", p, "runs", r, "cases", c, "trace"] as const,
-  distribution: (p: string, r: string, c: string, slicing?: string, sliceKey?: string) =>
-    ["projects", p, "runs", r, "signals", c, slicing ?? "", sliceKey ?? ""] as const,
+  distribution: (p: string, r: string, c: string, slicing?: string, sliceKey?: string, filter?: string) =>
+    ["projects", p, "runs", r, "signals", c, slicing ?? "", sliceKey ?? "", filter ?? ""] as const,
   diagnostics: (p: string, r: string, slicing: string) => ["projects", p, "runs", r, "diagnostics", slicing] as const,
   flow: (p: string, r: string, slicing?: string, sliceKey?: string, abstraction?: number) =>
-    ["projects", p, "runs", r, "flow", slicing ?? "", sliceKey ?? "", abstraction ?? 0.05] as const,
+    ["projects", p, "runs", r, "flow", slicing ?? "", sliceKey ?? "", abstraction ?? 0] as const,
   job: (j: string) => ["jobs", j] as const,
 };
 
@@ -143,7 +143,7 @@ export const backlogQuery = (projectId: string, runId: string, query: BacklogQue
         await api.GET("/projects/{projectId}/runs/{runId}/backlog", { params: { path: { projectId, runId }, query } }),
       ),
     staleTime: IMMUTABLE,
-    placeholderData: (prev) => prev,
+    // A new selection must not expose the previous grouping under the new URL.
   });
 
 export const sliceQuery = (projectId: string, runId: string, sliceKey: string, slicing: string, view?: string, drilldown?: string) =>
@@ -170,15 +170,15 @@ export const traceQuery = (projectId: string, runId: string, caseId: string) =>
     staleTime: IMMUTABLE,
   });
 
-export const distributionQuery = (projectId: string, runId: string, constraintId: string, slicing?: string, sliceKey?: string) =>
+export const distributionQuery = (projectId: string, runId: string, constraintId: string, slicing?: string, sliceKey?: string, filter?: string) =>
   queryOptions({
-    queryKey: keys.distribution(projectId, runId, constraintId, slicing, sliceKey),
+    queryKey: keys.distribution(projectId, runId, constraintId, slicing, sliceKey, filter),
     queryFn: async () =>
       unwrap(
         await api.GET("/projects/{projectId}/runs/{runId}/signals/{constraintId}", {
           params: {
             path: { projectId, runId, constraintId },
-            query: { ...(slicing ? { slicing } : {}), ...(sliceKey ? { sliceKey } : {}) },
+            query: { ...(slicing ? { slicing } : {}), ...(sliceKey ? { sliceKey } : {}), ...(filter !== undefined ? { filter } : {}) },
           },
         }),
       ),
@@ -193,6 +193,7 @@ export interface FlowParams {
   filter?: string;
 }
 
+// Request the complete observed graph; FlowMap owns visual detail and must be able to show every edge.
 export const flowQuery = (projectId: string, runId: string, params: FlowParams = {}) =>
   queryOptions({
     queryKey: [...keys.flow(projectId, runId, params.slicing, params.sliceKey, params.abstraction), params.filter ?? ""] as const,
@@ -205,7 +206,7 @@ export const flowQuery = (projectId: string, runId: string, params: FlowParams =
               ...(params.slicing ? { slicing: params.slicing } : {}),
               ...(params.sliceKey ? { sliceKey: params.sliceKey } : {}),
               ...(params.filter ? { filter: params.filter } : {}),
-              abstraction: params.abstraction ?? 0.05,
+              abstraction: params.abstraction ?? 0,
             },
           },
         }),

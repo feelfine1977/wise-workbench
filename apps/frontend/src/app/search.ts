@@ -30,17 +30,8 @@ const num = (v: unknown): number | undefined => {
 };
 const bool = (v: unknown): boolean | undefined => (v === true || v === "true" || v === "1" ? true : undefined);
 const oneOf = <T extends string>(v: unknown, options: readonly T[]): T | undefined => (typeof v === "string" && (options as readonly string[]).includes(v) ? (v as T) : undefined);
-/**
- * A JSON object given as a string or already parsed by the router; kept as a string in the application. The
- * router writes it to the address as the object's JSON (`filter={"and":…}`, see `stringifySearch`).
- */
-const json = (v: unknown): string | undefined => {
-  if (typeof v === "string" && v.length > 1) return v;
-  if (v && typeof v === "object") return JSON.stringify(v);
-  return undefined;
-};
 /** Keep selection input intact for server validation, including malformed JSON and scalar values. */
-const selectionParam = (v: unknown): string | undefined => v === undefined ? undefined : typeof v === "string" ? v : JSON.stringify(v);
+export const selectionParam = (v: unknown): string | undefined => v === undefined ? undefined : typeof v === "string" ? v : JSON.stringify(v);
 const list = (v: unknown): string[] | undefined => {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && x.length > 0);
   if (typeof v === "string" && v.length) return v.split(",").filter(Boolean);
@@ -125,6 +116,8 @@ export function sliceTabOf(raw: unknown): SliceTab {
 export interface SliceSearch {
   slicing?: string;
   view?: string;
+  /** Minimum group size of the ranking that opened this group. */
+  minCases?: number;
   tab: SliceTab;
   case?: string;
   constraint?: string;
@@ -141,6 +134,7 @@ export function validateSliceSearch(input: Partial<SliceSearch> & SearchSchemaIn
   return {
     slicing: str(s.slicing),
     view: str(s.view),
+    minCases: Number.isSafeInteger(num(s.minCases)) && (num(s.minCases) ?? 0) >= 1 ? num(s.minCases) : undefined,
     tab: sliceTabOf(s.tab),
     case: str(s.case),
     constraint: str(s.constraint),
@@ -191,7 +185,7 @@ export function validateFlowSearch(input: Partial<FlowSearch> & SearchSchemaInpu
     detail: detail === undefined ? undefined : Math.max(0, Math.min(4, Math.round(detail))),
     sel: str(s.sel),
     activity: str(s.activity),
-    filter: json(s.filter) ?? json(s.f),
+    filter: selectionParam(s.filter !== undefined ? s.filter : s.f),
     fh: str(s.fh),
     full: bool(s.full),
     render: oneOf(s.render, RENDER_MODES) ?? "map",
@@ -244,9 +238,12 @@ export function validateNotebookSearch(input: Partial<NotebookSearch> & SearchSc
   return { snapshot: str(s.snapshot) };
 }
 
-export const NORM_TABS = ["constraints", "json", "history"] as const;
+export const NORM_TABS = ["guide", "constraints", "structure", "map", "review", "json", "history"] as const;
 export type NormTab = (typeof NORM_TABS)[number];
 export interface NormSearch {
+  view?: string;
+  /** Explicit saved whole-case evidence population. */
+  selection?: string;
   /** Explicit mapped case table, including before the first run. */
   caseTable?: string;
   tab: NormTab;
@@ -254,18 +251,21 @@ export interface NormSearch {
 }
 export function validateNormSearch(input: Partial<NormSearch> & SearchSchemaInput): NormSearch {
   const s = input as Record<string, unknown>;
-  return { caseTable: str(s.caseTable), tab: oneOf(s.tab, NORM_TABS) ?? "constraints", constraint: str(s.constraint) };
+  return { view: str(s.view), selection: str(s.selection), caseTable: str(s.caseTable), tab: oneOf(s.tab, NORM_TABS) ?? (str(s.constraint) ? "constraints" : "guide"), constraint: str(s.constraint) };
 }
 
-export const DATASET_TABS = ["readiness", "mapping", "flows"] as const;
+export const DATASET_TABS = ["understand", "readiness", "overview", "mapping", "flows"] as const;
 export type DatasetTab = (typeof DATASET_TABS)[number];
+export const EXPLORATION_PAGES = ["atlas", "time", "context", "evidence"] as const;
+export type ExplorationPage = (typeof EXPLORATION_PAGES)[number];
 export interface DatasetSearch {
+  explore?: ExplorationPage;
   caseTable?: string;
   tab: DatasetTab;
 }
 export function validateDatasetSearch(input: Partial<DatasetSearch> & SearchSchemaInput): DatasetSearch {
   const s = input as Record<string, unknown>;
-  return { caseTable: str(s.caseTable), tab: oneOf(s.tab, DATASET_TABS) ?? "readiness" };
+  return { caseTable: str(s.caseTable), tab: oneOf(s.tab, DATASET_TABS) ?? "readiness", ...(oneOf(s.explore, EXPLORATION_PAGES) ? { explore: oneOf(s.explore, EXPLORATION_PAGES) } : {}) };
 }
 
 /** The hub's search box keeps its word in the address, so a page of the hub can be shared as it was read. */
@@ -301,4 +301,10 @@ export interface RunSearch {
 export function validateRunSearch(input: Partial<RunSearch> & SearchSchemaInput): RunSearch {
   const s = input as Record<string, unknown>;
   return { tab: oneOf(s.tab, RUN_TABS) ?? "monitor" };
+}
+
+export interface RunSetupSearch { new?: boolean; caseTable?: string; selection?: string; flowType?: string }
+export function validateRunSetupSearch(input: Partial<RunSetupSearch> & SearchSchemaInput): RunSetupSearch {
+  const s = input as Record<string, unknown>;
+  return { new: s.new === true || s.new === "true" || s.new === "1" ? true : undefined, caseTable: str(s.caseTable), selection: str(s.selection), flowType: str(s.flowType) };
 }

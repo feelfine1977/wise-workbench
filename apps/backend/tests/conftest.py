@@ -143,6 +143,8 @@ def upload_running_example(client: TestClient) -> dict[str, str]:
     ).json()
     assert wait_job(client, job["id"])["status"] == "done"
     dataset_id = job["resultRef"].split(":", 1)[1]
+    binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset_id})
+    assert binding.status_code == 200, binding.text
     job = client.post(f"/api/v1/projects/{pid}/datasets/{dataset_id}/mappings", json=RUNNING_MAPPING).json()
     assert wait_job(client, job["id"])["status"] == "done", job
     case_table_id = job["resultRef"].split(":", 1)[1]

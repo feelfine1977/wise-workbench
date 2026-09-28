@@ -8,13 +8,13 @@ test.skip(!!process.env.E2E_API_URL, "the mock build is not served when E2E_API_
 
 test("upload to the ranked list, Why? on the first click, freeze into the notebook (mock data)", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("P2P 2018", { timeout: 20_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your process improvement projects", { timeout: 20_000 });
+  await page.getByRole("link", { name: "P2P 2018 (BPIC 2019)", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("P2P 2018");
   await expect(page.getByRole("banner")).toContainText("mock data");
   // the analysis path across the top of every screen
   const stepper = page.getByRole("navigation", { name: "Analysis path" });
-  await expect(stepper).toContainText("Data");
-  // the seventh step, in the plain words the product leads with ("What to do" is its method label)
-  await expect(stepper).toContainText("What can we do?");
+  await expect(stepper.locator("[data-step-label]")).toHaveText(["Project", "Understand data", "Process norm", "Run WISE", "Analyse", "Improve"]);
   // the dashboard leads with one sentence and the flow types
   await expect(page.getByTestId("top-signal")).toContainText("Packaging");
   await expect(page.getByRole("list", { name: "Flow types" })).toContainText("DF2");
@@ -41,15 +41,15 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByText(/Header events typed away/)).toBeVisible();
   await expect(page.getByTestId("readiness-decisions")).toBeVisible();
   // a decision: preview, note, apply
-  await page.getByRole("button", { name: /Collapse exact duplicates/ }).click();
+  await page.getByRole("button", { name: /Remove identical prepared event rows/ }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Preview the effect" }).click();
   await expect(dialog.getByTestId("decision-preview")).toContainText("180,913");
   await dialog.getByLabel("note *").fill("duplicates come from the export");
   await dialog.getByRole("button", { name: /Apply and rebuild/ }).click();
-  await expect(page.getByTestId("decisions-list")).toContainText("Collapse exact duplicates", { timeout: 20_000 });
+  await expect(page.getByTestId("decisions-list")).toContainText("Remove identical prepared event rows", { timeout: 20_000 });
   // the flow types at the data step
-  await page.getByRole("tab", { name: "Your process" }).click();
+  await page.getByRole("tab", { name: "Flow types", exact: true }).click();
   await expect(page.getByRole("list", { name: "Flow types" }).getByRole("listitem")).toHaveCount(4);
   await expect(page.getByTestId("flow-fork").getByRole("button", { name: "Analyse per flow type" })).toBeVisible();
 
@@ -97,16 +97,16 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByTestId("why-map").getByTestId("flow-map")).toBeVisible({ timeout: 30_000 });
   // the block that said "not available yet" in cycle 3 now carries the candidate reasons of the leading
   // expectation, from the same hub pages as "What can we do?", with the way to that screen (R3-01)
-  await expect(page.getByTestId("typical-causes")).toContainText(/Candidates to check|carries no candidate reasons/);
+  await expect(page.getByTestId("typical-causes")).toContainText(/Candidates to check|No candidate reasons were returned for this group/);
   await expect(page.getByTestId("typical-causes")).not.toContainText("cycle");
   await expect(page.getByTestId("typical-causes").getByRole("button", { name: /What can we do\?/ })).toBeVisible();
   // the how-to-read paragraph is collapsed and opens from the ? beside the title
   await expect(page.getByTestId("how-to-read")).toHaveCount(0);
   await page.getByRole("button", { name: "Show how to read this screen" }).click();
   await expect(page.getByTestId("how-to-read")).toBeVisible();
-  // no next-step bar before a decision is saved; the stepper marks Why with "you are here"
+  // no next-step bar before a decision is saved; Analyse is the current stage
   await expect(page.getByTestId("next-step")).toHaveCount(0);
-  await expect(page.getByTestId("you-are-here")).toBeVisible();
+  await expect(stepper.locator('[data-step="analyse"]')).toHaveAttribute("aria-current", "step");
 
   // freeze the screen into the notebook
   await page.getByRole("button", { name: /^Freeze this screen/ }).click();

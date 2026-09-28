@@ -16,13 +16,14 @@ For your own analysis, use `WISE_WORKSPACE="/path/to/my-workspace" tools/start.s
 
 ## Follow the analysis
 
-1. **Data:** state the business question, choose the case notion, map columns, inspect flow types and resolve material data caveats.
-2. **Norm:** review the expectations and applicability with the process owner. Save each changed expectation with its reason and owner, reload to inspect the saved decision, then mark it reviewed and approve it under the responsible person's name. The numbers preview the selected norm version and data, even before a run. Use **Rename norm** for its name and **the rule → Expectation name** for an individual label. A missing required field is highlighted and focused; a refusal keeps the inputs so it can be corrected.
-3. **Run:** choose perspective, grouping, scope and minimum group size. Wait for scoring and analytics to finish.
-4. **Signals:** read a group's priority alongside its case count, confidence and caveats. Start with a plausible, well-supported group.
-5. **Flow / Board:** click an activity or context value, apply a filter and check the count and chips. **Model** draws a BPMN representation of the log; it is not a verified executable business model.
-6. **Why?:** inspect drivers, comparisons, cases and data-trust gates. Check whether a shortfall reflects process behaviour or logging limitations.
-7. **What can we do?:** record a finding or hypothesis, test it, and propose an action with an owner. Freeze relevant screens and add reasoning to the notebook.
+1. **Project:** open **Projects / new**, create a project and name the improvement question. Existing projects remain available there.
+2. **Understand data:** choose a dataset, read its process guide, map columns and inspect data caveats. **Explore data** links categories, dates, recorded spans and case rows; **Flow types** shows observed behaviour.
+3. **Process norm:** build constraints first, then organise them into business layers and weight the layers in each view. Use the data preview to calibrate a constraint. **Layers & views** exposes membership and weights; **Review** shows the actual missing owner/reason decisions before signature. Saved changes create new versions.
+4. **Run WISE:** select a prepared dataset, norm version, one or more views, groupings and flow scope. This works without a previous run. Wait for scoring and analytics to finish.
+5. **Analyse:** use process questions, ranked groups, flows and individual case evidence. Check support, coverage and logging limitations before accepting an explanation. Drag activities to improve map layout; **Reset layout** restores automatic positions. The generated BPMN model is an interpretation of the log, not a verified executable business model.
+6. **Improve:** record and test a finding or hypothesis, then propose an action with an owner. Freeze relevant evidence and add reasoning to the notebook.
+
+The coloured **view bookmarks** appear where stakeholder priorities apply, including layer weighting and assessed results. They do not change the dataset or the meaning of an individual constraint. **Layers in each view** opens the definitions behind that perspective.
 
 See the [full user guide](USER_GUIDE.md) for screen details. Read [current limitations](../README.md#current-limits) before interpreting the results; older walkthroughs and screenshots are historical observations, not acceptance claims for every dataset.
 

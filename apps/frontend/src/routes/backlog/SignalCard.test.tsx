@@ -79,6 +79,14 @@ describe("signal card", () => {
     expect(within(card).getByTestId("card-more")).toHaveTextContent(/c_l3_invoice_to_clear_days/);
   });
 
+  it("retains small positive priorities instead of rounding them to zero", () => {
+    renderCard({ row: { ...packaging, stable_PI: .192 } });
+    expect(screen.getByTestId("card-strip")).toHaveTextContent("priority 0.19");
+    cleanup();
+    renderCard({ row: { ...packaging, stable_PI: .0008 } });
+    expect(screen.getByTestId("card-strip")).toHaveTextContent("priority <0.01");
+  });
+
   it("a group at or above expectation says so and has no kind yet", () => {
     renderCard({ row: { ...packaging, gap: 0, stable_gap: 0, PI: 0, stable_PI: 0, hotspot_type: null, kind: null, kind_reading: null, dominant_layer: null, dominant_layer_name: null, top_constraint_description: null, comparison: null, points_below: null, rank: 30 } });
     const card = screen.getByRole("article");
@@ -112,9 +120,9 @@ describe("signal card", () => {
     const sentence = within(card).getByTestId("card-sentence");
     expect(within(sentence).getByTestId("what-does-this-mean")).toHaveAccessibleName(/What does .* mean\?/);
     // the caveat chip is itself the question
-    const caveat = within(card).getByText(/copied postings/).closest("button") as HTMLElement;
+    const caveat = within(card).getByText(/shared header timestamps/).closest("button") as HTMLElement;
     expect(caveat).toHaveAttribute("data-testid", "what-does-this-mean");
-    expect(caveat).toHaveAccessibleName(/What does “copied postings” mean\?/);
+    expect(caveat).toHaveAccessibleName(/What does “shared header timestamps” mean\?/);
     // and the expectation area behind "more"
     await user.click(within(card).getByRole("button", { name: /^More about/ }));
     const more = within(card).getByTestId("card-more");

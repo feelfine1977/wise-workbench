@@ -15,10 +15,10 @@ import json
 import re
 import threading
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -47,6 +47,8 @@ from .bands import apply_bands, band_summary, effective_attributes
 from .cache import LRUCache
 from .filters import filter_masks, filter_preview
 from .flow import _node_id, build_flow_graph, violation_shares
+from .grouping import enrich_grouping_fields, grouping_options
+from .investigation_questions import Family, Relation, investigation_questions
 from .logs import (
     activity_inventory,
     apply_case_decisions,
@@ -57,6 +59,8 @@ from .logs import (
     censored_flags,
     flow_type_column,
     flow_type_counts,
+    norm_interpretation_label,
+    norm_interpretation_warnings,
     preview_decision,
     readiness_report,
     resolve_window_end,
@@ -67,6 +71,7 @@ from .logs import (
 from .norms import NormInspector
 from .norms import _constraint_from_dict as _constraint_from_dict
 from .norms import _norm_from as _norm_from
+from .process_variants import process_variants
 from .signals import distribution, raw_signal
 from .tables import jsonable, key_label, records_from_frame, table_from_frame
 from .transforms import apply_transforms
@@ -214,6 +219,9 @@ class EngineAdapter:
         self._flow_types: LRUCache[dict[str, Any]] = LRUCache(8)
         self._uncalibrated: LRUCache[list[dict[str, Any]]] = LRUCache(16)
         self._board: LRUCache[dict[str, Any]] = LRUCache(128)
+        # Small summaries only; never retain a selected event frame for each card.
+        self._driver_evidence_cache: LRUCache[dict[str, Any]] = LRUCache(32)
+        self._driver_evidence_lock = threading.Lock()
         self._censored_flags: LRUCache[pd.Series] = LRUCache(max(cache_size, 2))
         self._guidance: dict[tuple[str | None, str, str, str], GuidanceRef] = {}
         self._lock = threading.RLock()
@@ -256,11 +264,28 @@ class EngineAdapter:
             import pm4py  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ValidationError(
-                "XES import needs the optional pm4py package: pip install 'wise-workbench[xes]'",
+                "XES importer could not be loaded. Repair the server Python environment with "
+                "python -m pip install 'wise-workbench[xes]', then restart the server.",
                 code="dataset.xes_unavailable",
             ) from exc
-        df = pm4py.read_xes(str(source))
+        try:
+            df = pm4py.read_xes(
+                str(source), variant="iterparse", return_legacy_log_object=False, show_progress_bar=False
+            )
+        except Exception as exc:
+            raise ValidationError(
+                f"Cannot read XES file {source.name!r}. Check that it is valid XES or gzip-compressed XES: {exc}",
+                code="dataset.unreadable",
+            ) from exc
+        if df.empty:
+            raise ValidationError("The XES log contains no events.", code="dataset.empty")
         df.columns = [str(c).strip() for c in df.columns]
+        # XES permits one attribute to have different scalar types between events.
+        # BPIC 2011's Activity code mixes integers and strings. Parquet needs a
+        # single column type: retain such identifiers as text, including nulls.
+        for column in df.columns:
+            if pd.api.types.infer_dtype(df[column], skipna=True) in {"mixed", "mixed-integer"}:
+                df[column] = df[column].astype("string")
         write_frame(self.ws, dest, df, index=False)
         return {"rows": len(df), "columns": list(df.columns), "encoding": None}
 
@@ -362,7 +387,18 @@ class EngineAdapter:
         }
 
     def _load_log(self, case_table_dir: Path, mapping: ColumnMapping) -> wise.EventLog:
-        key = str(case_table_dir)
+        path = case_table_dir / "events.parquet"
+        if not path.is_file():
+            raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
+        stamp = path.stat()
+        key = (
+            str(case_table_dir),
+            stamp.st_ino,
+            stamp.st_size,
+            stamp.st_mtime_ns,
+            stamp.st_ctime_ns,
+            json.dumps(mapping.to_dict(), sort_keys=True),
+        )
         hit = self._logs.get(key)
         if hit is not None:
             return hit
@@ -390,6 +426,35 @@ class EngineAdapter:
     def _norm_inspector(self, case_table_dir: Path, mapping: ColumnMapping) -> NormInspector:
         return NormInspector(lambda: self._load_log(case_table_dir, mapping), mapping)
 
+    @staticmethod
+    def _canonical_sublog(log: wise.EventLog, mapping: ColumnMapping, mask: pd.Series) -> wise.EventLog:
+        """Whole-case restriction preserves canonical values over colliding source columns."""
+        selected = sublog(log, mapping, mask)
+        if selected is not log:
+            for attr in log.cases.columns:
+                if attr not in ("n_events", "first_ts", "last_ts", "exposure"):
+                    selected.add_case_attribute(attr, log.cases[attr].reindex(selected.case_ids))
+        return selected
+
+    def _norm_preview_log(
+        self, case_table_dir: Path, mapping: ColumnMapping, selection_id: str | None = None
+    ) -> wise.EventLog:
+        from wise_workbench.adapters.storage.selections import read_selection
+
+        path = case_table_dir / "events.parquet"
+        if not path.is_file():
+            raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
+        log = build_log(read_frame(path), mapping, typed=True)
+        apply_prepared_attributes(log, mapping)
+        apply_flow_typing(log, mapping)
+        apply_mapping_recipes(log, mapping)
+        if selection_id is not None:
+            _, members = read_selection(case_table_dir, mapping, selection_id)
+            mask = scope_mask(log, {"selection_id": selection_id}, member_ids=members)
+            assert mask is not None
+            log = self._canonical_sublog(log, mapping, mask)
+        return log
+
     def norm_signals(
         self,
         case_table_dir: Path,
@@ -398,20 +463,33 @@ class EngineAdapter:
         constraint_id: str,
         *,
         scale: str = "linear",
+        selection_id: str | None = None,
     ) -> dict[str, Any]:
-        def load_preview_log() -> wise.EventLog:
-            # A selected norm may redefine derived attributes. Rebuild from the
-            # mapped artefact without reading or modifying a cached run/log.
-            path = case_table_dir / "events.parquet"
-            if not path.exists():
-                raise NotFoundError(
-                    f"case table artefacts missing under {case_table_dir}", code="case_table.artefacts_missing"
-                )
-            log = build_log(read_frame(path), mapping, typed=True)
-            apply_mapping_recipes(log, mapping)
-            return log
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).signals(
+            document, constraint_id, scale=scale
+        )
 
-        return NormInspector(load_preview_log, mapping).signals(document, constraint_id, scale=scale)
+    def norm_relevance(
+        self, case_table_dir: Path, mapping: ColumnMapping, document: dict[str, Any], *, selection_id: str | None = None
+    ) -> dict[str, Any]:
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).relevance(
+            document
+        )
+
+    def norm_preview(
+        self,
+        case_table_dir: Path,
+        mapping: ColumnMapping,
+        document: dict[str, Any],
+        constraint_id: str,
+        proposed: dict[str, Any],
+        *,
+        scale: str = "linear",
+        selection_id: str | None = None,
+    ) -> dict[str, Any]:
+        return NormInspector(lambda: self._norm_preview_log(case_table_dir, mapping, selection_id), mapping).preview(
+            document, constraint_id, proposed, scale=scale
+        )
 
     # ------------------------------------------------------------------ norm builder (R3-O6)
     def inventory(
@@ -481,10 +559,23 @@ class EngineAdapter:
         content_hash: str = "",
     ) -> dict[str, Any]:
         started = _now()
+        if run.params.scope and run.params.scope.get("selection_id"):
+            from wise_workbench.adapters.storage.selections import read_selection
+            from wise_workbench.domain import ConflictError
+
+            metadata, _members = read_selection(case_table_dir, mapping, run.params.scope["selection_id"])
+            if (metadata["source"]["datasetContentHash"] or "") != content_hash:
+                raise ConflictError(
+                    "Dataset identity changed since this cohort was saved", code="selection.source_changed"
+                )
         norm = _norm_from(document)
         progress(0.05, "loading the event log")
         log = self._scenario_log(case_table_dir, mapping, run.params.scope, run.params.transforms)
-        norm_warnings = [str(w) for w in norm.check(log)]
+        native = [*mapping.all_case_attributes, *(r["name"] for r in document.get("derived_attributes", []))]
+        log.cases = enrich_grouping_fields(log.cases, native)
+        norm_warnings = list(
+            dict.fromkeys([str(w) for w in norm.check(log)] + norm_interpretation_warnings(log, document))
+        )
         window_end = self.case_table_window_end(case_table_dir) or jsonable(resolve_window_end(log))
         views = list(run.params.views) or norm.view_names
         for v in views:
@@ -506,6 +597,7 @@ class EngineAdapter:
         with self._lock:
             try:
                 result = wise.score(log, norm, views)
+                result.cases = enrich_grouping_fields(result.cases, native)
             except (wise.NormError, wise.LogSchemaError) as exc:
                 raise ValidationError(str(exc), code="run.score") from exc
             self._results.put(run.id, result)
@@ -623,6 +715,11 @@ class EngineAdapter:
     # ------------------------------------------------------------------ live objects
     def _scoped_log(self, case_table_dir: Path, mapping: ColumnMapping, scope: dict[str, Any] | None) -> wise.EventLog:
         """The case table's log, restricted to the run's scope (a flow type) when it has one."""
+        from wise_workbench.adapters.storage.selections import read_selection
+
+        members = None
+        if scope and scope.get("selection_id"):
+            _metadata, members = read_selection(case_table_dir, mapping, scope["selection_id"])
         log = self._load_log(case_table_dir, mapping)
         if not scope:
             return log
@@ -634,12 +731,20 @@ class EngineAdapter:
             hit = self._sublogs.get(key)
             if hit is not None:
                 return hit
-            mask = scope_mask(log, scope)
+            mask = scope_mask(log, scope, member_ids=members)
             assert mask is not None
-            return self._sublogs.put(key, sublog(log, mapping, mask))
+            return self._sublogs.put(key, self._canonical_sublog(log, mapping, mask))
+
+    @staticmethod
+    def _grouping_native(ctx: RunContext) -> list[str]:
+        return [*ctx.mapping.all_case_attributes, *(r["name"] for r in ctx.document.get("derived_attributes", []))]
 
     def _run_log(self, ctx: RunContext) -> wise.EventLog:
-        return self._scenario_log(ctx.case_table_dir, ctx.mapping, ctx.scope, ctx.transforms)
+        log = self._scenario_log(ctx.case_table_dir, ctx.mapping, ctx.scope, ctx.transforms)
+        native = self._grouping_native(ctx)
+        if log.cases.attrs.get("_wise_grouping_native") != tuple(sorted(set(native))):
+            log.cases = enrich_grouping_fields(log.cases, native)
+        return log
 
     def _scenario_log(
         self,
@@ -695,6 +800,7 @@ class EngineAdapter:
             log = self._run_log(ctx)
             norm = _norm_from(ctx.document)
             result = wise.score(log, norm, list(ctx.views) or None)
+            result.cases = enrich_grouping_fields(result.cases, self._grouping_native(ctx))
             return self._results.put(run.id, result)
 
     def _get_frame(self, run: Run, ctx: RunContext) -> pd.DataFrame:
@@ -702,10 +808,8 @@ class EngineAdapter:
         if hit is not None:
             return hit
         path = ctx.run_dir / "frame.parquet"
-        if path.exists():
-            frame = read_frame(path, index=ctx.mapping.case_id)
-            return self._frames.put(run.id, frame)
-        return self._frames.put(run.id, self._get_result(run, ctx).frame(None))
+        frame = read_frame(path, index=ctx.mapping.case_id) if path.exists() else self._get_result(run, ctx).frame(None)
+        return self._frames.put(run.id, enrich_grouping_fields(frame, self._grouping_native(ctx)))
 
     def _get_violations(self, run: Run, ctx: RunContext) -> pd.DataFrame:
         hit = self._violation_frames.get(run.id)
@@ -867,7 +971,7 @@ class EngineAdapter:
                 if drill:
                     d_bands = [dict(b) for b in drill.get("bands") or []]
                     d_attrs = effective_attributes(list(drill["attributes"]), d_bands)
-                    d_frame = apply_bands(frame_b, d_bands) if d_bands else frame_b
+                    d_frame = apply_bands(frame, d_bands) if d_bands else frame
                     mask &= _slice_mask(d_frame, d_attrs, list(drill["key"]))
                     scope["drill"] = {
                         "slicing": drill.get("id") or ",".join(d_attrs),
@@ -908,6 +1012,8 @@ class EngineAdapter:
         """
         end = self._window_end(ctx)
         scope = json.dumps(ctx.scope, sort_keys=True, default=str)
+        if ctx.transforms:
+            scope = json.dumps({"scope": ctx.scope, "transforms": ctx.transforms}, sort_keys=True, default=str)
         key = (str(ctx.case_table_dir), scope, end)
         hit = self._censored_flags.get(key)
         if hit is not None:
@@ -945,10 +1051,18 @@ class EngineAdapter:
             return None
 
     def _guidance_for(self, ctx: RunContext, kind: str, entry_id: str) -> GuidanceRef:
-        key = (ctx.process, kind, entry_id, str(ctx.document.get("name")))
+        key = (
+            ctx.process,
+            kind,
+            entry_id,
+            hashlib.sha256(json.dumps(ctx.document, sort_keys=True).encode()).hexdigest(),
+        )
         hit = self._guidance.get(key)
         if hit is None:
             hit = guidance_ref(ctx.process, kind, entry_id, document=ctx.document)
+            label = norm_interpretation_label(entry_id, ctx.document) if kind == "constraint" else None
+            if label is not None:
+                hit = replace(hit, plain_name=label)
             self._guidance[key] = hit
         return hit
 
@@ -984,10 +1098,24 @@ class EngineAdapter:
         df = base.table.to_pandas()
         attrs = base.attributes
         noun = ctx.case_noun
-        ba = an.load_backlog_analytics(self.ws, ctx.run_dir, sid, attrs, base.view) if sid else None
+        # Stored analytics describe the complete run population, even when their
+        # slice keys also occur in a filtered or drilled backlog. Only the base
+        # table's counts, scores and library classifications describe that subset.
+        use_run_analytics = base.scope is None
+        ba = (
+            an.load_backlog_analytics(self.ws, ctx.run_dir, sid, attrs, base.view)
+            if sid and use_run_analytics
+            else None
+        )
         window_end = pd.Timestamp(ctx.window_end) if ctx.window_end else None
         if ba is not None and ba.window_end is not None:
             window_end = ba.window_end
+        elif not use_run_analytics:
+            # The run's observation boundary remains valid; no cached group
+            # measurements or their provenance are loaded for this selection.
+            end = an.manifest_json(self.ws, ctx.run_dir).get("windowEnd")
+            if end:
+                window_end = pd.Timestamp(end)
         norm = _norm_from(ctx.document)
         by_layer: dict[str, list[str]] = {}
         for nc in norm.constraints:
@@ -1013,10 +1141,12 @@ class EngineAdapter:
                     out.append(None)
             return out
 
-        use_stability = base.scope is None
+        use_stability = use_run_analytics
         stability = lookup(ba.stability if (ba and use_stability) else None, "stability")
         df["stability"] = [s_ or "unknown" for s_ in stability]
         df["stability_reason"] = lookup(ba.stability if (ba and use_stability) else None, "stability_reason")
+        if not use_stability:
+            df["stability_reason"] = "Rank stability has not been computed for this selection."
         for col in ("rank_lo", "rank_hi", "stable_PI_lo", "stable_PI_hi", "stable_gap_lo", "stable_gap_hi"):
             df[col] = lookup(ba.stability if (ba and use_stability) else None, col)
         p_col = None
@@ -1056,7 +1186,10 @@ class EngineAdapter:
             ""
             if _text(text)
             else json.dumps(
-                an.comparison_reason(_text(code) or default_code, items=noun, view=base.view), ensure_ascii=False
+                an.comparison_reason(
+                    _text(code) or default_code, items=noun, view=base.view, selection=not use_run_analytics
+                ),
+                ensure_ascii=False,
             )
             for text, code in zip(df["comparison"], codes)
         ]
@@ -1068,7 +1201,11 @@ class EngineAdapter:
         # an expectation that measures logging carries its sentence wherever a card names it (R3-14)
         logging_sentences = self.measures_logging(run, ctx)
         df["top_constraint_measures_logging"] = [bool(logging_sentences.get(str(c))) for c in df["top_constraint"]]
-        df["top_constraint_flag"] = [logging_sentences.get(str(c)) for c in df["top_constraint"]]
+        df["top_constraint_flag"] = [
+            (f"For the whole run: {flag}" if flag and not use_run_analytics else flag)
+            for c in df["top_constraint"]
+            for flag in [logging_sentences.get(str(c))]
+        ]
         # the card's headline expectation and the comparison's expectation, and which is which when they differ
         df["expectation_note"] = [
             _expectation_note(
@@ -1101,7 +1238,7 @@ class EngineAdapter:
                             "id": "norm_warning",
                             "share": None,
                             "status": "warn",
-                            "text": f"{warned[cid]}.",
+                            "text": ("Run-wide norm warning: " if not use_run_analytics else "") + f"{warned[cid]}.",
                             "window_end": None,
                         }
                     )
@@ -1266,6 +1403,129 @@ class EngineAdapter:
                 "analytics_record_ids": extra.get("record_ids", {}),
             },
             **{k: v for k, v in extra.items() if k != "record_ids"},
+        }
+
+    def driver_evidence(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        constraint_id: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        from copy import deepcopy
+
+        from .driver_evidence import solution_card_metadata
+
+        if not (ctx.run_dir / "frame.parquet").is_file():
+            raise NotFoundError(
+                "The run's recorded case frame is unavailable", code="driver_evidence.frame_unavailable"
+            )
+        specification = next((spec for spec in ctx.document["constraints"] if spec["id"] == constraint_id), None)
+        if specification is None:
+            raise NotFoundError(
+                f"Constraint {constraint_id!r} is not part of the saved run", code="constraint.not_found"
+            )
+        event_path = ctx.case_table_dir / "events.parquet"
+        if not event_path.is_file():
+            raise NotFoundError("Prepared events are missing", code="case_table.artefacts_missing")
+        source_stat = event_path.stat()
+        cache_key = json.dumps(
+            {
+                "run": run.id,
+                "table": str(ctx.case_table_dir),
+                "mapping": ctx.mapping.id,
+                "eventsIdentity": (
+                    source_stat.st_ino,
+                    source_stat.st_size,
+                    source_stat.st_mtime_ns,
+                    source_stat.st_ctime_ns,
+                ),
+                "document": ctx.document,
+                "scope": ctx.scope,
+                "transforms": ctx.transforms,
+                "windowEnd": ctx.window_end,
+                "attributes": attributes,
+                "key": key,
+                "constraint": constraint_id,
+                "bands": bands,
+                "filter": filter_obj,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        # Several cards mount together. Share only small immutable summaries and
+        # limit large intermediate data frames to one evidence computation at a time.
+        with self._driver_evidence_lock:
+            cached = self._driver_evidence_cache.get(cache_key)
+            if cached is None:
+                cached = self._driver_evidence_cache.put(
+                    cache_key,
+                    self._compute_driver_evidence(
+                        run, ctx, attributes, key, constraint_id, bands=bands, filter_obj=filter_obj
+                    ),
+                )
+            result = deepcopy(cached)
+        result["solutionCard"] = solution_card_metadata(ctx.process, specification)
+        return result
+
+    def _compute_driver_evidence(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        key: list[Any],
+        constraint_id: str,
+        *,
+        bands: list[dict[str, Any]],
+        filter_obj: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        from copy import copy
+
+        from .driver_evidence import temporal_evidence
+
+        norm = _norm_from(ctx.document)
+        try:
+            constraint = norm.get_constraint(constraint_id)
+        except wise.NormError as exc:
+            raise NotFoundError(str(exc), code="constraint.not_found") from exc
+        # A descriptive read must not fall back to reconstructing a missing score artefact.
+        if not (ctx.run_dir / "frame.parquet").is_file():
+            raise NotFoundError(
+                "The run's recorded case frame is unavailable", code="driver_evidence.frame_unavailable"
+            )
+        frame = self._get_frame(run, ctx)
+        grouped = apply_bands(frame, bands, reference=frame) if bands else frame
+        group = _slice_mask(grouped, effective_attributes(attributes, bands), key)
+        if not group.any():
+            raise NotFoundError("No group matches this key within the run", code="slice.not_found")
+        log = self._run_log(ctx)
+        mask = group.copy()
+        if filter_obj:
+            # Compute an open-case filter in memory; the standard cache helper can write a run artefact.
+            flags = None
+            if any(clause["kind"] == "open" for clause in filter_obj["and"]):
+                flags = censored_flags(log, ctx.mapping, window_end=ctx.window_end)
+            # Norm-derived attributes exist in the saved score frame even when a
+            # cold log has not been scored. Read them without re-scoring or mutating
+            # the shared log cache used by other runs.
+            filter_log = copy(log)
+            filter_log.cases = log.cases.copy()
+            for clause in filter_obj["and"]:
+                if clause["kind"] == "attribute" and clause["field"] in frame.columns:
+                    filter_log.cases[clause["field"]] = frame[clause["field"]].reindex(log.case_ids)
+            filtered, _ = filter_masks(filter_log, filter_obj, censored=flags)
+            mask &= filtered.reindex(frame.index, fill_value=False).astype(bool)
+        selected_ids = frame.index[mask]
+        return {
+            **temporal_evidence(log, selected_ids, constraint, ctx.mapping.header_events),
+            "constraintType": constraint.constraint.type,
+            "runCases": len(frame),
+            "groupCases": int(group.sum()),
+            "selectedCases": len(selected_ids),
         }
 
     def review_selection(
@@ -1527,7 +1787,7 @@ class EngineAdapter:
             path = ctx.run_dir / _artefact_name("diagnostics/validation", sid, view)
             if path.exists():
                 return self._validation.put(key, read_frame(path, index=list(attributes)))
-        log = result.log or self._load_log(ctx.case_table_dir, ctx.mapping)
+        log = result.log or self._run_log(ctx)
         table = wise.validation_table(
             result,
             view,
@@ -1538,8 +1798,32 @@ class EngineAdapter:
         )
         return self._validation.put(key, table)
 
-    def diagnostics(self, run: Run, ctx: RunContext, attributes: list[str], view: str | None) -> Table:
+    def diagnostics(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str],
+        view: str | None,
+        *,
+        bands: list[dict[str, Any]] | None = None,
+    ) -> Table:
         view = view or (ctx.views[0] if ctx.views else self._first_view(ctx))
+        if bands:
+            result = self._get_result(run, ctx)
+            cases = apply_bands(result.cases, bands, reference=self._get_frame(run, ctx))
+            # A per-request result avoids cache collisions between different band definitions.
+            banded = replace(result, cases=cases)
+            log = self._run_log(ctx)
+            return table_from_frame(
+                wise.validation_table(
+                    banded,
+                    view,
+                    effective_attributes(attributes, bands),
+                    censored=self._censored(ctx),
+                    replication=wise.event_replication(log),
+                    gamma=ctx.gamma,
+                )
+            )
         sid = ctx.slicing_id(attributes)
         if sid is not None:
             path = ctx.run_dir / _artefact_name("diagnostics/validation", sid, view)
@@ -1559,8 +1843,9 @@ class EngineAdapter:
     # ------------------------------------------------------------------ trace
     def trace(self, run: Run, ctx: RunContext, case_id: str) -> dict[str, Any]:
         mapping = ctx.mapping
-        events = duck.trace_events(self.ws, ctx.case_table_dir / "events.parquet", mapping.case_id, case_id).to_pandas()
-        if events.empty:
+        log = self._run_log(ctx)
+        events = log.events.loc[log.events[mapping.case_id].astype(str) == case_id]
+        if events.empty or case_id not in self._get_frame(run, ctx).index.astype(str):
             raise NotFoundError(f"case {case_id!r} not found", code="case.not_found")
         frame_rows = duck.trace_events(self.ws, ctx.run_dir / "frame.parquet", mapping.case_id, case_id).to_pandas()
         viol_rows = duck.trace_events(self.ws, ctx.run_dir / "violations.parquet", mapping.case_id, case_id).to_pandas()
@@ -1586,8 +1871,7 @@ class EngineAdapter:
                 elif not col.startswith("contrib__") and col != mapping.case_id:
                     attributes[col] = jsonable(value)
         out_events = []
-        sort_cols = [mapping.timestamp] + ([mapping.order] if mapping.order and mapping.order in events.columns else [])
-        events = events.sort_values(sort_cols, kind="mergesort")
+        # Preserve the run log's exact stable ordering, including mapped ties and transforms.
         for _, e in events.iterrows():
             act = e.get(mapping.activity)
             out_events.append(
@@ -1650,6 +1934,76 @@ class EngineAdapter:
         out["windowEnd"] = jsonable(ctx.window_end)
         out["filter"] = filter_obj
         return out
+
+    def investigation_questions(
+        self,
+        run: Run,
+        ctx: RunContext,
+        *,
+        filter_obj: dict[str, Any] | None = None,
+        family: str = "overview",
+        activity: str | None = None,
+        source: str | None = None,
+        target: str | None = None,
+        relation: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        log = self._run_log(ctx)
+        frame = self._get_frame(run, ctx)
+        # Compute from this run's actual transformed log. Do not reuse a baseline's
+        # censoring cache or write diagnostic artefacts during a read-only investigation.
+        flags = censored_flags(log, ctx.mapping, window_end=self._window_end(ctx))
+        mask = pd.Series(True, index=frame.index)
+        if filter_obj and filter_obj["and"]:
+            selected, _ = filter_masks(log, filter_obj, censored=flags)
+            mask &= selected.reindex(frame.index, fill_value=False).astype(bool)
+        return investigation_questions(
+            log,
+            frame.index[mask],
+            run_id=run.id,
+            total_cases=len(frame),
+            case_noun=ctx.case_noun,
+            filter_obj=filter_obj,
+            family=cast(Family, family),
+            activity=activity,
+            source=source,
+            target=target,
+            relation=cast(Relation | None, relation),
+            limit=limit,
+            resource_column=ctx.mapping.resource,
+            case_attributes=list(log.cases.columns),
+            censored=flags,
+        )
+
+    def variants(
+        self,
+        run: Run,
+        ctx: RunContext,
+        attributes: list[str] | None,
+        key: list[Any] | None,
+        *,
+        filter_obj: dict[str, Any] | None = None,
+        bands: list[dict[str, Any]] | None = None,
+        limit: int = 10,
+        example_limit: int = 3,
+    ) -> dict[str, Any]:
+        log = self._run_log(ctx)
+        frame = self._get_frame(run, ctx)
+        mask = pd.Series(True, index=frame.index)
+        if attributes and key is not None:
+            frame_b = apply_bands(frame, list(bands or [])) if bands else frame
+            mask &= _slice_mask(frame_b, effective_attributes(list(attributes), list(bands or [])), key)
+        if filter_obj:
+            fmask, _parts = filter_masks(log, filter_obj, censored=self._censored(ctx))
+            mask &= fmask.reindex(frame.index, fill_value=False).astype(bool)
+        return {
+            **process_variants(log, frame.index[mask], limit=limit, example_limit=example_limit),
+            "runId": run.id,
+            "scope": ctx.scope,
+            "filter": filter_obj,
+            "slicing": attributes,
+            "sliceKey": key,
+        }
 
     # ------------------------------------------------------------------ flow
     def flow(
@@ -1899,15 +2253,18 @@ class EngineAdapter:
         process: str | None,
         abstraction: float = 0.05,
         case_noun: str | None = None,
+        selection_id: str | None = None,
     ) -> dict[str, Any]:
         """The detected flow types of a case table with counts, a map each (stage groups, no expectations) and a
         readiness headline per type, computed with the one window end."""
-        key = (str(case_table_dir), attribute, process, abstraction)
+        scope = {"selection_id": selection_id} if selection_id is not None else None
+        # Resolve before cache lookup: a stale saved source must never serve old counts.
+        log = self._scoped_log(case_table_dir, mapping, scope)
+        key = (str(case_table_dir), attribute, process, abstraction, selection_id)
         noun = case_noun or mapping.noun
         hit = self._flow_types.get(key)
         if hit is not None:
             return hit
-        log = self._load_log(case_table_dir, mapping)
         name, column = flow_type_column(log, attribute)
         window_end = self.case_table_window_end(case_table_dir)
         end = pd.Timestamp(window_end) if window_end else resolve_window_end(log)
@@ -1920,10 +2277,12 @@ class EngineAdapter:
         rule_order = {r.name: i for i, r in enumerate(mapping.flow_typing)} if name == "flow_type" else {}
         rule_notes = {r.name: r.note for r in mapping.flow_typing if r.note} if name == "flow_type" else {}
         if rule_order:
-            counts = counts.reindex(sorted(counts.index, key=lambda v: (rule_order.get(str(v), len(rule_order)), -counts[v])))
+            counts = counts.reindex(
+                sorted(counts.index, key=lambda v: (rule_order.get(str(v), len(rule_order)), -counts[v]))
+            )
         n_cases = len(log)
         events_path = case_table_dir / "events.parquet"
-        types = []
+        types: list[dict[str, Any]] = []
         for value, n in counts.items():
             m = (column == value).to_numpy(dtype=bool)
             ids = [str(i) for i in log.case_ids[m]]
@@ -1955,9 +2314,9 @@ class EngineAdapter:
             if median_days is not None and np.isfinite(median_days):
                 headline += f", median {median_days:.0f} days from first to last event"
             if censored_share is not None:
-                headline += f"; {censored_share:.0%} still open at the end of the data ({end.date()})"
+                headline += f"; {censored_share:.0%} meet the recent-unclosed diagnostic ({end.date()}); not flagged does not mean closed"
             if replicated_share >= 0.05:
-                headline += f"; {replicated_share:.0%} carry copied postings"
+                headline += f"; {replicated_share:.0%} have more than two events per distinct timestamp (not proof of copied events)"
             types.append(
                 {
                     "name": str(value),
@@ -1979,7 +2338,11 @@ class EngineAdapter:
                     "note": rule_notes.get(str(value)),
                 }
             )
+        if selection_id is not None:
+            for item in types:
+                item["scope"]["selection_id"] = selection_id
         out = {
+            "selectionId": selection_id,
             "attribute": name,
             "source": "mapping" if (name == "flow_type" and mapping.flow_typing) else "attribute",
             "cases": n_cases,
@@ -2156,7 +2519,8 @@ class EngineAdapter:
 
         * *almost always missed* — missed by more than 90 % of the cases it applies to: a threshold to calibrate,
           not a difference between groups;
-        * *almost never missed* — met by more than 99 %: it cannot fail on this log as it is set;
+        * *almost never missed* — fewer than 1 % observed misses: check whether it distinguishes the
+          intended problem; report zero observed misses separately from rare positive misses;
         * *partly measured* (R3-14) — evaluated on far fewer cases than it applies to, so its shortfall is mostly
           a statement about which events are logged;
         * *missing partner* (R3-14) — most of its violations come from a partner event that never occurs rather
@@ -2215,10 +2579,12 @@ class EngineAdapter:
                 )
             elif share < 0.01:
                 reason = "almost_never_missed"
-                text = (
-                    f"{name} is met by {(1 - share) * 100:.0f} % of all {noun} it applies to — it cannot "
-                    "fail on this log as it is set."
+                observation = (
+                    f"{name}: rarely missed on this log — {violated:,} of {n:,} evaluated {noun}"
+                    if violated
+                    else f"{name}: no observed misses among {n:,} evaluated {noun} on this log"
                 )
+                text = f"{observation}; check whether it distinguishes the problem you want to detect."
             elif any(d.startswith(nc.id) for d in declared):
                 reason = "declared"
                 text = f"{name} carries an uncalibrated threshold in the norm; set it on the distribution lens."
@@ -2507,6 +2873,7 @@ class EngineAdapter:
         key: list[Any] | None = None,
         bands: list[dict[str, Any]] | None = None,
         grouping: list[str] | None = None,
+        grouping_bands: list[dict[str, Any]] | None = None,
         min_cases: int = 1,
     ) -> dict[str, Any]:
         """The board's KPI tiles for the current selection: items, share below expectation, priority, open share.
@@ -2531,6 +2898,7 @@ class EngineAdapter:
                 "key": key,
                 "bands": bands,
                 "grouping": grouping,
+                "groupingBands": grouping_bands,
                 "minCases": int(min_cases),
             },
         )
@@ -2543,16 +2911,29 @@ class EngineAdapter:
         scored = int(score.notna().sum())
         cases_below = int((score < 1.0).sum())
         mean_score = float(score.mean()) if scored else None
-        group_attrs = [a for a in (grouping or []) if a in frame.columns]
-        if not group_attrs:
-            group_attrs = [a for a in (list(ctx.slicings[0][1]) if ctx.slicings else []) if a in frame.columns]
+        raw_group_attrs = list(grouping) if grouping is not None else list(ctx.slicings[0][1]) if ctx.slicings else []
+        group_bands = (
+            list(grouping_bands or [])
+            if grouping is not None
+            else ctx.slicing_bands(ctx.slicings[0][0])
+            if ctx.slicings
+            else []
+        )
+        missing = [a for a in raw_group_attrs if a not in frame.columns]
+        if missing:
+            raise ValidationError(f"unknown grouping attributes {missing}", code="backlog.attribute")
+        group_attrs = effective_attributes(raw_group_attrs, group_bands)
+        grouped = apply_bands(frame, group_bands) if group_bands else frame
+        grouped = grouped.reindex(selected.index)
         priority, groups, grouping_label = 0.0, 0, "groups"
         priority_source = "not_computed"
         if group_attrs and scored:
             grouping_label = "groups of " + " × ".join(group_attrs)
             unfiltered = not filter_obj and key is None and len(selected) == sel["cases_total"]
             stored = (
-                self._stored_priority(ctx, group_attrs, bands, view=view, gamma=gamma, min_cases=int(min_cases))
+                self._stored_priority(
+                    ctx, raw_group_attrs, group_bands, view=view, gamma=gamma, min_cases=int(min_cases)
+                )
                 if unfiltered
                 else None
             )
@@ -2560,7 +2941,7 @@ class EngineAdapter:
                 priority, groups = stored
                 priority_source = "run artefact"
             else:
-                labels = _group_labels(_label_missing_keys(selected, group_attrs), group_attrs)
+                labels = _group_labels(_label_missing_keys(grouped, group_attrs), group_attrs)
                 groups_table = board.facet_table(selected, labels, view=view, gamma=gamma, baseline=sel["baseline"])
                 groups_table = groups_table[groups_table["cases"] >= int(min_cases)]
                 priority = float(groups_table["priority_at_stake"].sum())
@@ -2618,6 +2999,11 @@ class EngineAdapter:
         result = self._get_result(run, ctx)
         log = result.log or self._run_log(ctx)
         return filter_preview(log, filter_obj, censored=self._censored(ctx), in_scope=result.in_scope)
+
+    def slicing_options(self, run: Run, ctx: RunContext) -> dict[str, Any]:
+        return grouping_options(
+            self._get_frame(run, ctx), self._grouping_native(ctx), scope=ctx.scope, noun=ctx.case_noun
+        )
 
     def slicing_preview(
         self, run: Run, ctx: RunContext, attributes: list[str], bands: list[dict[str, Any]], min_cases: int
@@ -2735,8 +3121,17 @@ def _contrast_table(ct: pd.DataFrame, ref: Any) -> Table:
     for r in frame.to_dict("records"):
         cid = str(r.get("constraint"))
         g = ref(cid)
-        median_slice, median_rest, shift, unit = r.get("median_slice"), r.get("median_rest"), r.get("hl_shift"), r.get("unit")
-        if str(r.get("type")) == "metric" and unit not in ("D", "H", "M", "S") and is_flag_values(median_slice, median_rest):
+        median_slice, median_rest, shift, unit = (
+            r.get("median_slice"),
+            r.get("median_rest"),
+            r.get("hl_shift"),
+            r.get("unit"),
+        )
+        if (
+            str(r.get("type")) == "metric"
+            and unit not in ("D", "H", "M", "S")
+            and is_flag_values(median_slice, median_rest)
+        ):
             # a 0/1 flag scored as a metric: the medians are the flag itself and the "unit" is the column name;
             # the shares missed here and elsewhere are the whole comparison (the objection log's e5 flag read
             # "1.0 e5_open_older_than_year here; everywhere else 0.0")
@@ -2764,6 +3159,9 @@ def _contrast_table(ct: pd.DataFrame, ref: Any) -> Table:
                 jsonable(r.get("delta_hi")),
                 jsonable(r.get("n_evaluated_slice")),
                 jsonable(r.get("n_evaluated_rest")),
+                r.get("interval_method"),
+                jsonable(r.get("confidence_level")),
+                r.get("comparison"),
             ]
         )
     return {
@@ -2789,6 +3187,9 @@ def _contrast_table(ct: pd.DataFrame, ref: Any) -> Table:
             "delta_hi",
             "n_evaluated_group",
             "n_evaluated_elsewhere",
+            "interval_method",
+            "confidence_level",
+            "comparison",
         ],
         "rows": rows,
     }

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * CP-B3 on the served build with the mocks: the acceptance tests of the third release's specification
- * (`docs/panel/ui_design_cycle3_board.md` §6.2) that can be measured — F1 (the map is the screen), F2 (an
+ * (`packages/process-knowledge/PACK_DESIGN.md`) that can be measured — F1 (the map is the screen), F2 (an
  * action does something, the owner's "filter to cases with this activity"), F3 (every path is reachable),
  * F4 (full window), F5 (the model), B1 (one click moves everything), B2 (a chip restores) and B3 (two
  * selections read as OR).
@@ -53,12 +53,20 @@ test("F1 · the map is the screen: the frame covers at least 60 % of the viewpor
     })()`,
   )) as { above: number; below: number; left: number; width: number };
   expect(bands.left, "the drawing starts at the left edge of the frame").toBeLessThan(0.08);
+  expect(bands.left, "the left side of the drawing is not clipped").toBeGreaterThanOrEqual(0);
+  expect(bands.left + bands.width, "the right side of the drawing is not clipped").toBeLessThanOrEqual(1);
+  expect(bands.above, "the top of the drawing is not clipped").toBeGreaterThanOrEqual(0);
+  expect(bands.below, "the bottom of the drawing is not clipped").toBeGreaterThanOrEqual(0);
   expect(bands.width, "the drawing uses the width of the frame").toBeGreaterThan(0.6);
   expect(Math.abs(bands.above - bands.below), "the drawing is centred, with no one-sided empty band").toBeLessThan(0.06);
   // the chrome of the instrument and nothing else
   const bar = page.getByTestId("flow-bar");
   await expect(bar).toContainText("of 251,734 purchase order items");
-  await expect(bar.getByTestId("detail-label")).toContainText("of 42 activities");
+  // The fixture supplies nine activities; nodesTotal=42 describes the original log,
+  // not forty-two selectable nodes. Missing source detail must be disclosed.
+  await expect(bar.getByTestId("detail-label")).toContainText("of 9 activities");
+  await expect(bar.getByRole("spinbutton", { name: "Number of activities" })).toHaveAttribute("max", "9");
+  await expect(bar.getByTestId("incomplete-flow")).toBeVisible();
   await expect(page.getByTestId("map-legend")).toBeVisible();
   await expect(page.getByTestId("zoom-controls")).toBeVisible();
 });
@@ -104,6 +112,10 @@ test("F4 · full window fills the viewport and Escape leaves it", async ({ page 
   const frame = await page.getByTestId("map-frame").boundingBox();
   const share = ((frame?.width ?? 0) * (frame?.height ?? 0)) / (1440 * 900);
   expect(share, `the full window covers ${(share * 100).toFixed(1)} % of the viewport`).toBeGreaterThanOrEqual(0.95);
+  expect(frame!.x).toBeGreaterThanOrEqual(0);
+  expect(frame!.y).toBeGreaterThanOrEqual(0);
+  expect(frame!.x + frame!.width).toBeLessThanOrEqual(1440);
+  expect(frame!.y + frame!.height).toBeLessThanOrEqual(900);
   expect(page.url()).toContain("full=true");
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("flow-map")).not.toHaveAttribute("data-full", "1");

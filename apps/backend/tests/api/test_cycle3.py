@@ -69,7 +69,11 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Any]]:
         norm = client.post(f"/api/v1/projects/{pid}/norms", json={"norm": truth.norm.to_dict(), "note": "synthetic"})
         assert norm.status_code == 201, norm.text
         body = {"caseTableId": ct, "normVersionId": norm.json()["id"], "slicings": SLICINGS, "gamma": 2, "minCases": 5}
-        run = client.post(f"/api/v1/projects/{pid}/runs", json=body).json()
+        binding = client.put(f"/api/v1/projects/{pid}/dataset-binding", json={"datasetId": dataset})
+        assert binding.status_code == 200, binding.text
+        response = client.post(f"/api/v1/projects/{pid}/runs", json=body)
+        assert response.status_code == 202, response.text
+        run = response.json()
         assert wait_job(client, run["jobId"], timeout=180)["status"] == "done"
         analytics = _wait_analytics(client, pid, run["id"])
         yield {
@@ -495,7 +499,9 @@ def test_uncalibrated_expectations_are_flagged_on_the_list(world: dict[str, Any]
         if f["reason"] == "almost_always_missed":
             assert f["share_violated"] > 0.90 and "threshold to calibrate" in f["text"]
         if f["reason"] == "almost_never_missed":
-            assert f["share_violated"] < 0.01 and "cannot fail" in f["text"]
+            assert f["share_violated"] < 0.01 and "cannot fail" not in f["text"]
+            observation = "rarely missed" if f["share_violated"] > 0 else "no observed misses"
+            assert observation in f["text"] and "evaluated" in f["text"]
 
 
 # ---------------------------------------------------------------- RK-2, RK-3 guidance and the hub
@@ -504,7 +510,26 @@ def test_guidance_and_hub_serve_the_pack(world: dict[str, Any]) -> None:
     hub = c.get(f"/api/v1/projects/{pid}/knowledge/hub").json()
     assert hub["pack"] == "p2p" and hub["case_noun"] and len(hub["nodes"]) > 100 and hub["edges"]
     kinds = {n["kind"] for n in hub["nodes"]}
-    assert {"stage", "layer", "expectation", "failure_mode", "reason", "action", "kpi"} <= kinds
+    assert {
+        "process",
+        "solution_card",
+        "stage",
+        "layer",
+        "expectation",
+        "failure_mode",
+        "reason",
+        "action",
+        "kpi",
+    } <= kinds
+    recipe_id = "solution_card:p2p:release-to-clearing"
+    recipe = c.get(f"/api/v1/projects/{pid}/knowledge/hub/{recipe_id}")
+    assert recipe.status_code == 200
+    recipe_page = recipe.json()
+    assert recipe_page["node"]["solution_card"]["hubNode"] == recipe_id
+    assert recipe_page["related"]["process"]["id"] == "process:p2p"
+    assert recipe_page["related"]["expectations"] and recipe_page["related"]["failure_modes"]
+    process_page = c.get(f"/api/v1/projects/{pid}/knowledge/hub/process:p2p").json()
+    assert recipe_id in {n["id"] for n in process_page["related"]["solution_cards"]}
     layer = next(n for n in hub["nodes"] if n["kind"] == "layer")
     page = c.get(f"/api/v1/projects/{pid}/knowledge/hub/{layer['id']}").json()
     assert page["node"]["id"] == layer["id"] and page["guidance"]["plain_name"]
@@ -675,6 +700,16 @@ def test_gates_block_a_hypothesis_until_they_are_waived_with_a_note(world: dict[
         assert hyp["test"]["constraint_id"] == "c1" and len(hyp["test"]["interval"]) == 2
     listed = c.get(f"/api/v1/projects/{pid}/hypotheses", params={"runId": rid}).json()
     assert [h["id"] for h in listed] == [hyp["id"]]
+    # Recording an open question can precede review; a conclusion cannot.
+    current = c.get(f"/api/v1/projects/{pid}/runs/{rid}/gates", params=params).json()
+    for gate in current["gates"]:
+        if gate["status"] not in {"passed", "waived"}:
+            response = c.post(
+                f"/api/v1/projects/{pid}/runs/{rid}/gates/{gate['id']}",
+                params=params,
+                json={"status": "waived", "note": "Reviewed for this synthetic conclusion"},
+            )
+            assert response.status_code == 200, response.text
     patched = c.patch(
         f"/api/v1/projects/{pid}/hypotheses/{hyp['id']}", json={"status": "supported", "note": "confirmed"}
     ).json()

@@ -21,6 +21,7 @@ dependencies = [
   "duckdb>=1.0",
   "pyarrow>=16",
   "pandas>=2.0",
+  "pm4py>=2.7,<3",
   "numpy>=1.24",
   "structlog>=24",
   "jinja2>=3.1",
@@ -32,10 +33,10 @@ dependencies = [
 [project.optional-dependencies]
 analytics = ["wise-analytics>=0.2,<0.3"]
 full = ["wise-analytics>=0.2,<0.3"]
-xes = ["pm4py>=2.7"]
+# Kept for compatibility with existing install commands; XES is included by default.
+xes = ["pm4py>=2.7,<3"]
 postgres = ["psycopg[binary]>=3.1"]
 docx = ["python-docx>=1.1"]
-llm = ["ollama>=0.3"]
 dev = ["build>=1.2", "pip", "setuptools>=77", "wheel", "pytest>=8", "pytest-cov", "hypothesis", "ruff", "mypy", "pandas-stubs", "pre-commit", "types-PyYAML"]
 
 [project.scripts]

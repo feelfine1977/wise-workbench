@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, status
 
 from wise_workbench.api import schemas
 from wise_workbench.api.deps import ContainerDep
+from wise_workbench.application.services import finding_evidence
 from wise_workbench.domain import ReviewKind
 
 router = APIRouter(prefix="/projects/{projectId}", tags=["review"])
@@ -95,11 +96,12 @@ def list_hypotheses(
     description=(
         "Record a hypothesis about one group and one expectation. The backend computes its test from the run's "
         "contrast (risk difference with its interval, the real-unit shift) and refuses the record while a gate of "
-        "that group has failed."
+        "that group has failed. Computed evidence is read only. A supported or not-supported conclusion requires "
+        "current measured evidence and every check for the recorded view passed or explicitly waived."
     ),
 )
 def create_hypothesis(projectId: str, body: schemas.HypothesisCreate, c: ContainerDep) -> schemas.ReviewItem:
-    return _out(c.review.create_hypothesis(projectId, body.model_dump(exclude_none=True)))
+    return _out(c.review.create_hypothesis(projectId, body.model_dump(exclude_unset=True)))
 
 
 @router.get("/hypotheses/{itemId}", operation_id="getHypothesis", response_model=schemas.ReviewItem)
@@ -107,11 +109,17 @@ def get_hypothesis(projectId: str, itemId: str, c: ContainerDep) -> schemas.Revi
     return _out(c.review.get(projectId, itemId))
 
 
-@router.patch("/hypotheses/{itemId}", operation_id="updateHypothesis", response_model=schemas.ReviewItem)
+@router.patch(
+    "/hypotheses/{itemId}",
+    operation_id="updateHypothesis",
+    response_model=schemas.ReviewItem,
+    responses={409: {"model": schemas.Problem}, 422: {"model": schemas.Problem}},
+    description="Edit annotations or the reviewed outcome. Computed evidence and assessment identity are read only.",
+)
 def update_hypothesis(
     projectId: str, itemId: str, body: schemas.ReviewItemUpdate, c: ContainerDep
 ) -> schemas.ReviewItem:
-    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_none=True)))
+    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_unset=True)))
 
 
 # ---------------------------------------------------------------------------- findings
@@ -131,12 +139,12 @@ def list_findings(
     description="What the analysis concluded about a group, with the evidence it rests on.",
 )
 def create_finding(projectId: str, body: schemas.FindingCreate, c: ContainerDep) -> schemas.ReviewItem:
-    return _out(c.review.create_finding(projectId, body.model_dump(exclude_none=True)))
+    return _out(finding_evidence.create(c, projectId, body.model_dump(exclude_unset=True)))
 
 
 @router.patch("/findings/{itemId}", operation_id="updateFinding", response_model=schemas.ReviewItem)
 def update_finding(projectId: str, itemId: str, body: schemas.ReviewItemUpdate, c: ContainerDep) -> schemas.ReviewItem:
-    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_none=True)))
+    return _out(c.review.update(projectId, itemId, body.model_dump(exclude_unset=True)))
 
 
 # ---------------------------------------------------------------------------- actions

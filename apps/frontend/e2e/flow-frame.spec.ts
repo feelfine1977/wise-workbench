@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 /**
- * The map frame keeps its size (`docs/panel/ui_design_cycle3_board.md` §3.2). The Flow step was unusable
+ * The map frame keeps its size (`packages/process-knowledge/PACK_DESIGN.md`). The Flow step was unusable
  * because the map resized without settling: the frame's height came from its own fitted content, a filter
  * brought a page scrollbar that changed the width, and the refit changed the height again.
  *
@@ -227,7 +227,7 @@ async function drawnOn(page: Page) {
 for (const size of LABEL_SIZES) {
   const at = `${size.width} × ${size.height}`;
 
-  test(`every text drawn on the map is at least 11 px at ${at} (R3-06, P1-4)`, async ({ page, request }) => {
+  test(`readable size keeps map text at least 11 px at ${at} (R3-06, P1-4)`, async ({ page, request }) => {
     const { projectId, runId, view } = await target(request);
     test.skip(!runId, "no finished run to read");
     await page.setViewportSize(size);
@@ -235,11 +235,16 @@ for (const size of LABEL_SIZES) {
     await expect(page.getByTestId("map-frame")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60_000 });
 
-    // every detail level the slider offers, from the stages to all that fit
-    for (const level of [1, 2, 3, 4]) {
-      await page.getByLabel("Detail of the map, from stages only to all that fit").fill(String(level));
+    // Inspect small, middle and full activity counts using the current exact-count control.
+    const count = page.getByRole("spinbutton", { name: "Number of activities" });
+    const maximum = Number(await count.getAttribute("max"));
+    for (const level of [...new Set([1, Math.ceil(maximum / 2), maximum])]) {
+      await count.fill(String(level));
+      await count.press("Enter");
       await expect(page.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60_000 });
       await page.waitForTimeout(2500);
+      await page.getByRole("button", { name: "Readable size", exact: true }).click();
+      await page.waitForTimeout(400);
       const { texts, overlaps, zoom, activities } = await drawnOn(page);
       expect(activities, `no activity is drawn at level ${level} at ${at}`).toBeGreaterThan(0);
       expect(texts.length, `no text is drawn at level ${level} at ${at}`).toBeGreaterThan(0);
@@ -251,7 +256,7 @@ for (const size of LABEL_SIZES) {
     }
   });
 
-  test(`the map is fitted to its drawing, with no empty band over 8 % at ${at} (P1-5)`, async ({ page, request }) => {
+  test(`the overview fits and centres the drawing without cropping at ${at} (P1-5)`, async ({ page, request }) => {
     const { projectId, runId, view } = await target(request);
     test.skip(!runId, "no finished run to read");
     await page.setViewportSize(size);
@@ -262,9 +267,14 @@ for (const size of LABEL_SIZES) {
     const { band, zoom } = await drawnOn(page);
     expect(band, "nothing is drawn on the map").not.toBeNull();
     const sides = band as { above: number; below: number; left: number; right: number };
+    // Aspect ratio is preserved: a long process fills one axis, with balanced space on the other.
+    // Requiring <8% on every side would force cropping or distortion of a wide process.
     for (const [side, value] of Object.entries(sides)) {
-      expect(value, `the band ${side} the drawing is ${value} % of the frame at ${at} (zoom ${zoom})`).toBeLessThanOrEqual(8.001);
+      expect(value, `${side} edge must not be cropped at ${at} (zoom ${zoom})`).toBeGreaterThanOrEqual(-0.5);
     }
+    expect(Math.min(sides.left + sides.right, sides.above + sides.below), "at least one axis uses the available frame").toBeLessThanOrEqual(16);
+    expect(Math.abs(sides.above - sides.below), "balanced vertical margins").toBeLessThanOrEqual(6);
+    expect(Math.abs(sides.left - sides.right), "balanced horizontal margins").toBeLessThanOrEqual(6);
   });
 }
 
@@ -292,14 +302,6 @@ test("no third-party control bar or watermark is drawn on the map (R3-17)", asyn
   expect(chrome.ourStacks).toBe(1);
 });
 
-/**
- * R3-18 — a flow-type thumbnail draws its flow.
- *
- * The small maps on the data screen are fitted to their activities and paths, not to the stage lanes: a lane
- * is 1,475 layout units tall against an activity's 48, so a fit that had to hold them drew one lane header
- * and a row of specks — two of the three thumbnails on the extract showed nothing else. The check is that
- * every card draws its activities inside its own frame.
- */
 /** The address of the flow-type cards: the dataset screen with the run's own case table named. */
 async function flowTypesHref(request: APIRequestContext, projectId: string): Promise<string | undefined> {
   if (!API) return `/p/${projectId}/data/ds_1?caseTable=ct_1&tab=flows`;
@@ -310,39 +312,26 @@ async function flowTypesHref(request: APIRequestContext, projectId: string): Pro
   return table.datasetId ? `/p/${projectId}/data/${table.datasetId}?caseTable=${caseTableId}&tab=flows` : undefined;
 }
 
-test("every flow-type thumbnail draws its activities inside its frame (R3-18)", async ({ page, request }) => {
+test("flow types compare full activity names and real connections on a common scale", async ({ page, request }) => {
   const { projectId } = await target(request);
   await page.setViewportSize({ width: 1440, height: 900 });
-  // the flow types are a tab of the dataset screen, and it reads the case table the address names
   const where = await flowTypesHref(request, projectId);
   test.skip(!where, "this workspace has no case table to read flow types from");
   await page.goto(String(where));
-  const list = page.getByRole("list", { name: "Flow types" });
-  await list.waitFor({ state: "visible", timeout: 60_000 }).catch(() => undefined);
-  test.skip((await list.count()) === 0, "this workspace has no flow types");
-  await expect(page.locator('[data-flow-type] [data-testid="mini-map"] .react-flow__node').first()).toBeVisible({ timeout: 60_000 });
-  await page.waitForTimeout(3000);
-
-  const cards = await page.evaluate(`(() => {
-    return [...document.querySelectorAll("[data-flow-type]")].map((card) => {
-      const mini = card.querySelector("[data-testid='mini-map']");
-      const frame = mini.getBoundingClientRect();
-      const nodes = [...mini.querySelectorAll(".wf-node")].filter((n) => n.dataset.kind === "activity");
-      const inside = nodes.filter((n) => {
-        const r = n.getBoundingClientRect();
-        return r.width > 2 && r.right > frame.left && r.left < frame.right && r.bottom > frame.top && r.top < frame.bottom;
-      });
-      const sub = [...card.querySelectorAll("p")].find((p) => /\\(/.test(p.textContent || ""));
-      return { type: card.dataset.flowType, activities: nodes.length, drawn: inside.length, clipped: sub ? sub.scrollHeight > sub.clientHeight + 1 : false };
-    });
-  })()`) as { type: string; activities: number; drawn: number; clipped: boolean }[];
-
-  expect(cards.length).toBeGreaterThan(0);
-  for (const card of cards) {
-    expect(card.activities, `the ${card.type} thumbnail draws no activity`).toBeGreaterThan(0);
-    expect(card.drawn, `the ${card.type} thumbnail draws ${card.drawn} of its ${card.activities} activities inside its frame`).toBe(card.activities);
-    expect(card.clipped, `the ${card.type} card clips its sub-line`).toBe(false);
-  }
+  await expect(page.getByTestId("flow-type-comparison")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("mini-map")).toHaveCount(0);
+  const table = page.getByTestId("flow-type-comparison").getByRole("table");
+  await expect(table).toBeVisible();
+  const labels = await table.locator("tbody th").evaluateAll((nodes) => nodes.map((node) => ({
+    text: node.textContent, clipped: node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1,
+  })));
+  expect(labels.length).toBeGreaterThan(0);
+  expect(labels.every((label) => label.text && !label.clipped)).toBe(true);
+  await page.getByRole("tab", { name: "Direct connections", exact: true }).click();
+  await expect(table.locator("tbody th").first()).toContainText("→");
+  // The comparison remains independently scrollable rather than shrinking names on a narrow screen.
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.getByRole("region", { name: "Direct connections comparison table" })).toBeVisible();
 });
 
 /**
@@ -394,4 +383,41 @@ test("the paths of an activity are listed once, over the map, without taking its
   // Escape closes it and the map is whole again
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden({ timeout: 10_000 });
+});
+
+
+/** Evidence is opt-in and selected independently of recorded process topology. */
+test("the map separates recorded transitions from one named constraint", async ({ page, request }) => {
+  const { projectId, runId, view } = await target(request);
+  test.skip(!runId, "no finished run to read");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/p/${projectId}/runs/${runId}/flow?slicing=${encodeURIComponent(SLICING)}&view=${encodeURIComponent(view)}`);
+  const map = page.getByTestId("map-frame");
+  const evidence = page.getByTestId("flow-evidence");
+  await expect(map.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60000 });
+  const toggle = page.getByRole("checkbox", { name: "WISE evidence", exact: true });
+  await expect(toggle).not.toBeChecked();
+  await expect(evidence.getByRole("button", { name: "Choose constraints", exact: true })).toHaveCount(0);
+  await expect(map.locator('[aria-label*="expectation shortfall"]')).toHaveCount(0);
+  const nodePositions = () => map.locator(".react-flow__node-activity").evaluateAll((nodes) => nodes.map((n) => ({ id: n.getAttribute("data-id"), position: n.getAttribute("style") })));
+  await page.waitForTimeout(1800);
+  const before = await nodePositions();
+  await toggle.check();
+  const chooser = evidence.getByRole("button", { name: "Choose constraints", exact: true });
+  await expect(chooser).toBeVisible();
+  await expect(evidence.getByTestId("evidence-count")).toContainText(/Selected [01] of/);
+  await evidence.getByRole("button", { name: "Meaning and coverage", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText(/evaluated|denominator|not reported/i);
+  await page.keyboard.press("Escape");
+  expect(await nodePositions()).toEqual(before);
+  await page.getByRole("button", { name: "Close display settings", exact: true }).click();
+  // Hovering a node cannot refit the viewport, even with WISE annotations on.
+  const viewport = map.locator(".react-flow__viewport");
+  const transform = await viewport.getAttribute("style");
+  await map.locator(".react-flow__node-activity").first().hover();
+  await page.waitForTimeout(500);
+  expect(await viewport.getAttribute("style")).toBe(transform);
+  await toggle.uncheck();
+  expect(await nodePositions()).toEqual(before);
+  await expect(evidence.getByTestId("evidence-count")).toHaveCount(0);
 });

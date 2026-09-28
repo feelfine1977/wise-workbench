@@ -60,8 +60,18 @@ export function returnTarget(visited: Visited[], currentPathname: string): Visit
   return undefined;
 }
 
+/** Only the selected calibration expectation opened from group evidence stays in Analyse. */
+export function isAnalysisNormLens(pathname: string, origin: string | undefined, search: { tab?: unknown; constraint?: unknown }): boolean {
+  return /\/norms\/[^/]+$/.test(pathname)
+    && !!origin && /\/slices\/[^/]+\/?$/.test(origin)
+    && (search.tab === "constraints" || search.tab === undefined)
+    && typeof search.constraint === "string" && search.constraint.trim().length > 0;
+}
+
 /** A plain name for a screen from its pathname. */
 export function screenLabel(pathname: string, plain = true): string {
+  if (/\/slices\/[^/]+\/act$/.test(pathname)) return "Improve";
+  if (/\/knowledge(?:\/|$)/.test(pathname)) return "Knowledge hub";
   if (/\/slices\//.test(pathname)) return plain ? "Why?" : "Slice";
   if (/\/flow$/.test(pathname)) return "Where in the flow";
   if (/\/board$/.test(pathname)) return "Explore";

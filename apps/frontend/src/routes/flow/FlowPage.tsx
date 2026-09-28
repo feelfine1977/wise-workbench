@@ -18,6 +18,7 @@ import { flowQuery } from "@/lib/api/flow";
 import { useNavStore } from "@/lib/stores/nav";
 import { useSceneStore } from "@/lib/stores/scenes";
 import { useFilterFeedback } from "@/components/flow/useFilterFeedback";
+import { ProcessVariants } from "@/components/flow/ProcessVariants";
 import { StepHeader } from "./StepHeader";
 
 const FlowMap = lazy(() => import("@/components/flow/FlowMap"));
@@ -136,13 +137,16 @@ export default function FlowPage() {
         search={shared}
         backFallback={backFallback}
         actions={
-          <FreezeButton
-            projectId={ctx.projectId}
-            screen="flow"
-            context={{ run_id: runId, slicing, view, filters: filter ?? null, scope: run.scope ?? null }}
-            data={{ detail: search.detail, render: search.render, selection: search.sel }}
-            defaultTitle={`Where in the flow · ${scope ?? "all flows"}`}
-          />
+          <div className="flex items-center gap-2">
+            <ProcessVariants projectId={ctx.projectId} runId={runId} filter={search.filter} />
+            <FreezeButton
+              projectId={ctx.projectId}
+              screen="flow"
+              context={{ run_id: runId, slicing, view, filters: filter ?? null, scope: run.scope ?? null }}
+              data={{ detail: search.detail, render: search.render, selection: search.sel }}
+              defaultTitle={`Where in the flow · ${scope ?? "all flows"}`}
+            />
+          </div>
         }
       />
 
@@ -185,7 +189,7 @@ export default function FlowPage() {
           <FlowMap
             className="min-h-0 flex-1"
             graph={graph}
-            title={`Process map of ${scope ?? "the whole log"} with the expectations drawn on it`}
+            title={`Process map of ${scope ?? "the whole log"}`}
             frame="page"
             filter={filter}
             preview={preview.data}
@@ -232,7 +236,7 @@ export default function FlowPage() {
       <p className="sr-only" aria-live="polite" data-testid="filter-announcement">
         {feedback.announcement}
       </p>
-      <LensDialog projectId={ctx.projectId} runId={runId} constraintId={lens} title={lens ? plainOf(lens) : ""} onClose={() => setLens(undefined)} onOpenNorm={(c) => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: run.normVersionId }, search: { tab: "constraints", constraint: c } as never })} />
+      <LensDialog projectId={ctx.projectId} runId={runId} filter={search.filter} constraintId={lens} title={lens ? plainOf(lens) : ""} onClose={() => setLens(undefined)} onOpenNorm={(c) => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: run.normVersionId }, search: { tab: "constraints", constraint: c } as never })} />
     </div>
   );
 }

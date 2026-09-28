@@ -11,6 +11,7 @@ from wise_workbench.adapters.knowledge import case_noun as pack_case_noun
 from wise_workbench.adapters.knowledge import guidance_complete, guidance_ref
 from wise_workbench.domain import (
     CaseTableStatus,
+    ConflictError,
     NormStatus,
     NormVersion,
     NotFoundError,
@@ -19,6 +20,7 @@ from wise_workbench.domain import (
     missing_rationales,
     thresholds_of,
 )
+from wise_workbench.domain.norm_views import with_general_benchmark
 from wise_workbench.ids import new_id
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -61,6 +63,8 @@ class NormService:
         document = _with_calibration(
             document, calibration, not_applicable, author, parent=parent.document if parent else None, pending=pending
         )
+        validated, _ = self.c.engine.validate_norm(document)
+        document = with_general_benchmark(validated)
         canonical, fingerprint = self.c.engine.validate_norm(document)
         canonical.setdefault("metadata", {})
         for block in ("calibration", "not_applicable"):
@@ -242,6 +246,13 @@ class NormService:
             ],
         }
 
+    def templates(
+        self, project_id: str, case_table_id: str, *, label_pack: str | None = None, template_id: str | None = None
+    ) -> dict[str, Any]:
+        from .norm_templates import list_norm_templates
+
+        return list_norm_templates(self.c, project_id, case_table_id, label_pack=label_pack, template_id=template_id)
+
     # ------------------------------------------------------------- norm builder (R3-O6)
     def inventory(
         self,
@@ -313,6 +324,43 @@ class NormService:
                 out.append(lid)
         return out
 
+    def _evidence_context(self, project_id: str, case_table_id: str, selection_id: str | None):
+        from .project_binding import get_binding
+        from .selections import get_selection
+
+        table = self.c.mappings.get_case_table(project_id, case_table_id)
+        if table.status != CaseTableStatus.READY:
+            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
+        mapping = self.c.repos.get_mapping(table.mapping_id)
+        if mapping.dataset_id != table.dataset_id:
+            raise ValidationError("Case table mapping does not match its dataset", code="case_table.mapping_mismatch")
+        self.c.datasets.get(project_id, table.dataset_id)
+        binding = get_binding(self.c, project_id)
+        if binding["datasetId"] is not None and binding["datasetId"] != table.dataset_id:
+            raise ConflictError(
+                "Evidence must use the project's fixed dataset", code="project.dataset_binding_mismatch"
+            )
+        scope: dict[str, Any] = {"kind": "all_cases"}
+        if selection_id is not None:
+            selection = get_selection(self.c, project_id, table.id, selection_id)
+            scope = {
+                "kind": "saved_selection",
+                "selectionId": selection["id"],
+                "selectionName": selection["name"],
+                "membershipChecksum": selection["membershipChecksum"],
+            }
+        return table, mapping, scope
+
+    def relevance(
+        self, project_id: str, norm_version_id: str, case_table_id: str, *, selection_id: str | None = None
+    ) -> dict[str, Any]:
+        n = self.get(project_id, norm_version_id)
+        table, mapping, scope = self._evidence_context(project_id, case_table_id, selection_id)
+        out = self.c.engine.norm_relevance(
+            self.c.workspace.case_table_dir(project_id, table.id), mapping, n.document, selection_id=selection_id
+        )
+        return {**out, "normVersionId": n.id, "caseTableId": table.id, "scope": scope}
+
     def signals(
         self,
         project_id: str,
@@ -321,16 +369,43 @@ class NormService:
         constraint_id: str,
         *,
         scale: str = "linear",
+        selection_id: str | None = None,
     ) -> dict[str, Any]:
         n = self.get(project_id, norm_version_id)
-        table = self.c.mappings.get_case_table(project_id, case_table_id)
-        if table.status != CaseTableStatus.READY:
-            raise ValidationError(f"case table {case_table_id} is {table.status}", code="case_table.not_ready")
-        mapping = self.c.repos.get_mapping(table.mapping_id)
+        table, mapping, scope = self._evidence_context(project_id, case_table_id, selection_id)
         out = self.c.engine.norm_signals(
-            self.c.workspace.case_table_dir(project_id, case_table_id), mapping, n.document, constraint_id, scale=scale
+            self.c.workspace.case_table_dir(project_id, table.id),
+            mapping,
+            n.document,
+            constraint_id,
+            scale=scale,
+            selection_id=selection_id,
         )
-        return {**out, "normVersionId": n.id, "caseTableId": table.id}
+        return {**out, "normVersionId": n.id, "caseTableId": table.id, "scope": scope}
+
+    def preview(
+        self,
+        project_id: str,
+        norm_version_id: str,
+        case_table_id: str,
+        constraint_id: str,
+        proposed: dict[str, Any],
+        *,
+        scale: str = "linear",
+        selection_id: str | None = None,
+    ) -> dict[str, Any]:
+        n = self.get(project_id, norm_version_id)
+        table, mapping, scope = self._evidence_context(project_id, case_table_id, selection_id)
+        out = self.c.engine.norm_preview(
+            self.c.workspace.case_table_dir(project_id, table.id),
+            mapping,
+            n.document,
+            constraint_id,
+            proposed,
+            scale=scale,
+            selection_id=selection_id,
+        )
+        return {**out, "normVersionId": n.id, "caseTableId": table.id, "scope": scope}
 
     def check(self, project_id: str, norm_version_id: str, case_table_id: str) -> dict[str, Any]:
         n = self.get(project_id, norm_version_id)

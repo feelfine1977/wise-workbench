@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/node";
 import { useUiStore } from "@/lib/stores/ui";
-import { useFindingStore } from "@/lib/stores/findings";
+import { review } from "@/mocks/fixtures/cycle3";
 import { renderApp } from "@/test/utils";
 
 const T = { timeout: 8000 };
@@ -13,7 +13,7 @@ const PACKAGING = `/p/p2p2018/runs/run_41/slices/${encodeURIComponent('["company
 describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
   beforeEach(() => {
     useUiStore.getState().setVocabulary("plain");
-    useFindingStore.setState(useFindingStore.getInitialState(), true);
+    review.splice(0);
   });
 
   it("Data trust checks the raw filter and withholds hypotheses even when selected checks pass", async () => {
@@ -32,6 +32,11 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     const counts = await screen.findByTestId("gate-selection-counts", {}, T);
     expect(counts).toHaveTextContent("Selected purchase order items: 1 of 2 in the whole group. Checks use this exact selection.");
     expect(screen.getByTestId("trust-scope-note")).toHaveTextContent("Caveats and diagnostic numbers describe the whole group");
+    await userEvent.click(screen.getByText("The four numbers"));
+    expect(screen.getByText("shortfall kept after removing recent-unclosed flagged cases")).toBeVisible();
+    expect(screen.getByText("shortfall per case among cases not flagged recent-unclosed")).toBeVisible();
+    expect(screen.getByText(/WISE’s legacy flag: no configured closure observed/)).toHaveTextContent("Not flagged does not mean closed");
+
     expect(requests).toEqual([filter]);
     expect(screen.getByTestId("gate-selected-trust")).toHaveAttribute("data-gate-status", "passed");
     expect(screen.getByTestId("hypothesis-selection-notice")).toHaveTextContent("Hypotheses use whole-group checks");
@@ -62,7 +67,7 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(screen.queryByTestId("hypothesis-form")).not.toBeInTheDocument();
   });
 
-  it.each(["typical causes", "decision", "stepper", "backlog stepper"])("preserves filter and parent group through the %s route into Act", async (entry) => {
+  it.each(["typical causes", "stepper", "backlog stepper"])("preserves filter and parent group through the %s route into Act", async (entry) => {
     const filter = JSON.stringify({ and: [{ kind: "open", value: true }] });
     const parent = JSON.stringify({ slicing: "case Company+case Spend area text", key: '["companyID_0000", "Packaging"]' });
     let submitted: Record<string, unknown> | undefined;
@@ -87,13 +92,8 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     await screen.findByTestId("why-strip", {}, T);
     if (entry === "typical causes") {
       await user.click(within(await screen.findByTestId("typical-causes", {}, T)).getByRole("button", { name: /What can we do/ }));
-    } else if (entry === "decision") {
-      await user.click(screen.getByRole("radio", { name: "Investigate" }));
-      await user.type(screen.getByLabelText("note *"), "Review this selection");
-      await user.click(screen.getByRole("button", { name: "Save" }));
-      await user.click(await screen.findByRole("button", { name: "Open What can we do?" }, T));
     } else {
-      await user.click(within(screen.getByRole("navigation", { name: "Analysis path" })).getByRole("button", { name: /What can we do/ }));
+      await user.click(within(screen.getByRole("navigation", { name: "Analysis path" })).getByRole("button", { name: /Improve/ }));
     }
     const driver = (await screen.findAllByTestId("driver-card", {}, T))[0]!;
     await user.click(within(driver).getAllByRole("button", { name: "Propose this action" })[0]!);
@@ -105,24 +105,33 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(form).toBeInTheDocument();
   });
 
+  it("refuses a drilled decision instead of saving a whole-group finding", async () => {
+    const parent = JSON.stringify({ slicing: "case Company+case Spend area text", key: '["companyID_0000", "Packaging"]' });
+    renderApp(`${PACKAGING}&tab=trust&within=${encodeURIComponent(parent)}`);
+    await screen.findByRole("heading", { level: 1, name: /Packaging/ }, T);
+    expect(await screen.findByText(/Saving this drilled selection is not supported/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(review.filter((item) => item.kind === "finding")).toHaveLength(0);
+  });
+
   it("one sentence with the concentration clause, Why first with the expectations, the lens and the map, caveats, no ids", async () => {
     const user = userEvent.setup();
     renderApp(PACKAGING);
     // the company every group shares is dropped from the name; the kind and the confidence sit once at the right
     await screen.findByRole("heading", { level: 1, name: /^Packaging\b/ }, T);
     const sentence = screen.getByTestId("why-sentence");
-    expect(sentence).toHaveTextContent(/^109,199 purchase order items · 0\.9 % below expectation · invoices cleared late in 97\s?% of them; the shortfall is 93\s?% this one expectation\.$/);
+    expect(sentence).toHaveTextContent(/^Whole group: 109,199 purchase order items · 0\.9 % below expectation · invoices cleared late in 97\s?% of them; the shortfall is 93\s?% this one expectation\.$/);
     // the card and the Why screen print one bracket, and it is the difference of the two numbers (R3-04)
-    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
+    expect(screen.getByTestId("why-reason")).toHaveTextContent(/^Whole-group comparison: Paid within terms: 83 days here against 55 elsewhere \(\+28 days\)\.$/);
     expect(screen.getAllByText(/confidence high/).length).toBe(1);
-    // the compact strip: priority, rank, average met with everyone, one caveat
+    // the compact strip: priority, rank, weighted WISE score with everyone, one caveat
     const strip = screen.getByTestId("why-strip");
-    expect(strip).toHaveTextContent(/priority946/);
-    // one run, one population: the rank counts the groups the ranked list ranks, not a second population
-    // the row was scored under (R3-09)
-    expect(strip).toHaveTextContent(/rank1 of 23/);
-    expect(strip).toHaveTextContent(/average met84\s?% \(everyone 84\s?%\)/);
-    expect(within(strip).getByRole("list", { name: "Data caveats for this group" })).toHaveTextContent(/14\s?%.*still open/);
+    expect(strip).toHaveTextContent(/priority · whole group946/);
+    // A direct Why URL uses the saved run minimum (1); links from a list preserve its explicit minimum.
+    expect(strip).toHaveTextContent(/rank · whole group1 of 30/);
+    expect(strip).toHaveTextContent("Groups with at least 1 purchase order items");
+    expect(strip).toHaveTextContent(/Mean WISE score \(0–100\) · whole group83\.6 \(everyone 84\.4\)/);
+    expect(within(strip).getByRole("list", { name: "Data caveats for this group" })).toHaveTextContent(/14\s?%.*recent-unclosed diagnostic/);
     // six one-word tabs, Why first and selected
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Why", "Compared", "Flow", "Cases", "Data trust", "Gain"]);
@@ -159,7 +168,11 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(await screen.findByTestId("subgroups", {}, T)).toHaveTextContent(/vendorID_0136/);
     // possible gain in sentences
     await user.click(screen.getByRole("tab", { name: "Gain" }));
-    expect(await screen.findByTestId("headroom-list", {}, T)).toHaveTextContent(/If Paid within terms were always met, this group would gain 4\.3 points \(100\s?% of its shortfall\)/);
+    const gains = await screen.findByTestId("headroom-list", {}, T);
+    expect(gains).toHaveTextContent(/Removing all recorded violations of Paid within terms would add 4\.3 score points/);
+    expect(within(gains).getAllByTestId("gain-scenario")[0]).toHaveTextContent(/83\.6 now.*87\.9 in this scenario/);
+    expect(within(gains).getByRole("meter", { name: "Priority reduction for Paid within terms" })).toHaveAttribute("aria-valuetext", "100% of current priority");
+    expect(screen.getByTestId("gain-explanation")).toHaveTextContent("Score-point gains for distinct constraints add up");
     // no next step before a decision is saved
     expect(screen.queryByTestId("next-step")).not.toBeInTheDocument();
   });
@@ -174,6 +187,18 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     await waitFor(() => expect(drivers).toHaveTextContent(/c_l3_invoice_to_clear_days/));
   });
 
+  it("does not reuse whole-group comparison prose above a filtered distribution", async () => {
+    const filter = JSON.stringify({and:[{kind:"activity",op:"contains",activity:"Remove Payment Block"}]});
+    renderApp(`${PACKAGING}&tab=why&filter=${encodeURIComponent(filter)}`);
+    const lens = await screen.findByTestId("why-lens", {}, T);
+    await waitFor(() => expect(within(lens).getByTestId("lens-sentences")).toBeInTheDocument(), T);
+    expect(within(lens).getByTestId("lens-sentences")).not.toHaveTextContent("83 days here; everywhere else 55");
+    expect(lens).toHaveTextContent("Selected items: measurement");
+    const note = screen.getByTestId("diagnostic-scope-note");
+    expect(note.compareDocumentPosition(screen.getByTestId("why-sentence")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note).toHaveTextContent("whole group");
+  });
+
   it("a filter in the address shows as a chip with cases in on every tab and is written as the object's JSON", async () => {
     const user = userEvent.setup();
     renderApp(`${PACKAGING}&tab=gain&filter=${encodeURIComponent(JSON.stringify({ and: [{ kind: "activity", op: "contains", activity: "Remove Payment Block" }] }))}`);
@@ -183,6 +208,7 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     expect(within(bar).getByRole("list", { name: "Active filters" })).toHaveTextContent("with Remove Payment Block");
     await waitFor(() => expect(within(bar).getByTestId("filter-preview")).toHaveTextContent(/[\d,]+ of [\d,]+/), T);
     expect(screen.getByRole("tab", { name: "Gain" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("gain-explanation")).toHaveTextContent("Gains describe the whole group");
     await user.click(within(bar).getByRole("button", { name: /Remove filter: with Remove Payment Block/ }));
     await waitFor(() => expect(within(screen.getByTestId("filter-bar")).queryByRole("list", { name: "Active filters" })).not.toBeInTheDocument());
   });
@@ -191,10 +217,12 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
     const user = userEvent.setup();
     renderApp(`${PACKAGING}&tab=trust`);
     await screen.findByRole("heading", { level: 1, name: /Packaging/ }, T);
+    await waitFor(() => expect(screen.getByLabelText("note *")).toBeEnabled(), T);
     await user.click(screen.getByRole("radio", { name: "Investigate" }));
     await user.type(screen.getByLabelText("note *"), "payment terms to be checked");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByTestId("next-step")).toHaveTextContent(/Freeze this screen for the notebook/);
+    await waitFor(() => expect(review.find((item) => item.kind === "finding")?.evidenceState).toBe("recorded"), T);
+    expect(await screen.findByTestId("next-step", {}, T)).toHaveTextContent(/Freeze this screen for the notebook/);
     expect(screen.getByTestId("next-step")).toHaveTextContent(/What can we do\?/);
   });
 });
