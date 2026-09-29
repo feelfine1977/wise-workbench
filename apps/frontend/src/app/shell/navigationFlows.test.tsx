@@ -76,7 +76,7 @@ it("keeps all context and tools keyboard-reachable in the compact ribbon", async
   const app = renderApp("/p/p2p2018/runs/run_41/backlog");
   try {
     const trigger = await screen.findByRole("button", {name:"More context and settings"}, timeout);
-    expect(trigger).toHaveTextContent("Context & tools");
+    expect(trigger).toHaveTextContent("Settings");
     const user = userEvent.setup();
     trigger.focus(); await user.keyboard("{Enter}");
     const menu = await screen.findByTestId("ribbon-more");

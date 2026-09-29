@@ -30,7 +30,6 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const href = useRouterState({ select: (s) => s.location.href });
   const record = useNavStore((s) => s.record);
-  const mode = useUiStore((s) => s.mode);
   const setMode = useUiStore((s) => s.setMode);
 
   /**
@@ -110,23 +109,12 @@ export function AppShell() {
           <strong>Hypothetical scenario.</strong> Results use changed assumptions or events. They do not show an observed improvement.
         </div>
       )}
-      {mode === "guided" && (
-        <div className="border-b border-border bg-accent-subtle px-8 py-1.5 text-xs text-accent-text" data-testid="guided-banner">
-          <span className="mx-auto flex w-full max-w-[1424px] flex-wrap items-center gap-3">
-            <strong>Guided</strong>
-            <span className="text-text-muted">One path through the question, with every word explained. The settings and the method's controls are out of the way.</span>
-            <button type="button" className="ml-auto underline" onClick={() => setMode("analyst")}>
-              Show everything
-            </button>
-          </span>
-        </div>
-      )}
       {/* Extra bottom padding keeps content reachable above the fixed job tray. */}
       <main
         id="main"
         tabIndex={-1}
         className={cn(
-          "mx-auto w-full min-w-0 max-w-[1424px] px-8 outline-none",
+          "mx-auto w-full min-w-0 max-w-[1440px] px-4 md:px-6 outline-none",
           fixedToViewport ? "flex min-h-0 flex-1 flex-col overflow-hidden py-2" : "py-6",
           trayShown && !fixedToViewport && "pb-48",
         )}

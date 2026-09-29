@@ -63,7 +63,7 @@ function expectPlainWords(where: string, text: string) {
 
 describe("no release name, no stage code, no raw id as a primary label (R3-13)", () => {
   it("the ranked list of a run whose mapping names its cases", async () => {
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation`);
     await screen.findByRole("list", { name: "Signals" }, T);
     const text = visibleText();
     expectPlainWords("the ranked list", text);

@@ -1,12 +1,4 @@
-/**
- * R3-10 — Guided mode, first cut.
- *
- * The order-desk employee scored 67 % on the comprehension test in cycle 3, down from 72 % in cycle 2, on
- * screens built for an analyst: seven steps, a discount rate, a perspective switcher, a grouping switcher, a
- * drawer of eleven filters and a decision pane that asks for a hotspot type. Guided mode is a profile the
- * address can set — `?mode=guided` anywhere, remembered afterwards — that leaves one path, turns the
- * explanations on and puts the method's controls one click away rather than in the way.
- */
+/** Guided mode keeps the journey visible and offers controls and help on demand. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -24,15 +16,15 @@ describe("guided mode (R3-10)", () => {
   beforeEach(() => useUiStore.getState().setMode("analyst"));
 
   it("is set by the address and leaves one path: where is it worst, why, and what can we do", async () => {
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation&mode=guided`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation&mode=guided`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await waitFor(() => expect(useUiStore.getState().mode).toBe("guided"), T);
-    expect(await screen.findByTestId("guided-banner", {}, T)).toHaveTextContent(/One path through the question/);
+    expect(screen.queryByTestId("guided-banner")).not.toBeInTheDocument();
     await waitFor(() => expect(stepLabels()).toEqual(["Project", "Understand data", "Process norm", "Run WISE", "Analyse", "Improve"]), T);
   });
 
   it("keeps the reader's context in the ribbon and puts the method's switchers away", async () => {
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation&mode=guided`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation&mode=guided`);
     await screen.findByRole("list", { name: "Signals" }, T);
     const ribbon = (await screen.findByRole("navigation", { name: "Context" }, T)).closest("header") as HTMLElement;
     await waitFor(() => expect(within(ribbon).queryByLabelText(/perspective/i)).not.toBeInTheDocument(), T);
@@ -41,15 +33,20 @@ describe("guided mode (R3-10)", () => {
     expect(within(ribbon).queryByText(/γ/)).not.toBeInTheDocument();
   });
 
-  it("turns the explanations on: the how-to-read paragraph opens with the screen", async () => {
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation&mode=guided`);
+  it("keeps guidance available on demand and returns focus after closing", async () => {
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation&mode=guided`);
     await screen.findByRole("list", { name: "Signals" }, T);
-    expect(await screen.findByTestId("how-to-read", {}, T)).toBeInTheDocument();
+    expect(screen.queryByTestId("how-to-read")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Show how to read this screen" });
+    await userEvent.setup().click(trigger);
+    expect(await screen.findByTestId("how-to-read", {}, T)).toBeVisible();
+    await userEvent.setup().keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("offers three questions instead of the whole drawer", async () => {
     const user = userEvent.setup();
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation&mode=guided`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation&mode=guided`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await user.click(screen.getByRole("button", { name: /Refine/ }));
     const drawer = await screen.findByTestId("guided-filters", {}, T);
@@ -69,11 +66,12 @@ describe("guided mode (R3-10)", () => {
     expect(within(pane).queryByText(/Method terms/)).not.toBeInTheDocument();
   });
 
-  it("gives the whole workbench back on one click, and remembers it", async () => {
+  it("switches to analyst mode from Settings and remembers it", async () => {
     const user = userEvent.setup();
-    renderApp(`${RUN}/backlog?slicing=${CSA}&view=Automation&mode=guided`);
-    await screen.findByTestId("guided-banner", {}, T);
-    await user.click(screen.getByRole("button", { name: "Show everything" }));
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${CSA}&view=Automation&mode=guided`);
+    await screen.findByRole("list", { name: "Signals" }, T);
+    await user.click(screen.getByRole("button", { name: "More context and settings" }));
+    await user.click(screen.getByRole("button", { name: "Guided" }));
     await waitFor(() => expect(screen.queryByTestId("guided-banner")).not.toBeInTheDocument(), T);
     expect(useUiStore.getState().mode).toBe("analyst");
     await waitFor(() => expect(stepLabels().length).toBeGreaterThan(3), T);

@@ -59,7 +59,7 @@ describe("the analysis path (R2-O6)", () => {
 
   it("shows a compact path and an honest full journey, with working links and planned stages", async () => {
     const user = userEvent.setup();
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Vendor")}&view=Finance`);
     await screen.findByRole("list", { name: "Signals" }, T);
     const stepper = screen.getByRole("navigation", { name: "Analysis path" });
     const steps = within(stepper).getAllByRole("listitem").filter((li) => li.hasAttribute("data-step"));
@@ -97,7 +97,7 @@ describe("the analysis path (R2-O6)", () => {
 
   it("the norm lens opened from a reason screen stays under Why with a second line; the back control cuts the stack so the list is one press away", async () => {
     const user = userEvent.setup();
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=1&kind=widespread`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=1&kind=widespread`);
     const list = await screen.findByRole("list", { name: "Signals" }, T);
     await user.click(within(within(list).getAllByRole("article")[0] as HTMLElement).getByRole("button", { name: /^Why\?/ }));
     await screen.findByRole("heading", { level: 1, name: /Packaging/ }, T);
@@ -162,7 +162,7 @@ describe("the analysis path (R2-O6)", () => {
 
   it("a sub-screen's back control returns to the exact place the reader came from", async () => {
     const user = userEvent.setup();
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Logistics&minCases=30`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Vendor")}&view=Logistics&minCases=30`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await user.click(within(screen.getByRole("navigation", { name: "Analysis path" })).getByRole("link", { name: /Process norm/ }));
     await screen.findByRole("region", { name: "Norm authoring guide" }, T);

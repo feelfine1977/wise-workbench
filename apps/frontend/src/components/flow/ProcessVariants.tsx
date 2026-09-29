@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { VariantMatrix } from "@wise/flow/react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -37,6 +38,8 @@ export function ProcessVariants({ projectId, runId, ...params }: Props) {
 function VariantList({ projectId, runId, ...params }: Props) {
   const variants = useQuery(variantsQuery(projectId, runId, params));
   const [sample, setSample] = useState<string>();
+  const [inspected, setInspected] = useState<string>();
+  const pathDetails = useRef(new Map<string, HTMLLIElement>());
   const plainOf = useRunConstraintNames(projectId, runId, sample !== undefined);
   const trace = useQuery({ ...traceQuery(projectId, runId, sample ?? ""), enabled: sample !== undefined });
 
@@ -66,9 +69,11 @@ function VariantList({ projectId, runId, ...params }: Props) {
           {trace.isSuccess && <TraceTimeline trace={trace.data} plainOf={plainOf} />}
         </section>
       ) : (
+        <>
+        <VariantMatrix rows={data.variants} totalCases={data.totalSelectedCases} zeroEventCases={data.excludedZeroEventCases} selectedId={inspected} onInspect={id => { setInspected(id); const detail = pathDetails.current.get(id); detail?.scrollIntoView({ block: "nearest" }); detail?.focus(); }} />
         <ol aria-label="Most common exact paths" className="space-y-3">
           {data.variants.map((variant, i) => (
-            <li key={variant.id} className="rounded-md border border-border p-3">
+            <li key={variant.id} ref={element => { if (element) pathDetails.current.set(variant.id, element); else pathDetails.current.delete(variant.id); }} tabIndex={-1} aria-current={inspected === variant.id ? "true" : undefined} className="rounded-md border border-border p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
               <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                 <h3 className="font-semibold">Path {i + 1}</h3>
                 <span className="tnum">{fmtInt(variant.count)} cases · {percent(variant.share)} of selected cases</span>
@@ -85,6 +90,7 @@ function VariantList({ projectId, runId, ...params }: Props) {
             </li>
           ))}
         </ol>
+        </>
       )}
     </div>
   );

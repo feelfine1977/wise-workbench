@@ -41,7 +41,7 @@ it("uses the saved cohort and hides obsolete exact counts while the target chang
   expect(await screen.findByText("3 / 4 → 2 / 4")).toBeVisible();
   expect(screen.getByText(/1 missing native measurements/)).toBeVisible();
   await userEvent.setup().click(screen.getByRole("button", { name: "Cumulative" }));
-  expect(screen.getByRole("img", { name: /Cumulative distribution/ })).toBeVisible();
+  expect(screen.getByRole("group", { name: /Cumulative distribution/ })).toBeVisible();
   await userEvent.setup().click(screen.getByRole("button", { name: "Commit as version…" }));
   expect(onCommit).toHaveBeenCalledWith({ threshold: 12, width: 20 });
   await expectNoSeriousA11yViolations(ui.container);

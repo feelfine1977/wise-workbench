@@ -67,6 +67,7 @@ export default function BacklogPage() {
   const { vocabulary, t: word } = useVocabulary();
   const plain = vocabulary === "plain";
   const ctx = useWorkbench();
+  const [allMeasures, setAllMeasures] = useState(false);
   const { runId } = backlogRoute.useParams();
   const search = backlogRoute.useSearch();
   const navigate = useNavigate();
@@ -216,7 +217,7 @@ export default function BacklogPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-text-subtle">
-              Signals{scope ? ` · ${scope} flow only` : ""}
+              Analyse{scope ? ` · ${scope} flow only` : ""}
               {params.illustrative && (
                 <Badge variant="warning" className="ml-2 normal-case tracking-normal" title="These rows are made up by the mocks; the verified run's rows are read for company × spend area and vendor">
                   illustrative
@@ -225,7 +226,7 @@ export default function BacklogPage() {
             </p>
             <h1 className="flex items-center gap-2 text-2xl font-semibold">
               <Term id="backlog" secondaryClassName="text-sm" primaryOnly={plain}>
-                {plain ? "Where is it worst?" : "Backlog"}
+                {plain ? "Which group deserves a closer look?" : "Backlog"}
               </Term>
               <HowToReadToggle id="signals" />
             </h1>
@@ -290,6 +291,13 @@ export default function BacklogPage() {
         </HowToRead>
       </header>
 
+      {backlog.data && <dl className="wise-facts" aria-label="Ranking context">
+        <div><dt>Run mean · {view}</dt><dd>{backlog.data.globalMean == null ? "Unavailable" : `${fmtNum(backlog.data.globalMean * 100, 1)} / 100`}</dd><dd>Reference for this assessment</dd></div>
+        <div><dt>Matching groups</dt><dd>{fmtInt(total)}</dd><dd>{groupingText}</dd></div>
+        <div><dt>Loaded groups</dt><dd>{fmtInt(rows.length)}</dd><dd>Page {search.page} of {pageCount}{confident ? " · high-confidence only" : ""}</dd></div>
+        <div><dt>Ranking parameters</dt><dd>γ {fmtNum(gamma, 0)}</dd><dd>Minimum {fmtInt(search.minCases)} cases</dd></div>
+      </dl>}
+
       <Refine ref={filterRef} search={search} layers={layers} runGamma={run.gamma ?? 20} filter={filter} preview={preview.data} within={within} onChange={(p) => patch(p)} onReset={reset} caseNoun={caseNoun}>
         {/* the ribbon owns the switchers; guided mode has already put them away, so this row does not put
             them back beside the list (R3-10, R3-30) */}
@@ -297,7 +305,7 @@ export default function BacklogPage() {
       </Refine>
 
       <Tabs value={search.tab} onValueChange={(v) => setTab(v as BacklogTab)}>
-        <TabsList aria-label="Views of the ranked list">
+        <TabsList underline aria-label="Views of the ranked list">
           <TabsTrigger value="signals">{plain ? "Signals" : "Hotspots"}</TabsTrigger>
           <TabsTrigger value="table">Table</TabsTrigger>
           <TabsTrigger value="scatter">All groups at once</TabsTrigger>
@@ -335,7 +343,8 @@ export default function BacklogPage() {
               {rows.length === 0 ? (
                 <EmptyState title={t("empty.noRows")} reason={t("empty.noRowsReason")} action={{ label: "Reset filters", onClick: () => void navigate({ to: ".", search: { slicing, view, tab: "table" } }) }} />
               ) : (
-                <BacklogTable
+                <div className="wise-backlog-grid"><div className="wise-backlog-table"><label className="mb-3 flex items-center gap-2 text-xs text-text-muted"><input type="checkbox" checked={allMeasures} onChange={e => setAllMeasures(e.target.checked)} />Show all measures</label><BacklogTable
+                  compact={!allMeasures}
                   rows={rows}
                   projectId={ctx.projectId}
                   runId={runId}
@@ -354,7 +363,7 @@ export default function BacklogPage() {
                   onTogglePin={togglePin}
                   onOpen={open}
                   onFocusFilter={() => filterRef.current?.focus()}
-                />
+                /></div><PrioritySupport compact noun={caseNoun} rows={rows} total={total} scope={`${view ?? "Current view"} · this page`} activeKey={activeKey} onSelect={open} /></div>
               )}
               {footer}
             </TabsContent>

@@ -37,7 +37,7 @@ Frontend builds use the live backend by default: `npm run build` in `apps/fronte
 
 Guided and expert norm editing, hierarchical constraint navigation, saved analysis filters, per-view membership, an automatic General benchmark and flexible groupings are implemented. Guided threshold-only draft saves may omit reason and owner while pending decisions remain pending; review/sign-off is a separate action. Names in local records are not authenticated identities.
 
-O2C targets remain draft unless explicitly reviewed. Assessed review hypotheses currently support group-versus-rest comparisons; scenario/headroom calculations are not causal savings forecasts. Full pilot/outcome tracking, portfolio optimization, authenticated collaboration, radar, funnel and flame investigations, a dashboard designer and turnkey desktop/server distribution remain incomplete or planned. The Understand explorer includes a context Sankey; this shows attribute combinations, not process transitions.
+O2C targets remain draft unless explicitly reviewed. Assessed review hypotheses currently support group-versus-rest comparisons; scenario/headroom calculations are not causal savings forecasts. Full pilot/outcome tracking, portfolio optimization, authenticated collaboration, funnel and flame investigations, a dashboard designer and turnkey desktop/server distribution remain incomplete or planned. The Understand explorer includes a context Sankey; this shows attribute combinations, not process transitions.
 
 Run locally on `127.0.0.1`; the current application has no login or multi-user access boundary. Ranking is relative to the selected population and norm, and is not evidence of causation or guaranteed savings.
 

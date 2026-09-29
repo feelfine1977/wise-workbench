@@ -1,7 +1,9 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
+import { Check, LockKeyhole, MoreHorizontal } from "lucide-react";
 import { useNormScope } from "./normScope";
 import { ExistingAssessments } from "./ExistingAssessments";
+import { useQuery } from "@tanstack/react-query";
+import { notebookQuery } from "@/lib/api/notebook";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -147,6 +149,8 @@ function AllStages({ ctx, stages }: { ctx: WorkbenchContext; stages: StageInfo[]
 
 /** Main decisions stay visible; only the current stage's substeps expand. */
 export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
+  const notebook = useQuery({ ...notebookQuery(ctx.projectId), enabled: !!ctx.projectId, retry: false });
+  const snapshots = notebook.data?.snapshots.length;
   const current = useCurrentStep(ctx);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tab = useRouterState({ select: (s) => String((s.location.search as Record<string, unknown>).tab ?? "") });
@@ -168,21 +172,21 @@ export function Stepper({ ctx }: { ctx: WorkbenchContext }) {
     { id: "act", label: "Improve", screen: assessed ? "act" : undefined, status: stage("act") },
   ];
   const subClass = (active = false) => cn("inline-flex rounded-md px-3 py-1.5 text-sm", active ? "bg-accent-subtle font-semibold text-accent-text" : "text-text-muted hover:bg-surface-sunken hover:text-text");
-  return <nav aria-label="Analysis path" className="shrink-0 border-b border-border bg-surface px-4" data-testid="stepper">
+  return <nav aria-label="Analysis path" className="wise-journey shrink-0 border-b px-4 md:px-6" data-testid="stepper">
     <div className="flex flex-wrap items-center gap-2">
       <ol className="flex min-w-0 flex-1 flex-wrap gap-1 py-2" aria-label="Main steps">
-        {links.map((item, index) => <li key={item.id} data-step={item.id} data-step-index={index + 1} data-step-state={item.status.state} aria-current={phase === item.id ? "step" : undefined} title={item.status.description}>
-          {item.id === "run" ? <RunSetupLink ctx={ctx} className={cn(subClass(phase === item.id), "gap-2", phase === item.id && "text-base ring-1 ring-accent/40")}><span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span></RunSetupLink>
-            : <StageLink screen={item.screen} ctx={ctx} className={cn(subClass(phase === item.id), "gap-2", phase === item.id && "text-base ring-1 ring-accent/40")}>
-              <span aria-hidden className="text-xs opacity-70">{index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span>
+        {links.map((item, index) => <li key={item.id} data-step={item.id} data-step-index={index + 1} data-step-state={item.status.state} aria-current={phase === item.id ? "step" : undefined} title={`${item.status.status}. ${item.status.description}`}>
+          {item.id === "run" ? <RunSetupLink ctx={ctx} className="wise-stage"><span aria-hidden className="wise-stage-number">{item.status.state === "done" ? <Check size={12} /> : item.status.state === "gated" ? <LockKeyhole size={11} /> : index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span></RunSetupLink>
+            : <StageLink screen={item.screen} ctx={ctx} className="wise-stage">
+              <span aria-hidden className="wise-stage-number">{item.status.state === "done" ? <Check size={12} /> : item.status.state === "gated" ? <LockKeyhole size={11} /> : index + 1}</span><span data-step-label>{mainJourney.find(step => step.id === item.id)?.label ?? item.label}</span>
             </StageLink>}
-          {phase === item.id && subline && <span className="block max-w-[30rem] truncate px-3 text-xs text-text-muted" data-testid="step-subline" title={subline}>{subline}</span>}
+          {phase === item.id && subline && <span className="sr-only" data-testid="step-subline" title={subline}>{subline}</span>}
         </li>)}
       </ol>
-      <AllStages ctx={ctx} stages={stages} />
+      <div className="ml-auto flex shrink-0 items-center gap-2 text-xs"><Link to="/p/$projectId/knowledge" params={{ projectId: pid }} search={{}} className="rounded px-3 py-2 text-text-muted hover:bg-surface-sunken">Knowledge Hub</Link><Link to="/p/$projectId/notebook" params={{ projectId: pid }} search={{}} className="rounded px-3 py-2 text-text-muted hover:bg-surface-sunken">Notebook{snapshots !== undefined && snapshots > 0 && <span className="ml-1 rounded bg-surface-sunken px-1.5 tnum" data-testid="notebook-count">{snapshots}</span>}</Link><AllStages ctx={ctx} stages={stages} /></div>
     </div>
     {phase === "data" && <ExistingAssessments ctx={ctx} />}
-    {phase && phase !== "data" && phase !== "norm" && <div className="flex min-w-0 flex-wrap items-center gap-1 border-t border-border/60 py-1" role="group" aria-label="Substeps">
+    {phase && phase !== "data" && phase !== "norm" && <div className="wise-subnav flex min-w-0 flex-wrap items-center gap-1" role="group" aria-label="Substeps">
       {phase === "goal" && <>
         <Link to="/projects" className={subClass()}>All projects / new project</Link>
         <Link to="/p/$projectId/data" params={{ projectId: pid }} className={subClass()}>{ctx.datasetBinding?.datasetId ? "Project dataset" : "Select a dataset"}</Link>

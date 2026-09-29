@@ -8,7 +8,7 @@ import { label } from "@/lib/vocabulary";
 import { verifiedBacklog } from "@/mocks/fixtures/verified";
 import { renderApp } from "@/test/utils";
 
-const BACKLOG = `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance`;
+const BACKLOG = `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance&tab=signals`;
 const T = { timeout: 8000 };
 const vendors = verifiedBacklog("case Vendor", "Finance")!.rows;
 const first = vendors[0]!;
@@ -23,14 +23,14 @@ describe("where is it worst: the signals list on the verified run", () => {
         return HttpResponse.json({ code: "backlog.attribute", detail: "Unknown slice attributes" }, { status: 422 });
       }
     }));
-    renderApp("/p/p2p2018/runs/run_41/backlog?view=Finance&slicing=company%2Cspend_area");
+    renderApp("/p/p2p2018/runs/run_41/backlog?view=Finance&tab=signals&slicing=company%2Cspend_area");
     const recovery = await screen.findByRole("button", { name: "Use this run's saved grouping" }, T);
     await userEvent.setup().click(recovery);
     expect(await screen.findByRole("list", { name: "Signals" }, T)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Use this run's saved grouping" })).not.toBeInTheDocument();
   });
 
-  it("opens on ranked sentence cards: one sentence, the priority bar, one Why? per card, filters behind Refine", async () => {
+  it("opens the Signals view on ranked sentence cards: one sentence, the priority bar, one Why? per card, filters behind Refine", async () => {
     renderApp(BACKLOG);
     const list = await screen.findByRole("list", { name: "Signals" }, T);
     const cards = within(list).getAllByRole("article");
@@ -130,7 +130,7 @@ describe("where is it worst: the signals list on the verified run", () => {
 
   it("drills into a group: a finer grouping restricted to the group's cases, with a chip to leave it", async () => {
     const user = userEvent.setup();
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=1`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&tab=signals&view=Automation&minCases=1`);
     const list = await screen.findByRole("list", { name: "Signals" }, T);
     const packaging = within(list).getAllByRole("article")[0] as HTMLElement;
     await user.click(within(packaging).getByRole("button", { name: /^More about/ }));
@@ -144,6 +144,7 @@ describe("where is it worst: the signals list on the verified run", () => {
 
   it("the Table tab keeps the library's columns: plain headers first, the method's names when the vocabulary is switched", async () => {
     renderApp(`${BACKLOG}&tab=table`);
+    await userEvent.setup().click(await screen.findByLabelText("Show all measures"));
     const grid = await screen.findByRole("grid", { name: "Backlog" }, T);
     expect(within(grid).getByRole("columnheader", { name: /^cases/ })).toBeInTheDocument();
     expect(within(grid).getByRole("columnheader", { name: /^priority, small groups discounted/ })).toBeInTheDocument();
@@ -160,6 +161,7 @@ describe("where is it worst: the signals list on the verified run", () => {
   it("the table's slice link opens the reason screen on the first click of a non-active row (R2-O4)", async () => {
     const user = userEvent.setup();
     renderApp(`${BACKLOG}&tab=table`);
+    await userEvent.setup().click(await screen.findByLabelText("Show all measures"));
     const grid = await screen.findByRole("grid", { name: "Backlog" }, T);
     const rows = within(grid).getAllByRole("row");
     const row = rows[3] as HTMLElement;
@@ -171,14 +173,14 @@ describe("where is it worst: the signals list on the verified run", () => {
   });
 
   it("marks illustrative slicings and hides the badge on verified ones", async () => {
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Item Type")}&view=Finance`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Item Type")}&view=Finance&tab=signals`);
     await screen.findByRole("list", { name: "Signals" }, T);
     expect(await screen.findByText("illustrative")).toBeInTheDocument();
   });
 });
 
 describe("one run, one population (R3-09)", () => {
-  const COMPANY = `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&pageSize=10`;
+  const COMPANY = `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&tab=signals&view=Automation&pageSize=10`;
 
   it("reads the page-wide caveat line from the run, so it is the same sentence on every page", async () => {
     const user = userEvent.setup();

@@ -23,6 +23,7 @@ beforeEach(() => { state.props = undefined; state.scenes = undefined; });
 
 it("keeps real routes and exactly the supplied connections when O2C changes from 9 to 10 activities", () => {
   render(<FlowMap graph={graph} title="Observed O2C" detail={4} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Keep full-process positions" }));
   count(9);
   const nine = shown();
   const initial = structuredClone(nine.positions!);
@@ -43,6 +44,8 @@ it("keeps real routes and exactly the supplied connections when O2C changes from
 
 it("preserves manual geometry through selection, evidence and count changes; Reset restores routes", () => {
   render(<FlowMap graph={graph} title="Observed O2C" detail={4} full height={260} />);
+  fireEvent.click(screen.getByRole("button", { name: "Display & meaning" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Keep full-process positions" }));
   count(9);
   const id = "a_create_order_item";
   const initial = structuredClone(shown().positions!);

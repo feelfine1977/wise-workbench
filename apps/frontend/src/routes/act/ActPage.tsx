@@ -69,7 +69,7 @@ function DriverCard({
 }) {
   const name = driver.plain_name ?? driver.constraint_id;
   return (
-    <Card id={`improve-driver-${encodeURIComponent(driver.constraint_id)}`} tabIndex={-1} data-testid="driver-card" data-constraint={driver.constraint_id}>
+    <Card className="wise-driver-card" id={`improve-driver-${encodeURIComponent(driver.constraint_id)}`} tabIndex={-1} data-testid="driver-card" data-constraint={driver.constraint_id}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <CardTitle className="mb-0 flex flex-wrap items-center gap-1.5 text-lg">
           <span className="text-xs text-text-subtle">Whole-group driver {rank} ·</span>
@@ -83,7 +83,7 @@ function DriverCard({
         )}
       </div>
       {typeof driver.headroom_points === "number" && Number.isFinite(driver.headroom_points) && (
-        <div className="mt-2">
+        <div className="wise-scenario mt-3">
           <p className="text-xs text-text-muted">Whole-group score scenario; no operational benefit is estimated.</p>
           <GainScenario name={name} meanScore={meanScore} points={driver.headroom_points} priorityPercent={driver.headroom_percent} />
         </div>
@@ -109,8 +109,8 @@ function DriverCard({
         {driver.why_it_matters && <p className="reading mt-1 text-sm text-text-muted">{driver.why_it_matters}</p>}
       </details>}
 
-      {evidence}
-
+      <div className="wise-solution-layout"><div>{evidence}</div>
+      <aside className="wise-solution-actions" aria-label="Review and candidate actions">
       {driver.what_to_check_first?.length ? (
         <section className="mt-4">
           <h4 className="text-sm font-semibold text-text">What to check first</h4>
@@ -124,7 +124,7 @@ function DriverCard({
         </section>
       ) : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="wise-solution-actions">
         <section>
           <h4 className="text-sm font-semibold text-text">Possible explanations to test</h4>
           <p className="text-xs text-text-subtle">Candidates to check, not findings. {onTest ? "Mark one to test and it becomes a hypothesis with its gates." : "Hypothesis creation uses whole-group checks and is unavailable in this selection."}</p>
@@ -172,6 +172,7 @@ function DriverCard({
           {form ? <div className="mt-3">{form}</div> : null}
         </section>
       </div>
+      </aside></div>
     </Card>
   );
 }

@@ -10,7 +10,7 @@ const buckets = Array.from({ length: 31 }, (_, i) => ({ day: i + 1, events: i ==
 it("shows measured record counts and an accessible exact table without summing daily distinct cases", async () => {
   const { container } = render(<DriverDayChart buckets={buckets} eventTotal={8} caseTotal={5} activityLabel="Clear Invoice" />);
   expect(screen.getByTestId("driver-calendar-reading")).toHaveTextContent("8 dated end-event records across 5 distinct cases. Largest daily bucket: day 26 — 6 records (75.0%)");
-  expect(screen.getByRole("img")).toHaveAccessibleName(/Clear Invoice end-event records by day of month/);
+  expect(screen.getByRole("group", { name: /end-event records by day of month/ })).toHaveAccessibleName(/Clear Invoice end-event records by day of month/);
   await userEvent.click(screen.getByText("Exact day-of-month table"));
   const table = screen.getByRole("table");
   expect(table).toHaveTextContent("Case denominator: 5 distinct cases");
@@ -24,7 +24,7 @@ it("shows measured record counts and an accessible exact table without summing d
 
 it("keeps a zero denominator unavailable, without drawing invented evidence", async () => {
   render(<DriverDayChart buckets={buckets.map(b => ({ ...b, events: 0, cases: 0 }))} eventTotal={0} caseTotal={0} activityLabel="End activity" />);
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: /end-event records by day of month/ })).not.toBeInTheDocument();
   expect(screen.getByText(/No dated end-event records/)).toBeInTheDocument();
   await userEvent.click(screen.getByText("Exact day-of-month table"));
   expect(screen.getAllByRole("cell", { name: "Unavailable" })).toHaveLength(31);

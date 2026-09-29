@@ -1,6 +1,7 @@
+import { useChartNavigation } from "@/lib/useChartNavigation";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
-  brush, brushX, dragEnable, format, interpolateBlues, pointer, scaleBand,
+  brush, brushX, dragEnable, format, interpolateRgbBasis, pointer, scaleBand,
   rgb, scaleLinear, scaleSequentialLog, select,
   type D3BrushEvent, type ScaleBand,
 } from "d3";
@@ -165,6 +166,7 @@ export function LinkedBars({ rows, title, activeKeys, onToggle, onRange, color =
   const id = useId();
   const { ref, width } = useChartWidth();
   const keys = rows.map((row) => row.key);
+  const navigateMark = useChartNavigation(keys, onToggle);
   const left = horizontal ? Math.min(200, Math.max(108, width * 0.29)) : 58;
   const right = width - 20;
   const top = 20;
@@ -186,8 +188,8 @@ export function LinkedBars({ rows, title, activeKeys, onToggle, onRange, color =
     <h3 id={`${id}-heading`} className={compact ? "sr-only" : "text-base font-semibold"}>{title}</h3>
     <p id={`${id}-help`} className="mt-1 text-xs text-text-muted">{compact ? <>
       Gray: all cases · Color: selected · Ordinal categories.
-      <span className="sr-only"> Enter or Space toggles a bar. Category positions are not elapsed time or numeric distance.</span>
-    </> : "Gray: all cases. Color: selected cases. Enter or Space toggles a bar. Category positions are ordinal, not elapsed time or numeric distance."}</p>
+      <span className="sr-only"> Arrow keys inspect bars; Enter or Space toggles a bar. Category positions are not elapsed time or numeric distance.</span>
+    </> : "Gray: all cases. Color: selected cases. Arrow keys inspect bars; Enter or Space toggles a bar. Category positions are ordinal, not elapsed time or numeric distance."}</p>
     <div ref={ref} className="min-w-0 w-full">{!rows.length ? <p className="py-4 text-sm">No categories to display.</p> : <>
       <svg role="group" aria-label={`${title} chart`} aria-describedby={`${id}-help`} viewBox={`0 0 ${width} ${height}`} className="block w-full" style={{ height: "auto" }}>
         <g aria-hidden="true" fontSize={11} fill="currentColor">
@@ -205,10 +207,10 @@ export function LinkedBars({ rows, title, activeKeys, onToggle, onRange, color =
             : { x: position, y: count(value), width: breadth, height: Math.max(0, bottom - count(value)) };
           const hit = horizontal ? { x: 2, y: position - 2, width: right - 2, height: breadth + 4 }
             : { x: position - 2, y: top, width: breadth + 4, height: bottom - top + 4 };
-          return <g key={row.key} role="button" tabIndex={0} aria-pressed={active.has(row.key)} aria-label={`${row.label}: ${totals(row)}`} className={focusClass} data-bar-key={row.key}
-            onClick={() => onToggle(row.key)} onKeyDown={(event) => activateOnKey(event, () => onToggle(row.key))}>
+          return <g key={row.key} role="button" {...navigateMark(row.key)} aria-pressed={active.has(row.key)} aria-label={`${row.label}: ${totals(row)}`} className={focusClass} data-bar-key={row.key}
+            onClick={() => onToggle(row.key)}>
             <title>{`${row.label}: ${totals(row)}`}</title>
-            <rect {...geometry(row.total)} fill="#94a3b8" opacity={0.45} />
+            <rect {...geometry(row.total)} fill="var(--color-chart-context)" />
             <rect {...geometry(row.selected)} fill={color} />
             <rect {...hit} fill="transparent" stroke={active.has(row.key) ? color : "transparent"} strokeWidth={2} className="focus-ring" />
             {index % labelStride === 0 && <text aria-hidden="true" x={horizontal ? left - 8 : position + breadth / 2} y={horizontal ? position + breadth / 2 + 4 : bottom + 18}
@@ -256,7 +258,7 @@ export function LinkedDensity({ spans, events, cells, onSelect, compact = false 
   const y = scaleBand<string>().domain(eventKeys).range([top, bottom]).paddingInner(0.06);
   const byKey = new Map(cells.map((cell) => [JSON.stringify([cell.spanKey, cell.eventKey]), cell]));
   const maximum = Math.max(0, ...cells.filter((cell) => spanKeys.includes(cell.spanKey) && eventKeys.includes(cell.eventKey)).map((cell) => cell.selected));
-  const color = scaleSequentialLog(interpolateBlues).domain([1, Math.max(2, maximum)]);
+  const color = scaleSequentialLog(interpolateRgbBasis(["#E5ECFF", "#A9BDF2", "#6787DD", "#2456D6", "#13358F"])).domain([1, Math.max(2, maximum)]);
   const brushRef = useOrdinalBrush("xy", [[left, top], [right, bottom]], !!spans.length && !!events.length, (value) => {
     const [[x0, y0], [x1, y1]] = value as Rectangle;
     const chosenSpans = keysInBandRange(spanKeys, x, [x0, x1]);
@@ -276,6 +278,7 @@ export function LinkedDensity({ spans, events, cells, onSelect, compact = false 
     </> : "Each cell counts cases. Both axes are categorical ranges, not continuous scales. Drag a block, click a cell, or use the range controls. Arrow keys move between cells; Enter or Space selects a cell."}</p>
     <div ref={ref} className="min-w-0 w-full">{!spans.length || !events.length ? <p className="py-4 text-sm">No range categories to display.</p> : <>
       <svg ref={svgRef} role="group" aria-label="Recorded span and event count matrix" aria-describedby={`${id}-help`} viewBox={`0 0 ${width} ${bottom + 104}`} className="block w-full" style={{ height: "auto" }}>
+        <defs><pattern id={`${id}-unknown`} width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="var(--color-surface-sunken)" /><path d="M-1 1L1-1M0 6L6 0M5 7L7 5" stroke="var(--color-border-strong)" strokeWidth=".6" /></pattern></defs>
         <g aria-hidden="true" fill="currentColor" fontSize={11}>
           <text x={left - 8} y={16} textAnchor="end">Events per case</text>
           {events.map((event) => <text key={event.key} x={left - 8} y={y(event.key)! + y.bandwidth() / 2 + 4} textAnchor="end"><title>{event.label}</title>{truncate(event.label, Math.floor((left - 16) / 7))}</text>)}
@@ -296,7 +299,7 @@ export function LinkedDensity({ spans, events, cells, onSelect, compact = false 
               }
             }}>
             <title>{name}</title>
-            <rect x={x(span.key)} y={y(event.key)} width={x.bandwidth()} height={y.bandwidth()} fill={count === undefined ? "none" : count === 0 ? "#94a3b8" : color(count)} opacity={count === 0 ? 0.2 : 1} stroke="currentColor" strokeOpacity={0.15} />
+            <rect x={x(span.key)} y={y(event.key)} width={x.bandwidth()} height={y.bandwidth()} fill={count === undefined ? `url(#${id}-unknown)` : count === 0 ? "var(--color-surface)" : color(count)} stroke="currentColor" strokeOpacity={0.15} />
             {x.bandwidth() >= 34 && y.bandwidth() >= 18 && <text aria-hidden="true" x={x(span.key)! + x.bandwidth() / 2} y={y(event.key)! + y.bandwidth() / 2 + 4} textAnchor="middle" fontSize={11} fill={count ? contrastText(color(count)) : "currentColor"}>{count === undefined ? "?" : compactCount(count)}</text>}
             <rect x={x(span.key)! + 1.5} y={y(event.key)! + 1.5} width={Math.max(0, x.bandwidth() - 3)} height={Math.max(0, y.bandwidth() - 3)} fill="transparent" stroke="transparent" className="focus-ring" />
           </g>;
@@ -320,12 +323,12 @@ export function LinkedDensity({ spans, events, cells, onSelect, compact = false 
       </svg>
     </>}</div>
     <div className="flex flex-wrap gap-3 text-xs" aria-label="Selected case count color legend">
-      {[0, ...(maximum ? [...new Set([1, maximum])] : [])].map((value) => <span key={value} className="inline-flex items-center gap-1"><span aria-hidden="true" className="inline-block h-3 w-5 rounded-sm" style={{ background: value ? color(value) : "#94a3b8", opacity: value ? 1 : 0.2 }} />{exact(value)}</span>)}
+      {[0, ...(maximum ? [...new Set([1, maximum])] : [])].map((value) => <span key={value} className="inline-flex items-center gap-1"><span aria-hidden="true" className="inline-block h-3 w-5 rounded-sm" style={{ background: value ? color(value) : "var(--color-surface)", border: "1px solid var(--color-border-strong)" }} />{exact(value)}</span>)}
     </div>
     <p className="my-2 text-xs text-text-muted">{compact ? <>
-      Selected cases (log color). Gray = 0; ? = unavailable.
+      Selected cases (log color). White = 0; hatched ? = unavailable.
       <span className="sr-only"> Exact counts are in cell titles and the table.</span>
-    </> : <>Log color scale: selected cases, {maximum ? `1–${exact(maximum)}` : "no selected cases"}. Gray = zero. ? = counts unavailable. Exact counts are in cell titles and the table.</>}</p>
+    </> : <>Log color scale: selected cases, {maximum ? `1–${exact(maximum)}` : "no selected cases"}. White = zero. Hatched ? = counts unavailable. Exact counts are in cell titles and the table.</>}</p>
     <RangeControls compact={compact}><form aria-label="Matrix block selection" className="my-3 flex flex-wrap items-end gap-3" onSubmit={(event) => {
       event.preventDefault();
       const values = new FormData(event.currentTarget);

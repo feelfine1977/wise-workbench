@@ -67,8 +67,8 @@ describe("your process: the flow-type fork (R2-O7, R2-O10)", () => {
     // the Data step's ribbon shows project and dataset only; the scope switcher belongs to the Signals step
     expect(screen.queryByRole("combobox", { name: "Switch scope" })).not.toBeInTheDocument();
     await user.click(within(screen.getByRole("list", { name: "Flow types" })).getAllByRole("button", { name: /Analyse the .* flow|Open this flow/ })[0]!);
-    await waitFor(() => expect(screen.getByRole("list", { name: "Signals" })).toBeInTheDocument(), T);
-    expect(screen.getByText(/Signals · DF2 flow only/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("grid", { name: "Backlog" })).toBeInTheDocument(), T);
+    expect(screen.getByText(/Analyse · DF2 flow only/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Switch scope" })).toHaveTextContent("DF2 only"), T);
   });
 

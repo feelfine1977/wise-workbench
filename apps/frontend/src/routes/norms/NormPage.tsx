@@ -5,6 +5,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { isAnalysisNormLens, returnTarget, useNavStore } from "@/lib/stores/nav";
 import { useWorkbench } from "@/app/context";
 import { normRoute } from "@/app/router";
+import { RuleEvidenceSummary } from "./RuleEvidenceSummary";
 import { NormCalibrationChart } from "./NormCalibrationChart";
 import { analysisSelectionsQuery } from "@/lib/api/analysisSelections";
 import { BackControl } from "@/components/guide/BackControl";
@@ -240,7 +241,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="wise-norm-page flex flex-col gap-4">
       <QueryState query={norm} rows={6}>
         {(nv) => (
           <>
@@ -281,7 +282,8 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
             <HowToRead id="norm">
               Begin with the purpose and evidence. Define expectations (constraints), group them into layers, then weight them in views. Review records the reason and owner behind required decisions. Every saved change creates a new draft; existing results keep their original Process norm.
             </HowToRead>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="wise-norm-tools flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               <label className="flex min-w-0 flex-wrap items-center gap-2 text-sm">Evidence population
                 <select aria-label="Evidence population" className="max-w-full rounded-lg border border-border bg-surface px-3 py-2" value={search.selection ?? ""} disabled={!ctx.caseTable} onChange={event => void navigate({ to: ".", search: previous => ({ ...previous, selection: event.target.value || undefined }) })}>
                   <option value="">All prepared cases</option>
@@ -293,8 +295,9 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
               {cohorts.isError && <p role="status" className="text-xs text-warning">Saved populations could not be loaded. Selected evidence will not fall back to all cases.</p>}
             </div>
             <NormAuthoringSettings disabled={create.isPending}>{json && <NormDisplayControls document={json} visibility={visibility} relevance={exactRelevance} loading={relevance.isFetching} onRetry={() => { void relevance.refetch(); }} onChange={changeDisplay} />}</NormAuthoringSettings>
-            <Tabs value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
-              <TabsList aria-label="Norm sections">
+            </div>
+            <Tabs className="wise-norm-tabs" value={search.tab} onValueChange={(v) => setTab(v as NormTab)}>
+              <TabsList underline aria-label="Norm sections" className="wise-norm-subnav">
                 <TabsTrigger value="guide">Guided overview</TabsTrigger>
                 <TabsTrigger value="constraints">Constraints</TabsTrigger>
                 <TabsTrigger value="structure">Layers &amp; views</TabsTrigger>
@@ -314,8 +317,8 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
               </TabsContent>
               <TabsContent value="constraints">
                 {displayControls}
-                <div className={search.constraint ? "grid items-start gap-4 xl:grid-cols-[minmax(260px,310px)_minmax(0,1fr)]" : "space-y-4"}>
-                  <Card className={search.constraint ? "max-h-[76vh] overflow-y-auto" : ""}>
+                <div className={search.constraint ? "grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]" : "space-y-4"}>
+                  <Card className={search.constraint ? "wise-constraint-nav max-h-[78vh] overflow-y-auto !p-3" : "wise-constraint-nav"}>
                     {json && <ConstraintNavigator key={normVersionId} document={json} template={<GuidedProcessTemplate projectId={ctx.projectId} caseTableId={ctx.caseTable?.id} datasetName={ctx.dataset?.name} onCreated={id => void navigate({ to: "/p/$projectId/norms/$normVersionId", params: { projectId: ctx.projectId, normVersionId: id }, search: { caseTable: ctx.caseTable?.id, selection: search.selection, tab: "constraints" } })} />} visibility={visibility} onHideLayer={hideLayer} onHideConstraint={hideConstraint} relevance={exactRelevance} evidenceState={!ctx.caseTable ? "no-table" : relevance.isError ? "error" : relevance.isPending ? "loading" : "ready"} datasetName={ctx.dataset?.name} selected={edited ?? selected} overview={!search.constraint} missing={calibration.data?.missingRationale ?? []} warnings={uncalibrated} onSelect={selectConstraint} onOverview={showOverview}>
                       <NewConstraintButton
                         layers={json?.layers ?? []}
@@ -331,7 +334,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                       />
                     </ConstraintNavigator>}
                   </Card>
-                  <Card hidden={!search.constraint} className="min-w-0" data-testid="norm-builder">
+                  <Card hidden={!search.constraint} className="wise-rule-panel min-w-0" data-testid="norm-builder">
                     {(edited && JSON.stringify(edited) !== JSON.stringify(selected) || fields.rationale || fields.owner) && <p role="status" className="mb-3 text-xs text-text-muted">Unsaved edits are kept while switching constraints in this version. Save before leaving this page or changing versions.</p>}
                     {!selected && !edited && <p className="text-sm text-text-muted">Select a constraint or add one to begin.</p>}
                     {(selected || edited) && (
@@ -363,9 +366,10 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
                           Layer: {json?.layers?.find(l => l.id === (edited ?? selected)?.layer)?.name ?? (edited ?? selected)?.layer}
                           <Link className="ml-3 text-accent-text underline" to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId }} search={{ ...search, tab: "structure" }}>Layers &amp; views</Link>
                         </p>
-                        <p className="reading mb-3 text-sm text-text-muted" data-testid="norm-sentence">
-                          {ruleSentence((edited ?? selected) as Constraint)}. {applicabilitySentence((edited ?? selected) as Constraint, caseNoun, pane === "applies" ? exclusion : undefined)}
+                        <p className="wise-rule-sentence reading mb-3 text-sm" data-testid="norm-sentence">
+                          <span className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Rule from current settings</span>{ruleSentence((edited ?? selected) as Constraint)}. <span className="mt-1 block text-xs text-text-muted">{applicabilitySentence((edited ?? selected) as Constraint, caseNoun, pane === "applies" ? exclusion : undefined)}</span>
                         </p>
+                        {selected && <RuleEvidenceSummary projectId={ctx.projectId} versionId={normVersionId} caseTableId={ctx.caseTable?.id} selectionId={search.selection} constraint={selected} readyForCounts={!thresholdOf(selected) || !!dist.data} relevance={exactRelevance?.constraints.find(row => row.id === selected.id)} />}
                         {calibration.isError && <p role="alert" className="mb-3 text-sm text-danger">Saved decisions could not be read. Your edits are still here; reload to try again.</p>}
                         {savedDecision && (savedDecision.rationale || savedDecision.owner) && (
                           <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-3 text-sm" data-testid="saved-calibration">
@@ -400,7 +404,7 @@ function NormPageSession({ pane, setPane, structureStep, setStructureStep, visib
 
                         {pane === "rule" && (edited || selected) && ctx.caseTable && (
                           <>
-                            <RuleEditor key={selected?.id} projectId={ctx.projectId} caseTableId={ctx.caseTable.id} constraint={(edited ?? selected)!} caseNoun={caseNoun} onChange={setEdited} nameInvalid={attempted && !((edited ?? selected)!.plain_name ?? (edited ?? selected)!.description ?? (edited ?? selected)!.id).trim()} />
+                            <RuleEditor key={selected?.id} projectId={ctx.projectId} caseTableId={ctx.caseTable.id} showSummary={false} constraint={(edited ?? selected)!} caseNoun={caseNoun} onChange={setEdited} nameInvalid={attempted && !((edited ?? selected)!.plain_name ?? (edited ?? selected)!.description ?? (edited ?? selected)!.id).trim()} />
                             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
                               <CommitFieldsForm value={fields} onChange={setFields} attempted={attempted} optional={allowDraftWithoutDecision} />
                               {saveError}

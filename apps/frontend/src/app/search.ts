@@ -62,7 +62,7 @@ export interface BacklogSearch {
   within?: string;
 }
 
-export const BACKLOG_DEFAULTS = { minCases: 20, sort: "-stable_PI", tab: "signals", page: 1, pageSize: 10 } as const;
+export const BACKLOG_DEFAULTS = { minCases: 20, sort: "-stable_PI", tab: "table", page: 1, pageSize: 10 } as const;
 
 export function validateBacklogSearch(input: Partial<BacklogSearch> & SearchSchemaInput): BacklogSearch {
   const s = input as Record<string, unknown>;

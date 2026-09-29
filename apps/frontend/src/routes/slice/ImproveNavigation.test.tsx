@@ -117,7 +117,7 @@ it.each([1, 20])("preserves minimum support %s from the ranked group into Why", 
     }),
   );
   const user = userEvent.setup();
-  renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=${minimum}`);
+  renderApp(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Company+case Spend area text")}&view=Automation&minCases=${minimum}`);
   await user.click(await screen.findByRole("button", { name: /^Why\?/ }, ROUTE_READY));
   const strip = await screen.findByTestId("why-strip", {}, ROUTE_READY);
   await waitFor(() => expect(strip).toHaveTextContent(`rank · whole group1 of ${total}`));

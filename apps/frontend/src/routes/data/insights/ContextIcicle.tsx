@@ -1,3 +1,4 @@
+import { useChartNavigation } from "@/lib/useChartNavigation";
 import { useId, useMemo } from "react";
 import { hierarchy, partition } from "d3";
 import type { EDAHierarchy, EDAJointPredicate } from "@/lib/api/eda";
@@ -38,6 +39,13 @@ export function ContextIcicle({ data, branches, onToggle }: {
     const root = hierarchy(contextTree(data)).sum((node) => node.children?.length ? 0 : node.total);
     return partition<ContextNode>().size([900, 160])(root).descendants().filter((node) => node.depth > 0);
   }, [data]);
+  const selectableNodes = nodes.filter(node => node.depth === 3 && (branches.length < 24 || branches.some(branch => matchesContextPath(branch, data.fields, node.data.keys, node.ancestors().reverse().slice(1).map(n => n.data.label)))));
+  const navigateMark = useChartNavigation(selectableNodes.map(node => JSON.stringify(node.data.keys)), key => {
+    const node = selectableNodes.find(n => JSON.stringify(n.data.keys) === key);
+    if (!node) return;
+    const labels = node.ancestors().reverse().slice(1).map(n => n.data.label);
+    onToggle(branches.find(b => matchesContextPath(b, data.fields, node.data.keys, labels)) ?? contextPath(data.fields, node.data.keys, labels));
+  });
   if (data.cells.length > ICICLE_LEAF_LIMIT) return <p className="eda-note">The icicle supports up to {ICICLE_LEAF_LIMIT} occupied leaf groups. This declaration has {fmtInt(data.cells.length)}; use the complete tree below. No cases or branches have been dropped.</p>;
   if (!nodes.length) return <p className="eda-note">No prepared cases to partition.</p>;
   return <div className="overflow-x-auto" aria-label="Context icicle overview">
@@ -54,15 +62,14 @@ export function ContextIcicle({ data, branches, onToggle }: {
         const active = Boolean(existing);
         const selectable = leaf && (active || branches.length < 24);
         const description = `${node.ancestors().reverse().slice(1).map((ancestor, level) => `${data.fields[level]} = ${ancestor.data.label}`).join(" → ")}; ${fmtInt(node.data.selected)} selected / ${fmtInt(node.data.total)} all cases (${fmtShare(node.data.total ? node.data.selected / node.data.total : 0)} selected)`;
-        return <g key={JSON.stringify(node.data.keys)} role={leaf ? "button" : undefined} tabIndex={selectable ? 0 : undefined} aria-label={description} aria-pressed={leaf ? active : undefined} aria-disabled={leaf ? !selectable : undefined}
+        return <g key={JSON.stringify(node.data.keys)} role={leaf ? "button" : undefined} {...(selectable ? navigateMark(JSON.stringify(node.data.keys)) : {})} aria-label={description} aria-pressed={leaf ? active : undefined} aria-disabled={leaf ? !selectable : undefined}
           data-total={node.data.total} data-selected={node.data.selected} data-depth={node.depth}
           onClick={selectable ? () => onToggle(branch) : undefined}
-          onKeyDown={selectable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(branch); } } : undefined}
           className={leaf ? "eda-icicle-leaf" : undefined}>
           <title>{description}</title>
           <rect x={node.x0} y={y} width={width} height={36} fill="var(--color-surface-sunken)" stroke="var(--color-border)" strokeWidth={.5} />
-          <rect data-selected-overlay="true" x={node.x0} y={y} width={node.data.total ? width * node.data.selected / node.data.total : 0} height={36} fill={active ? "#7048e8" : "#4263eb"} opacity={.5} pointerEvents="none" />
-          {active && <rect x={node.x0} y={y} width={width} height={36} fill="none" stroke="#7048e8" strokeWidth={2} pointerEvents="none" />}
+          <rect data-selected-overlay="true" x={node.x0} y={y} width={node.data.total ? width * node.data.selected / node.data.total : 0} height={36} fill="var(--color-accent-subtle)" pointerEvents="none" />
+          {active && <rect x={node.x0} y={y} width={width} height={36} fill="none" stroke="var(--color-accent)" strokeWidth={2} pointerEvents="none" />}
           {width > 42 && <><clipPath id={`${id}-${index}`}><rect x={node.x0 + 4} y={y} width={Math.max(0, width - 8)} height={36} /></clipPath><text x={node.x0 + 5} y={y + 22} fill="currentColor" fontSize={11} clipPath={`url(#${id}-${index})`} pointerEvents="none">{node.data.label}</text></>}
         </g>;
       })}</g>

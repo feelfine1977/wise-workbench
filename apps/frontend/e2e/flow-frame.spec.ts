@@ -87,6 +87,8 @@ for (const size of SIZES) {
     const loaded = await scrolls(page);
     expect(loaded.scrollHeight, `the Flow step scrolls at ${at}`).toBe(loaded.clientHeight);
 
+    // Use the explicit overview to reach every node; dense graphs open at readable size.
+    await page.getByRole("button", { name: "Fit overview", exact: true }).click();
     // the activity card opens: its band is reserved, so the frame is the size it already was
     await page.locator(".react-flow__node-activity").first().click();
     await expect(page.getByTestId("selected-activity")).toBeVisible({ timeout: 15_000 });
@@ -264,6 +266,7 @@ for (const size of LABEL_SIZES) {
     await expect(page.getByTestId("map-frame")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".react-flow__node-activity").first()).toBeVisible({ timeout: 60_000 });
     await page.waitForTimeout(3000);
+    await page.getByRole("button", { name: "Fit overview", exact: true }).click();
     const { band, zoom } = await drawnOn(page);
     expect(band, "nothing is drawn on the map").not.toBeNull();
     const sides = band as { above: number; below: number; left: number; right: number };
@@ -340,7 +343,7 @@ test("flow types compare full activity names and real connections on a common sc
  * The paths were a 264 px column inside the frame holding 1,175 px of rows: opening it shrank the canvas
  * from 1,158 to 894 px and every activity name with it, the flow library drew the same list a second time,
  * and the *hidden at this detail level* sentence was printed three times. They are now a sheet over the map:
- * the canvas keeps its width, the whole answer is on the screen, and `Escape` closes it.
+ * the canvas keeps its width, every answer is reachable inside the sheet, and `Escape` closes it.
  */
 test("the paths of an activity are listed once, over the map, without taking its width (R3-11)", async ({ page, request }) => {
   const { projectId, runId, view } = await target(request);
@@ -378,7 +381,15 @@ test("the paths of an activity are listed once, over the map, without taking its
   expect(measured.dividers, "the hidden-paths sentence is printed more than once").toBeLessThanOrEqual(1);
   expect(measured.rows).toBeGreaterThan(0);
   expect(measured.filters, "no row acts as “filter to this path”").toBe(measured.rows);
-  expect(measured.scrolls, `the ${measured.rows} paths do not fit the sheet at 1440 × 900`).toBe(false);
+  // Readable row text takes priority over squeezing 49 paths into a short viewport.
+  // The sheet scrolls independently; its last action must remain reachable and the page stays fixed.
+  const lastAction = sheet.getByRole("button", { name: "filter to this path", exact: true }).last();
+  await lastAction.focus();
+  await expect(lastAction).toBeInViewport();
+  const sheetBox = await sheet.boundingBox();
+  expect(sheetBox!.y + sheetBox!.height).toBeLessThanOrEqual(900);
+  const pageSize = await scrolls(page);
+  expect(pageSize.scrollHeight).toBe(pageSize.clientHeight);
 
   // Escape closes it and the map is whole again
   await page.keyboard.press("Escape");

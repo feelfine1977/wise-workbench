@@ -10,7 +10,7 @@ To update:
 
 1. Run the flow repository's tests and packed-consumer checks; build and pack the artifact.
 2. Run `python tools/vendor_flow.py --source /path/to/wise-flow --tarball /path/to/wise-flow-VERSION.tgz`.
-3. Update the frontend's exact file dependency if the version changed; regenerate its lockfile with `npm install --package-lock-only`.
+3. Update the frontend's exact file dependency if the version changed; regenerate its lockfile with `npm install --package-lock-only`. If replacing the same version, remove only its `packages["node_modules/@wise/flow"]` entry from the lockfile before regenerating; npm may otherwise retain the old integrity value. The verifier checks both provenance and lock integrity.
 4. Run `node tools/verify-vendor.mjs`, then a clean frontend `npm ci`, typecheck, tests, build and map/model browser checks.
 5. Review and commit artifact, provenance and lockfile together. Never modify generated renderer files in this repository.
 

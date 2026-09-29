@@ -17,7 +17,7 @@ export const Separator = React.forwardRef<
 Separator.displayName = "Separator";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("surface card-pad shadow-1", className)} {...props} />;
+  return <div className={cn("surface card-pad", className)} {...props} />;
 }
 export function CardTitle({ as: Heading = "h3", className, ...props }: React.HTMLAttributes<HTMLHeadingElement> & { as?: "h2" | "h3" | "h4" }) {
   return <Heading className={cn("mb-3 text-base font-semibold text-text", className)} {...props} />;

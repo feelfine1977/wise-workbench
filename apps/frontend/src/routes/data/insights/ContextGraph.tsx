@@ -1,3 +1,4 @@
+import { useChartNavigation } from "@/lib/useChartNavigation";
 import { useMemo, useState } from "react";
 import { hierarchy, treemap, scaleOrdinal } from "d3";
 import { sankey, sankeyLinkHorizontal } from "d3-sankey";
@@ -10,16 +11,7 @@ export interface JointCount {
   total: number;
   selected: number;
 }
-const palette = [
-  "#4263eb",
-  "#0c8599",
-  "#ae3ec9",
-  "#d9480f",
-  "#087f5b",
-  "#6741d9",
-  "#c2255c",
-  "#5c7c0a",
-];
+const palette = ["#0072B2", "#009E73", "#CC79A7", "#D55E00", "#56B4E9", "#E69F00", "#536B8B", "#7762A6"];
 interface Node {
   id: string;
   label: string;
@@ -139,6 +131,9 @@ export function ContextGraph({
       ),
     [left, right, rows],
   );
+  const markKey = (r: JointCount) => JSON.stringify([r.leftKey, r.rightKey]);
+  const visible = mode === "sankey" ? (graph?.links ?? []) : tree.leaves().filter(n => n.data.leftKey && n.data.rightKey).map(n => n.data as JointCount);
+  const navigateMark = useChartNavigation(visible.map(markKey), key => { const row = visible.find(r => markKey(r) === key); if (row) onPair(row.leftKey, row.rightKey); });
   const describe = (r: JointCount) =>
     `${left.find((x) => x.key === r.leftKey)?.label} × ${right.find((x) => x.key === r.rightKey)?.label}: ${fmtInt(r.selected)} selected / ${fmtInt(r.total)} all cases`;
   return (
@@ -153,7 +148,7 @@ export function ContextGraph({
         >
           {(["sankey", "treemap"] as const).map((m) => (
             <button
-              className={`rounded-md px-3 py-1.5 text-xs ${mode === m ? "bg-surface font-semibold shadow-sm" : "text-text-muted"}`}
+              className={`rounded-md px-3 py-1.5 text-xs ${mode === m ? "bg-surface font-semibold text-accent-text" : "text-text-muted"}`}
               aria-pressed={mode === m}
               key={m}
               onClick={() => setMode(m)}
@@ -172,21 +167,15 @@ export function ContextGraph({
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full min-w-[620px]"
-          aria-label="Context membership Sankey"
+          role="group" aria-label="Context membership Sankey"
         >
           {graph.links.map((link) => (
             <g
               key={`${link.leftKey}:${link.rightKey}`}
               role="button"
-              tabIndex={0}
+              {...navigateMark(markKey(link))}
               aria-label={describe(link)}
               onClick={() => onPair(link.leftKey, link.rightKey)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onPair(link.leftKey, link.rightKey);
-                }
-              }}
               className="cursor-pointer focus:outline focus:outline-2 focus:outline-offset-2"
             >
               <title>{describe(link)}</title>
@@ -195,7 +184,7 @@ export function ContextGraph({
                 stroke={color(link.leftKey)}
                 strokeWidth={Math.max(1, link.width ?? 0)}
                 strokeOpacity={
-                  0.1 + (0.55 * link.selected) / Math.max(1, link.value)
+                  0.22 + (0.5 * link.selected) / Math.max(1, link.value)
                 }
                 fill="none"
               />
@@ -208,7 +197,7 @@ export function ContextGraph({
                 y={node.y0}
                 width={12}
                 height={Math.max(1, (node.y1 ?? 0) - (node.y0 ?? 0))}
-                fill={node.side === "left" ? color(node.key) : "#0c8599"}
+                fill={node.side === "left" ? color(node.key) : "var(--color-heading)"}
               />
               <text
                 x={
@@ -233,7 +222,7 @@ export function ContextGraph({
         <svg
           viewBox={`0 0 ${width} 350`}
           className="w-full min-w-[620px]"
-          aria-label="Context membership treemap"
+          role="group" aria-label="Context membership treemap"
         >
           {tree.children?.map((n) => (
             <text
@@ -255,16 +244,10 @@ export function ContextGraph({
             .map((n) => (
               <g
                 key={`${n.data.leftKey}:${n.data.rightKey}`}
-                tabIndex={0}
+                {...navigateMark(markKey(n.data as JointCount))}
                 role="button"
                 aria-label={describe(n.data as JointCount)}
                 onClick={() => onPair(n.data.leftKey!, n.data.rightKey!)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onPair(n.data.leftKey!, n.data.rightKey!);
-                  }
-                }}
                 className="cursor-pointer focus:outline focus:outline-2"
               >
                 <title>{describe(n.data as JointCount)}</title>
@@ -285,8 +268,8 @@ export function ContextGraph({
                   <text
                     x={n.x0 + 8}
                     y={n.y0 + 18}
-                    fill="currentColor"
-                    fontSize="11"
+                    fill="var(--color-heading)"
+                    fontSize="11" style={{ paintOrder: "stroke", stroke: "var(--color-surface)", strokeWidth: 4, strokeLinejoin: "round" }}
                     pointerEvents="none"
                   >
                     <tspan>
@@ -307,12 +290,13 @@ export function ContextGraph({
         </summary>
         <div className="mt-2 max-h-64 overflow-auto">
           <table className="w-full text-left">
+            <caption className="sr-only">Exact context membership; select one complete pair</caption>
             <thead>
               <tr>
-                <th>{leftField}</th>
-                <th>{rightField}</th>
-                <th>Selected</th>
-                <th>All</th>
+                <th scope="col">{leftField}</th>
+                <th scope="col">{rightField}</th>
+                <th scope="col">Selected</th>
+                <th scope="col">All</th>
               </tr>
             </thead>
             <tbody>

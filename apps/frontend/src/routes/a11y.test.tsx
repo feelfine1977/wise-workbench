@@ -10,7 +10,7 @@ const CSA = encodeURIComponent("case Company+case Spend area text");
 describe("accessibility of the main screens (axe)", () => {
   it("project dashboard with the flow types", async () => {
     renderApp("/p/p2p2018");
-    await screen.findByRole("heading", { level: 1, name: /P2P 2018/ }, T);
+    await screen.findByRole("heading", { level: 1, name: /Which/ }, T);
     await screen.findByTestId("top-signal", {}, T);
     await screen.findByRole("list", { name: "Flow types" }, T);
     await expectNoSeriousA11yViolations(document.body);
@@ -27,12 +27,12 @@ describe("accessibility of the main screens (axe)", () => {
     await expectNoSeriousA11yViolations(document.body);
   });
   it("signals list", async () => {
-    renderApp(`${RUN}/backlog?slicing=${VENDOR}&view=Finance`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${VENDOR}&view=Finance`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await expectNoSeriousA11yViolations(document.body);
   });
   it("metric table", async () => {
-    renderApp(`${RUN}/backlog?slicing=${VENDOR}&view=Finance&tab=table`);
+    renderApp(`${RUN}/backlog?tab=signals&slicing=${VENDOR}&view=Finance&tab=table`);
     await screen.findByRole("grid", { name: "Backlog" }, T);
     await expectNoSeriousA11yViolations(document.body);
   });

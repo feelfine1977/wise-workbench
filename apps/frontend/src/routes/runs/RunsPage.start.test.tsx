@@ -85,7 +85,7 @@ it("rejects a new-run URL naming a case table from a different dataset", async (
 });
 it("opens exploration of the fixed dataset directly from Data without offering a dataset switch", async () => {
   renderApp("/p/p2p2018/data");
-  expect(await screen.findByRole("heading", {name: "BPI_Challenge_2019.csv"}, {timeout: 8000})).toBeInTheDocument();
+  expect(await screen.findByRole("heading", {name: "Your data at a glance"}, {timeout: 8000})).toBeInTheDocument();
   expect(await screen.findByRole("region", {name: "Explore dataset"})).toBeVisible();
   expect(screen.getByRole("tab", {name: "Explore data"})).toHaveAttribute("data-state", "active");
   expect(screen.getByRole("region", {name: "Project dataset"})).toHaveTextContent("Project dataset fixed: BPI_Challenge_2019.csv");

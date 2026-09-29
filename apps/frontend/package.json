@@ -47,7 +47,7 @@
     "@tanstack/react-router": "1.161.4",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
-    "@wise/flow": "file:../../vendor/wise-flow-0.3.5.tgz",
+    "@wise/flow": "file:../../vendor/wise-flow-0.4.0.tgz",
     "@xyflow/react": "^12.11.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

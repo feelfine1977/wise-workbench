@@ -26,6 +26,8 @@ export default {
       DEFAULT: "var(--radius-sm)",
       md: "var(--radius-md)",
       lg: "var(--radius-lg)",
+      xl: "var(--radius-lg)",
+      "2xl": "var(--radius-lg)",
       full: "var(--radius-full)",
     },
     boxShadow: {

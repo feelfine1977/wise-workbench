@@ -45,6 +45,9 @@ function paletteVars(theme) {
   const lines = [];
   for (const [k, v] of Object.entries(p)) lines.push(`  --color-${kebab(k)}: ${v};`);
   for (const [k, v] of Object.entries(tokens.elevation[theme])) lines.push(`  --elevation-${k}: ${v};`);
+  for (const [name, view] of entries(tokens.semantic.views)) {
+    for (const [role, value] of Object.entries(view[theme])) lines.push(`  --view-${name}-${role}: ${value};`);
+  }
   for (const [name, t] of entries(tokens.semantic.kind)) {
     lines.push(`  --kind-${name}-fg: ${t[theme].fg};`);
     lines.push(`  --kind-${name}-bg: ${t[theme].bg};`);
@@ -88,6 +91,8 @@ function sharedVars() {
   for (const [k, v] of Object.entries(tokens.typography.measure ?? {})) lines.push(`  --measure-${k}: ${v};`);
   tokens.semantic.sequential.score.steps.forEach((c, i) => lines.push(`  --scale-score-${i}: ${c};`));
   tokens.semantic.sequential.violation.steps.forEach((c, i) => lines.push(`  --scale-violation-${i}: ${c};`));
+  tokens.semantic.sequential.penalty.steps.forEach((c, i) => lines.push(`  --scale-penalty-${i}: ${c};`));
+  tokens.semantic.sequential.count.steps.forEach((c, i) => lines.push(`  --scale-count-${i}: ${c};`));
   tokens.semantic.diverging.delta.steps.forEach((c, i) => lines.push(`  --scale-delta-${i}: ${c};`));
   tokens.semantic.categorical.layers.colors.forEach((c, i) => lines.push(`  --layer-${i}: ${c};`));
   return lines.join("\n");
@@ -183,6 +188,16 @@ writeFileSync(join(out, "echarts-theme.light.json"), JSON.stringify(echartsTheme
 writeFileSync(join(out, "echarts-theme.dark.json"), JSON.stringify(echartsTheme("dark"), null, 2));
 writeFileSync(join(out, "tokens.json"), JSON.stringify(tokens, null, 2));
 
+// A portable, typed colour export for design tools; production retains its stable token API.
+for (const theme of ["light", "dark"]) {
+  const color = Object.fromEntries(Object.entries(tokens.palette[theme])
+    .filter(([, value]) => value.startsWith("#"))
+    .map(([name, value]) => [name, { $type: "color", $value: value }]));
+  color.views = Object.fromEntries(entries(tokens.semantic.views).map(([name, view]) => [name,
+    Object.fromEntries(Object.entries(view[theme]).map(([role, value]) => [role, { $type: "color", $value: value }]))]));
+  writeFileSync(join(out, `tokens.${theme}.dtcg.json`), JSON.stringify({ color }, null, 2));
+}
+
 // ---------- contrast audit ----------
 const pairs = [];
 for (const theme of ["light", "dark"]) {
@@ -198,6 +213,8 @@ for (const theme of ["light", "dark"]) {
   add("onAccent on accentHover", p.onAccent, p.accentHover);
   add("accentText on accentSubtle", p.accentText, p.accentSubtle);
   add("text on selection", p.text, p.selection);
+  add("heading on surface", p.heading, p.surface);
+  for (const [name, view] of entries(tokens.semantic.views)) add(`view ${name}`, view[theme].fg, view[theme].bg);
   for (const s of ["info", "success", "warning", "danger"]) {
     add(`${s} on ${s}Subtle`, p[s], p[`${s}Subtle`]);
     add(`${s} on surface`, p[s], p.surface);

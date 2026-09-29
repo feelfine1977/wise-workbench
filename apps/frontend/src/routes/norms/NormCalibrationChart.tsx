@@ -1,6 +1,7 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { area, curveStepAfter, scaleLinear } from "d3";
+import { area, curveStepAfter, line, scaleLinear } from "d3";
+import { penaltyAt } from "./penaltyCurve";
 import type { components } from "@wise/api-schema";
 import { normPreviewQuery } from "@/lib/api/norms";
 import { Button } from "@/components/ui/button";
@@ -48,16 +49,25 @@ export function NormCalibrationChart({ projectId, versionId, caseTableId, select
   const y = scaleLinear().domain([0, presentation === "cumulative" ? 1 : Math.max(...bins.map(bin => bin.n), 1)]).nice().range([240, 25]);
   const chartId = useId();
   const cumulative = area<number[]>().x(point => x(point[0]!)).y0(240).y1(point => y(point[1]!)).curve(curveStepAfter)(ecdf);
-  const setPlotTarget = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0) return;
+  const dragging = useRef<"target" | "tolerance" | null>(null);
+  const step = constraint.type === "singularity" ? 1 : Math.max(.001, (maximum - minimum) / 500);
+  const changeHandle = (kind: "target" | "tolerance", value: number) => {
+    if (kind === "target") setTarget(String(constraint.type === "singularity" ? Math.max(0, Math.round(value)) : Math.round(value * 1000) / 1000));
+    else setTolerance(String(Math.round(Math.abs(value - threshold) * 1000) / 1000));
+  };
+  const setPlotTarget = (event: React.PointerEvent<SVGSVGElement>, moving = false) => {
+    if (!moving && event.button !== 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const pixel = (event.clientX - rect.left) * 840 / rect.width;
     const py = (event.clientY - rect.top) * 295 / rect.height;
-    if (pixel < 62 || pixel > 802 || py < 25 || py > 240) return;
-    const value = x.invert(pixel);
-    setTarget(String(constraint.type === "singularity" ? Math.max(0, Math.round(value)) : Math.round(value * 1000) / 1000));
+    if (!moving && (pixel < 62 || pixel > 802 || py < 25 || py > 240)) return;
+    const value = x.invert(Math.max(62, Math.min(802, pixel)));
+    changeHandle(dragging.current ?? "target", value);
+    if (!moving) { dragging.current = "target"; event.currentTarget.setPointerCapture?.(event.pointerId); }
   };
-  return <section aria-label="Threshold calibration" className="overflow-hidden rounded-2xl border border-border bg-surface">
+  const curvePoints = valid ? [...new Set([minimum - pad, threshold, low ? threshold - width : threshold + width, maximum + pad])].sort((a, b) => a - b).flatMap(value => width === 0 && value === threshold ? [[value, low ? 1 : 0], [value, low ? 0 : 1]] : [[value, penaltyAt(value, threshold, width, low)]]) : [];
+  const penaltyPath = line<number[]>().x(point => x(point[0]!)).y(point => 105 - point[1]! * 72)(curvePoints);
+  return <section aria-label="Threshold calibration" className="overflow-hidden rounded-lg border border-border bg-surface">
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
       <div><p className="text-xs font-medium uppercase tracking-wider text-accent-text">Explore a target</p><h3 className="mt-1 text-lg font-semibold">{title}</h3><p className="mt-1 text-sm">Saved rule: {ruleSentence(constraint)}</p><p className="mt-1 text-xs text-text-muted">{populationName} · {observed === undefined ? "Observation coverage unavailable" : `${fmtInt(observed)} finite measurements`}{applicable === undefined ? "" : ` / ${fmtInt(applicable)} applicable cases`}</p></div>
       <div role="group" aria-label="Calibration chart type" className="flex rounded-lg border border-border p-1">
@@ -67,21 +77,39 @@ export function NormCalibrationChart({ projectId, versionId, caseTableId, select
     </div>
     <div className="p-4">
       <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted"><span>▰ Measured cases</span><span className="text-accent-text">┃ Proposed target</span><span>┆ Saved target</span><span>Tinted band: tolerance</span></div>
-      <svg viewBox="0 0 840 295" className="w-full touch-pan-y" role="img" aria-label={`${presentation === "histogram" ? "Distribution" : "Cumulative distribution"} in ${unit}; click to propose a target, or use the target input below`} onPointerDown={setPlotTarget}>
+      <svg viewBox="0 0 840 295" className="w-full touch-pan-y" role="group" aria-label={`${presentation === "histogram" ? "Distribution" : "Cumulative distribution"} in ${unit}; click to propose a target, or use the target input below`} onPointerDown={event => setPlotTarget(event)} onPointerMove={event => { if (dragging.current) setPlotTarget(event, true); }} onPointerUp={() => { dragging.current = null; }} onPointerCancel={() => { dragging.current = null; }}>
         <title>{title} · native measurements</title>
-        <defs><linearGradient id={chartId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5b6fe8" stopOpacity="0.95" /><stop offset="100%" stopColor="#2baaaa" stopOpacity="0.65" /></linearGradient></defs>
+        <defs><linearGradient id={chartId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.9" /><stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0.55" /></linearGradient></defs>
         {valid && <rect x={Math.min(x(threshold), x(low ? threshold - width : threshold + width))} y="25" width={Math.abs(x(threshold) - x(low ? threshold - width : threshold + width))} height="215" fill="var(--color-accent, #5b6fe8)" opacity="0.09" />}
         {y.ticks(4).filter(tick => presentation === "cumulative" || Number.isInteger(tick)).map(tick => <g key={tick}><line x1="62" x2="802" y1={y(tick)} y2={y(tick)} stroke="currentColor" opacity="0.09" /><text x="51" y={y(tick) + 4} textAnchor="end" fill="currentColor" fontSize="11">{presentation === "cumulative" ? fmtPct(tick, 0) : fmtInt(tick)}</text></g>)}
-        {presentation === "histogram" ? bins.map((bin, index) => <rect key={index} x={x(bin.x0) + 0.6} y={y(bin.n)} width={Math.max(1, x(bin.x1) - x(bin.x0) - 1.2)} height={240 - y(bin.n)} rx="2" fill={`url(#${chartId})`}><title>{number(bin.x0)}–{number(bin.x1)} {unit}: {fmtInt(bin.n)} cases</title></rect>) : <path d={cumulative ?? ""} fill={`url(#${chartId})`} fillOpacity="0.22" stroke="#596cde" strokeWidth="2" />}
+        {presentation === "histogram" ? bins.map((bin, index) => <rect key={index} x={x(bin.x0) + 0.6} y={y(bin.n)} width={Math.max(1, x(bin.x1) - x(bin.x0) - 1.2)} height={240 - y(bin.n)} rx="2" fill={`url(#${chartId})`}><title>{number(bin.x0)}–{number(bin.x1)} {unit}: {fmtInt(bin.n)} cases</title></rect>) : <path d={cumulative ?? ""} fill={`url(#${chartId})`} fillOpacity="0.22" stroke="var(--color-accent)" strokeWidth="2" />}
         <line x1={x(initial.threshold)} x2={x(initial.threshold)} y1="20" y2="245" stroke="currentColor" strokeDasharray="4 4" opacity="0.6" />
-        {valid && <g><line x1={x(threshold)} x2={x(threshold)} y1="20" y2="245" stroke="#6752d8" strokeWidth="2.5" /><circle cx={x(threshold)} cy="20" r="5" fill="#6752d8" /></g>}
+        {valid && (["target", "tolerance"] as const).map(kind => {
+          const value = kind === "target" ? threshold : low ? threshold - width : threshold + width;
+          return <g key={kind} role="slider" tabIndex={0} aria-label={kind === "target" ? "Proposed target handle" : "Tolerance end handle"}
+            aria-valuenow={value} aria-valuemin={minimum - pad} aria-valuemax={maximum + pad} aria-valuetext={`${number(value)} ${unit}`} className="cursor-ew-resize"
+            onPointerDown={event => { if (event.button !== 0) return; event.stopPropagation(); dragging.current = kind; event.currentTarget.ownerSVGElement?.setPointerCapture?.(event.pointerId); }}
+            onKeyDown={event => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); changeHandle(kind, Math.max(minimum - pad, Math.min(maximum + pad, value + (["ArrowLeft", "ArrowDown"].includes(event.key) ? -step : step)))); } }}>
+            <line x1={x(value)} x2={x(value)} y1="20" y2="245" stroke={kind === "target" ? "var(--color-accent)" : "var(--scale-penalty-5)"} strokeWidth="2" strokeDasharray={kind === "tolerance" ? "3 3" : undefined} />
+            <rect x={x(value) - 12} y={4} width={24} height={30} rx={5} fill="var(--color-surface)" stroke={kind === "target" ? "var(--color-accent)" : "var(--scale-penalty-5)"} />
+            <path d={`M${x(value) - 3},12v12 M${x(value) + 3},12v12`} stroke="var(--color-heading)" />
+          </g>;
+        })}
         {x.ticks(6).map(tick => <text key={tick} x={x(tick)} y="260" textAnchor="middle" fontSize="11" fill="currentColor">{number(tick)}</text>)}
         <text x="432" y="284" textAnchor="middle" fontSize="12" fill="currentColor">{unit}</text>
       </svg>
-      <p className="text-xs text-text-muted">Click the plot to move the target. {presentation === "cumulative" ? "The cumulative curve summarizes sampled quantiles; exact counts below are evaluated from all cases." : "Histogram bins summarize measured values; exact draft effects are calculated separately."}{distribution.below?.n || distribution.beyond?.n ? ` Outside the displayed bins: ${fmtInt((distribution.below?.n ?? 0) + (distribution.beyond?.n ?? 0))} measurements.` : ""}</p>
+      {valid && <div className="mt-2 rounded border border-border p-3" aria-label="Finite-value penalty preview">
+        <div className="flex flex-wrap justify-between gap-2 text-xs"><strong>Proposed penalty · 0–1</strong><span className="text-text-muted">Finite values only; missing-data policy is evaluated separately.</span></div>
+        <svg viewBox="0 0 840 140" className="w-full" role="img" aria-label={`Penalty ramp: target ${number(threshold)}, tolerance ${number(width)} ${unit}`}>
+          {[0, .5, 1].map(value => <g key={value}><line x1="62" x2="802" y1={105 - value * 72} y2={105 - value * 72} stroke="var(--color-border-hair)" /><text x="51" y={109 - value * 72} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">{value}</text></g>)}
+          <path d={penaltyPath ?? ""} fill="none" stroke="var(--scale-penalty-5)" strokeWidth={2.5} />
+          <text x={x(threshold)} y={130} textAnchor="middle" fontSize={11} fill="var(--color-text)">Target {number(threshold)}</text>
+        </svg>
+      </div>}
+      <p className="text-xs text-text-muted">Drag either handle or set exact values below. {presentation === "cumulative" ? "The cumulative curve summarizes sampled quantiles; exact counts below are evaluated from all cases." : "Histogram bins summarize measured values; exact draft effects are calculated separately."}{distribution.below?.n || distribution.beyond?.n ? ` Outside the displayed bins: ${fmtInt((distribution.below?.n ?? 0) + (distribution.beyond?.n ?? 0))} measurements.` : ""}</p>
       {distribution.note && <p className="mt-2 text-xs text-text-muted">{distribution.note}</p>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="text-sm"><label htmlFor={`${chartId}-target`}>Target ({unit})</label><Input id={`${chartId}-target`} type="number" step={constraint.type === "singularity" ? 1 : "any"} value={target} onChange={event => setTarget(event.target.value)} className="mt-1" /><input aria-label="Move target" type="range" min={Math.min(minimum, threshold || 0)} max={Math.max(maximum, threshold || 0)} step={constraint.type === "singularity" ? 1 : (maximum - minimum) / 500} value={valid ? threshold : initial.threshold} onChange={event => setTarget(event.target.value)} className="mt-2 w-full accent-indigo-600" /></div>
+        <div className="text-sm"><label htmlFor={`${chartId}-target`}>Target ({unit})</label><Input id={`${chartId}-target`} type="number" step={constraint.type === "singularity" ? 1 : "any"} value={target} onChange={event => setTarget(event.target.value)} className="mt-1" /><input aria-label="Move target" type="range" min={Math.min(minimum, threshold || 0)} max={Math.max(maximum, threshold || 0)} step={constraint.type === "singularity" ? 1 : (maximum - minimum) / 500} value={valid ? threshold : initial.threshold} onChange={event => setTarget(event.target.value)} className="mt-2 w-full accent-accent" /></div>
         <div className="text-sm"><label htmlFor={`${chartId}-width`}>Tolerance width ({unit})</label><Input id={`${chartId}-width`} type="number" min={0} step="any" value={tolerance} onChange={event => setTolerance(event.target.value)} className="mt-1" /><span className="mt-2 block text-xs text-text-muted">{low ? "Values below the target accumulate a penalty." : "Values above the target accumulate a penalty."} {constraint.type === "singularity" ? "Tolerance must be positive; fractional widths are allowed." : "A zero width applies the rule’s sharp boundary."}</span></div>
       </div>
       <div aria-live="polite" className="mt-4 rounded-xl border border-border bg-surface-sunken p-3">

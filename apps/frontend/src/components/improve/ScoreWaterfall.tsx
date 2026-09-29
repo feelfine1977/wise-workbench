@@ -20,8 +20,8 @@ export interface ScoreWaterfallProps {
 
 const points = (value: number) => fmtNum(value * 100, 2);
 const signedPoints = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value) > 0 && Math.abs(value * 100) < .005 ? "<0.005" : points(Math.abs(value))}`;
-const tone = (value: number) => value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-text-muted";
-const fill = (value: number) => value > 0 ? "var(--color-success)" : value < 0 ? "var(--color-danger)" : "var(--color-text-muted)";
+const tone = (value: number) => value > 0 ? "text-score" : value < 0 ? "text-penalty" : "text-text-muted";
+const fill = (value: number) => value > 0 ? "var(--scale-score-5)" : value < 0 ? "var(--scale-penalty-5)" : "var(--color-text-muted)";
 const rowLayout = "grid min-w-0 gap-x-5 md:grid-cols-[minmax(200px,0.9fr)_minmax(0,1.7fr)]";
 
 export function ScoreWaterfall({ drivers, baseline, groupScore, groupName, view, selected, noun, plainOf, layerNames, onSelect }: ScoreWaterfallProps) {
@@ -56,7 +56,7 @@ export function ScoreWaterfall({ drivers, baseline, groupScore, groupName, view,
       </div>
       <p className="mt-3 text-xs text-text-muted">Start at the whole-run mean, then add each expectation’s signed contribution to reach the whole-group mean. Means use scored {noun} in this view.</p>
       <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs" aria-label="Score contribution key">
-        <li className="text-success">+ Higher score · lower penalty</li><li className="text-danger">− Lower score · higher penalty</li><li className="text-text-muted">0 No score difference</li>
+        <li className="text-score">+ Higher score · lower penalty</li><li className="text-penalty">− Lower score · higher penalty</li><li className="text-text-muted">0 No score difference</li>
       </ul>
       <div className="mt-3" aria-label="Score waterfall from whole run to whole group" role="group">
         <div className={`${rowLayout} px-3`}>

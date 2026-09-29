@@ -12,6 +12,7 @@ import { useUiStore } from "@/lib/stores/ui";
 import { cn, sliceLabel } from "@/lib/utils";
 
 export interface BacklogTableProps {
+  compact?: boolean;
   rows: BacklogRow[];
   projectId: string;
   runId: string;
@@ -36,7 +37,7 @@ const NUMERIC: (keyof BacklogRow)[] = ["n_cases", "mean_score", "gap", "stable_g
 
 /** Virtualised metric table with roving-tabindex keyboard navigation (↑↓ move, ↵ open, p pin, f finding, / filter). */
 export function BacklogTable(props: BacklogTableProps) {
-  const { rows, sort, offset, pins, activeKey, onSort, onActive, onTogglePin, onOpen, onFocusFilter, projectId, runId, slicing, view, gamma, minCases, globalMean, layerNames } = props;
+  const { compact = false, rows, sort, offset, pins, activeKey, onSort, onActive, onTogglePin, onOpen, onFocusFilter, projectId, runId, slicing, view, gamma, minCases, globalMean, layerNames } = props;
   const density = useUiStore((s) => s.density);
   const rowHeight = density === "compact" ? 28 : 36;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,22 +48,22 @@ export function BacklogTable(props: BacklogTableProps) {
     const numeric = (id: "n_cases" | "mean_score" | "gap" | "stable_gap" | "PI" | "stable_PI", format: (v: number) => string, size = 110): ColumnDef<BacklogRow> => ({
       id,
       accessorKey: id,
-      header: () => <Term id={id} />,
+      header: () => compact ? ({ n_cases: "Cases", mean_score: "Score / 100", gap: "Gap (pts)", stable_gap: "Adjusted gap", PI: "Raw priority", stable_PI: "Priority" }[id]) : <Term id={id} />,
       size,
       meta: { numeric: true, explainKey: id },
       cell: ({ row }) => (
         <span className="flex items-center justify-end gap-1">
-          <span>{format(row.original[id])}</span>
+          <span>{compact && (id === "mean_score" || id === "gap") ? fmtNum(row.original[id] * 100, 1) : format(row.original[id])}</span>
           <Explain {...backlogExplain(id, row.original, params, fmt)} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-[[data-active=true]]:opacity-100" />
         </span>
       ),
     });
-    return [
+    const all: ColumnDef<BacklogRow>[] = [
       { id: "rank", header: "#", size: 48, meta: { numeric: true }, cell: ({ row }) => <span className="text-text-subtle">{row.original.rank ?? offset + row.index + 1}</span> },
       {
         id: "key",
         accessorKey: "key",
-        header: () => <Term id="slice" />,
+        header: () => compact ? "Group" : <Term id="slice" />,
         size: 220,
         cell: ({ row }) => {
           const label = sliceLabel(row.original);
@@ -89,7 +90,8 @@ export function BacklogTable(props: BacklogTableProps) {
       { id: "dominant_layer", accessorKey: "dominant_layer", header: () => <Term id="dominant_layer" />, size: 200, cell: ({ row }) => <LayerChip id={row.original.dominant_layer} name={row.original.dominant_layer_name ?? layerNames[row.original.dominant_layer ?? ""]} /> },
       { id: "reading", accessorKey: "reading", header: () => <Term id="reading" />, size: 480, cell: ({ row }) => <span className="block truncate text-xs text-text-muted" title={row.original.reading ?? undefined}>{row.original.reading}</span> },
     ];
-  }, [offset, pins, onTogglePin, projectId, runId, slicing, view, params, fmt, layerNames]);
+    return compact ? all.filter(column => ["rank", "key", "n_cases", "mean_score", "gap", "stable_PI"].includes(column.id!)).map(column => ({ ...column, size: column.id === "key" ? 260 : column.id === "rank" ? 40 : column.id === "stable_PI" ? 120 : 100 })) : all;
+  }, [compact, offset, pins, onTogglePin, projectId, runId, slicing, view, params, fmt, layerNames]);
 
   const sorting = useMemo<SortingState>(() => [{ id: sort.replace(/^-/, ""), desc: sort.startsWith("-") }], [sort]);
   const table = useReactTable({
@@ -226,7 +228,7 @@ export function BacklogTable(props: BacklogTableProps) {
                 const canSort = !UNSORTABLE.has(h.column.id);
                 const sorted = h.column.getIsSorted();
                 return (
-                  <div key={h.id} role="columnheader" aria-sort={sorted ? (sorted === "desc" ? "descending" : "ascending") : canSort ? "none" : undefined} className={cn("flex h-9 items-center gap-1 px-2", meta?.numeric && "justify-end")}>
+                  <div key={h.id} role="columnheader" aria-sort={sorted ? (sorted === "desc" ? "descending" : "ascending") : canSort ? "none" : undefined} className={cn("flex min-h-11 items-center gap-1 px-2 py-2", meta?.numeric && "justify-end")}>
                     {canSort ? (
                       <button type="button" className="inline-flex items-center gap-1 text-left hover:text-text" onClick={h.column.getToggleSortingHandler()}>
                         {flexRender(h.column.columnDef.header, h.getContext())}

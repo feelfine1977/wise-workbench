@@ -79,11 +79,11 @@ it("uses the table for small/large structures and explains unavailable profiles 
   const small = { ...document, layers: document.layers!.slice(0, 2), constraints: document.constraints!.slice(0, 3), views: [{ name: "Empty", layer_weights: { a: 0, b: 0 } }] };
   const ui = render(<LayerPriorityRadar document={small} onLayer={() => {}} />);
   await user.click(screen.getByText("Compare layer priority profiles", { exact: false, selector: "summary" }));
-  expect(screen.getByText(/radar is available for 3–12 layers/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Radar shape" })).not.toBeInTheDocument();
   expect(screen.getByText(/No positive priority weight/)).toBeVisible();
   expect(screen.getAllByRole("cell", { name: /Unavailable/ })).toHaveLength(2);
   ui.rerender(<LayerPriorityRadar document={{ ...small, layers: Array.from({ length: 15 }, (_, i) => ({ id: `l${i}`, name: `Layer ${i}` })) }} onLayer={() => {}} />);
-  expect(screen.getByText(/radar is available for 3–12 layers/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Radar shape" })).not.toBeInTheDocument();
   expect(ui.container.querySelector("svg.priority-radar")).toBeNull();
   expect(ui.container.innerHTML).not.toMatch(/NaN|Infinity/);
 });

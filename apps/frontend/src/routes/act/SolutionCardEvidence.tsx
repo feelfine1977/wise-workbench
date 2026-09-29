@@ -1,3 +1,4 @@
+import { EndpointCoverageBar } from "./EndpointCoverageBar";
 import type { ComponentType } from "react";
 import type { DriverEvidence } from "@/lib/api/driverEvidence";
 import type { SolutionCardBlock } from "@/lib/api/solutionCards";
@@ -61,6 +62,7 @@ function EndpointDuration({ data, block }: BlockProps) {
       <p className="mt-2 text-sm">{fmtInt(duration.pairedCases)} of {fmtInt(data.scope.selectedCases)} selected cases enter this summary. {duration.partitions.tiedCases > 0 && <>{fmtInt(duration.partitions.tiedCases)} have identical endpoint timestamps; a recorded zero interval does not establish instant work. </>}{duration.partitions.reversedCases > 0 && <>{fmtInt(duration.partitions.reversedCases)} unique pairs run backwards and are excluded.</>}</p>
       <p className="mt-1 text-xs text-text-muted">The median is the middle elapsed time; the 90th percentile describes the upper part of this distribution. Only cases with exactly one dated start and end, end at or after start, enter these summaries. This descriptive pairing differs from norm scoring; elapsed time alone does not establish business lateness.</p>
     </> : <p className="text-sm text-text-muted">Elapsed-time summary unavailable: {duration.reason ?? block.missingData}</p>}
+    <EndpointCoverageBar duration={duration} cases={data.scope.selectedCases} />
     <details className="mt-2">
       <summary className="cursor-pointer text-sm text-accent-text">Endpoint coverage and exclusions · {fmtInt(data.scope.selectedCases)} cases</summary>
       <table className="mt-2 w-full text-left text-xs tnum">
@@ -104,9 +106,9 @@ export function SolutionCardEvidence({ data }: { data: DriverEvidence }) {
   return <div className="mt-3" data-testid="solution-card-measured">
     <h5 className="text-base font-semibold">{card.title}</h5>
     <p className="mt-1 text-sm text-text-muted">{card.intent}</p>
-    <div className="mt-3 space-y-3">{card.blocks.map(block => {
+    <div className="wise-evidence-blocks mt-3">{card.blocks.map(block => {
       const Renderer = Object.hasOwn(renderers, block.kind) ? renderers[block.kind] : undefined;
-      return <section key={block.id} className="rounded-xl border border-border p-4" data-testid="solution-card-block" data-block-kind={block.kind}>
+      return <section key={block.id} className="min-w-0 overflow-x-auto rounded-lg border border-border bg-surface p-4" data-testid="solution-card-block" data-block-kind={block.kind}>
         <h6 className="text-sm font-semibold">{block.title}</h6>
         <p className="mb-2 mt-1 text-sm text-text-muted">{block.question}</p>
         {Renderer ? <Renderer data={data} block={block} /> : <p className="text-sm text-text-muted">Unavailable: this evidence block is not supported by this frontend. {block.missingData}</p>}

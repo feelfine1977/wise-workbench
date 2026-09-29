@@ -320,11 +320,11 @@ export default function DatasetPage() {
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-text-subtle">
           <BackControl className="normal-case tracking-normal" />
-          <span>Data · mapping and case notion</span>
+          <span>Understand data</span>
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            {dataset.data?.name ?? datasetId}
+            {tab === "overview" ? ({ atlas: "Your data at a glance", time: "Time & variation", context: "Context & concentration", evidence: "Case evidence" }[search.explore ?? "atlas"]) : dataset.data?.name ?? datasetId}
             <HowToReadToggle id="dataset" />
           </h1>
           {readyCaseTable && ["readiness", "mapping", "flows"].includes(tab) && (
@@ -333,7 +333,8 @@ export default function DatasetPage() {
             </div>
           )}
         </div>
-        <p className="reading text-base text-text-muted">
+        <p className="text-sm text-text-muted">
+          {tab === "overview" && <span className="mr-2 font-medium">{dataset.data?.name ?? datasetId} ·</span>}
           {readyCaseTable ? (
             <>
               <strong className="tnum text-text">{fmtInt(readyCaseTable.cases)}</strong> cases from {fmtInt(readyCaseTable.events ?? dataset.data?.events)} events
@@ -351,8 +352,8 @@ export default function DatasetPage() {
         </HowToRead>
       </header>
 
-      <section aria-label="Project dataset" className="rounded-lg border border-border bg-surface p-4">
-        {isBoundDataset ? <p className="text-sm"><strong>Project dataset fixed:</strong> {dataset.data?.name ?? datasetId}. Norms, runs and analysis use this dataset.</p> : <div className="flex flex-wrap items-center gap-3"><p className="text-sm">Explore this dataset, then keep it as the source for this project.</p><Button disabled={ctx.datasetBindingState !== "unbound" || dataset.data?.status !== "ready" || bindDataset.isPending} onClick={() => bindDataset.mutate(datasetId)}>Use this dataset for project</Button></div>}
+      <section aria-label="Project dataset" className={isBoundDataset ? "text-xs text-text-muted" : "rounded-lg border border-border bg-surface p-4"}>
+        {isBoundDataset ? <p className="text-xs"><strong>Project dataset fixed:</strong> {dataset.data?.name ?? datasetId}. Norms, runs and analysis use this dataset.</p> : <div className="flex flex-wrap items-center gap-3"><p className="text-sm">Explore this dataset, then keep it as the source for this project.</p><Button disabled={ctx.datasetBindingState !== "unbound" || dataset.data?.status !== "ready" || bindDataset.isPending} onClick={() => bindDataset.mutate(datasetId)}>Use this dataset for project</Button></div>}
         {bindDataset.isError && <ErrorBlock error={bindDataset.error} />}
       </section>
       {readyCaseTable && readyCaseTable.status !== "ready" && <p className="text-sm text-text-muted">The case table is {readyCaseTable.status}{readyCaseTable.error ? `: ${readyCaseTable.error}` : ""}.</p>}
@@ -361,8 +362,8 @@ export default function DatasetPage() {
       {create.data && !search.caseTable && <MappingJobFollower jobId={create.data.id} onDone={(id) => void navigate({ to: ".", search: { caseTable: id, tab: "readiness" } })} />}
 
       {(
-        <Tabs value={tab} onValueChange={(v) => setTab(v as DatasetTab)}>
-          <TabsList aria-label="Data sections">
+        <Tabs className="contents" value={tab} onValueChange={(v) => setTab(v as DatasetTab)}>
+          <TabsList underline className="wise-norm-subnav" aria-label="Data sections">
             <TabsTrigger value="understand">Process guide</TabsTrigger>
             <TabsTrigger value="mapping">Column mapping</TabsTrigger>
             <TabsTrigger value="readiness" disabled={!readyCaseTable}>Data caveats{readyCaseTable ? ` (${readinessSummary.label})` : ""}</TabsTrigger>
@@ -376,7 +377,7 @@ export default function DatasetPage() {
             </Card>}
             <ProcessPrimer process={primerProcess} />
           </TabsContent>
-          <TabsContent value="overview">{selectedTableId && caseTable.isPending ? null : selectedTableId && caseTable.isError ? <ErrorBlock error={caseTable.error} retry={() => void caseTable.refetch()} /> : <DataExploration projectId={ctx.projectId} datasetId={datasetId} caseTableId={readyCaseTable?.id} pageMode={search.explore} onPageChange={(explore) => void navigate({ to: ".", search: (s) => ({ ...s, explore }) })} />}</TabsContent>
+          <TabsContent value="overview">{selectedTableId && caseTable.isPending ? null : selectedTableId && caseTable.isError ? <ErrorBlock error={caseTable.error} retry={() => void caseTable.refetch()} /> : <DataExploration showHeading={false} projectId={ctx.projectId} datasetId={datasetId} caseTableId={readyCaseTable?.id} pageMode={search.explore} onPageChange={(explore) => void navigate({ to: ".", search: (s) => ({ ...s, explore }) })} />}</TabsContent>
           {readyCaseTable && <TabsContent value="readiness" className="flex flex-col gap-4">
             <p className="text-sm text-text-muted" title={`case table ${readyCaseTable.id}${readyCaseTable.mappingId ? ` · mapping ${readyCaseTable.mappingId}` : ""}`}>
               Data readiness: {readinessSummary.label}. Review these findings and their preparation decisions.

@@ -226,6 +226,7 @@ function AttributePicker({ value, attributes, onChange }: { value: string; attri
 // ---------------------------------------------------------------- the rule editor
 
 export interface RuleEditorProps {
+  showSummary?: boolean;
   projectId: string;
   caseTableId: string;
   constraint: Constraint;
@@ -258,7 +259,7 @@ function RuleActivities({ constraint, activities, data, noun, onChange }: {
   </section>;
 }
 
-export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onChange, nameInvalid = false }: RuleEditorProps) {
+export function RuleEditor({ showSummary = true, projectId, caseTableId, constraint, caseNoun, onChange, nameInvalid = false }: RuleEditorProps) {
   const inventory = useQuery(inventoryQuery(projectId, caseTableId));
   const data = inventory.data as Inventory | undefined;
   const activities = (data?.activities ?? []) as ActivityInventory[];
@@ -268,7 +269,7 @@ export function RuleEditor({ projectId, caseTableId, constraint, caseNoun, onCha
   const p = constraint.params;
   const set = (patch: Record<string, unknown>) => onChange({ ...constraint, params: { ...constraint.params, ...patch } });
 
-  const summary = <section aria-label="Rule from current settings" className="space-y-1 border-l-2 border-accent pl-3">
+  const summary = showSummary && <section aria-label="Rule from current settings" className="space-y-1 border-l-2 border-accent pl-3">
     <h3 className="text-xs font-semibold text-text-muted">Rule from current settings</h3>
     <p className="reading text-sm" data-testid="rule-sentence">{ruleSentence(constraint)}</p>
     <p className="text-xs text-text-muted">Generated from the current parameters. The constraint name is a separate label and is kept when targets change.</p>

@@ -55,6 +55,12 @@ it("opens readable labels on an activity, then respects an explicit overview wit
   expect(state.viewport).toHaveBeenCalledTimes(2);
 });
 
+it("centres readable size on a real activity when nothing is selected", () => {
+  render(<ZoomControls container={container} bounds={bounds} />);
+  fireEvent.click(screen.getByRole("button", { name: "Readable size" }));
+  expect(state.centre).toHaveBeenCalledWith(1140, 836, { zoom: 1, duration: 0 });
+});
+
 it("centres readable size on the absolute position of a selected activity in a group", () => {
   state.selected = true;
   render(<ZoomControls container={container} bounds={bounds} />);
@@ -126,6 +132,7 @@ describe("exact activity controls", () => {
     render(<FlowMap graph={countGraph()} title="Process" detail={3} onDetailChange={onDetailChange} />);
     const initial = mapActivities();
     expect(initial).toHaveLength(9);
+    expect(renderer.scenes?.[0]?.nodes.filter((node) => node.kind === "activity")).toHaveLength(9);
     expect(screen.getByTestId("detail-label")).toHaveTextContent("9 of 42 activities");
     fireEvent.click(screen.getByRole("button", { name: "Show one more activity" }));
     expect(mapActivities()).toEqual([...initial, "a09"]);

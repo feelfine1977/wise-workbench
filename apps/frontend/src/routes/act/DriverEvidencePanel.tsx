@@ -23,9 +23,9 @@ export function DriverEvidencePanel({ projectId, runId, params, within, groupNam
   const unavailable = within !== undefined || !params.slicing;
   const query = useQuery({ ...options, enabled: requested && !unavailable });
   const busy = requested && !unavailable && query.isFetching;
-  return <section aria-labelledby={headingId} aria-busy={busy} className="mt-4 border-y border-border py-4" data-testid="driver-evidence">
+  return <section aria-labelledby={headingId} aria-busy={busy} className="py-1" data-testid="driver-evidence">
     <h4 id={headingId} className="text-sm font-semibold">Measured event evidence</h4>
-    <p className="mt-1 break-words text-xs text-text-muted">Saved run {runId} · group {groupName} · {params.view ?? "run’s default view"} · {params.filter === undefined ? "no additional filter" : "exact filter from this address"}. View does not change these event measurements.</p>
+    <p className="mt-1 break-words text-xs text-text-muted">Group {groupName} · {params.view ?? "run’s default view"} · {params.filter === undefined ? "no additional filter" : "exact filter from this address"}. View does not change these event measurements.</p>
     {unavailable ? <p className="mt-2 text-sm text-text-muted">{within !== undefined ? "Event evidence is unavailable for this drilled selection. No whole-group evidence was substituted." : "Choose a grouping to measure event evidence."}</p> : !requested ? <div className="mt-3">
       <Button variant="outline" size="sm" onClick={() => setRequestedScope(scopeKey)}>Measure evidence for this selection</Button>
       <p className="mt-1 text-xs text-text-muted">Load the solution card’s counts and timing when you need them. Measurements use the saved run and this selection.</p>

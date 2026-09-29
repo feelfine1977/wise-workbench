@@ -66,7 +66,7 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
     if (!groups.has(c.layer)) groups.set(c.layer, { id: c.layer, name: c.layer || "Unassigned", constraints: [] });
     groups.get(c.layer)!.constraints.push(c);
   }
-  const activeLayer = overview ? expandedLayer : selected?.layer;
+  const activeLayer = expandedLayer ?? (overview ? undefined : selected?.layer);
   const layer = groups.get(activeLayer ?? "");
   const guidance = readLayerGuidance(document, layer?.id ?? "");
   const attention = (c: Constraint) => missing.includes(c.id) || warnings.has(c.id);
@@ -96,7 +96,7 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
       {!search && inLayer.length > LIMIT && families.length > 1 && <div><label className="mb-1 block text-xs" htmlFor={`${id}-family`}>Rule family</label><select id={`${id}-family`} value={family} onChange={e => { setFamily(e.target.value); setOffset(0); }} className="h-control w-full rounded border border-border bg-surface px-2 text-sm"><option value="">All families</option>{families.map(name => <option key={name} value={name}>{name} ({inLayer.filter(c => constraintFamily(c.type) === name).length})</option>)}</select></div>}
       {!search && (guidance.why || guidance.expectation || layer?.description) && <details className="rounded border border-border bg-surface-sunken p-2 text-xs"><summary className="cursor-pointer font-medium">Why this layer matters</summary><p className="mt-2 text-text-muted">Saved norm guidance; figures here are not recalculated findings for this dataset.</p><p className="mt-2">{guidance.why || guidance.expectation || layer?.description}</p>{guidance.checks.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-4">{guidance.checks.slice(0, 3).map((check, i) => <li key={i}>{check}</li>)}</ul>}</details>}
       {guided && !search && deferred.length > 0 && <label className="flex items-start gap-2 rounded border border-border bg-surface-sunken p-2 text-xs"><input type="checkbox" checked={showDeferred} onChange={e => { setShowDeferred(e.target.checked); setOffset(undefined); }} />Show lower-evidence constraints ({deferred.length})</label>}
-      {guided && !search && deferred.length > 0 && <p className="text-xs text-text-muted">Lower-evidence rules have no applicable cases or referenced activities missing from this population. They remain in the norm; absence is not a pass or fail result.</p>}
+      {guided && !search && deferred.length > 0 && <p className="sr-only">Lower-evidence rules have no applicable cases or referenced activities missing from this population. They remain in the norm; absence is not a pass or fail result.</p>}
       {guided && !search && !showDeferred && !needsReview && !overview && selected && priority(selected).deferred && <p className="text-xs text-text-muted">This selected rule stays visible. Other lower-evidence rules are folded away.</p>}
       <section aria-label={search ? "Constraint search results" : layer?.name ?? "Constraints"}>
         <p role="status" className="mb-2 text-xs text-text-muted">{search ? `${items.length} matches across all layers` : `${items.length} in this layer${needsReview ? " need review" : ""}${guided && !showDeferred && !needsReview && deferred.length ? " visible" : ""}`} · {items.length ? `${start + 1}–${Math.min(start + LIMIT, items.length)} shown` : "none shown"}</p>
@@ -105,8 +105,8 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
           {group.label === "Evidence to check" && <p className="text-xs text-text-muted">Unknown coverage and data issues remain open. They are not zero counts or completed decisions.</p>}
           <ul className="space-y-2 border-l-2 border-border pl-2">{group.rules.map(c => <li key={c.id}>
           <button type="button" aria-label={`${constraintName(c)}${missing.includes(c.id) ? " · Review decision needed" : ""}`} title={constraintName(c)} aria-describedby={`${id}-rule-${encodeURIComponent(c.id)}`} aria-pressed={!overview && selected?.id === c.id} onClick={() => choose(c)} className={`w-full rounded border p-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${!overview && selected?.id === c.id ? "border-accent bg-selection" : "border-transparent hover:bg-surface-sunken"}`}>
-            <span className="line-clamp-2 font-medium">{constraintName(c)}</span>
-            <span id={`${id}-rule-${encodeURIComponent(c.id)}`} className="mt-1 block text-xs text-text-muted">Rule: {ruleSentence(c)}</span>
+            <span className="font-medium">{constraintName(c)}</span>
+            <span id={`${id}-rule-${encodeURIComponent(c.id)}`} className="sr-only">Rule: {ruleSentence(c)}</span>
             {search && <span className="mt-1 block text-xs text-text-muted">{groups.get(c.layer)?.name}</span>}
             {relevance && <span className="mt-1 block text-xs text-text-muted">{priority(c).label}</span>}
             {relevance && evidence.get(c.id)?.casesInScope != null && <span className="block text-xs text-text-muted">Applicable: {evidence.get(c.id)!.casesInScope!.toLocaleString()} / {relevance.cases.toLocaleString()} cases{relevance.cases > 0 ? ` (${applicabilityPercentage(evidence.get(c.id)!.casesInScope!, relevance.cases)})` : ""}</span>}
@@ -126,7 +126,7 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
   // Layer positions stay stable when coverage arrives; only unopened rule lists are prioritized.
   return <section aria-label="Constraint hierarchy" className="space-y-3">
     {guided && evidenceState && evidenceState !== "ready" && <p className="text-xs text-text-muted" role="note">{evidenceState === "loading" ? "Checking applicability and activity coverage for the chosen population… This can take several seconds. All rules remain available; counts and priorities appear when the check finishes." : evidenceState === "error" ? "Coverage could not be checked. Showing the catalogue without data-based prioritization." : "Select the project’s mapped data to prioritize by applicability. Coverage is currently unknown."}</p>}
-    {relevance && <p className="text-xs text-text-muted">Coverage population: {populationLabel} · {relevance.cases.toLocaleString()} cases. Observed activity means at least one referenced activity, not a complete measurement or pass rate.</p>}
+    {relevance && <p className="sr-only">Coverage population: {populationLabel} · {relevance.cases.toLocaleString()} cases. Observed activity means at least one referenced activity, not a complete measurement or pass rate.</p>}
     {guided && template && <details><summary className="cursor-pointer text-sm font-medium">Start from a process template</summary><div className="mt-3">{template}</div></details>}
 
     {(!overview || expandedLayer) && <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setOffset(0); setExpandedLayer(undefined); setFamily(""); onOverview(); }}>← All layers</Button>}
@@ -134,17 +134,17 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
       <p className="mt-1 text-xs text-text-muted">{overview ? "Expand a layer, then choose one expectation to inspect." : "Layer → expectation → rule and evidence"}</p></div>
     <div><label className="mb-1 block text-xs font-medium" htmlFor={`${id}-search`}>Find a constraint</label><Input id={`${id}-search`} type="search" placeholder="Search all layers…" value={query} onChange={e => { setQuery(e.target.value); setOffset(0); }} />{query && <Button className="mt-1" size="sm" variant="ghost" onClick={() => { setQuery(""); setOffset(0); }}>Clear search</Button>}</div>
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={needsReview} onChange={e => { setNeedsReview(e.target.checked); setOffset(0); }} />Needs review only <span className="text-text-muted">({constraints.filter(attention).length})</span></label>
-    {overview && !search && <>
-      <p className="rounded border border-border bg-surface-sunken p-3 text-sm"><span className="block text-xs text-text-muted">Purpose</span>{readAuthoringBrief(document).goal || document.name || "Define your purpose in the guided overview"}</p>
-      <ul className="divide-y divide-border rounded border border-border" aria-label="Business purpose layers">
+    {!search && <>
+      {overview && <p className="rounded border border-border bg-surface-sunken p-3 text-sm"><span className="block text-xs text-text-muted">Purpose</span>{readAuthoringBrief(document).goal || document.name || "Define your purpose in the guided overview"}</p>}
+      <ul className="wise-layer-tree space-y-2" aria-label="Business purpose layers">
         {orderedGroups.map(group => {
           const eligible = group.constraints.filter(c => !needsReview || attention(c));
           if (needsReview && !eligible.length) return null;
-          const open = expandedLayer === group.id;
+          const open = activeLayer === group.id;
           const pending = group.constraints.filter(attention).length;
-          return <li key={group.id} className={open ? "bg-selection" : ""}>
+          return <li key={group.id} className={`rounded-md border border-border ${open ? "bg-accent-subtle" : "bg-surface"}`}>
             <div className="flex items-center gap-1 p-1">
-              <button type="button" aria-label={`Explore ${group.name}`} aria-expanded={open} aria-controls={open ? `${id}-branch` : undefined} disabled={!eligible.length} onClick={() => { setExpandedLayer(open ? undefined : group.id); setOrderSnapshot(ranked.map(c => c.id)); setOffset(0); setFamily(""); }} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent hover:bg-surface-sunken disabled:opacity-60">
+              <button type="button" aria-label={`Explore ${group.name}`} aria-expanded={open} aria-controls={open ? `${id}-branch` : undefined} disabled={!eligible.length} onClick={() => { setExpandedLayer(open ? "" : group.id); setOrderSnapshot(ranked.map(c => c.id)); setOffset(0); setFamily(""); }} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent hover:bg-surface-sunken disabled:opacity-60">
                 <span aria-hidden="true">{open ? "▾" : "▸"}</span>
                 <span className="min-w-0 flex-1 text-sm font-medium">{group.name}{guided && relevance && <span className="mt-1 block text-xs font-normal text-text-muted">{group.constraints.filter(c => category(c) === 0).length} applicable with activities · {group.constraints.filter(c => category(c) === 1).length} evidence to check · {group.constraints.filter(c => category(c) === 2).length} lower evidence</span>}</span>
                 <span className="whitespace-nowrap text-xs text-text-muted">{group.constraints.length} rules{pending > 0 ? ` · ${pending} to review` : ""}</span>
@@ -158,7 +158,7 @@ export function ConstraintNavigator({ document, selected, overview, missing, war
       {needsReview && !matches.length && <p className="text-sm text-text-muted">No constraints need review according to the available decisions and run warnings. This is not an approval.</p>}
       {!orderedGroups.length && <p className="text-sm text-text-muted">No layers match the display settings. Restore hidden items or lower the applicability filter.</p>}
     </>}
-    {(!overview || search) && branch}
+    {search && branch}
     <div className="border-t border-border pt-3">{children}</div>
   </section>;
 }

@@ -10,7 +10,7 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your process improvement projects", { timeout: 20_000 });
   await page.getByRole("link", { name: "P2P 2018 (BPIC 2019)", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("P2P 2018");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Which vendors and spend areas");
   await expect(page.getByRole("banner")).toContainText("mock data");
   // the analysis path across the top of every screen
   const stepper = page.getByRole("navigation", { name: "Analysis path" });
@@ -53,8 +53,8 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByRole("list", { name: "Flow types" }).getByRole("listitem")).toHaveCount(4);
   await expect(page.getByTestId("flow-fork").getByRole("button", { name: "Analyse per flow type" })).toBeVisible();
 
-  // S6: the signals list is the default view; the kind filter lives in the URL as a chip and survives a reload
-  await page.goto(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance&kind=systematic`);
+  // S6: the explicit Signals view; the kind filter lives in the URL as a chip and survives a reload
+  await page.goto(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Vendor")}&view=Finance&kind=systematic`);
   const list = page.getByRole("list", { name: "Signals" });
   await expect(list).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("ranking-rule")).toContainText("groups of purchase order items by Vendor");
@@ -80,6 +80,7 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
 
   // the metric table and the scatter are secondary tabs
   await page.getByRole("tab", { name: "Table" }).click();
+  await page.getByLabel("Show all measures").check();
   const grid = page.getByRole("grid", { name: "Backlog" });
   await expect(grid).toBeVisible();
   await expect(grid.getByRole("columnheader", { name: /^priority, small groups discounted/ })).toBeVisible();
@@ -104,6 +105,8 @@ test("upload to the ranked list, Why? on the first click, freeze into the notebo
   await expect(page.getByTestId("how-to-read")).toHaveCount(0);
   await page.getByRole("button", { name: "Show how to read this screen" }).click();
   await expect(page.getByTestId("how-to-read")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("how-to-read")).toBeHidden();
   // no next-step bar before a decision is saved; Analyse is the current stage
   await expect(page.getByTestId("next-step")).toHaveCount(0);
   await expect(stepper.locator('[data-step="analyse"]')).toHaveAttribute("aria-current", "step");

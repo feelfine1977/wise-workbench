@@ -40,6 +40,7 @@
     background: var(--color-selection);
   }
   h1, h2, h3, h4 {
+    color: var(--color-heading);
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -52,7 +53,7 @@
   }
   .surface {
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border-hair);
     border-radius: var(--radius-md);
   }
   .skip-link {
@@ -108,6 +109,42 @@
     line-height: var(--text-lg-leading);
     letter-spacing: var(--text-lg-tracking);
   }
+}
+
+/* Shared application chrome. State and route behaviour stay in the React components. */
+.wise-context { min-height: 44px; background: var(--color-bg); }
+.wise-context-list { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.wise-context-list > li + li { border-left: 1px solid var(--color-border-hair); padding-left: 12px; }
+.wise-context-list button { background: transparent; border-color: transparent; height: auto; min-height: 28px; }
+.wise-context-list button:hover { background: var(--color-hover-fill); border-color: var(--color-border-strong); }
+.wise-context-list [data-testid="ribbon-project-dataset"] { max-width: 34rem; }
+.wise-journey { background: var(--color-bg); border-color: var(--color-border-hair); }
+.wise-journey .wise-stage { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 10px; border: 1px solid transparent; font-size: 13px; color: var(--color-text-muted); }
+.wise-journey .wise-stage:hover { background: var(--color-hover-fill); }
+.wise-journey [aria-current="step"] .wise-stage { background: var(--color-surface); border-color: var(--color-border); color: var(--color-heading); font-weight: 600; }
+.wise-stage-number { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border: 1px solid var(--color-border-strong); border-radius: 50%; font-size: 11px; background: var(--color-surface); }
+.wise-journey [aria-current="step"] .wise-stage-number { color: var(--color-on-accent); background: var(--color-accent); border-color: var(--color-accent); }
+.wise-journey [data-step-state="done"]:not([aria-current]) .wise-stage-number { color: var(--color-success); border-color: var(--color-success); background: var(--color-success-subtle); }
+.wise-subnav { border-top: 1px solid var(--color-border-hair); }
+.wise-subnav a, .wise-subnav button { border-radius: 0; border-bottom: 2px solid transparent; padding: 10px 12px; font-size: 13px; }
+.wise-subnav .bg-accent-subtle { background: transparent; border-bottom-color: var(--color-accent); color: var(--color-heading); }
+.wise-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.wise-fact { padding: 14px 16px; border: 1px solid var(--color-border-hair); border-radius: 8px; background: var(--color-surface); }
+.wise-fact dt { font-size: 12px; color: var(--color-text-muted); }
+.wise-fact dd { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-heading); }
+.wise-fact small { display: block; font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+.wise-view-identity { color: var(--view-fg, var(--view-general-fg)); background: var(--view-bg, var(--view-general-bg)); border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+@media (max-width: 1599px) and (min-width: 1024px) {
+  .wise-context-list [data-testid="ribbon-project-dataset"] { display: none; }
+}
+@media (max-width: 767px) {
+  .wise-journey > div:first-child { flex-wrap: nowrap; overflow-x: auto; }
+  .wise-journey ol { flex-wrap: nowrap; min-width: max-content; }
+  .wise-journey .wise-stage { white-space: nowrap; }
+}
+@media (forced-colors: active) {
+  [aria-pressed="true"], [aria-selected="true"] { outline: 2px solid Highlight; }
+  svg [role="button"]:focus-visible { outline: 2px solid Highlight; }
 }
 
 /* Reduced motion: also switch off Radix animations */
@@ -247,3 +284,35 @@
   border-radius: calc(12px * var(--wise-map-scale, 1));
   max-width: calc(260px * var(--wise-map-scale, 1));
 }
+
+.wise-norm-tabs { display: contents; }
+.wise-norm-subnav { order: -1; margin: -24px -24px 0; padding: 0 24px; }
+.wise-norm-subnav [role="tab"] { padding: 12px; font-size: 13px; }
+.wise-norm-tools { border-bottom: 1px solid var(--color-border-hair); padding-bottom: 12px; }
+.wise-rule-panel { border-color: var(--color-selection-edge); }
+.wise-rule-sentence { background: var(--color-surface-related); max-width: none; padding: 14px 16px; border-radius: 6px; }
+.wise-constraint-nav { scrollbar-width: thin; }
+.wise-layer-tree .space-y-2 > li button[aria-pressed="true"] { background: var(--color-surface); }
+@media (max-width: 767px) { .wise-norm-subnav { margin-inline: -16px; padding-inline: 16px; } }
+
+.text-score { color: var(--scale-score-6); }
+.text-penalty { color: var(--scale-penalty-6); }
+.wise-facts { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+.wise-facts > div { padding: 16px; border: 1px solid var(--color-border-hair); border-radius: 8px; background: var(--color-surface); }
+.wise-facts dt { font-size: 12px; line-height: 18px; color: var(--color-text-muted); }
+.wise-facts dd { font-variant-numeric: tabular-nums; }
+.wise-facts dd:first-of-type { margin-top: 5px; font-size: 24px; font-weight: 600; color: var(--color-heading); }
+.wise-facts dd + dd { margin-top: 6px; font-size: 12px; color: var(--color-text-muted); }
+.wise-backlog-grid { display: grid; gap: 16px; align-items: start; }
+.wise-backlog-table { overflow: auto; border: 1px solid var(--color-border-hair); border-radius: 8px; background: var(--color-surface); padding: 16px; }
+.wise-backlog-grid [data-testid="priority-support"] { min-width: 0; }
+.wise-solution-layout { display: grid; gap: 16px; align-items: start; margin-top: 16px; }
+.wise-solution-layout > * { min-width: 0; }
+.wise-solution-actions { display: flex; flex-direction: column; gap: 16px; }
+.wise-solution-actions > section { border: 1px solid var(--color-border-hair); border-radius: 8px; padding: 16px; }
+.wise-evidence-blocks { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.wise-evidence-blocks [data-block-kind="endpoint_duration"], .wise-evidence-blocks [data-block-kind="end_day_of_month"] { grid-column: 1 / -1; }
+.wise-driver-card { border-color: var(--color-border-hair); }
+.wise-driver-card > .wise-scenario { background: var(--color-surface-related); border-radius: 8px; padding: 16px; }
+@media (min-width: 1200px) { .wise-backlog-grid { grid-template-columns: minmax(0, 2.5fr) minmax(330px, 1fr); } .wise-solution-layout { grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr); } }
+@media (max-width: 700px) { .wise-evidence-blocks { grid-template-columns: 1fr; } }

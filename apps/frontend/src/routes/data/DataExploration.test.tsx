@@ -462,12 +462,12 @@ it("keeps exact searched values in explicit joint paths across linked refreshes"
 });
 
 
-it("puts scoped population evidence before filter controls with introductory guidance closed", async () => {
+it("puts shared filter controls before scoped population evidence with introductory guidance closed", async () => {
   const {container} = setup();
   await count(6);
   const population = screen.getByRole("region", {name:"Selected population summary"});
   const toolbar = container.querySelector('[aria-label="Shared analysis selection"]')!;
-  expect(population.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(toolbar.compareDocumentPosition(population) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(population).toHaveTextContent("SELECTED CASES");
   expect(population).toHaveTextContent("of prepared cases");
   expect(population).toHaveTextContent("Within selected cases");

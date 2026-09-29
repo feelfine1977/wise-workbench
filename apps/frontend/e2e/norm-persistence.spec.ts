@@ -80,7 +80,7 @@ test("selected norm values and names survive reload; missing fields are focused 
   await expect(calibration).toContainText("1 missing native measurements");
   await expect(calibration).not.toContainText("About");
   await expect(calibration.getByText("Saved rule: Record Invoice Receipt follows Record Goods Receipt within 12 days, with 20 days of tolerance", { exact: true })).toBeVisible();
-  await expect(calibration.getByRole("img", { name: /Distribution in days;/ })).toBeVisible();
+  await expect(calibration.getByRole("group", { name: /Distribution in days;/ })).toBeVisible();
   const preview = await request.get(`${base}/${created.id}/signals/${constraint!.id}?caseTableId=${CASE_TABLE}`);
   expect(preview.ok()).toBe(true);
   const previewBody = await preview.json();
@@ -89,6 +89,7 @@ test("selected norm values and names survive reload; missing fields are focused 
   expect(previewBody.stats.n).toBe(4);
   expect(previewBody.stats.shareBeyondThreshold).toBe(0.25);
   expect(previewBody.saturation).toBe(32);
+  await page.evaluate("window.scrollTo(0, 0)");
   await page.screenshot({ path: testInfo.outputPath("calibration.png"), fullPage: true });
   await expect(page.getByTestId("saved-calibration").locator("time")).toHaveAttribute("datetime", /\d{4}-\d{2}-\d{2}T/);
 
@@ -103,6 +104,7 @@ test("selected norm values and names survive reload; missing fields are focused 
   await expect(dialog).toBeHidden();
   await page.reload(); await expect(page.getByText("signed by Explicit approver", { exact: true })).toBeVisible();
 
+  await page.evaluate("window.scrollTo(0, 0)");
   await page.screenshot({ path: testInfo.outputPath("approved.png"), fullPage: true });
   await page.getByRole("button", { name: "Rename norm", exact: true }).click();
   const rename = page.getByRole("dialog", { name: "Rename norm", exact: true });

@@ -1,3 +1,4 @@
+import { useChartNavigation } from "@/lib/useChartNavigation";
 import { useId, useState } from "react";
 import { scaleBand, scaleLinear } from "d3";
 import { fmtInt } from "@/lib/format";
@@ -18,6 +19,7 @@ export function DriverDayChart({ buckets, eventTotal, caseTotal, activityLabel }
 }) {
   const id = useId();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const navigateDay = useChartNavigation(buckets.map(b => String(b.day)), key => setSelectedDay(Number(key)));
   const selected = buckets.find(b => b.day === selectedDay);
   const width = 640;
   const height = 160;
@@ -42,22 +44,24 @@ export function DriverDayChart({ buckets, eventTotal, caseTotal, activityLabel }
         <p className="w-full text-xs text-text-muted">Inspecting a day highlights this chart only; your analysis selection stays the same.</p>
       </div>}
       {eventTotal > 0 ? (
-        <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 block w-full max-w-3xl" role="img" aria-labelledby={`${id}-title ${id}-desc`}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="mt-2 block w-full max-w-3xl" role="group" aria-labelledby={`${id}-title ${id}-desc`}>
           <title id={`${id}-title`}>{activityLabel} end-event records by day of month</title>
           <desc id={`${id}-desc`}>Bars count event records on calendar days 1 to 31. The exact day table follows. Repeated events can belong to the same case; counts do not establish a business schedule or cause.</desc>
           {y.ticks(3).filter(t => Number.isInteger(t)).map(t => <g key={t}>
             <line x1={40} x2={width - 8} y1={y(t)} y2={y(t)} stroke="currentColor" className="text-border" />
             <text x={34} y={y(t) + 3} textAnchor="end" fontSize={10} fill="currentColor" className="text-text-muted">{fmtInt(t)}</text>
           </g>)}
-          {buckets.map(b => <g key={b.day} onMouseEnter={() => setSelectedDay(b.day)} onClick={() => setSelectedDay(b.day)}>
+          {buckets.map(b => <g key={b.day} role="button" {...navigateDay(String(b.day))} aria-label={`Inspect day ${b.day}: ${fmtInt(b.events)} records, ${fmtInt(b.cases)} distinct cases`} onMouseEnter={() => setSelectedDay(b.day)} onClick={() => setSelectedDay(b.day)}>
             <rect x={x(b.day)} y={12} width={x.bandwidth()} height={y(0) - 12} fill="transparent" />
-            <rect x={x(b.day)} y={y(b.events)} width={x.bandwidth()} height={y(0) - y(b.events)} rx={2} fill="currentColor" className="text-accent" opacity={selectedDay === null || selectedDay === b.day ? 1 : 0.35} />
+            <rect x={x(b.day)} y={y(b.events)} width={x.bandwidth()} height={y(0) - y(b.events)} rx={2} fill="currentColor" className="text-accent"  />
+            <rect x={(x(b.day) ?? 0) + x.bandwidth() * .3} y={y(b.cases)} width={x.bandwidth() * .4} height={Math.max(0, y(0) - y(b.cases))} fill="var(--color-accent-subtle)" pointerEvents="none" />
+            {selectedDay === b.day && <rect x={(x(b.day) ?? 0) - 2} y={10} width={x.bandwidth() + 4} height={y(0) - 8} fill="none" stroke="var(--color-heading)" strokeDasharray="2 2" pointerEvents="none" />}
             <title>Day {b.day}: {fmtInt(b.events)} records, {eventShare(b.events, eventTotal)}, {fmtInt(b.cases)} distinct cases</title>
           </g>)}
           {buckets.filter(b => b.day === 1 || b.day % 5 === 0 || b.day === 31).map(b => <text key={b.day} x={(x(b.day) ?? 0) + x.bandwidth() / 2} y={height - 12} textAnchor="middle" fontSize={11} fill="currentColor" className="text-text-muted">{b.day}</text>)}
         </svg>
       ) : <p className="mt-2 text-sm text-text-muted">No dated end-event records were observed in this evidence population.</p>}
-      <p className="mt-1 text-xs text-text-muted">Raw counts across the observed months; months have different lengths and coverage. A cluster is a pattern to investigate, not proof of a scheduled batch. A case may appear on several days.</p>
+      <p className="mt-1 text-xs text-text-muted">Blue: event records · inner light bar: distinct cases · dotted outline: inspection only. Raw counts across the observed months; months have different lengths and coverage. A cluster is a pattern to investigate, not proof of a scheduled batch. A case may appear on several days.</p>
       <details className="mt-2">
         <summary className="cursor-pointer text-sm text-accent-text">Exact day-of-month table</summary>
         <div className="mt-2 max-h-64 overflow-auto rounded border border-border">

@@ -18,7 +18,7 @@ describe("typed search params", () => {
     expect(s.slicing).toBe("case Vendor");
     expect(s.kind).toBeUndefined();
     expect(s.sort).toBe(BACKLOG_DEFAULTS.sort);
-    expect(s.tab).toBe("signals");
+    expect(s.tab).toBe("table");
     expect(s.page).toBe(3);
     expect(s.pageSize).toBe(500);
     expect(s.minCases).toBe(20);
@@ -35,7 +35,7 @@ describe("typed search params", () => {
   it("strips defaults so URLs stay short", () => {
     const s = validateBacklogSearch(input({ slicing: "case Vendor", view: "Finance" }));
     expect(stripBacklogDefaults(s)).toEqual({ slicing: "case Vendor", view: "Finance" });
-    expect(stripBacklogDefaults({ ...s, sort: "-gap", page: 2, tab: "table" })).toEqual({ slicing: "case Vendor", view: "Finance", sort: "-gap", page: 2, tab: "table" });
+    expect(stripBacklogDefaults({ ...s, sort: "-gap", page: 2, tab: "signals" })).toEqual({ slicing: "case Vendor", view: "Finance", sort: "-gap", page: 2, tab: "signals" });
   });
   it("defaults the slice tab to Why and maps the earlier tab values onto the six questions", () => {
     const tab = (v: string) => validateSliceSearch({ tab: v } as unknown as Parameters<typeof validateSliceSearch>[0]).tab;

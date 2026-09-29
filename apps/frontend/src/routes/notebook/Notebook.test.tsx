@@ -8,7 +8,7 @@ const T = { timeout: 8000 };
 describe("the analysis notebook (R2-O11)", () => {
   it("freezes a screen with a title and a note, lists it, edits the note, reorders and offers the export", async () => {
     const user = userEvent.setup();
-    renderApp(`/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Finance`);
+    renderApp(`/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Vendor")}&view=Finance`);
     await screen.findByRole("list", { name: "Signals" }, T);
     await user.click(screen.getByRole("button", { name: /^Freeze this screen into the notebook/ }));
     const dialog = await screen.findByRole("dialog", { name: "Freeze this screen" });

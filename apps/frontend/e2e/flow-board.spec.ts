@@ -33,6 +33,7 @@ const numbers = (text: string) => (text.match(/[\d][\d,]*/g) ?? []).join("|");
 
 test("F1 · the map is the screen: the frame covers at least 60 % of the viewport and the drawing is fitted", async ({ page }) => {
   await openFlow(page);
+  await page.getByRole("button", { name: "Fit overview", exact: true }).click();
   const frame = await page.getByTestId("map-frame").boundingBox();
   expect(frame).not.toBeNull();
   const share = ((frame?.width ?? 0) * (frame?.height ?? 0)) / (1440 * 900);

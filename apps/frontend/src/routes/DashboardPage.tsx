@@ -9,7 +9,6 @@ import { GateBadge, KindBadge } from "@/components/badges";
 import { FreezeButton } from "@/components/guide/Freeze";
 import { HowToRead, HowToReadToggle } from "@/components/guide/HowToRead";
 import { NextStep } from "@/components/guide/NextStep";
-import { ReadingSentence } from "@/components/reading";
 import { EmptyState, LoadingBlock } from "@/components/states";
 import { useVocabulary } from "@/components/Term";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +94,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-text-subtle">Steering question</p>
             <h1 className="flex items-center gap-2 text-2xl font-semibold">
-              {project?.name}
+              {project?.question || project?.name}
               <HowToReadToggle id="dashboard" />
             </h1>
           </div>
@@ -105,21 +104,21 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <ReadingSentence text={project?.question ?? undefined} className="reading text-text-muted" />
+        <p className="text-sm text-text-muted">{project?.name} · one case = {params.case_noun ?? "mapped case"}</p>
         <HowToRead id="dashboard">
           The group under "Start with this group" has the largest ranked signal in this assessment: which group of {noun}, how far below the overall score, and the largest expectation shortfall. Follow the next step to its reasons, or start from <strong>Your process</strong> to
           decide whether to compare everything together or to analyse each flow type on its own.
         </HowToRead>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-3" aria-label="Project actions">
+      <section className="grid gap-3 sm:grid-cols-3 wise-project-actions" aria-label="Project actions">
         {resumeTable ? (
-          <Link to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: resumeTable.datasetId }} search={{ caseTable: resumeTable.id, tab: "understand" }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Understand your data</strong><p className="mt-1 text-sm text-text-muted">Resume the selected dataset and its prepared case table.</p></Link>
+          <Link to="/p/$projectId/data/$datasetId" params={{ projectId: ctx.projectId, datasetId: resumeTable.datasetId }} search={{ caseTable: resumeTable.id, tab: "understand" }} className="surface p-4 hover:border-accent"><span className="mb-2 block text-xs uppercase tracking-wide text-text-muted">Dataset</span><strong className="text-accent-text">Understand your data</strong><span className="mt-1 block break-words text-sm font-medium">{ctx.dataset?.name}</span><p className="mt-1 text-sm text-text-muted">Resume the selected dataset and its prepared case table.</p></Link>
         ) : (
           <Link to="/p/$projectId/data" params={{ projectId: ctx.projectId }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Choose & understand data</strong><p className="mt-1 text-sm text-text-muted">Select a log, learn the process and explore recorded cases.</p></Link>
         )}
         {resumeNorm ? (
-          <Link to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: resumeNorm.id }} search={{ caseTable: resumeTable?.id, selection: savedSelection, tab: "guide" }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Review your Process norm</strong><p className="mt-1 text-sm text-text-muted">Version {resumeNorm.version}{run?.normVersionId === resumeNorm.id ? " used in this assessment" : " in the current context"}. Reopen its expectations and priorities.</p></Link>
+          <Link to="/p/$projectId/norms/$normVersionId" params={{ projectId: ctx.projectId, normVersionId: resumeNorm.id }} search={{ caseTable: resumeTable?.id, selection: savedSelection, tab: "guide" }} className="surface p-4 hover:border-accent"><span className="mb-2 block text-xs uppercase tracking-wide text-text-muted">Norm</span><strong className="text-accent-text">Review your Process norm</strong><p className="mt-1 text-sm text-text-muted">Version {resumeNorm.version}{run?.normVersionId === resumeNorm.id ? " used in this assessment" : " in the current context"}. Reopen its expectations and priorities.</p></Link>
         ) : (
           <Link to="/p/$projectId/norms" params={{ projectId: ctx.projectId }} className="surface p-4 hover:border-accent"><strong className="text-accent-text">Create or edit a Process norm</strong><p className="mt-1 text-sm text-text-muted">Start with your purpose and data, then define expectations and priorities.</p></Link>
         )}
@@ -175,18 +174,18 @@ export default function DashboardPage() {
             {summary.isPending ? <LoadingBlock rows={2} /> : summary.isError ? (
               <p role="alert" className="text-sm text-text-muted">Assessment summary unavailable. <button type="button" className="text-accent-text underline" onClick={() => void summary.refetch()}>Retry summary</button></p>
             ) : (
-              <dl className="grid gap-3 sm:grid-cols-3" aria-label="Assessment statistics">
-                <div className="rounded-lg border border-accent/30 bg-accent/5 p-4" data-testid="mean-score-stat">
+              <dl className="wise-facts" aria-label="Assessment statistics">
+                <div data-testid="mean-score-stat">
                   <dt className="text-sm font-medium text-text-muted">Mean WISE score</dt>
                   <dd className="mt-2 tnum text-3xl font-semibold text-text">{meanKnown ? <>{fmtNum(mean * 100, 1)} <span className="text-base font-normal text-text-muted">/ 100</span></> : <span className="text-lg">Unavailable</span>}</dd>
                   <dd className="mt-2 text-sm text-text-muted">{ctx.view ?? "Selected"} view{scored != null ? ` · ${fmtInt(scored)} scored cases` : ""}</dd>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-sunken p-4" data-testid="case-count-stat">
+                <div data-testid="case-count-stat">
                   <dt className="text-sm font-medium text-text-muted">Cases in this assessment</dt>
                   <dd className="mt-2 tnum text-3xl font-semibold text-text">{summary.data?.cases != null ? fmtInt(summary.data.cases) : <span className="text-lg">Unavailable</span>}</dd>
                   <dd className="mt-2 text-sm text-text-muted">{flowTypeOf(run) ? `${flowTypeOf(run)} flow only` : selectionIdOf(run) ? "Saved selection only" : "Within the saved run scope"}</dd>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-sunken p-4" data-testid="priority-stat">
+                <div data-testid="priority-stat">
                   <dt className="text-sm font-medium text-text-muted">Priority concentration</dt>
                   <dd className="mt-2 tnum text-3xl font-semibold text-text">{priorityConcentration ? <>{fmtInt(priorityConcentration.top_k)} <span className="text-base font-normal text-text-muted">group{priorityConcentration.top_k === 1 ? "" : "s"}</span></> : <span className="text-lg">Unavailable</span>}</dd>
                   <dd className="mt-2 text-sm text-text-muted">{priorityConcentration ? `Account for ${fmtPct(priorityConcentration.threshold)} of ranked priority in this grouping.` : "No concentration summary for this grouping."}</dd>

@@ -53,7 +53,7 @@ describe("the norm builder (R3-02, R3-O6)", () => {
     const option = await within(picker).findByRole("option", { name: /Record Goods Receipt/ }, T);
     expect(option).toHaveTextContent(/purchase order items/);
     // and the rule reads back as a sentence
-    expect(within(editor).getByTestId("rule-sentence")).toBeInTheDocument();
+    expect(screen.getByTestId("norm-sentence")).toHaveTextContent("Rule from current settings");
   });
 
   it("marks an expectation not applicable to this log with a note, and asks for a reason and an owner before saving", async () => {

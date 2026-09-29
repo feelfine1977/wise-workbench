@@ -53,6 +53,7 @@ export interface DataExplorationProps {
   datasetId: string;
   caseTableId?: string | null;
   pageMode?: ExplorationPage;
+  showHeading?: boolean;
   onPageChange?: (page: ExplorationPage) => void;
 }
 const nextDay = (day: string) =>
@@ -142,6 +143,7 @@ function Exploration({
   datasetId,
   caseTableId,
   pageMode,
+  showHeading = true,
   onPageChange,
 }: DataExplorationProps & { caseTableId: string }) {
   const key = analysisKey(projectId, datasetId, caseTableId);
@@ -433,8 +435,9 @@ function Exploration({
   return (
     <section className="eda-workspace" aria-label="Explore dataset">
       <header className="eda-heading">
-        <div>
-          <h2>Explore your event log</h2>
+        <div className={showHeading ? undefined : "sr-only"}>
+          <p className="mb-1 text-xs uppercase tracking-wide text-text-muted">Understand data</p>
+          <h2>{pages.find((p) => p.key === mode)?.name ?? "Explore your event log"}</h2>
           <p>{pages.find((p) => p.key === mode)?.question}</p>
         </div>
         <details className="eda-explore-help">
@@ -461,45 +464,6 @@ function Exploration({
           </button>
         ))}
       </nav>
-      <section aria-label="Selected population summary" aria-busy={!isCurrent && !query.isError}>
-        {data && <div hidden={!isCurrent}>
-            <div className="eda-metrics">
-              <div>
-                <small>SELECTED CASES</small>
-                <strong>{fmtInt(n)}</strong>
-                <span>
-                  {total ? fmtShare(n / total) : "—"} of prepared cases
-                </span>
-              </div>
-              <div>
-                <small>RECORDED EVENTS</small>
-                <strong>
-                  {n > 0 && unknownEvents === n
-                    ? "Unknown"
-                    : fmtInt(data.summary.events.selected)}
-                </strong>
-                <span>
-                  {unknownEvents
-                    ? `Known-count sum · ${fmtInt(unknownEvents)} cases have unknown event counts`
-                    : "Within selected cases"}
-                </span>
-              </div>
-              <div>
-                <small>MEDIAN RECORDED SPAN</small>
-                <strong>{days(data.summary.medianSpanDays)}</strong>
-                <span>{fmtInt(data.summary.knownSpanCases)} known spans</span>
-              </div>
-              <div>
-                <small>90TH PERCENTILE SPAN</small>
-                <strong>{days(data.summary.p90SpanDays)}</strong>
-                <span>
-                  {fmtInt(data.summary.unknownSpanCases)} unknown spans
-                </span>
-              </div>
-            </div>
-        </div>}
-        {!isCurrent && <p role="status" className="text-sm text-text-muted">{query.isError ? "Population summary unavailable for this selection." : "Updating selected-population summary…"}</p>}
-      </section>
       <div className="eda-scope" aria-label="Shared analysis selection">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -746,7 +710,46 @@ function Exploration({
             <LoadingBlock rows={8} />
           </>
         )}
-        {query.isError && (
+        <section aria-label="Selected population summary" aria-busy={!isCurrent && !query.isError}>
+        {data && <div hidden={!isCurrent}>
+            <div className="eda-metrics">
+              <div>
+                <small>SELECTED CASES</small>
+                <strong>{fmtInt(n)}</strong>
+                <span>
+                  {total ? fmtShare(n / total) : "—"} of prepared cases
+                </span>
+              </div>
+              <div>
+                <small>RECORDED EVENTS</small>
+                <strong>
+                  {n > 0 && unknownEvents === n
+                    ? "Unknown"
+                    : fmtInt(data.summary.events.selected)}
+                </strong>
+                <span>
+                  {unknownEvents
+                    ? `Known-count sum · ${fmtInt(unknownEvents)} cases have unknown event counts`
+                    : "Within selected cases"}
+                </span>
+              </div>
+              <div>
+                <small>MEDIAN RECORDED SPAN</small>
+                <strong>{days(data.summary.medianSpanDays)}</strong>
+                <span>{fmtInt(data.summary.knownSpanCases)} known spans</span>
+              </div>
+              <div>
+                <small>90TH PERCENTILE SPAN</small>
+                <strong>{days(data.summary.p90SpanDays)}</strong>
+                <span>
+                  {fmtInt(data.summary.unknownSpanCases)} unknown spans
+                </span>
+              </div>
+            </div>
+        </div>}
+        {!isCurrent && <p role="status" className="text-sm text-text-muted">{query.isError ? "Population summary unavailable for this selection." : "Updating selected-population summary…"}</p>}
+      </section>
+      {query.isError && (
           <ErrorBlock error={query.error} retry={() => void query.refetch()} />
         )}
         {data && (
@@ -792,7 +795,7 @@ function Exploration({
                     compact
                     title="Cases over time"
                     rows={data.trend}
-                    color="#4263eb"
+                    color="var(--color-accent)"
                     activeKeys={data.trend
                       .filter((r) =>
                         draft.periods.some((v) =>
@@ -826,7 +829,7 @@ function Exploration({
                       compact
                       title="Recorded span"
                       rows={data.spans}
-                      color="#ae3ec9"
+                      color="var(--color-accent)"
                       activeKeys={data.spans
                         .filter((r) =>
                           draft.spans.some((v) => sameSpan(v, spanChoice(r))),
@@ -851,7 +854,7 @@ function Exploration({
                         compact
                         title="Events per case"
                         rows={insights.eventBins}
-                        color="#0c8599"
+                        color="var(--color-accent)"
                         activeKeys={insights.eventBins
                           .filter((r) =>
                             draft.eventRanges?.some((v) =>
@@ -913,7 +916,7 @@ function Exploration({
               </div>
             )}
             {mode === "context" && (
-              <div className="eda-cells">
+              <div className="eda-context-layout">
                 <div className="eda-context-controls">
                   <label>
                     Explore a context field
@@ -947,7 +950,7 @@ function Exploration({
                     Remove a chip to broaden the selection.
                   </p>
                 </div>
-                <div className="eda-two">
+                <div className="eda-context-facets">
                   {(
                     insights?.facets ??
                     (data.attribute
@@ -965,7 +968,7 @@ function Exploration({
                         rows={f.categories.filter((r) => r.total > 0)}
                         horizontal
                         color={
-                          f.field === data.attribute ? "#4263eb" : "#0c8599"
+                          "var(--color-accent)"
                         }
                         activeKeys={activeKeys(f.field)}
                         onToggle={(k) => {

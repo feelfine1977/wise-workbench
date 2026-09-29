@@ -32,6 +32,7 @@ export const normSignalQuery = (projectId: string, normVersionId: string, caseTa
     queryKey: ["projects", projectId, "norms", normVersionId, "signals", caseTableId, constraintId, selectionId ?? null] as const,
     queryFn: ({ signal }) => http.get<S["NormSignalDistribution"]>(`/projects/${enc(projectId)}/norms/${enc(normVersionId)}/signals/${enc(constraintId)}`, { caseTableId, selectionId }, signal),
     enabled: !!projectId && !!normVersionId && !!caseTableId && !!constraintId,
+    staleTime: IMMUTABLE,
     retry: false,
   });
 
@@ -39,6 +40,7 @@ export const normPreviewQuery = (projectId: string, versionId: string, constrain
   queryKey: ["projects", projectId, "norms", versionId, "preview", constraintId, body] as const,
   queryFn: ({ signal }) => http.post<S["NormConstraintPreview"]>(`/projects/${enc(projectId)}/norms/${enc(versionId)}/preview/${enc(constraintId)}`, body, undefined, signal),
   enabled: !!projectId && !!versionId && !!constraintId && !!body.caseTableId,
+  staleTime: IMMUTABLE,
   retry: false,
 });
 export type NormConstraintPreview = S["NormConstraintPreview"];

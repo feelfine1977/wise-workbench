@@ -10,4 +10,10 @@ const actual = createHash('sha256').update(bytes).digest('hex');
 if (actual !== manifest.sha256) throw new Error('Flow artifact checksum differs from provenance');
 const frontend = JSON.parse(readFileSync(new URL('../apps/frontend/package.json', import.meta.url), 'utf8'));
 if (frontend.dependencies['@wise/flow'] !== `file:../../vendor/${manifest.tarball}`) throw new Error('Frontend dependency differs from flow provenance');
+const lock = JSON.parse(readFileSync(new URL('../apps/frontend/package-lock.json', import.meta.url), 'utf8'));
+const locked = lock.packages?.['node_modules/@wise/flow'];
+const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+if (locked?.version !== manifest.version || locked?.resolved !== frontend.dependencies['@wise/flow'] || locked?.integrity !== integrity) {
+  throw new Error('Flow lockfile differs from the local artifact; refresh its package entry before npm ci');
+}
 console.log(`Verified ${manifest.package} ${manifest.version}: ${fileURLToPath(new URL(manifest.tarball, root))}`);

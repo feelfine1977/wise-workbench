@@ -1,7 +1,7 @@
 import { GroupingControl } from "@/components/GroupingControl";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Camera, HelpCircle, MoreHorizontal, Search } from "lucide-react";
+import { BookOpen, Camera, HelpCircle, Settings2, Search } from "lucide-react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Kbd } from "@/components/ui/misc";
 import { flowTypeOf, selectionIdOf } from "@/lib/api/runs";
 import { analysisSelectionsQuery } from "@/lib/api/analysisSelections";
@@ -49,7 +50,7 @@ function Switcher({ label, value, options, onChange, placeholder, stacked, disab
   const current = options.find((o) => o.value === value);
   const control = (
     <Select value={value ?? ""} onValueChange={onChange} disabled={disabled || options.length === 0}>
-      <SelectTrigger compact aria-label={t("ribbon.switch", { what: label })} title={blockedReason ?? (current ? `${current.label}${current.title ? ` · ${current.title}` : ""}` : undefined)} className={stacked ? "w-full min-w-0 [&>span:first-child]:truncate" : "max-w-[13rem] [&>span:first-child]:truncate"}>
+      <SelectTrigger compact aria-label={t("ribbon.switch", { what: label })} title={blockedReason ?? (current ? `${current.label}${current.title ? ` · ${current.title}` : ""}` : undefined)} className={stacked ? "w-full min-w-0 [&>span:first-child]:whitespace-normal" : "max-w-[26rem] [&>span:first-child]:whitespace-normal"}>
         <SelectValue placeholder={placeholder ?? "–"} />
       </SelectTrigger>
       <SelectContent>
@@ -101,6 +102,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const vocabulary = useUiStore((s) => s.vocabulary);
   const guided = useUiStore((s) => s.mode === "guided");
+  const setMode = useUiStore((s) => s.setMode);
   const setVocabulary = useUiStore((s) => s.setVocabulary);
   const freezeButtons = useNavStore((s) => s.freezeButtons);
   const pid = ctx.projectId;
@@ -130,7 +132,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   const dataset = () => (
     <li key="dataset" className={compact ? "flex min-w-0 flex-col gap-1 break-words text-xs" : "flex min-w-0 items-center gap-1 text-xs"} data-testid="ribbon-project-dataset">
       {historical ? <span>Assessment dataset: {ctx.dataset?.name ?? ctx.datasetBindingConflict?.datasetId}</span>
-        : fixedDatasetId ? <><span>Project dataset (fixed):</span><Link to="/p/$projectId/data/$datasetId" params={{ projectId: pid, datasetId: fixedDatasetId }} search={{}} className="max-w-[14rem] truncate font-medium text-accent-text hover:underline" title={ctx.projectDataset?.name ?? fixedDatasetId}>{ctx.projectDataset?.name ?? fixedDatasetId}</Link></>
+        : fixedDatasetId ? <><span>Project dataset (fixed):</span><Link to="/p/$projectId/data/$datasetId" params={{ projectId: pid, datasetId: fixedDatasetId }} search={{}} className="break-words font-medium text-accent-text hover:underline" title={ctx.projectDataset?.name ?? fixedDatasetId}>{ctx.projectDataset?.name ?? fixedDatasetId}</Link></>
         : ctx.datasetBindingState === "error" ? <span>Project dataset unavailable</span>
         : ctx.datasetBindingState === "loading" ? <span>Loading project dataset…</span>
         : <><span>{ctx.dataset ? `Preview: ${ctx.dataset.name} · ` : ""}Project dataset not fixed.</span><Link to="/p/$projectId/data" params={{ projectId: pid }} className="text-accent-text hover:underline">Choose project dataset</Link></>}
@@ -214,7 +216,7 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   </Link> : null;
   const tools = <>
     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size={compact ? "sm" : "iconSm"} className={compact ? "justify-start gap-2" : ""} aria-label={`${t("ribbon.notebook")}${snapshots !== undefined ? `: ${snapshots} snapshot${snapshots === 1 ? "" : "s"}` : ""}`} onClick={() => { setMoreOpen(false); void navigate({to:"/p/$projectId/notebook",params:{projectId:pid},search:{}}); }}>
-      <BookOpen />{compact && t("ribbon.notebook")}{snapshots !== undefined && snapshots > 0 && <span className="tnum text-xs" data-testid="notebook-count">{snapshots}</span>}
+      <BookOpen />{compact && t("ribbon.notebook")}{snapshots !== undefined && snapshots > 0 && <span className="tnum text-xs">{snapshots}</span>}
     </Button></TooltipTrigger><TooltipContent>{t("ribbon.notebook")}</TooltipContent></Tooltip>
     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size={compact ? "sm" : "iconSm"} className={compact ? "justify-start gap-2" : ""} aria-label="Camera: freeze this screen" disabled={freezeButtons === 0} onClick={() => { setMoreOpen(false); document.querySelector<HTMLElement>("[data-freeze-trigger]")?.click(); }}><Camera />{compact && "Freeze this screen"}</Button></TooltipTrigger><TooltipContent>{freezeButtons ? "Freeze this screen" : "Nothing to freeze on this screen"}</TooltipContent></Tooltip>
     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size={compact ? "sm" : "iconSm"} className={compact ? "justify-start gap-2" : ""} aria-label={t("ribbon.help")} onClick={() => { setMoreOpen(false); openHelp(); }}><HelpCircle />{compact && t("ribbon.help")}</Button></TooltipTrigger><TooltipContent>{t("ribbon.help")} <Kbd>?</Kbd></TooltipContent></Tooltip>
@@ -222,25 +224,27 @@ export function ContextRibbon({ ctx }: { ctx: WorkbenchContext }) {
   </>;
   return (
     <>
-    <header role="banner" className="sticky top-0 z-ribbon flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
+    <header role="banner" className="wise-context sticky top-0 z-ribbon flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-1.5 sm:flex-nowrap md:px-6">
       <a href="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm font-semibold" aria-label={t("app.name")}>
         <span aria-hidden className="inline-flex size-6 items-center justify-center rounded bg-accent font-mono text-xs text-accent-on">W</span><span className="hidden lg:inline">WISE</span>
       </a>
       <Link to="/projects" className="shrink-0 text-sm font-medium text-accent-text hover:underline">{compact ? "Projects" : "Projects / new"}</Link>
-      {compact ? <div className="min-w-0 flex-1 text-xs"><p className="truncate font-medium" title={ctx.project?.name}>{ctx.project?.name ?? "Project"}</p>{ctx.caseTable && <p className="truncate text-text-muted" title={readinessSummary.label}>{readinessSummary.label}</p>}</div>
-        : <nav aria-label="Context" className="min-w-0 flex-1 overflow-x-auto"><ul className="flex min-w-max items-center gap-3 whitespace-nowrap">{shown}</ul></nav>}
-      <div className="flex shrink-0 items-center gap-1">
-        {!compact && <>{backendBadge}{checksLink}{tools}</>}
+      {compact ? <div className="order-last min-w-0 basis-full text-xs sm:order-none sm:flex-1 sm:basis-auto"><p className="break-words font-medium" title={ctx.project?.name}>{ctx.project?.name ?? "Project"}</p>{ctx.caseTable && <p className="text-text-muted" title={readinessSummary.label}>{readinessSummary.label}</p>}</div>
+        : <nav aria-label="Context" className="min-w-0 flex-1"><ul className="wise-context-list">{shown}</ul></nav>}
+      <div className="ml-auto flex shrink-0 items-center gap-1">{useMocks && backendBadge}
+        {!compact && checksLink}
+        <Sheet><SheetTrigger asChild><Button variant="ghost" size="sm">Provenance</Button></SheetTrigger><SheetContent className="overflow-y-auto p-6"><SheetTitle className="text-xl font-semibold">Analysis provenance</SheetTitle><SheetDescription className="mt-2 text-sm text-text-muted">The data and saved definitions behind this screen.</SheetDescription><dl className="mt-6 grid gap-4 text-sm">{Object.entries({Project: ctx.project?.name ?? pid, Dataset: ctx.dataset?.name ?? "Not selected", "Dataset ID": ctx.dataset?.id ?? "—", "Case table": ctx.caseTable?.id ?? "Not prepared", "Prepared cases": ctx.caseTable ? fmtInt(ctx.caseTable.cases) : "Unavailable", "Norm version": ctx.norm ? `v${ctx.norm.version} · ${ctx.norm.status}` : "Not selected", "Norm ID": ctx.norm?.id ?? "—", Run: ctx.run ? runLabel(ctx.run) : "Not selected", "Run ID": ctx.run?.id ?? "—", Population: selection?.name ?? (selectionId ? "Saved selection" : "All prepared cases"), "Selection ID": selectionId ?? "None", View: ctx.view ?? "Not selected", Grouping: ctx.slicing ?? "Not selected"}).map(([label, value]) => <div key={label}><dt className="text-xs text-text-muted">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>)}</dl><div className="mt-6">{backendBadge}</div></SheetContent></Sheet>
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
-          <PopoverTrigger asChild><Button variant="ghost" size={compact ? "sm" : "iconSm"} aria-label="More context and settings" className="shrink-0 gap-1"><MoreHorizontal />{compact && "Context & tools"}</Button></PopoverTrigger>
+          <PopoverTrigger asChild><Button variant="ghost" size="sm" aria-label="More context and settings" className="shrink-0 gap-1"><Settings2 />Settings</Button></PopoverTrigger>
           <PopoverContent aria-label="Context and tools" align="end" className="max-h-[75vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto" data-testid="ribbon-more">
             <h2 className="mb-2 text-sm font-semibold">Analysis context</h2>
-            <ul className="flex min-w-0 flex-col gap-3">{compact && shown}{more}</ul>
+            <ul className="flex min-w-0 flex-col gap-3">{compact ? shown : dataset()}{more}</ul>
             {compact && <div className="mt-3 flex flex-wrap gap-2">{backendBadge}{checksLink}</div>}
             <h2 className="mb-2 mt-4 border-t border-border pt-3 text-sm font-semibold">Tools</h2>
-            <div className="flex flex-col items-stretch gap-1">{compact && tools}<Button variant="outline" size="sm" data-testid="ribbon-knowledge" onClick={() => { setMoreOpen(false); void navigate({ to: "/p/$projectId/knowledge", params: { projectId: pid }, search: {} }); }}>Knowledge hub · what the words mean</Button></div>
+            <div className="flex flex-col items-stretch gap-1">{tools}<Button variant="outline" size="sm" data-testid="ribbon-knowledge" onClick={() => { setMoreOpen(false); void navigate({ to: "/p/$projectId/knowledge", params: { projectId: pid }, search: {} }); }}>Knowledge hub · what the words mean</Button></div>
             <h2 className="mb-2 mt-4 border-t border-border pt-3 text-sm font-semibold">Display preferences</h2>
             <ul className="flex flex-col gap-3">
+              <li className="flex items-center justify-between gap-2 text-sm"><span>Working mode</span><Button variant="outline" size="sm" aria-pressed={guided} onClick={() => setMode(guided ? "analyst" : "guided")}>{guided ? "Guided" : "Analyst"}</Button></li>
               {!guided && words}
               <li className="flex items-center justify-between gap-2 text-sm"><span className="text-xs text-text-subtle">{t("ribbon.density")}</span><Button variant="outline" size="sm" aria-pressed={density === "compact"} onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}>{density}</Button></li>
               <li className="flex items-center justify-between gap-2 text-sm"><span className="text-xs text-text-subtle">{t("ribbon.theme")}</span><Button variant="outline" size="sm" onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}>{theme}</Button></li>

@@ -1,3 +1,5 @@
+import { viewColor } from "@/lib/viewColors";
+import { layerPriorityProfile } from "./layerPriorityProfiles";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, Check, ChevronDown, ChevronRight, CircleDot, LockKeyhole, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,7 @@ export function StakeholderMatrix({ document, onChange, onEdit, onConstraint, fo
   const views = [...document.views ?? []].sort((a, b) => Number(b.name === benchmark) - Number(a.name === benchmark));
   const constraints = document.constraints ?? [];
   const layers = document.layers ?? [];
+  const profiles = new Map(views.map(view => [view.name, layerPriorityProfile(document, view)]));
   const weights = new Map(views.map(view => [view.name, rawViewWeights(document, view)]));
   const invalidWeights = constraints.some(c => !validWeight(c.weight ?? 1)) || views.some(v => Object.values(v.constraint_weights ?? v.layer_weights ?? {}).some(w => !validWeight(w)));
   const selectedRows = rows.filter(cid => constraints.some(c => c.id === cid));
@@ -57,7 +60,7 @@ export function StakeholderMatrix({ document, onChange, onEdit, onConstraint, fo
       <span><strong>{layers.length}</strong> layers</span><span><strong>{constraints.length}</strong> expectations</span><span><strong>{views.filter(v => v.name !== benchmark).length}</strong> stakeholder views</span>
       {benchmark && <span className="priority-reference"><LockKeyhole size={13} aria-hidden="true" /> {benchmark} · equal-layer reference</span>}
     </div>
-    <div className="priority-matrix-help"><span>Expand a layer to inspect expectations. Select a weight to open its details.</span><span>✓ Included <span aria-hidden="true">·</span> ◉ Partial <span aria-hidden="true">·</span> − Excluded</span></div>
+    <div className="priority-matrix-help"><span>Expand a layer to inspect expectations. Select a cell to edit that view. Shares use the same 0–100% scale.</span><span>✓ Included <span aria-hidden="true">·</span> ◉ Partial <span aria-hidden="true">·</span> − Excluded</span></div>
     {invalidWeights && <p role="status" className="priority-notice">Correct invalid weights before changing memberships. Invalid values are not zero.</p>}
     {unassigned.length > 0 && <p role="status" className="priority-notice">{unassigned.length} expectations have no matching layer and are not shown below. Correct their layer assignments.</p>}
     {bulk && <div className="priority-bulk">
@@ -71,9 +74,9 @@ export function StakeholderMatrix({ document, onChange, onEdit, onConstraint, fo
     {canUndo && <div className="priority-undo"><span role="status">Membership change applied to this draft.</span><Button size="sm" variant="ghost" onClick={() => { onChange(undo.before); setUndo(undefined); }}>Undo membership change</Button></div>}
     <div className="priority-scroll" role="region" aria-label="Scroll priority matrix" tabIndex={0}>
       <table className="priority-table" aria-describedby={`${id}-meaning`}>
-        <caption className="sr-only">Layers, constraints and stakeholder membership. Weights are raw configured values.</caption>
+        <caption className="sr-only">Layers, constraints and stakeholder membership. Cells show normalized layer shares and exact raw configured weights.</caption>
         <thead><tr><th scope="col" className="priority-row-label"><span>Layer / expectation</span><small>Shared definitions</small></th>{views.map(view => <th scope="col" key={view.name} className={view.name === benchmark ? "priority-benchmark" : undefined}>
-          {bulk && view.name !== benchmark ? <label className="flex items-center gap-2"><input type="checkbox" aria-label={`Select view ${view.name}`} checked={selectedColumns.includes(view.name)} onChange={() => setColumns(toggle(selectedColumns, view.name))} />{view.name || "Unnamed view"}</label> : <span className="flex items-center gap-2">{view.name === benchmark && <LockKeyhole size={13} aria-hidden="true" />}{view.name || "Unnamed view"}</span>}
+          {bulk && view.name !== benchmark ? <label className="flex items-center gap-2"><input type="checkbox" aria-label={`Select view ${view.name}`} checked={selectedColumns.includes(view.name)} onChange={() => setColumns(toggle(selectedColumns, view.name))} />{view.name || "Unnamed view"}</label> : <span className="flex items-center gap-2" style={{ borderBottom: `2px solid ${viewColor(view.name)}`, paddingBottom: 6 }}>{view.name === benchmark && <LockKeyhole size={13} aria-hidden="true" />}{view.name || "Unnamed view"}</span>}
           <small>{view.name === benchmark ? "Derived · read only" : view.constraint_weights != null ? "Direct weights" : "Layer weights"}</small>
           <small>{constraints.filter(c => (weights.get(view.name)?.[c.id] ?? 0) > 0).length} / {constraints.length} expectations included</small>
         </th>)}</tr></thead>
@@ -91,10 +94,14 @@ export function StakeholderMatrix({ document, onChange, onEdit, onConstraint, fo
             </div></th>{views.map(view => {
               const count = members.filter(c => (weights.get(view.name)?.[c.id] ?? 0) > 0).length;
               const total = layerTotal(document, view, layer.id);
+              const profile = profiles.get(view.name);
+              const share = profile?.values.find(value => value.layer === layer.id)?.share;
               const invalid = !validWeight(total) || members.some(c => !validWeight(weights.get(view.name)?.[c.id] ?? 0) || (view.constraint_weights == null && !validWeight(c.weight ?? 1)));
-              return <td key={view.name} className={view.name === benchmark ? "priority-benchmark" : undefined}><button type="button" aria-label={`${view.name === benchmark ? "Inspect" : "Edit"} ${view.name}: ${layer.name}`} className="priority-cell" onClick={() => onEdit(view.name, layer.id)}>
+              return <td key={view.name} className={view.name === benchmark ? "priority-benchmark" : undefined}><button type="button" aria-label={`${view.name === benchmark ? "Inspect" : "Edit"} ${view.name}: ${layer.name}`} data-weight-state={invalid ? "invalid" : count ? "included" : "zero"} className="priority-cell" style={{ borderColor: count ? viewColor(view.name) : undefined }} onClick={() => onEdit(view.name, layer.id)}>
                 <Inclusion count={count} total={members.length} invalid={invalid} />
-                <span className="priority-weight"><span>Weight <strong>{number(total)}</strong></span><ArrowUpRight size={13} aria-hidden="true" /></span>
+                <span className="priority-share">{share == null ? "Unavailable" : `${(share * 100).toFixed(1)}%`}<span> of view weight</span></span>
+                {share != null && <span className="priority-share-track" aria-hidden="true"><span style={{ width: `${share * 100}%`, background: viewColor(view.name) }} /></span>}
+                <span className="priority-weight"><span>Raw weight {number(total)}</span><ArrowUpRight size={13} aria-hidden="true" /></span>
               </button></td>;
             })}</tr>
             {open && members.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(c => <tr key={c.id} className="priority-expectation-row"><th scope="row" className="priority-row-label"><div className="flex items-start gap-2">{bulk && <input type="checkbox" aria-label={`Select constraint ${constraintName(c)}`} checked={selectedRows.includes(c.id)} onChange={() => setRows(toggle(selectedRows, c.id))} />}<button type="button" className="priority-rule-link" onClick={() => onConstraint(c.id)}>{constraintName(c)}<small>{c.id}</small></button></div></th>{views.map(view => {
@@ -113,7 +120,7 @@ export function StakeholderMatrix({ document, onChange, onEdit, onConstraint, fo
       {!views.length && <p className="priority-empty">Add a view to compare priorities.</p>}
     </div>
     {focusedLayer && layers.some(l => l.id === focusedLayer) && <button type="button" className="priority-return" onClick={() => rowRefs.current.get(focusedLayer)?.focus()}>Go to {layers.find(l => l.id === focusedLayer)?.name} in matrix</button>}
-    <p id={`${id}-meaning`} className="priority-footnote">General includes the union of constraints used by any view, equally weighted by participating layer. Layer-weight views divide each layer’s weight among its constraints; direct-weight views set each constraint’s weight. Raw weights are not comparable scores.</p>
+    <p id={`${id}-meaning`} className="priority-footnote">General includes the union of constraints used by any view, equally weighted by participating layer. Layer-weight views divide each layer’s weight among its constraints; direct-weight views set each constraint’s weight. Percentages divide a layer’s configured weight by the view total. Zero effective weight contributes nothing to the score; this format does not store a separate included-at-zero membership flag.</p>
     <Dialog open={proposal !== undefined} onOpenChange={open => { if (!open) setProposal(undefined); }}><DialogContent>
       <DialogHeader><DialogTitle>{proposal ? "Include" : "Exclude"} selected expectations</DialogTitle><DialogDescription>{preview?.changes.length ?? 0} membership changes in {selectedColumns.join(", ")}. Apply to the draft, then save a new version when ready.</DialogDescription></DialogHeader>
       <p className="text-sm">Each affected layer keeps its total weight while it has included constraints. Newly included empty layers start at weight 1. General updates automatically.</p>

@@ -174,7 +174,8 @@ export function ZoomControls({ container, bounds, onViewportChange, disabled = f
       </button>
       <button type="button" className={cn(button, "!w-auto px-2")} aria-label="Readable size" disabled={disabled} onClick={() => {
         onViewportChange?.();
-        const n = rf.getNodes().find((node) => node.selected && node.type === "activity");
+        const activities = rf.getNodes().filter((node) => node.type === "activity");
+        const n = activities.find((node) => node.selected) ?? activities.sort((a, b) => Number((b.data.node as LibraryGraph["nodes"][number] | undefined)?.metrics?.cases ?? 0) - Number((a.data.node as LibraryGraph["nodes"][number] | undefined)?.metrics?.cases ?? 0))[0];
         if (n) { const absolute = rf.getInternalNode(n.id)?.internals.positionAbsolute ?? n.position; void rf.setCenter(absolute.x + (n.width ?? 0) / 2, absolute.y + (n.height ?? 0) / 2, { zoom: 1, duration: 0 }); }
         else void rf.zoomTo(1, { duration: 0 });
       }}>Readable size</button>
@@ -402,8 +403,8 @@ function PathSheet({
       </td>
     </tr>
   );
-  /** The rows split into the columns the sheet draws them in, so the whole answer fits without scrolling. */
-  const split = <T,>(rows: T[]): T[][] => (rows.length > 12 ? [rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))] : [rows]);
+  /** Two readable columns; long answers scroll inside the sheet without resizing the map. */
+  const split = <T,>(rows: T[]): T[][] => (rows.length > 8 ? [rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))] : [rows]);
   const columns = split(drawn);
   const hiddenColumns = split(hidden);
   const head = (
@@ -426,7 +427,7 @@ function PathSheet({
   );
   return (
     <div
-      className="absolute inset-x-0 bottom-0 z-20 max-h-full overflow-y-auto border-t border-border bg-surface/97 px-3 py-2 text-[11px] leading-tight text-text shadow-lg backdrop-blur-sm"
+      className="absolute inset-x-0 bottom-0 z-20 max-h-full overflow-y-auto border-t border-border bg-surface/97 px-3 py-2 text-xs leading-5 text-text shadow-lg backdrop-blur-sm"
       role="dialog"
       aria-label={`Paths in and out of ${focusLabel}`}
       data-testid="path-panel"
@@ -439,9 +440,8 @@ function PathSheet({
           ×
         </button>
       </div>
-      {/* two columns on a wide frame: forty-two paths in one column is a scroll, and the whole answer has to
-          be on the screen at once (R3-11) */}
-      <div className={cn("grid gap-x-6", drawn.length > 12 ? "lg:grid-cols-2" : "")}>
+      {/* Keep names and actions readable; every supplied path remains reachable. */}
+      <div className={cn("grid gap-x-6", drawn.length > 8 ? "lg:grid-cols-2" : "")}>
         {columns.map((rows, c) => (
           <table key={c} className="w-full self-start" data-testid={c === 0 ? "path-list" : undefined}>
             {head}
@@ -459,7 +459,7 @@ function PathSheet({
               </button>
             )}
           </p>
-          <div className={cn("grid gap-x-6", hidden.length > 12 ? "lg:grid-cols-2" : "")}>
+          <div className={cn("grid gap-x-6", hidden.length > 8 ? "lg:grid-cols-2" : "")}>
             {hiddenColumns.map((rows, c) => (
               <table key={c} className="w-full self-start">
                 <tbody>{rows.map((r, i) => line(r, `h-${c}-${i}`, true))}</tbody>
@@ -709,6 +709,7 @@ export function FlowMap({
   const [constraintIds, setConstraintIds] = useState<string[] | undefined>(initialConstraintId ? [initialConstraintId] : undefined);
   const [legendOpen, setLegendOpen] = useState(() => readLegend() && (legendOpenDefault ?? frame !== "panel"));
   const [labelPreferences, setLabelPreferences] = useState(readLabelPreferences);
+  const [keepFullLayout, setKeepFullLayout] = useState(false);
   const [keyOpen, setKeyOpen] = useState(false);
   const keyButton = useRef<HTMLButtonElement>(null);
   const referenceScope = activityReferenceScope(window.location.pathname);
@@ -796,11 +797,14 @@ export function FlowMap({
   const chosenActivities = useMemo(() => activitiesByCount(whole, chosenCount), [whole, chosenCount]);
   const scene = useMemo(() => (collapsing ? whole : abstractToActivities(whole, chosenActivities)), [whole, chosenActivities, collapsing]);
   const base = useMemo(() => (wholeBase && !collapsing ? abstractToActivities(wholeBase, chosenActivities) : wholeBase), [wholeBase, chosenActivities, collapsing]);
-  // Changing the exact activity count filters this one observed layout. Shared
-  // activities keep their positions; newly visible endpoints reveal only supplied edges.
-  const scenes = useMemo(() => wholeBase
+  // Lay out only displayed activities by default: rare hidden branches can otherwise
+  // reserve tens of thousands of pixels. Comparison always shares a union layout.
+  // The optional full-layout mode retains positions while revealing more activities.
+  const completeScenes = useMemo(() => wholeBase
     ? [abstractToActivities(wholeBase, whole.nodes.filter((n) => n.kind === "activity").map((n) => n.id)), whole]
     : [whole], [wholeBase, whole]);
+  const visibleScenes = useMemo(() => base ? [base, scene] : [scene], [base, scene]);
+  const scenes = keepFullLayout || collapsing ? completeScenes : visibleScenes;
   const layout = useStableLayout(scenes, layoutOptions);
   // The adjustment goes through the same state the slider writes, once, after the frame has been measured
   // and the first drawing is placed — a level changed under a layout in flight left the fit on the previous
@@ -1138,7 +1142,7 @@ export function FlowMap({
   const drawnIds = new Set<string>([...shown.nodes.map((n: { id: string }) => n.id), ...shown.edges.map((e: { id?: string }) => e.id ?? ""), ...((shown.groups ?? []) as { id: string }[]).map((g) => g.id)]);
   const librarySelection: Selection = { nodes: selection.nodes.filter((id) => drawnIds.has(id)), edges: selection.edges.filter((id) => drawnIds.has(id)), groups: selection.groups.filter((id) => drawnIds.has(id)) };
   const notDrawn = selected && !drawnIds.has(selected.id) ? selected.label : selectedEdge && !drawnIds.has(selectedEdge.id) ? `${labelOf(graph, selectedEdge.source)} → ${labelOf(graph, selectedEdge.target)}` : undefined;
-  const fitKey = `${collapsing ? "stages" : chosenCount}|${mode}|${isFull}|${layout.status}|${frameHeight}|${compare}|${labelPreferences.mode}|${drawnNodeKey}`;
+  const fitKey = `${collapsing ? "stages" : chosenCount}|${keepFullLayout}|${mode}|${isFull}|${layout.status}|${frameHeight}|${compare}|${labelPreferences.mode}|${drawnNodeKey}`;
 
   /**
    * The legend, wherever it is placed. Below 1200 px it costs the canvas a fifth of its width — and with it a
@@ -1468,7 +1472,7 @@ export function FlowMap({
           }}
           announce={announce}
         >
-          <FitToView container={container} fitKey={fitKey} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} readable={!workspaceFrame} manualViewport={manualViewport} />
+          <FitToView container={container} fitKey={fitKey} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} readable={!workspaceFrame || (fitZoom !== undefined && fitZoom < 0.35)} manualViewport={manualViewport} />
           {/* the names are drawn at a constant size on the screen, whatever the width of the process (R3-06) */}
           <ConstantLabels container={container} boxes={drawnBoxes} readable />
           <ZoomControls onViewportChange={() => { manualViewport.current = fitKey; }} disabled={layout.status !== "ready"} container={container} bounds={(drawnPositions as unknown as LaidOut | undefined)?.bounds} />
@@ -1533,6 +1537,7 @@ export function FlowMap({
             }}>{labelMode === "names" ? "Activity names" : "IDs + key"}</button>)}
           </span>
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={labelPreferences.showCounts !== false} onChange={(event) => setLabelPreferences((previous) => ({ ...previous, showCounts: event.target.checked }))} />Item counts</label>
+          <label className="flex items-center gap-1.5" title="Reserve space for hidden activities so positions stay fixed as the activity count changes."><input type="checkbox" checked={keepFullLayout} onChange={(event) => setKeepFullLayout(event.target.checked)} />Keep full-process positions</label>
           <Button ref={keyButton} variant="outline" size="sm" aria-expanded={keyOpen} onClick={() => setKeyOpen((open) => !open)}>Activity key</Button>
         </>}
         {!workspaceFrame && evidenceToggle}

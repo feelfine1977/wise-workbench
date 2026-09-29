@@ -15,14 +15,15 @@ const kindsFor = (noun: string) => [
 ] as const;
 const color = (kind: string) => kind === "unknown" ? "var(--color-text-muted)" : `var(--kind-${kind}-fg)`;
 
-export function PrioritySupport({ rows, total, scope, onSelect, activeKey, noun = "cases" }: {
-  rows: BacklogRow[]; total: number; scope: string; onSelect: (key: string) => void; activeKey?: string; noun?: string;
+export function PrioritySupport({ rows, total, scope, onSelect, activeKey, noun = "cases", compact = false }: {
+  rows: BacklogRow[]; total: number; scope: string; onSelect: (key: string) => void; activeKey?: string; noun?: string; compact?: boolean;
 }) {
   const id = useId();
   const kinds = kindsFor(noun);
   const valid = priorityRows(rows);
   const ranked = valid.slice(0, 6);
-  const x = scaleLinear().domain([0, Math.max(1, ...valid.map((r) => r.n_cases))]).nice().range([60, 690]);
+  const chartWidth = compact ? 360 : 730;
+  const x = scaleLinear().domain([0, Math.max(1, ...valid.map((r) => r.n_cases))]).nice().range([60, chartWidth - 30]);
   const y = scaleLinear().domain([0, Math.max(1, ...valid.map((r) => r.stable_PI))]).nice().range([246, 28]);
   const area = scaleLinear().domain([0, Math.max(1, ...valid.map((r) => r.stable_PI))]).range([0, 800]);
   return (
@@ -37,13 +38,13 @@ export function PrioritySupport({ rows, total, scope, onSelect, activeKey, noun 
       </ul>
       <p className="mt-1 text-xs text-text-muted">Kinds describe assessed patterns, not proven causes. Rank confidence is shown separately.</p>
       {!valid.length ? <p className="mt-3 text-sm text-text-muted">No measured priority and counts of {noun} are available.</p> : (
-        <div className="mt-3 grid items-center gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,1fr)]">
+        <div className={compact ? "mt-3" : "mt-3 grid items-center gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,1fr)]"}>
           <div className="min-w-0 overflow-x-auto">
-            <svg viewBox="0 0 730 300" className="w-full min-w-[350px]" role="group" aria-label={`Priority and support from ${noun}; select a group to open its reasons`}>
-              {y.ticks(4).map((tick) => <g key={tick}><line x1={60} x2={690} y1={y(tick)} y2={y(tick)} className="stroke-border" /><text x={50} y={y(tick) + 4} textAnchor="end" className="fill-text-muted text-[12px]">{fmtCompact(tick)}</text></g>)}
-              {x.ticks(4).map((tick) => <text key={tick} x={x(tick)} y={268} textAnchor="middle" className="fill-text-muted text-[12px]">{fmtCompact(tick)}</text>)}
+            <svg viewBox={`0 0 ${chartWidth} 300`} className="w-full min-w-[280px]" role="group" aria-label={`Priority and support from ${noun}; select a group to open its reasons`}>
+              {y.ticks(4).map((tick) => <g key={tick}><line x1={60} x2={chartWidth - 30} y1={y(tick)} y2={y(tick)} className="stroke-border" /><text x={50} y={y(tick) + 4} textAnchor="end" className="fill-text-muted text-[12px]">{fmtCompact(tick)}</text></g>)}
+              {x.ticks(compact ? 3 : 4).map((tick) => <text key={tick} x={x(tick)} y={268} textAnchor="middle" className="fill-text-muted text-[12px]">{fmtCompact(tick)}</text>)}
               <text x={60} y={15} className="fill-text-muted text-[12px]">Discounted priority (stable PI)</text>
-              <text x={375} y={291} textAnchor="middle" className="fill-text-muted text-[12px]">{noun} in group · linear scale</text>
+              <text x={chartWidth / 2 + 10} y={291} textAnchor="middle" className="fill-text-muted text-[12px]">{noun} in group · linear scale</text>
               {[...valid].reverse().map((r) => {
                 const kind = kindOf(r) ?? "unknown";
                 const shape = kinds.find((entry) => entry.kind === kind)!.shape;
@@ -57,7 +58,7 @@ export function PrioritySupport({ rows, total, scope, onSelect, activeKey, noun 
               })}
             </svg>
           </div>
-          <ol className="space-y-1" aria-label="Highest priorities among loaded groups">
+          {!compact && <ol className="space-y-1" aria-label="Highest priorities among loaded groups">
             {ranked.map((r, i) => <li key={r.key}>
               <button type="button" onClick={() => onSelect(r.key)} className="flex w-full items-start gap-3 rounded-lg p-2 text-left hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                 <span aria-hidden className="tnum text-text-subtle">{i + 1}</span>
@@ -65,7 +66,7 @@ export function PrioritySupport({ rows, total, scope, onSelect, activeKey, noun 
                 <span className="tnum text-sm font-semibold">{fmtNum(r.stable_PI, 1)}</span>
               </button>
             </li>)}
-          </ol>
+          </ol>}
         </div>
       )}
       <p className="mt-2 text-xs text-text-muted">Support is group size, not proof of a cause. Priorities are comparable within this view and selection. Zero priority is shown as a small outlined symbol.</p>

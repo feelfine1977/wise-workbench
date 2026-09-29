@@ -195,10 +195,10 @@ jobs:
           git diff --exit-code -- ../../packages/api-schema/generated
       - name: Build the live application
         run: npm run build:live
-      - name: Map, model, attribution and linked-board browser checks
+      - name: Redesigned journeys, map, model, attribution and linked-board browser checks
         run: |
           npx playwright install --with-deps chromium
-          npm run e2e -- e2e/flow-board.spec.ts --workers=1
+          npm run e2e -- e2e/flow-board.spec.ts e2e/flow-frame.spec.ts e2e/flow-hover.spec.ts e2e/smoke.spec.ts e2e/redesign-journeys.spec.ts --workers=1
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"

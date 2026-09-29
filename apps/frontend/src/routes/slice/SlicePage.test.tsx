@@ -83,7 +83,7 @@ describe("Why? — the essential reason chain on Packaging (RG-3)", () => {
       }] })));
     }
     const user = userEvent.setup();
-    const start = entry === "backlog stepper" ? `/p/p2p2018/runs/run_41/backlog?slicing=${encodeURIComponent("case Vendor")}&view=Automation` : PACKAGING;
+    const start = entry === "backlog stepper" ? `/p/p2p2018/runs/run_41/backlog?tab=signals&slicing=${encodeURIComponent("case Vendor")}&view=Automation` : PACKAGING;
     renderApp(`${start}&filter=${encodeURIComponent(filter)}&within=${encodeURIComponent(parent)}`);
     if (entry === "backlog stepper") {
       const signals = await screen.findByRole("list", { name: "Signals" }, T);

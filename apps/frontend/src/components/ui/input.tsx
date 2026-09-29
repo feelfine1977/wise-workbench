@@ -6,7 +6,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     ref={ref}
     type={type}
     className={cn(
-      "flex h-control w-full rounded border border-border bg-surface px-3 text-sm text-text placeholder:text-text-subtle hover:border-border-strong disabled:opacity-50",
+      "flex h-control w-full rounded border border-border-strong bg-surface px-3 text-sm text-text placeholder:text-text-subtle hover:border-border-strong disabled:opacity-50",
       type === "number" && "tnum",
       className,
     )}
@@ -18,7 +18,7 @@ Input.displayName = "Input";
 export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(({ className, ...props }, ref) => (
   <textarea
     ref={ref}
-    className={cn("flex min-h-[72px] w-full rounded border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-subtle hover:border-border-strong disabled:opacity-50", className)}
+    className={cn("flex min-h-[72px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-sm text-text placeholder:text-text-subtle hover:border-border-strong disabled:opacity-50", className)}
     {...props}
   />
 ));
